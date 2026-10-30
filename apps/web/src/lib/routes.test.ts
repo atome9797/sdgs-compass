@@ -149,6 +149,7 @@ describe("areaOf / guardRedirect", () => {
     expect(areaOf("/admin/")).toBe("admin");
     expect(areaOf("/admin")).toBe("admin");
     expect(areaOf("/admin/sns/")).toBe("admin");
+    expect(areaOf("/admin/finance/")).toBe("admin");
     // 없는 주소는 운영자 화면이 아니에요 (404 가 게이트를 비껴가면 안 돼요)
     expect(areaOf("/admin/nope/")).toBe("neutral");
     expect(areaOf("/adminx/")).toBe("neutral");
@@ -156,14 +157,16 @@ describe("areaOf / guardRedirect", () => {
   });
 
   it("isAdminPath: 정확히 운영자 화면일 때만 (쿼리·끝 슬래시·basePath 는 무시)", () => {
-    expect(ADMIN_PATHS).toEqual(["/admin", "/admin/sns"]);
+    expect(ADMIN_PATHS).toEqual(["/admin", "/admin/sns", "/admin/finance"]);
     expect(isAdminPath("/admin/")).toBe(true);
     expect(isAdminPath("/admin/sns/")).toBe(true);
+    expect(isAdminPath("/admin/finance/")).toBe(true);
     expect(isAdminPath("/admin/sns/?x=1#y")).toBe(true);
     expect(isAdminPath("/sdgs-compass/admin/", "/sdgs-compass")).toBe(true);
     expect(isAdminPath("/sdgs-compass/admin/sns/", "/sdgs-compass")).toBe(true);
     expect(isAdminPath("/admin/nope/")).toBe(false);
     expect(isAdminPath("/admin/sns/extra/")).toBe(false);
+    expect(isAdminPath("/admin/finance/extra/")).toBe(false);
     expect(isAdminPath("/administrator/")).toBe(false);
     expect(isAdminPath("/")).toBe(false);
     expect(isAdminPath("/home/")).toBe(false);
@@ -173,7 +176,7 @@ describe("areaOf / guardRedirect", () => {
   });
 
   it("운영자 화면은 어느 역할이든 옮기지 않아요 (역할을 아직 안 골랐을 때도)", () => {
-    for (const path of ["/admin/", "/admin/sns/"]) {
+    for (const path of ["/admin/", "/admin/sns/", "/admin/finance/"]) {
       expect(guardRedirect(path, "b2c"), `b2c ${path}`).toBeNull();
       expect(guardRedirect(path, "b2b"), `b2b ${path}`).toBeNull();
       expect(guardRedirect(path, null), `null ${path}`).toBeNull();
@@ -207,7 +210,7 @@ describe("탭 정의", () => {
 
   it("운영자 탭도 실제 경로와 사전에 있는 문구를 가리켜요", () => {
     const routes: readonly string[] = Object.values(ROUTES);
-    expect(ADMIN_TABS.map((t) => t.id)).toEqual(["usage", "sns"]);
+    expect(ADMIN_TABS.map((t) => t.id)).toEqual(["usage", "sns", "finance"]);
     for (const tab of ADMIN_TABS) {
       expect(routes).toContain(tab.path);
       expect(MESSAGES[tab.labelKey]).toBeDefined();
@@ -220,6 +223,7 @@ describe("탭 정의", () => {
   it("지금 주소에 맞는 탭을 켜요", () => {
     expect(activeTabId(ADMIN_TABS, "/admin/")).toBe("usage");
     expect(activeTabId(ADMIN_TABS, "/admin/sns/")).toBe("sns");
+    expect(activeTabId(ADMIN_TABS, "/admin/finance/")).toBe("finance");
     expect(activeTabId(ADMIN_TABS, "/sdgs-compass/admin/sns/", "/sdgs-compass")).toBe("sns");
     expect(activeTabId(ADMIN_TABS, "/home/")).toBeNull();
     expect(activeTabId(B2C_TABS, "/home/")).toBe("home");

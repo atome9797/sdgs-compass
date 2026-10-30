@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { blankScenario, sampleScenario } from "@sdgs-compass/core/adminFinance";
 import type { SnsRow } from "@sdgs-compass/core/adminSns";
 import {
   ADMIN_STORAGE_KEY,
@@ -6,12 +7,14 @@ import {
   clearAdminStore,
   emptyAdminStore,
   isEmptyAdminStore,
+  MAX_SCENARIOS,
   memoryStorage,
   parseAdminStore,
   readAdminStore,
   serializeAdminStore,
   updateAdminStore,
   writeAdminStore,
+  type StoredScenario,
   type SyncStorage,
 } from "./adminStore";
 
@@ -175,5 +178,102 @@ describe("운영자 저장소: 읽기 · 쓰기", () => {
   it("memoryStorage 는 kind 로 구분돼요", () => {
     expect(memoryStorage().kind).toBe("memory");
     expect(memoryStorage({ a: "1" }).getItem("a")).toBe("1");
+  });
+});
+
+const stored = (id: string, name: string, sample = false): StoredScenario => ({ id, sample, scenario: { ...sampleScenario("ja"), name } });
+
+describe("운영자 저장소: 수지·자금 시나리오", () => {
+  it("시나리오와 선택·비교 번호를 그대로 읽어요", () => {
+    const data = { ...emptyAdminStore(), scenarios: [stored("a", "提出版", true), stored("b", "修正試算"), { id: "c", sample: false, scenario: blankScenario("空", "ko") }], selectedScenarioId: "b", compareScenarioId: "a" };
+    expect(parseAdminStore(serializeAdminStore(data))).toEqual(data);
+  });
+
+  it("시나리오가 없던 옛 저장값(같은 version 1)도 읽혀요", () => {
+    const old = parseAdminStore(JSON.stringify({ version: 1, snsRows: [row("2026-10-26", "x", 820)], snsSample: true }));
+    expect(old.snsRows).toHaveLength(1);
+    expect(old.scenarios).toEqual([]);
+    expect(old.selectedScenarioId).toBeNull();
+    expect(old.compareScenarioId).toBeNull();
+  });
+
+  it("틀린 시나리오·번호가 겹치는 시나리오는 버리고 올바른 것만 남겨요", () => {
+    const good = stored("a", "提出版");
+    const raw = JSON.stringify({
+      version: 1,
+      scenarios: [
+        good,
+        { ...good, id: "dup" },
+        { ...good, id: "dup", scenario: { ...good.scenario, name: "同じ番号" } }, // 번호가 겹침
+        { id: "b", sample: false, scenario: { ...good.scenario, schemaVersion: 2 } },
+        { id: "c", sample: false, scenario: { ...good.scenario, periods: [{ ...good.scenario.periods[0], matchRate: 5 }] } },
+        { id: "", sample: false, scenario: good.scenario },
+        { id: 7, sample: false, scenario: good.scenario },
+        { id: "e", sample: false },
+        { id: "f", sample: false, scenario: "x" },
+        "문자열",
+        null,
+      ],
+    });
+    expect(parseAdminStore(raw).scenarios.map((item) => item.id)).toEqual(["a", "dup"]);
+  });
+
+  it("샘플 표시는 true 만 받아요", () => {
+    const base = stored("a", "提出版");
+    for (const flag of [false, "true", 1, null, undefined]) {
+      expect(parseAdminStore(JSON.stringify({ version: 1, scenarios: [{ ...base, sample: flag }] })).scenarios[0]?.sample, String(flag)).toBe(false);
+    }
+    expect(parseAdminStore(JSON.stringify({ version: 1, scenarios: [{ ...base, sample: true }] })).scenarios[0]?.sample).toBe(true);
+  });
+
+  it("scenarios 가 배열이 아니면 빈 목록, 상한(MAX_SCENARIOS)을 넘는 것은 버려요", () => {
+    expect(parseAdminStore(JSON.stringify({ version: 1, scenarios: "x" })).scenarios).toEqual([]);
+    const many = Array.from({ length: MAX_SCENARIOS + 5 }, (_, i) => stored(`s${i}`, `案${i}`));
+    expect(parseAdminStore(JSON.stringify({ version: 1, scenarios: many })).scenarios).toHaveLength(MAX_SCENARIOS);
+  });
+
+  it("선택 번호: 없는 번호·비어 있음은 첫 시나리오로, 비교 번호는 목록에 있고 선택과 다를 때만", () => {
+    const scenarios = [stored("a", "A"), stored("b", "B"), stored("c", "C")];
+    const parse = (selected: unknown, compare: unknown) => {
+      const data = parseAdminStore(JSON.stringify({ version: 1, scenarios, selectedScenarioId: selected, compareScenarioId: compare }));
+      return [data.selectedScenarioId, data.compareScenarioId];
+    };
+    expect(parse("b", "c")).toEqual(["b", "c"]);
+    expect(parse("zzz", "c")).toEqual(["a", "c"]);
+    expect(parse(null, undefined)).toEqual(["a", null]);
+    expect(parse(5, 6)).toEqual(["a", null]);
+    expect(parse("b", "b")).toEqual(["b", null]); // 자기 자신과는 비교하지 않아요
+    expect(parse("a", "zzz")).toEqual(["a", null]);
+    // 선택이 첫 시나리오로 바뀌어서 비교 번호와 같아지면 비교를 풀어요
+    expect(parse("zzz", "a")).toEqual(["a", null]);
+  });
+
+  it("updateAdminStore: 시나리오를 저장하고, 선택한 것을 지우면 선택이 첫 시나리오로 옮겨 가요", () => {
+    const storage = memoryStorage();
+    updateAdminStore({ scenarios: [stored("a", "A"), stored("b", "B")], selectedScenarioId: "b", compareScenarioId: "a" }, storage);
+    expect(readAdminStore(storage).selectedScenarioId).toBe("b");
+    expect(readAdminStore(storage).compareScenarioId).toBe("a");
+    const removed = updateAdminStore((fresh) => ({ scenarios: fresh.scenarios.filter((item) => item.id !== "b") }), storage);
+    expect(removed.data.scenarios.map((item) => item.id)).toEqual(["a"]);
+    expect(removed.data.selectedScenarioId).toBe("a");
+    // 남은 하나가 선택이 되었으니 비교(같은 번호)는 풀려요
+    expect(removed.data.compareScenarioId).toBeNull();
+  });
+
+  it("updateAdminStore: SNS 행을 바꿔도 시나리오는 그대로, 반대도 마찬가지", () => {
+    const storage = memoryStorage();
+    updateAdminStore({ scenarios: [stored("a", "A")] }, storage);
+    updateAdminStore({ snsRows: [row("2026-10-26", "x", 820)] }, storage);
+    expect(readAdminStore(storage).scenarios).toHaveLength(1);
+    updateAdminStore({ snsRows: [], snsSample: false }, storage);
+    // 시나리오가 남아 있으니 키는 지워지지 않아요
+    expect(storage.getItem(ADMIN_STORAGE_KEY)).not.toBeNull();
+    expect(readAdminStore(storage).scenarios).toHaveLength(1);
+    updateAdminStore({ scenarios: [] }, storage);
+    expect(storage.getItem(ADMIN_STORAGE_KEY)).toBeNull();
+  });
+
+  it("isEmptyAdminStore: 시나리오만 있어도 비어 있지 않아요", () => {
+    expect(isEmptyAdminStore({ ...emptyAdminStore(), scenarios: [stored("a", "A")], selectedScenarioId: "a" })).toBe(false);
   });
 });

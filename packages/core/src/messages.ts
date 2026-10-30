@@ -2,6 +2,7 @@
 // 새 문구는 영역별 파일(messages/*.ts)에 더하세요. 웹·모바일 전용 문구는 extraWeb.ts / extraMobile.ts 에.
 import { interpolate, type Locale, type LocalizedText, type MessageParams } from "./i18n";
 import { admin } from "./messages/admin";
+import { adminFinance } from "./messages/adminFinance";
 import { b2b } from "./messages/b2b";
 import { b2c } from "./messages/b2c";
 import { common } from "./messages/common";
@@ -10,7 +11,7 @@ import { extraWeb } from "./messages/extraWeb";
 import { feed } from "./messages/feed";
 import { settings } from "./messages/settings";
 
-export const MESSAGES = { ...common, ...b2c, ...b2b, ...feed, ...settings, ...admin, ...extraWeb, ...extraMobile } as const;
+export const MESSAGES = { ...common, ...b2c, ...b2b, ...feed, ...settings, ...admin, ...adminFinance, ...extraWeb, ...extraMobile } as const;
 export type MessageKey = keyof typeof MESSAGES;
 
 /** 사전에서 문구를 꺼내 {자리표시자}를 채워요 */

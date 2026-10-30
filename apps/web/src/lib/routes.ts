@@ -26,9 +26,10 @@ export const ROUTES = {
   b2bFeed: "/b2b/feed",
   b2bFeedNew: "/b2b/feed/new",
   b2bSettings: "/b2b/settings",
-  /** 운영자 화면(웹 전용 데모, 설계는 docs/admin.md): 이용 현황 · SNS 지표 */
+  /** 운영자 화면(웹 전용 데모, 설계는 docs/admin.md): 이용 현황 · SNS 지표 · 수지·자금 */
   admin: "/admin",
   adminSns: "/admin/sns",
+  adminFinance: "/admin/finance",
 } as const;
 export type RoutePath = (typeof ROUTES)[keyof typeof ROUTES];
 
@@ -117,7 +118,7 @@ export type Area = "b2c" | "b2b" | "admin" | "neutral";
 const B2C_PATHS: readonly string[] = [ROUTES.home, ROUTES.search, ROUTES.challenge, ROUTES.submit, ROUTES.impact, ROUTES.certificate, ROUTES.share, ROUTES.messages, ROUTES.feed, ROUTES.feedNew, ROUTES.settings];
 
 /** 운영자 화면의 주소들. /admin/* 전체가 아니라 실제로 있는 화면만 — 없는 주소(/admin/nope/)가 게이트를 비껴가지 않게 정확히 같을 때만 운영자 화면이에요 */
-export const ADMIN_PATHS: readonly string[] = [ROUTES.admin, ROUTES.adminSns];
+export const ADMIN_PATHS: readonly string[] = [ROUTES.admin, ROUTES.adminSns, ROUTES.adminFinance];
 
 /** 운영자 화면인가요? (쿼리·끝 슬래시는 무시, basePath 가 붙어 있어도 돼요) */
 export function isAdminPath(pathname: string, basePath = ""): boolean {

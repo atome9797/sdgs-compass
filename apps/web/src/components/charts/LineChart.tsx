@@ -4,7 +4,7 @@
 // 값은 마우스·손가락으로 가리키거나 키보드 좌우 화살표로 확인할 수 있고, 같은 값이 표(표로 보기)에도 있어요.
 // 규칙(dataviz): 선 2px · 끝 점 r=4 + 표면색 2px 고리 · 격자는 가는 실선 · 계열이 2개 이상이면 범례 · 끝 값만 골라서 직접 표시(겹치면 생략).
 import { useState, type KeyboardEvent, type PointerEvent, type ReactNode } from "react";
-import { isolatedIndices, labelsFit, lastIndex, linePath, nearestIndex, niceScale, pickTickIndices, placeMarkerLabels, scaleLinear, seriesExtent, textWidth, tooltipLeft, type Point } from "@/lib/adminChart";
+import { isolatedIndices, labelsFit, lastIndex, linePath, nearestIndex, niceScale, pickAnchoredTickIndices, pickTickIndices, placeMarkerLabels, scaleLinear, seriesExtent, textWidth, tooltipLeft, type Point } from "@/lib/adminChart";
 import { useAdmin } from "@/lib/adminSession";
 import { ChartFrame, ChartTooltip, type LegendItem, type TipRow } from "./ChartFrame";
 import { useChartWidth } from "./useChartWidth";
@@ -45,6 +45,8 @@ interface LineChartProps {
   /** 눈금을 정수로만 (건수 축) */
   integerTicks?: boolean;
   markers?: readonly LineMarker[];
+  /** 가로축 이름표를 "처음(0번)부터 같은 간격"으로 붙일지 (월 축처럼 시작이 의미 있을 때). 기본은 가장 최근(마지막)을 기준으로 끝에서부터 */
+  anchorTicks?: boolean;
   actions?: ReactNode;
 }
 
@@ -69,6 +71,7 @@ export function LineChart({
   includeZero = false,
   integerTicks = false,
   markers: markersProp = [],
+  anchorTicks = false,
   actions,
 }: LineChartProps) {
   const { t } = useAdmin();
@@ -114,7 +117,7 @@ export function LineChart({
   const plotRight = Math.max(left + 10, width - right);
   const xs = xLabels.map((_, index) => (count === 1 ? (left + plotRight) / 2 : left + (index * (plotRight - left)) / (count - 1)));
   const xTickWidth = Math.max(...xLabels.map((label) => textWidth(label, FONT))) + 14;
-  const xTickIndices = pickTickIndices(count, Math.floor((plotRight - left) / xTickWidth));
+  const xTickIndices = (anchorTicks ? pickAnchoredTickIndices : pickTickIndices)(count, Math.floor((plotRight - left) / xTickWidth));
 
   const pointsOf = (s: LineSeries): (Point | null)[] => s.values.map((value, index) => (value === null || value === undefined ? null : { x: xs[index], y: y(value) }));
   const markerPlaces = placeMarkerLabels(

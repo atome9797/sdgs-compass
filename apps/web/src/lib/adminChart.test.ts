@@ -8,6 +8,7 @@ import {
   linePath,
   nearestIndex,
   niceScale,
+  pickAnchoredTickIndices,
   pickTickIndices,
   placeMarkerLabels,
   roundedBarPath,
@@ -99,6 +100,32 @@ describe("값 → 좌표", () => {
 });
 
 describe("x 축 이름표", () => {
+  it("pickAnchoredTickIndices: 0 에서 시작해 마지막 번호의 약수 간격으로 (36개월 → 0·6·12 …)", () => {
+    expect(pickAnchoredTickIndices(37, 7)).toEqual([0, 6, 12, 18, 24, 30, 36]);
+    expect(pickAnchoredTickIndices(37, 8)).toEqual([0, 6, 12, 18, 24, 30, 36]);
+    expect(pickAnchoredTickIndices(37, 13)).toEqual([0, 3, 6, 9, 12, 15, 18, 21, 24, 27, 30, 33, 36]);
+    expect(pickAnchoredTickIndices(25, 7)).toEqual([0, 4, 8, 12, 16, 20, 24]);
+    expect(pickAnchoredTickIndices(13, 7)).toEqual([0, 2, 4, 6, 8, 10, 12]);
+    expect(pickAnchoredTickIndices(61, 7)).toEqual([0, 10, 20, 30, 40, 50, 60]);
+    // 자리가 모자라면 처음과 끝만, 점이 적으면 모두
+    expect(pickAnchoredTickIndices(37, 2)).toEqual([0, 36]);
+    expect(pickAnchoredTickIndices(37, 1)).toEqual([0, 36]);
+    expect(pickAnchoredTickIndices(3, 10)).toEqual([0, 1, 2]);
+    expect(pickAnchoredTickIndices(2, 5)).toEqual([0, 1]);
+    expect(pickAnchoredTickIndices(1, 4)).toEqual([0]);
+    expect(pickAnchoredTickIndices(0, 4)).toEqual([]);
+    // 약수가 없는 개수(마지막 번호가 소수)여도 처음과 끝은 빠지지 않아요
+    expect(pickAnchoredTickIndices(8, 3)).toEqual([0, 7]);
+    for (const [count, max] of [[37, 5], [37, 9], [25, 3], [13, 4], [100, 6]] as const) {
+      const picked = pickAnchoredTickIndices(count, max);
+      expect(picked[0]).toBe(0);
+      expect(picked[picked.length - 1]).toBe(count - 1);
+      expect(picked.length).toBeLessThanOrEqual(Math.max(2, max));
+      const step = picked[1] - picked[0];
+      expect(picked.every((value, i) => value === i * step)).toBe(true);
+    }
+  });
+
   it("pickTickIndices: 마지막 점을 꼭 포함하고, 같은 간격으로 골라요", () => {
     expect(pickTickIndices(8, 4)).toEqual([1, 3, 5, 7]);
     expect(pickTickIndices(7, 4)).toEqual([0, 2, 4, 6]);

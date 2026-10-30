@@ -81,7 +81,7 @@
 .adm-axis { stroke: var(--adm-axis); stroke-width: 1; }
 .adm-zero { stroke: var(--adm-zero); stroke-width: 1; }
 .adm-tick { fill: var(--text-muted); font-size: 11px; font-variant-numeric: tabular-nums; }
-.adm-end, .adm-value { fill: var(--text); font-size: 11px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.adm-end, .adm-value { fill: var(--text); font-size: 11px; font-weight: 700; font-variant-numeric: tabular-nums; paint-order: stroke; stroke: var(--card); stroke-width: 3px; stroke-linejoin: round; }
 .adm-marker { stroke: var(--text-muted); stroke-width: 1; }
 .adm-marker-label { fill: var(--text); font-size: 11px; font-weight: 700; paint-order: stroke; stroke: var(--card); stroke-width: 3px; stroke-linejoin: round; }
 .adm-cross { stroke: var(--text-muted); stroke-width: 1; }
@@ -145,5 +145,47 @@
 .adm-file input[type="file"] { min-height: var(--tap); font: inherit; color: var(--text); }
 .adm-file input[type="file"]::file-selector-button { min-height: 40px; margin-right: 12px; padding: 0 16px; border: 1px solid var(--primary); border-radius: var(--radius-md); background: var(--card); color: var(--primary); font: inherit; font-weight: 700; cursor: pointer; }
 .adm-file input[type="file"]::file-selector-button:hover { background: var(--primary-soft); }
+
+/* ───────── 수지·자금 화면 ───────── */
+/* 타일이 6개라 3열로 (4열이면 4 + 2 로 갈라져요) */
+@media (min-width: 1024px) { .adm-kpis--3 { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+/* 입력 칸 격자: 이름표가 두 줄로 접혀도 같은 줄의 입력 칸이 나란히 서도록, 넓은 화면에서는 이름표 자리를 두 줄로 잡아요 */
+.adm-form--fields { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+@media (min-width: 720px) { .adm-form--fields .field__label { display: flex; align-items: flex-end; min-height: 3em; } }
+.adm-cost-row__action { align-self: start; }
+.adm-cost-row__action .field__label { display: none; }
+@media (min-width: 720px) { .adm-cost-row__action .field__label { display: block; min-height: 0; } }
+/* 위쪽 고정 줄(.adm-head) 아래로 가려지지 않게, "입력 칸으로" 링크가 가리키는 자리에 여유를 둬요 */
+.adm-anchor { scroll-margin-top: 132px; }
+.adm-toolbar { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px 16px; }
+.adm-toolbar .field { flex: 1 1 260px; min-width: 0; }
+.adm-jump { min-height: var(--tap); display: inline-flex; align-items: center; font-weight: 700; font-size: var(--fs-sm); }
+.adm-rename { display: flex; flex-direction: column; gap: 10px; max-width: 480px; }
+/* 숫자가 아니라 글(예: "第2期の3か月目")이 들어가는 타일은 글자를 조금 줄여서 두 줄까지만 쓰게 해요 */
+.adm-kpi__value--text { font-size: var(--fs-xl); line-height: 1.3; }
+
+.adm-period { gap: 14px; min-width: 0; }
+.adm-period__head { display: flex; align-items: center; justify-content: space-between; gap: 8px 12px; flex-wrap: wrap; }
+.adm-period__title { font-size: var(--fs-md); font-weight: 800; line-height: 1.4; }
+.adm-subtitle { font-size: var(--fs-sm); font-weight: 800; }
+.adm-costs { display: flex; flex-direction: column; gap: 10px; padding-top: 12px; border-top: 1px solid var(--border); }
+.adm-cost-row { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; padding: 10px; background: var(--adm-wash); border-radius: var(--radius-sm); }
+@media (min-width: 720px) { .adm-cost-row { grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) auto; align-items: start; gap: 12px; } }
+
+/* 접었다 펴는 상자(인건비 계산기 · 월별 표): 누르는 줄이 손가락으로 누르기 충분히 높게 */
+.adm-details > summary { min-height: var(--tap); display: flex; align-items: center; gap: 6px; cursor: pointer; font-weight: 700; font-size: var(--fs-sm); color: var(--primary); }
+.adm-details[open] > summary { margin-bottom: 8px; }
+.adm-details > summary:focus-visible { outline: 3px solid var(--primary); outline-offset: 2px; border-radius: var(--radius-sm); }
+
+/* 행이 항목, 열이 기(期)인 표: 좁은 화면에서는 표 안에서 가로로 밀어 보고, 첫 열(항목 이름)은 왼쪽에 붙여 둬요 */
+.adm-sheet-wrap { overflow: auto; border: 1px solid var(--border); border-radius: var(--radius-sm); }
+.adm-sheet-wrap--tall { max-height: 420px; }
+.adm-sheet { min-width: 520px; border-collapse: separate; border-spacing: 0; }
+.adm-sheet thead th { position: sticky; top: 0; z-index: 2; background: var(--card); }
+.adm-sheet thead th:first-child, .adm-sheet tbody th[scope="row"] { position: sticky; left: 0; background: var(--card); text-align: left; white-space: nowrap; }
+.adm-sheet thead th:first-child { z-index: 3; }
+.adm-sheet tbody th[scope="row"] { z-index: 1; font-size: var(--fs-sm); font-weight: 700; color: var(--text); border-bottom: 1px solid var(--border); padding: 10px 12px; }
+.adm-sheet tbody tr.adm-sheet__strong > * { font-weight: 800; background: var(--adm-wash); }
+.adm-assume { margin: 0; padding-left: 22px; display: flex; flex-direction: column; gap: 8px; line-height: 1.7; font-size: var(--fs-sm); }
 
 @media print { .adm-head, .adm-actions, .adm-filter { display: none !important; } }

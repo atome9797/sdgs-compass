@@ -39,6 +39,7 @@ export const tabsFor = (role: Role): readonly NavItem[] => (role === "b2b" ? B2B
 export const ADMIN_TABS: readonly NavItem[] = [
   { id: "usage", path: ROUTES.admin, icon: "📈", labelKey: "admin.tab.usage", match: [ROUTES.admin] },
   { id: "sns", path: ROUTES.adminSns, icon: "📲", labelKey: "admin.tab.sns", match: [ROUTES.adminSns] },
+  { id: "finance", path: ROUTES.adminFinance, icon: "💴", labelKey: "admin.tab.finance", match: [ROUTES.adminFinance] },
 ];
 
 /** 지금 주소에서 켜져 있어야 하는 탭의 id (없으면 null) */

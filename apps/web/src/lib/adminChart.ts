@@ -87,6 +87,29 @@ export function pickTickIndices(count: number, maxLabels: number): number[] {
   return indices.reverse();
 }
 
+/**
+ * 월 축처럼 "0 에서 시작해 일정한 간격"이 자연스러운 가로축의 눈금 위치: 첫 점(0)부터 같은 간격으로 고르고,
+ * 간격은 마지막 번호의 약수 중에서 골라요 — 36개월이면 0·6·12·18·24·30·36 처럼 기(12개월)·반기 단위에 맞게 떨어지고 마지막 점도 빠지지 않아요.
+ * (pickTickIndices 는 "가장 최근"을 기준으로 끝에서부터 골라서, 시작이 따로 의미 있는 축에는 어울리지 않아요)
+ */
+export function pickAnchoredTickIndices(count: number, maxLabels: number): number[] {
+  if (count <= 0) return [];
+  const last = count - 1;
+  if (last === 0) return [0];
+  const limit = Math.max(2, Math.floor(maxLabels));
+  const minStep = Math.ceil(last / (limit - 1));
+  let step = last;
+  for (let candidate = minStep; candidate < last; candidate += 1) {
+    if (last % candidate === 0) {
+      step = candidate;
+      break;
+    }
+  }
+  const indices: number[] = [];
+  for (let i = 0; i <= last; i += step) indices.push(i);
+  return indices;
+}
+
 /** positions(오름차순) 가운데 x 에 가장 가까운 위치의 번호 (비어 있으면 -1) */
 export function nearestIndex(positions: readonly number[], x: number): number {
   let best = -1;

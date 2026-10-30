@@ -1,4 +1,5 @@
 // 화면 묶음(언어 선택 → 유형 선택 → 학생/기업)과 경로 가드 규칙.
+import { composeHref, feedRoute, postedHref, ROUTES, shareHref } from "../nav";
 import { areaOfPath, GATE_HREF, gateFor, isB2bPath, otherRole, redirectFor, redirectForPath } from "../routes";
 
 test("저장된 언어·유형으로 보여 줄 화면 묶음을 정해요", () => {
@@ -57,4 +58,22 @@ test("경로로 판단하는 같은 규칙", () => {
   expect(redirectForPath("b2b", "/impact")).toBe("/b2b");
   expect(redirectForPath("b2b", "/b2b/talent")).toBeNull();
   expect(redirectForPath("b2c", "/certificate/SC-C-0001")).toBeNull();
+});
+
+test("SNS 피드 경로는 글을 쓰는 계정의 화면 묶음에 속해요 (올린 뒤 돌아오는 곳이 가드에 막히지 않아요)", () => {
+  // 학생: /feed · /feed/new, 기업: /b2b/feed · /b2b/feed/new
+  expect([ROUTES.feed, ROUTES.feedNew].map(areaOfPath)).toEqual(["b2c", "b2c"]);
+  expect([ROUTES.b2bFeed, ROUTES.b2bFeedNew].map(areaOfPath)).toEqual(["b2b", "b2b"]);
+  expect(composeHref("brag", "h-5b")).toMatch(/^\/feed\/new/);
+  expect(redirectForPath("b2c", composeHref("brag", "h-5b"))).toBeNull();
+  expect(redirectForPath("b2b", composeHref("pr", "ch-bottle"))).toBeNull();
+  expect(redirectForPath("b2c", postedHref("b2c", null))).toBeNull();
+  expect(redirectForPath("b2b", postedHref("b2b", "2026-11-02"))).toBeNull();
+  expect(redirectForPath("b2c", feedRoute("b2c"))).toBeNull();
+  expect(redirectForPath("b2b", feedRoute("b2b"))).toBeNull();
+  // 카드뉴스(/share)는 학생 화면이에요 (그래서 피드는 기업 계정의 글에 카드뉴스 바로가기를 붙이지 않아요 — feed.test.ts)
+  expect(areaOfPath(shareHref("h-5b"))).toBe("b2c");
+  // 계정이 맞지 않으면 그 계정의 첫 화면으로 보내요
+  expect(redirectForPath("b2b", ROUTES.feedNew)).toBe("/b2b");
+  expect(redirectForPath("b2c", ROUTES.b2bFeedNew)).toBe("/");
 });

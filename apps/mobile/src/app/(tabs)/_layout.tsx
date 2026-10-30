@@ -1,4 +1,4 @@
-// 학생·개인(B2C)의 아래 탭: 홈 · 검색 · 마이 임팩트 · 메시지(읽지 않은 수 배지) · 설정 (순서·이름은 src/lib/tabs.ts).
+// 학생·개인(B2C)의 아래 탭: 홈 · 피드 · 검색 · 마이 임팩트 · 메시지(읽지 않은 수 배지) · 설정 (순서·이름은 src/lib/tabs.ts).
 import { useMemo } from "react";
 import { selectInbox } from "@sdgs-compass/core/selectors";
 import { AppTabs } from "@/components/AppTabs";

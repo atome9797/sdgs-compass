@@ -1,5 +1,7 @@
 // SCR-05 SNS 카드뉴스: 템플릿(Instagram 1:1 · LinkedIn 1.91:1)과 성과를 고르면 카드가 만들어져요 → 운영체제 공유 메뉴로 보내거나, 앱 안에 저장(발신 실적).
+// "피드에도 올리기"는 고른 성과를 붙인 자랑 글 쓰기(F-503)를 열어요. SNS 피드의 "카드뉴스로 만들기"는 ?activity=성과 를 붙여서 이 화면을 열고, 그 성과를 미리 골라요.
 // 카드와 글에는 닉네임과 성과만 들어가요(share.privacy). 공유 메뉴는 React Native 의 Share 를 써서 새 네이티브 모듈이 필요 없어요.
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { useMemo, useState } from "react";
 import { Share, StyleSheet, View, useWindowDimensions } from "react-native";
 import { selectShare } from "@sdgs-compass/core/selectors";
@@ -10,6 +12,7 @@ import { ShareCardPreview } from "@/components/ShareCardPreview";
 import { Badge, Button, Empty, Notice, Section, Segmented, Txt, type NoticeTone } from "@/components/ui";
 import { useApp } from "@/lib/AppProvider";
 import { contentWidthFor } from "@/lib/geometry";
+import { composeHref, paramText } from "@/lib/nav";
 import { hashtagList, savePoints, sharePayload, TEMPLATE_LABEL_KEY } from "@/lib/shareText";
 import { SPACE } from "@/theme";
 
@@ -21,8 +24,10 @@ interface ShareNotice {
 export function ShareScreen() {
   const { demo, locale, t, dispatch } = useApp();
   const { width } = useWindowDimensions();
+  const router = useRouter();
+  const requestedActivity = paramText(useLocalSearchParams().activity);
   const [template, setTemplate] = useState<CardTemplate>("instagram");
-  const [activityId, setActivityId] = useState<string | null>(null);
+  const [activityId, setActivityId] = useState<string | null>(requestedActivity === "" ? null : requestedActivity);
   const [notice, setNotice] = useState<ShareNotice | null>(null);
   const vm = useMemo(() => selectShare(demo, locale, template, activityId), [demo, locale, template, activityId]);
   const card = vm.card;
@@ -90,6 +95,7 @@ export function ShareScreen() {
           <View style={styles.stack}>
             <Button testID="share-send" icon="📤" label={t("share.send")} onPress={share} />
             <Button testID="share-save" variant="secondary" icon="💾" label={t("share.saveInApp")} onPress={save} />
+            <Button testID="share-to-feed" variant="secondary" icon="📰" label={t("share.postToFeed")} onPress={() => router.push(composeHref("brag", vm.selectedId))} />
           </View>
           <Txt variant="small" tone="muted">
             🔒 {t("share.privacy")}

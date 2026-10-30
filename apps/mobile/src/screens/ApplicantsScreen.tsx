@@ -1,6 +1,7 @@
 // 응모자·심사(F-303): 챌린지 선택 → 점수순 응모자 → 심사(3항목 1~5점 + 코멘트) → 시상 → 채택(매칭 성립: 수수료 ¥30,000 중 50% 기부).
 // 대시보드의 "응모자 보기"는 ?id=챌린지 를 붙여 이 탭을 열고, 그 챌린지를 미리 골라요.
-import { useLocalSearchParams } from "expo-router";
+// 수상·채택된 응모 건에는 "홍보하기"가 붙어요 — 그 챌린지를 연결한 홍보 글쓰기(F-504)가 열려요.
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { useMemo, useState } from "react";
 import { Linking, StyleSheet, View } from "react-native";
 import type { AwardKind, ProposalStatus } from "@sdgs-compass/core/domain";
@@ -11,7 +12,7 @@ import { Screen, ScreenTitle } from "@/components/Screen";
 import { Badge, Button, Card, Empty, Field, KeyValue, Notice, Section, Segmented, Stepper, Txt, type BadgeTone } from "@/components/ui";
 import { useApp } from "@/lib/AppProvider";
 import { isHttpUrl } from "@/lib/links";
-import { paramText } from "@/lib/nav";
+import { composeHref, paramText } from "@/lib/nav";
 import { AWARD_KINDS, DEFAULT_AWARD, REVIEW_MAX, REVIEW_MIN, reviewFormFrom, toReviewInput, type ReviewFormState } from "@/lib/reviewForm";
 import { nowIso } from "@/lib/time";
 import { SPACE } from "@/theme";
@@ -104,9 +105,11 @@ function AwardAndAdopt({ applicant, feeNote }: { applicant: ApplicantVM; feeNote
   );
 }
 
-function ApplicantCard({ applicant, feeNote }: { applicant: ApplicantVM; feeNote: string }) {
+function ApplicantCard({ applicant, challengeId, feeNote }: { applicant: ApplicantVM; challengeId: string | null; feeNote: string }) {
   const { t } = useApp();
+  const router = useRouter();
   const [open, setOpen] = useState(false);
+  const promotable = applicant.status === "awarded" || applicant.status === "adopted";
   const openVideo = () => {
     if (isHttpUrl(applicant.videoUrl)) void Linking.openURL(applicant.videoUrl.trim()).catch(() => undefined);
   };
@@ -141,6 +144,16 @@ function ApplicantCard({ applicant, feeNote }: { applicant: ApplicantVM; feeNote
           onPress={() => setOpen((value) => !value)}
         />
         {applicant.adopted ? <Badge tone="success" label={`✓ ${t("review.adopted")}`} /> : null}
+        {promotable ? (
+          <Button
+            testID={`promote-${applicant.id}`}
+            small
+            variant="secondary"
+            icon="📣"
+            label={t("applicants.promote")}
+            onPress={() => router.push(composeHref("pr", challengeId))}
+          />
+        ) : null}
       </View>
 
       {open ? (
@@ -199,7 +212,7 @@ export function ApplicantsScreen() {
           {vm.applicants.length === 0 ? (
             <Empty testID="no-applicants">{t("applicants.empty")}</Empty>
           ) : (
-            vm.applicants.map((applicant) => <ApplicantCard key={applicant.id} applicant={applicant} feeNote={vm.feeNote} />)
+            vm.applicants.map((applicant) => <ApplicantCard key={applicant.id} applicant={applicant} challengeId={vm.selectedId} feeNote={vm.feeNote} />)
           )}
         </>
       )}

@@ -29,6 +29,7 @@ function Routes() {
           <Stack.Screen name="challenge/submit/[id]" />
           <Stack.Screen name="certificate/[id]" />
           <Stack.Screen name="share" />
+          <Stack.Screen name="feed/new" />
         </Stack.Protected>
         <Stack.Protected guard={gate === "b2b"}>
           <Stack.Screen name="b2b" />

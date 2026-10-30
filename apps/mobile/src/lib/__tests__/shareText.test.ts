@@ -2,11 +2,18 @@
 import { MAX_SHARE_ACTIVITIES, SHARE_POINTS } from "@sdgs-compass/core/impact";
 import { MESSAGES } from "@sdgs-compass/core/messages";
 import type { ShareCard } from "@sdgs-compass/core/shareCard";
-import { hashtagList, savePoints, sharePayload, TEMPLATE_LABEL_KEY } from "../shareText";
+import { hashtagList, postSharePayload, savePoints, sharePayload, TEMPLATE_LABEL_KEY } from "../shareText";
 
 test("공유 메뉴에는 제목과 SNS 에 올릴 글 전체를 넘겨요", () => {
   const card = { headline: "플라스틱 쓰레기 감축 해커톤", caption: "우수상을 수상했어요! #SDGs컴파스" } as ShareCard;
   expect(sharePayload(card)).toEqual({ title: "플라스틱 쓰레기 감축 해커톤", message: "우수상을 수상했어요! #SDGs컴파스" });
+});
+
+test("피드의 글을 공유할 때: 홍보 글은 글 제목이, 자랑 글은 글쓴이 이름이 제목이고 본문은 shareText 그대로예요", () => {
+  const pr = { title: "텀블러 챌린지", authorName: "미나토 해양푸드(주)", shareText: "[PR] 텀블러 챌린지\n참여해 주세요\n#SDGs14" };
+  expect(postSharePayload(pr)).toEqual({ title: "텀블러 챌린지", message: pr.shareText });
+  const brag = { title: null, authorName: "Mina", shareText: "우수상을 받았어요!\n#SDGs14" };
+  expect(postSharePayload(brag)).toEqual({ title: "Mina", message: brag.shareText });
 });
 
 test("해시태그를 낱개로 나눠요", () => {

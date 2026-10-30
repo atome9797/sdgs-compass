@@ -1,11 +1,32 @@
 // 경로 만들기·경로 매개변수 읽기·뒤로 가기.
-import { applicantsHref, certificateHref, challengeHref, goBack, paramText, receiptHref, ROUTES, submitHref, type BackRouter } from "../nav";
+import {
+  applicantsHref,
+  certificateHref,
+  challengeHref,
+  composeHref,
+  feedRoute,
+  goBack,
+  paramText,
+  postedHref,
+  receiptHref,
+  ROUTES,
+  shareHref,
+  submitHref,
+  type BackRouter,
+} from "../nav";
 
 test("고정 경로", () => {
   expect(ROUTES.home).toBe("/");
   expect(ROUTES.b2bDashboard).toBe("/b2b");
   expect(Object.values(ROUTES).every((href) => href.startsWith("/"))).toBe(true);
   expect(new Set(Object.values(ROUTES)).size).toBe(Object.values(ROUTES).length);
+});
+
+test("SNS 피드 경로: 학생은 /feed, 기업은 /b2b/feed (글쓰기는 그 아래 new)", () => {
+  expect(ROUTES.feed).toBe("/feed");
+  expect(ROUTES.feedNew).toBe(`${ROUTES.feed}/new`);
+  expect(ROUTES.b2bFeed).toBe(`${ROUTES.b2bDashboard}/feed`);
+  expect(ROUTES.b2bFeedNew).toBe(`${ROUTES.b2bFeed}/new`);
 });
 
 test("id 가 들어가는 경로는 특수 문자를 안전하게 인코딩해요", () => {
@@ -15,6 +36,35 @@ test("id 가 들어가는 경로는 특수 문자를 안전하게 인코딩해�
   expect(certificateHref("SC-C-0001")).toBe("/certificate/SC-C-0001");
   expect(applicantsHref("ch-plastic")).toBe("/b2b/applicants?id=ch-plastic");
   expect(applicantsHref("a&b")).toBe("/b2b/applicants?id=a%26b");
+});
+
+test("카드뉴스 화면은 실적을 미리 골라서 열 수 있어요", () => {
+  expect(shareHref()).toBe("/share");
+  expect(shareHref(null)).toBe("/share");
+  expect(shareHref("")).toBe("/share");
+  expect(shareHref("h-5b")).toBe("/share?activity=h-5b");
+  expect(shareHref("a b&c")).toBe("/share?activity=a%20b%26c");
+});
+
+test("역할에 맞는 피드 탭", () => {
+  expect(feedRoute("b2c")).toBe("/feed");
+  expect(feedRoute("b2b")).toBe("/b2b/feed");
+});
+
+test("글쓰기 경로: 자랑 글은 학생 화면, 홍보 글은 기업 화면이고, 미리 고른 값이 있으면 매개변수로 붙어요", () => {
+  expect(composeHref("brag")).toBe("/feed/new");
+  expect(composeHref("pr")).toBe("/b2b/feed/new");
+  expect(composeHref("brag", null)).toBe("/feed/new");
+  expect(composeHref("pr", "")).toBe("/b2b/feed/new");
+  expect(composeHref("brag", "h-5b")).toBe("/feed/new?activity=h-5b");
+  expect(composeHref("pr", "ch-bottle")).toBe("/b2b/feed/new?challenge=ch-bottle");
+  expect(composeHref("pr", "a&b")).toBe("/b2b/feed/new?challenge=a%26b");
+});
+
+test("글을 올린 뒤 가는 곳: 쓴 계정의 피드 탭에 posted=1 (공식 SNS 신청 날짜가 있으면 official 도)", () => {
+  expect(postedHref("b2c", null)).toBe("/feed?posted=1");
+  expect(postedHref("b2b", null)).toBe("/b2b/feed?posted=1");
+  expect(postedHref("b2b", "2026-11-02")).toBe("/b2b/feed?posted=1&official=2026-11-02");
 });
 
 test("수령증은 제출 화면과 같은 경로에 receipt=1 을 붙여요", () => {

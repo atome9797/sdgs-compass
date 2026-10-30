@@ -6,7 +6,7 @@ import { Tabs } from "expo-router/js-tabs";
 import { Text } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useApp } from "@/lib/AppProvider";
-import { TAB_BAR_HEIGHT, TAB_LABEL_MIN_SCALE, TAB_LABEL_SIZE, type TabSpec } from "@/lib/tabs";
+import { TAB_BAR_HEIGHT, TAB_ITEM_PADDING_X, TAB_LABEL_MIN_SCALE, TAB_LABEL_SIZE, type TabSpec } from "@/lib/tabs";
 import { COLORS } from "@/theme";
 
 export interface AppTabsProps {
@@ -27,6 +27,8 @@ export function AppTabs({ tabs, badges = {} }: AppTabsProps) {
         tabBarStyle: { backgroundColor: COLORS.card, borderTopColor: COLORS.border, height: TAB_BAR_HEIGHT + insets.bottom },
         // 탭 단추는 아이콘·이름을 위에서부터 쌓아요: 높인 만큼 조금 내려서 가운데쯤에
         tabBarIconStyle: { marginTop: 4 },
+        // 칸 양옆을 조금 비워서, 줄어든 이름끼리 붙어 보이지 않게 해요
+        tabBarItemStyle: { paddingHorizontal: TAB_ITEM_PADDING_X },
       }}
     >
       {tabs.map((tab) => {

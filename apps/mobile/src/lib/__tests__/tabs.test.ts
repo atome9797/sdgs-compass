@@ -1,6 +1,6 @@
 // 아래 탭 정의(학생 6개 / 기업 6개, 피드는 둘째): 이름이 겹치지 않고 문구가 모두 있고, 좁은 휴대폰에서도 이름이 한 줄에 들어가요.
 import { MESSAGES } from "@sdgs-compass/core/messages";
-import { B2B_TABS, B2C_TABS, TAB_BAR_HEIGHT, TAB_LABEL_MIN_SCALE, TAB_LABEL_SIZE } from "../tabs";
+import { B2B_TABS, B2C_TABS, TAB_BAR_HEIGHT, TAB_ITEM_PADDING_X, TAB_LABEL_MIN_SCALE, TAB_LABEL_SIZE } from "../tabs";
 
 test("학생·개인 탭 (피드는 홈 다음)", () => {
   expect(B2C_TABS.map((tab) => tab.name)).toEqual(["index", "feed", "search", "impact", "messages", "settings"]);
@@ -35,12 +35,12 @@ test("두 묶음의 탭 개수가 같아서 계정을 바꿔도 탭 막대 칸 �
 
 /** 글자 크기 1 기준으로 대략 몇 글자 폭인지: 한글·일본어·전각은 1, 영문·숫자·공백은 0.55 */
 function displayUnits(text: string): number {
-  return Array.from(text).reduce((sum, char) => sum + (/[　-鿿가-힯＀-￯]/.test(char) ? 1 : 0.55), 0);
+  return Array.from(text).reduce((sum, char) => sum + (/[\u3000-\u9fff\uac00-\ud7af\uff00-\uffef]/.test(char) ? 1 : 0.55), 0);
 }
 
-/** 가장 좁게 잡는 휴대폰 폭(dp)과 한 칸 안에서 양옆에 남겨 둘 여백 합 */
+/** 가장 좁게 잡는 휴대폰 폭(dp)과, 한 칸 안에서 양옆에 남겨 두는 여백 합 */
 const NARROWEST_PHONE_WIDTH = 320;
-const CELL_PADDING = 8;
+const CELL_PADDING = TAB_ITEM_PADDING_X * 2;
 
 test("탭 이름은 6칸으로 나눈 가장 좁은 폭(320dp ÷ 6)에서도 줄어든 글자로 한 줄에 들어가요", () => {
   const cell = NARROWEST_PHONE_WIDTH / B2C_TABS.length - CELL_PADDING;

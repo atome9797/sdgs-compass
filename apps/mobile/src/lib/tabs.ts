@@ -19,6 +19,8 @@ export const TAB_BAR_HEIGHT = 64;
 /** 탭 이름의 글자 크기(dp)와, 칸이 좁을 때 줄어들 수 있는 최소 비율. 탭 막대 높이가 정해져 있어서 시스템 글자 크기는 따르지 않아요. */
 export const TAB_LABEL_SIZE = 11;
 export const TAB_LABEL_MIN_SCALE = 0.7;
+/** 탭 칸 양옆 여백(dp): 줄어든 이름이 칸을 꽉 채워도 이웃한 이름과 붙어 보이지 않게 해요. 이름이 쓸 수 있는 폭 = 칸 폭 − 양옆 여백. */
+export const TAB_ITEM_PADDING_X = 3;
 
 export const B2C_TABS: readonly TabSpec[] = [
   { name: "index", labelKey: "nav.home", emoji: "🏠" },

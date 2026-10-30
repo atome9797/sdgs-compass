@@ -61,9 +61,9 @@ test("글쓰기 경로: 자랑 글은 학생 화면, 홍보 글은 기업 화면
   expect(composeHref("pr", "a&b")).toBe("/b2b/feed/new?challenge=a%26b");
 });
 
-test("글을 올린 뒤 가는 곳: 쓴 계정의 피드 탭에 posted=1 (공식 SNS 신청 날짜가 있으면 official 도)", () => {
+test("글을 올린 뒤 가는 곳: 쓴 계정의 피드 탭에 posted=1 (기업 글은 official 도: 신청한 날짜, 안 했으면 빈 값)", () => {
   expect(postedHref("b2c", null)).toBe("/feed?posted=1");
-  expect(postedHref("b2b", null)).toBe("/b2b/feed?posted=1");
+  expect(postedHref("b2b", null)).toBe("/b2b/feed?posted=1&official=");
   expect(postedHref("b2b", "2026-11-02")).toBe("/b2b/feed?posted=1&official=2026-11-02");
 });
 

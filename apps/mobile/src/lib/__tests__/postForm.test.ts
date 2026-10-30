@@ -6,6 +6,7 @@ import { POST_LIMITS, postContext, validatePostDraft } from "@sdgs-compass/core/
 import { selectComposer, selectFeed, type ComposerVM } from "@sdgs-compass/core/selectors";
 import { reducer } from "@sdgs-compass/core/state";
 import { createInitialState } from "@sdgs-compass/data/seed";
+import { postedHref } from "../nav";
 import {
   CLEAR_POSTED_PARAMS,
   counterOf,
@@ -310,6 +311,13 @@ test("날짜 모양이 아닌 official 은 무시해요 (주소에 아무 글자
   for (const official of ["", "tomorrow", "2026-1-2", "2026-11-02T10:00", "<b>2026-11-02</b>", "20261102"]) {
     expect(parsePostedParams({ posted: "1", official })).toEqual({ officialOn: null });
   }
+});
+
+test("올린 뒤 가는 주소(postedHref)의 매개변수를 피드가 그대로 읽어요", () => {
+  const read = (href: string) => parsePostedParams(Object.fromEntries(new URLSearchParams(href.split("?")[1])));
+  expect(read(postedHref("b2c", null))).toEqual({ officialOn: null });
+  expect(read(postedHref("b2b", null))).toEqual({ officialOn: null });
+  expect(read(postedHref("b2b", "2026-11-02"))).toEqual({ officialOn: "2026-11-02" });
 });
 
 test("안내를 닫을 때 넣는 값을 읽으면 안내가 없는 것으로 보여요", () => {

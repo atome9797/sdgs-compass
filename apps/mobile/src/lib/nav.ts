@@ -65,9 +65,12 @@ export function composeHref(kind: PostKind, presetId?: string | null): string {
   return `${base}?${kind === "brag" ? "activity" : "challenge"}=${encodeURIComponent(presetId)}`;
 }
 
-/** 글을 올린 뒤 가는 피드 탭: 맨 위에 "올렸어요" 안내가 떠요. officialOn = 공식 SNS 게시 예정일(YYYY-MM-DD, 신청했을 때만) */
+/**
+ * 글을 올린 뒤 가는 피드 탭: 맨 위에 "올렸어요" 안내가 떠요. officialOn = 공식 SNS 게시 예정일(YYYY-MM-DD, 신청했을 때만).
+ * 기업 글은 신청하지 않았어도 official 을 비워서 붙여요 — 앞서 올린 글의 안내 값이 닫히지 않고 남아 있어도 덮어쓰이도록요.
+ */
 export function postedHref(role: Role, officialOn: string | null): string {
-  const query = officialOn ? `posted=1&official=${encodeURIComponent(officialOn)}` : "posted=1";
+  const query = role === "b2b" ? `posted=1&official=${officialOn ? encodeURIComponent(officialOn) : ""}` : "posted=1";
   return `${feedRoute(role)}?${query}`;
 }
 

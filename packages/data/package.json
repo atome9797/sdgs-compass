@@ -1,0 +1,21 @@
+{
+  "name": "@sdgs-compass/data",
+  "version": "0.1.0",
+  "private": true,
+  "description": "SDGsコンパス 데모 데이터(일본어/한국어 샘플)와 저장소 어댑터 (웹·모바일 공용)",
+  "sideEffects": false,
+  "exports": {
+    "./*": "./src/*.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@sdgs-compass/core": "*"
+  },
+  "devDependencies": {
+    "typescript": "~6.0.3",
+    "vitest": "^4.1.12"
+  }
+}

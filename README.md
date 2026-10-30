@@ -4,7 +4,7 @@
 기업이 SDGs 과제(챌린지)를 내면 학생이 기획서로 응모하고, 심사·수상 기록이 **SDG별 Impact Index(레이더 차트)** 와
 **위·변조를 확인할 수 있는 디지털 증명서**로 남아요. 그 실적을 본 기업이 인재를 스카우트·채용하면
 **중개 수수료 ¥30,000 중 50%를 기업 이름으로 SDGs 활동에 기부**하는 구조예요.
-(専修大学ベンチャービジネスコンテスト 第25回(2026) 출품 아이디어를 **직접 만져 볼 수 있는 데모 — 웹 + iOS/Android 앱** 으로 만든 저장소입니다.)
+(専修大学ベンチャービジネスコンテスト 第25回(2026) 출품 아이디어를 **직접 만져 볼 수 있는 데모 — 웹 + 모바일 앱(Android APK 제공)** 으로 만든 저장소입니다.)
 
 [![CI](https://github.com/atome9797/sdgs-compass/actions/workflows/ci.yml/badge.svg)](https://github.com/atome9797/sdgs-compass/actions/workflows/ci.yml)
 [![Pages](https://github.com/atome9797/sdgs-compass/actions/workflows/pages.yml/badge.svg)](https://github.com/atome9797/sdgs-compass/actions/workflows/pages.yml)
@@ -1339,7 +1339,7 @@ erDiagram
 sdgs-compass/
 ├─ apps/
 │  ├─ web/               Next.js 16 (App Router, 클라이언트 렌더링) — 정적 내보내기로 GitHub Pages 배포
-│  └─ mobile/            Expo SDK 58 · React Native 0.88 · expo-router — Android/iOS 앱
+│  └─ mobile/            Expo SDK 58 · React Native 0.88 · expo-router — 모바일 앱(Android APK 를 빌드해요)
 ├─ packages/
 │  ├─ core/              순수 TypeScript (UI 없음): 도메인 타입 · reducer · 화면 모델(selectors) ·
 │  │                     Impact/수수료/인증 점수/증명서 해시/QR 규칙 · 문구(ja·ko) · 디자인 토큰

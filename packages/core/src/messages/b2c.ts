@@ -162,7 +162,7 @@ export const b2c = {
   "share.statPoints": { ja: "インパクト指数", ko: "임팩트 지수" },
   "share.statChallenges": { ja: "参加チャレンジ", ko: "참여 챌린지" },
   "share.statAwards": { ja: "受賞", ko: "수상" },
-  "share.captionAward": { ja: "🏆「{challenge}」で{award}を受賞しました！ {sdgs}", ko: "🏆 「{challenge}」에서 {award}을(를) 수상했어요! {sdgs}" },
+  "share.captionAward": { ja: "🏆「{challenge}」で{award}を受賞しました！ {sdgs}", ko: "🏆 「{challenge}」에서 {award}을 수상했어요! {sdgs}" },
   "share.captionParticipation": { ja: "🌏「{challenge}」に挑戦しました。 {sdgs}", ko: "🌏 「{challenge}」에 도전했어요. {sdgs}" },
   "share.hashtags": { ja: "#SDGsコンパス #SDGs", ko: "#SDGs컴파스 #SDGs" },
   "share.pickActivity": { ja: "カードにする成果", ko: "카드로 만들 성과" },

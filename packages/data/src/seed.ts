@@ -2,11 +2,13 @@
 // 실서비스에서는 이 모양의 데이터를 서버(PostgreSQL, db/schema.sql)가 돌려줘요.
 import { emptyCertAnswers } from "@sdgs-compass/core/certification";
 import type {
-  Activity, Candidate, Challenge, Company, DemoState, Match, Proposal, Scout, StudentProfile, TeamPost,
+  Activity, Candidate, Challenge, Company, DemoState, Match, Proposal, Scout, SocialPost, StudentProfile, TeamPost,
 } from "@sdgs-compass/core/domain";
 import { splitMatchFee } from "@sdgs-compass/core/fees";
 import { addDays } from "@sdgs-compass/core/format";
 import { sha256Hex } from "@sdgs-compass/core/hash";
+import { levelOf } from "@sdgs-compass/core/impact";
+import { OFFICIAL_SHARE_FEE_YEN } from "@sdgs-compass/core/post";
 import { DONATION_RECIPIENT } from "@sdgs-compass/core/state";
 
 export const DEMO_STUDENT_ID = "stu-mina";
@@ -557,6 +559,106 @@ function buildScouts(today: string): Scout[] {
   ];
 }
 
+/** SNS 피드의 샘플 글 8개 (기업 홍보 4 + 학생 자랑 4, 모두 가상). 설계: docs/sns-feed.md */
+function buildPosts(today: string): SocialPost[] {
+  const d = (n: number) => addDays(today, n);
+  const at = (n: number, time: string) => `${d(n)}T${time}`;
+  const scheduled = (n: number) => ({ on: d(n), feeYen: OFFICIAL_SHARE_FEE_YEN, status: "scheduled" as const });
+  const levelOfStudent = (id: string) => levelOf(talent.find((c) => c.id === id)?.points ?? 0);
+  const minato = { ja: "みなと海洋フーズ株式会社", ko: "미나토 해양푸드(주)" };
+  const hikari = { ja: "ひかりエナジー株式会社", ko: "히카리 에너지(주)" };
+  const yasai = { ja: "やさい未来ファーム", ko: "야채 미래 팜" };
+  const kotoba = { ja: "ことば教育サポート株式会社", ko: "코토바 교육 서포트(주)" };
+  return [
+    // 기업 홍보 글. 다른 기업이 내일(po-1)·모레(po-2)의 공식 SNS 게시 날짜를 이미 받아서, 우리 회사가 신청하면 3일 뒤가 배정돼요.
+    {
+      id: "po-1", kind: "pr", companyId: "co-green", challengeId: "ch-foodloss", sdgIds: [12, 2],
+      title: { ja: "売り場のフードロス、学生の発想で減らしませんか", ko: "매장의 푸드 로스, 학생의 발상으로 줄여 볼까요" },
+      body: {
+        ja: "賞味期限が近い商品をどう見せれば、手に取ってもらえるか。店舗での実験データを公開して、学生のみなさんの提案を待っています。",
+        ko: "유통기한이 가까운 상품을 어떻게 보여 주면 손이 갈까요? 매장 실험 데이터를 공개하고 학생 여러분의 제안을 기다리고 있어요.",
+      },
+      official: scheduled(1), createdAt: at(-1, "09:30"), likes: 18, likedBy: [], mine: false,
+    },
+    {
+      id: "po-2", kind: "pr", companyId: "co-hikari", challengeId: "ch-solar", sdgIds: [7, 13],
+      title: { ja: "寮の屋根を、学生と一緒に発電所に", ko: "기숙사 지붕을 학생과 함께 발전소로" },
+      body: {
+        ja: "再エネ導入のストーリーを、入居する学生の目線で企画してください。採用された企画は、実際の説明会で使います。",
+        ko: "재생에너지 도입 이야기를 입주 학생의 시선으로 기획해 주세요. 채택된 기획은 실제 설명회에서 사용해요.",
+      },
+      official: scheduled(2), createdAt: at(-2, "15:00"), likes: 24, likedBy: [], mine: false,
+    },
+    {
+      id: "po-3", kind: "pr", companyId: "co-machi", challengeId: "ch-shotengai", sdgIds: [11, 8],
+      title: { ja: "空き店舗を、商店街の新しい顔に", ko: "빈 점포를 상점가의 새 얼굴로" },
+      body: {
+        ja: "シャッターが閉まったままの店舗を、SNSで人が集まる場所に変えたい。若い世代のアイデアを募集中です。",
+        ko: "셔터가 내려간 점포를 SNS로 사람이 모이는 곳으로 바꾸고 싶어요. 젊은 세대의 아이디어를 모집 중이에요.",
+      },
+      official: null, createdAt: at(-3, "11:10"), likes: 9, likedBy: [], mine: false,
+    },
+    {
+      id: "po-4", kind: "pr", companyId: "co-minato", challengeId: "ch-bottle", sdgIds: [14, 12],
+      title: { ja: "マイボトル企画、たくさんのご応募ありがとうございます", ko: "텀블러 기획, 많은 응모 감사합니다" },
+      body: {
+        ja: "5チームから個性的な提案が届きました。審査結果は近日お知らせします。海を守る仲間が増えるのが楽しみです。",
+        ko: "5개 팀에서 개성 있는 제안이 도착했어요. 심사 결과는 곧 알려 드릴게요. 바다를 지키는 동료가 늘어나는 것이 기대돼요.",
+      },
+      official: null, createdAt: at(-1, "18:20"), likes: 12, likedBy: [], mine: true,
+    },
+    // 학생 자랑 글 (닉네임·레벨만 보이고, 실적 1건이 붙어요). 내가 쓴 글은 처음에는 없어요.
+    {
+      id: "po-5", kind: "brag", authorName: "Yuna", authorLevel: levelOfStudent("cand-yuna"), sdgIds: [14, 11],
+      achievement: {
+        activityId: null, kind: "award", award: "excellence", companyName: minato, sdgIds: [14, 11],
+        title: { ja: "漁港清掃の参加者を増やすポスター企画", ko: "어항 청소 참가자를 늘리는 포스터 기획" },
+      },
+      body: {
+        ja: "ポスターの色を海の青に絞ったら、参加申込が増えたそうです。うれしくて報告します！ 次はデザインで漁港の朝市に挑戦します。",
+        ko: "포스터 색을 바다의 파랑으로 좁혔더니 참가 신청이 늘었대요. 기뻐서 알려요! 다음은 디자인으로 어항 아침시장에 도전해요.",
+      },
+      createdAt: at(-1, "21:05"), likes: 31, likedBy: [], mine: false,
+    },
+    {
+      id: "po-6", kind: "brag", authorName: "Daichi", authorLevel: levelOfStudent("cand-daichi"), sdgIds: [7, 13],
+      achievement: {
+        activityId: null, kind: "award", award: "grand", companyName: hikari, sdgIds: [7, 13],
+        title: { ja: "再エネ啓発動画コンテスト", ko: "재생에너지 계몽 영상 콘테스트" },
+      },
+      body: {
+        ja: "最優秀賞をいただきました。寮の電気の話を、実測データと一緒に動画にしたのが評価されたようです。応援ありがとうございました！",
+        ko: "최우수상을 받았어요. 기숙사 전기 이야기를 실측 데이터와 함께 영상으로 만든 점이 평가받은 것 같아요. 응원해 주셔서 감사합니다!",
+      },
+      createdAt: at(-2, "20:40"), likes: 42, likedBy: [], mine: false,
+    },
+    {
+      id: "po-7", kind: "brag", authorName: "Mei", authorLevel: levelOfStudent("cand-mei"), sdgIds: [2, 12],
+      achievement: {
+        activityId: null, kind: "submission", award: null, companyName: yasai, sdgIds: [2, 12],
+        title: { ja: "規格外野菜の新しい食べ方・売り方", ko: "규격 외 채소의 새로운 먹는 법·파는 법" },
+      },
+      body: {
+        ja: "規格外のトマトを使ったレシピ集を提出しました。結果は来月ですが、畑を見学できたのが一番の学びでした。",
+        ko: "규격 외 토마토로 레시피집을 제출했어요. 결과는 다음 달이지만, 밭을 견학한 것이 가장 큰 배움이었어요.",
+      },
+      createdAt: at(-3, "13:15"), likes: 15, likedBy: [], mine: false,
+    },
+    {
+      id: "po-8", kind: "brag", authorName: "Soyeon", authorLevel: levelOfStudent("cand-soyeon"), sdgIds: [4, 17],
+      achievement: {
+        activityId: null, kind: "participation", award: null, companyName: kotoba, sdgIds: [4, 17],
+        title: { ja: "日韓の子どもをつなぐ多言語学習コンテンツ", ko: "한일 어린이를 잇는 다국어 학습 콘텐츠" },
+      },
+      body: {
+        ja: "日本と韓国の子ども向けの、言葉あそび教材に挑戦中です。いっしょに作る仲間も募集しています！",
+        ko: "일본과 한국 어린이를 위한 말놀이 교재에 도전 중이에요. 함께 만들 동료도 모집하고 있어요!",
+      },
+      createdAt: at(-4, "10:00"), likes: 8, likedBy: [], mine: false,
+    },
+  ];
+}
+
 /** 처음 상태 (today = "YYYY-MM-DD") */
 export function createInitialState(today: string): DemoState {
   const cert = emptyCertAnswers();
@@ -582,6 +684,7 @@ export function createInitialState(today: string): DemoState {
     talent,
     scouts: buildScouts(today),
     matches: buildMatches(today),
+    posts: buildPosts(today),
     cert,
     esgGeneratedOn: null,
   };

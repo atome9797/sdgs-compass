@@ -5,6 +5,7 @@ import { SKILL_IDS } from "./domain";
 import { BADGE_CODES } from "./impact";
 import type { ProposalError } from "./proposal";
 import type { ChallengeDraftError } from "./challenge";
+import type { PostError } from "./post";
 
 const keys = Object.keys(MESSAGES) as MessageKey[];
 
@@ -71,6 +72,13 @@ describe("문구 사전 (일본어·한국어)", () => {
     for (const e of proposalErrors) wanted.push(`submit.error.${e}`);
     const challengeErrors: ChallengeDraftError[] = ["title_required", "summary_required", "sdgs_required", "prize_invalid", "days_invalid"];
     for (const e of challengeErrors) wanted.push(`new.error.${e}`);
+    const postErrors: PostError[] = [
+      "title_required", "title_too_long", "body_required", "body_too_long", "achievement_required", "achievement_not_found",
+      "sdgs_required", "sdgs_too_many", "challenge_not_found", "contact_info",
+    ];
+    for (const e of postErrors) wanted.push(`post.error.${e}`);
+    for (const f of ["all", "pr", "brag"]) wanted.push(`feed.filter.${f}`);
+    for (const k of ["pr", "brag"]) wanted.push(`feed.chip.${k}`, `post.title.${k}`, `post.privacy.${k}`, `post.bodyPlaceholder.${k}`);
     for (const l of [0, 1, 2, 3]) wanted.push(`esg.certLevel${l}`);
     for (const r of ["sdg", "skill", "deadline", "prize", "internship"]) wanted.push(`reason.${r}`);
     const missing = wanted.filter((key) => !(key in MESSAGES));

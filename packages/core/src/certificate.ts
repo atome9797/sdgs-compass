@@ -59,10 +59,13 @@ export function qrPayload(cert: Certificate): string {
 }
 
 /** 활동에서 증명서를 만들어요 (참가·제출 → 참가 증명서, 수상 → 수상 증명서). 공유 활동은 대상이 아니에요. */
+/** 증명서 번호: 알릴 수 있는 활동 목록(showableActivities)에서의 순서로 매겨요 */
+export const certificateIdAt = (index: number): string => `SC-C-${String(index + 1).padStart(4, "0")}`;
+
 export function certificateFromActivity(activity: Activity, holder: string, index: number): Certificate | null {
   if (activity.kind === "share") return null;
   return issueCertificate({
-    id: `SC-C-${String(index + 1).padStart(4, "0")}`,
+    id: certificateIdAt(index),
     kind: activity.kind === "award" ? "award" : "participation",
     holder,
     challengeTitle: activity.title,

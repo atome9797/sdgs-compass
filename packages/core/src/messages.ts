@@ -6,9 +6,10 @@ import { b2c } from "./messages/b2c";
 import { common } from "./messages/common";
 import { extraMobile } from "./messages/extraMobile";
 import { extraWeb } from "./messages/extraWeb";
+import { feed } from "./messages/feed";
 import { settings } from "./messages/settings";
 
-export const MESSAGES = { ...common, ...b2c, ...b2b, ...settings, ...extraWeb, ...extraMobile } as const;
+export const MESSAGES = { ...common, ...b2c, ...b2b, ...feed, ...settings, ...extraWeb, ...extraMobile } as const;
 export type MessageKey = keyof typeof MESSAGES;
 
 /** 사전에서 문구를 꺼내 {자리표시자}를 채워요 */

@@ -15,7 +15,9 @@ import {
   selectB2bDashboard,
   selectCertificates,
   selectChallengeDetail,
+  selectComposer,
   selectEsg,
+  selectFeed,
   selectHome,
   selectImpact,
   selectInbox,
@@ -26,6 +28,7 @@ import {
   selectTalent,
   tamperedCopy,
 } from "@sdgs-compass/core/selectors";
+import type { PostVM } from "@sdgs-compass/core/selectors";
 import { reducer, type Action } from "@sdgs-compass/core/state";
 import { createInitialState } from "./seed";
 
@@ -58,6 +61,10 @@ const busy = run(
   { type: "adoptProposal", proposalId: "pb-1", at: AT },
   { type: "setCertAnswer", id: "womenManagers", evidence: true },
   { type: "generateEsg", at: AT },
+  { type: "createPost", draft: { kind: "brag", body: "プラスチック削減ハッカソンで優秀賞をいただきました！", activityId: "h-5b" }, at: AT },
+  { type: "createPost", draft: { kind: "pr", title: "マイボトル企画の審査が終わりました", body: "ご応募ありがとうございました。", sdgIds: [14, 12], challengeId: "ch-bottle", requestOfficial: true }, at: AT },
+  { type: "togglePostLike", postId: "po-1", role: "b2c" },
+  { type: "togglePostLike", postId: "po-5", role: "b2b" },
 );
 
 const noScoutsLeft = run(
@@ -93,6 +100,11 @@ function allViews(state: DemoState, locale: Locale) {
     applicantsPlastic: selectApplicants(state, locale, "ch-plastic"),
     talent: selectTalent(state, locale, { query: "", sdgIds: [] }),
     esg: selectEsg(state, locale),
+    feedStudent: selectFeed(state, locale, "b2c"),
+    feedCompanyPr: selectFeed(state, locale, "b2b", "pr"),
+    feedStudentBrag: selectFeed(state, locale, "b2c", "brag"),
+    composerBrag: selectComposer(state, locale, "brag"),
+    composerPr: selectComposer(state, locale, "pr", { challengeId: "ch-plastic" }),
   };
 }
 
@@ -437,5 +449,141 @@ describe("B2B: 대시보드·응모자·ESG", () => {
     expect(done.generated).toBe(true);
     expect(done.needEvidence).toBe(false);
     expect(done.total).toBeGreaterThan(selectEsg(initial, "ja").total);
+  });
+});
+
+describe("SNS 피드 (F-503 · F-504)", () => {
+  const find = (list: PostVM[], id: string): PostVM => list.find((p) => p.id === id)!;
+  const mineBrag = run(initial, { type: "createPost", draft: { kind: "brag", body: "優秀賞をいただきました！", activityId: "h-5b" }, at: AT });
+
+  it("피드: 최신순이고, 전체 8건 · 기업 홍보 4건 · 학생 자랑 4건으로 걸러 볼 수 있어요", () => {
+    const all = selectFeed(initial, "ja", "b2c");
+    expect(all.posts.map((p) => p.id)).toEqual(["po-5", "po-4", "po-1", "po-6", "po-2", "po-7", "po-3", "po-8"]);
+    expect(all.filters.map((f) => [f.id, f.count])).toEqual([["all", 8], ["pr", 4], ["brag", 4]]);
+    expect(selectFeed(initial, "ja", "b2c", "pr").posts.map((p) => p.kind)).toEqual(["pr", "pr", "pr", "pr"]);
+    expect(selectFeed(initial, "ja", "b2c", "brag").posts.map((p) => p.kind)).toEqual(["brag", "brag", "brag", "brag"]);
+    expect(selectFeed(mineBrag, "ja", "b2c").posts[0].id).toBe(mineBrag.posts[0].id); // 방금 쓴 글이 맨 위
+  });
+
+  it("홍보 글에는 항상 PR 표시와 기업 정보가, 자랑 글에는 닉네임·레벨·실적만 있어요", () => {
+    for (const locale of LOCALES) {
+      for (const p of selectFeed(initial, locale, "b2c").posts) {
+        if (p.kind === "pr") {
+          expect(p.chipLabel).toBe("PR");
+          expect(p.title).not.toBeNull();
+          expect(p.achievement).toBeNull();
+          expect(p.authorMeta.length).toBeGreaterThan(0);
+        } else {
+          expect(p.authorMeta).toMatch(/^Lv\.\d$/);
+          expect(p.authorName).toMatch(/^[A-Za-z]+$/); // 닉네임뿐 (학교·실명 없음)
+          expect(p.achievement).not.toBeNull();
+          expect(p.title).toBeNull();
+          expect(p.official).toBeNull();
+        }
+      }
+    }
+    expect(find(selectFeed(initial, "ja", "b2c").posts, "po-4")).toMatchObject({ authorName: "みなと海洋フーズ株式会社", verified: true, avatar: "🐟" });
+  });
+
+  it("샘플 글은 두 언어로 보이고, 내가 쓴 글은 쓴 그대로 두 언어에 같아요", () => {
+    const ja = find(selectFeed(initial, "ja", "b2c").posts, "po-1");
+    const ko = find(selectFeed(initial, "ko", "b2c").posts, "po-1");
+    expect(ja.body).toContain("賞味期限");
+    expect(ko.body).toContain("유통기한");
+    expect(ja.title).not.toBe(ko.title);
+    const mineJa = find(selectFeed(mineBrag, "ja", "b2c").posts, mineBrag.posts[0].id);
+    const mineKo = find(selectFeed(mineBrag, "ko", "b2c").posts, mineBrag.posts[0].id);
+    expect(mineJa.body).toBe("優秀賞をいただきました！");
+    expect(mineKo.body).toBe("優秀賞をいただきました！");
+  });
+
+  it("'내 글'은 지금 화면의 계정 기준이에요 (학생 화면 = 내 자랑 글, 기업 화면 = 우리 회사 홍보 글)", () => {
+    const student = selectFeed(mineBrag, "ja", "b2c").posts;
+    const company = selectFeed(mineBrag, "ja", "b2b").posts;
+    const mineId = mineBrag.posts[0].id;
+    // 우리 회사 글(po-4): 학생에게는 남의 글, 기업에게는 내 글
+    expect(find(student, "po-4")).toMatchObject({ mine: false, canLike: true, canDelete: false });
+    expect(find(company, "po-4")).toMatchObject({ mine: true, canLike: false, canDelete: true });
+    // 내가 쓴 자랑 글: 학생에게는 내 글, 기업에게는 남의 글
+    expect(find(student, mineId)).toMatchObject({ mine: true, canLike: false, canDelete: true });
+    expect(find(company, mineId)).toMatchObject({ mine: false, canLike: true, canDelete: false });
+    // 샘플로 들어 있는 다른 사람·다른 기업의 글은 어느 계정에서도 지울 수 없어요
+    for (const id of ["po-1", "po-2", "po-3", "po-5", "po-6", "po-7", "po-8"]) {
+      for (const list of [student, company]) expect(find(list, id), id).toMatchObject({ mine: false, canLike: true, canDelete: false });
+    }
+  });
+
+  it("좋아요는 학생·기업 계정이 따로 보여요", () => {
+    const liked = run(initial, { type: "togglePostLike", postId: "po-1", role: "b2c" });
+    expect(find(selectFeed(liked, "ja", "b2c").posts, "po-1")).toMatchObject({ likes: 19, likedByMe: true });
+    expect(find(selectFeed(liked, "ja", "b2b").posts, "po-1")).toMatchObject({ likes: 19, likedByMe: false });
+  });
+
+  it("공식 SNS 게시 신청은 날짜(M/D)와 게시료로 보여요", () => {
+    const ja = find(selectFeed(initial, "ja", "b2c").posts, "po-1");
+    expect(ja.official?.label).toBe("公式SNS掲載予定 · 10/31");
+    expect(ja.official?.feeLabel).toContain(formatYen(3000, "ja"));
+    const ko = find(selectFeed(initial, "ko", "b2c").posts, "po-2");
+    expect(ko.official?.label).toBe("공식 SNS 게시 예정 · 11/1");
+    expect((find(selectFeed(initial, "ja", "b2c").posts, "po-3")).official).toBeNull();
+  });
+
+  it("내보내기 글: 홍보 글은 [PR] 로 시작하고, 자랑 글에는 실적과 해시태그가 들어가요", () => {
+    const pr = find(selectFeed(initial, "ja", "b2c").posts, "po-1");
+    expect(pr.shareText.startsWith("【PR】")).toBe(true);
+    expect((find(selectFeed(initial, "ko", "b2c").posts, "po-1")).shareText.startsWith("[PR] ")).toBe(true);
+    const brag = find(selectFeed(initial, "ja", "b2c").posts, "po-6");
+    expect(brag.shareText).toContain("再エネ啓発動画コンテスト");
+    expect(brag.shareText).toContain("#SDGs7");
+    expect(brag.shareText).not.toMatch(/@/);
+  });
+
+  it("실적: 내 실적에 붙인 글만 증명서 번호가 있고, 샘플 글에는 없어요", () => {
+    const mine = find(selectFeed(mineBrag, "ja", "b2c").posts, mineBrag.posts[0].id);
+    const index = selectShare(mineBrag, "ja", "instagram", null).options.findIndex((o) => o.id === "h-5b");
+    expect(mine.achievement?.certificateId).toBe(selectCertificates(mineBrag, "ja")[index].cert.id);
+    expect(mine.achievement?.awardLabel).not.toBeNull();
+    for (const p of selectFeed(initial, "ja", "b2c", "brag").posts) expect(p.achievement?.certificateId).toBeNull();
+  });
+
+  it("홍보 글에 연결한 챌린지는 이름과 함께 보여요", () => {
+    const po1 = find(selectFeed(initial, "ja", "b2c").posts, "po-1");
+    expect(po1.challenge?.id).toBe("ch-foodloss");
+    expect(po1.challenge?.title).toBe((initial.challenges.find((c) => c.id === "ch-foodloss")!.title as { ja: string }).ja);
+  });
+
+  it("글쓰기(자랑): 고를 실적은 카드뉴스와 같은 순서이고, 미리 채운 실적이 선택돼요", () => {
+    const composer = selectComposer(initial, "ja", "brag");
+    const share = selectShare(initial, "ja", "instagram", null);
+    expect(composer.activities.map((a) => a.id)).toEqual(share.options.map((o) => o.id));
+    expect(composer.selectedActivityId).toBe(composer.activities[0].id);
+    expect(composer.activities[0].label).toContain("🏆");
+    expect(selectComposer(initial, "ja", "brag", { activityId: "h-1" }).selectedActivityId).toBe("h-1");
+    expect(selectComposer(initial, "ja", "brag", { activityId: "없음" }).selectedActivityId).toBe(composer.selectedActivityId);
+    expect(composer).toMatchObject({ kind: "brag", bodyLimit: 200, maxSdgs: 3, author: { name: "Mina", meta: "Lv.3", avatar: "M" } });
+    for (const a of composer.activities) expect(a.sdgIds.length).toBeLessThanOrEqual(3);
+  });
+
+  it("글쓰기(홍보): 우리 회사 챌린지만 고르고, SDGs 기본값은 챌린지 → 기업 순서이며, 공식 게시는 3일 뒤로 안내해요", () => {
+    const composer = selectComposer(initial, "ko", "pr");
+    const mine = new Set(initial.challenges.filter((c) => c.companyId === initial.myCompanyId).map((c) => c.id));
+    expect(composer.challenges.map((c) => c.id).sort()).toEqual([...mine].sort());
+    const statuses = composer.challenges.map((c) => initial.challenges.find((x) => x.id === c.id)!.status);
+    expect(statuses.indexOf("open")).toBe(0); // 모집 중이 먼저
+    expect(statuses.slice(0, statuses.filter((s) => s === "open").length).every((s) => s === "open")).toBe(true);
+    expect(composer.selectedChallengeId).toBeNull();
+    expect(composer.defaultSdgIds).toEqual(initial.companies.find((c) => c.id === initial.myCompanyId)!.sdgIds);
+    const linked = selectComposer(initial, "ko", "pr", { challengeId: "ch-plastic" });
+    expect(linked.selectedChallengeId).toBe("ch-plastic");
+    expect(linked.defaultSdgIds).toEqual(initial.challenges.find((c) => c.id === "ch-plastic")!.sdgIds.slice(0, 3));
+    expect(selectComposer(initial, "ko", "pr", { challengeId: "ch-solar" }).selectedChallengeId).toBeNull(); // 다른 회사 챌린지는 고를 수 없어요
+    expect(composer.official).toMatchObject({ feeYen: 3000, nextDate: "2026-11-02" });
+    expect(composer.official.nextDateLabel).toContain("2026");
+    expect(composer).toMatchObject({ kind: "pr", bodyLimit: 400, titleLimit: 40, author: { avatar: "🐟", verified: true } });
+  });
+
+  it("공식 게시 날짜를 이미 받았다면 안내하는 날짜가 하루씩 밀려요", () => {
+    const requested = run(initial, { type: "createPost", draft: { kind: "pr", title: "t", body: "b", sdgIds: [14], requestOfficial: true }, at: AT });
+    expect(selectComposer(requested, "ja", "pr").official.nextDate).toBe("2026-11-03");
   });
 });

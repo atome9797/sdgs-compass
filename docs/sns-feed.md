@@ -34,8 +34,8 @@
 
 - 글자 수는 이모지·한자도 1글자로 세요(`charCount`, 기획서 제출과 같은 방식).
 - 본문·제목에 **이메일 주소나 전화번호처럼 보이는 글자**가 있으면 올릴 수 없어요. 판별 규칙은 DB 의 `mask_contacts()`(메시지 연락처 가리기)와 같아요.
-- **좋아요**는 남의 글에만 누르고, 다시 누르면 취소돼요. 내 글에는 누를 수 없어요.
-- **삭제**는 내 글만 해요. 공식 게시 날짜를 받았다면 그 날짜는 비워져요.
+- **좋아요**는 계정마다 따로 세요. 이 데모에는 학생 계정과 기업 계정이 있어서, 학생이 누른 좋아요와 기업이 누른 좋아요가 따로 기록돼요(`likedBy`). 내가 쓴 글에는 누를 수 없고, 다시 누르면 취소돼요. 학생이 쓴 내 자랑 글에 기업 계정으로 들어가 좋아요를 누르는 것은 돼요.
+- **삭제**는 내가 쓴 글만, 그 글을 쓴 계정(자랑 글은 학생, 홍보 글은 기업)에서만 해요. 공식 게시 날짜를 받았다면 그 날짜는 비워져요.
 - 피드는 최신순이고, `전체 / 기업 홍보 / 학생 자랑` 으로 걸러 볼 수 있어요.
 - 글은 쓴 언어 그대로 보여요(자동 번역 없음 — 실서비스에서는 `content_translations` 에 번역을 저장). 샘플 글은 일본어·한국어 두 가지가 다 있어요.
 
@@ -75,7 +75,7 @@ DB 에서는 `official_share_slots` 의 `scheduled_on` 에 "예정·게시 완�
 | --- | --- | --- |
 | `SocialPost` (`DemoState.posts`) | `social_posts` | 글 한 건. `kind` 가 `brag`/`pr` |
 | `SocialPost.sdgIds` | `social_post_sdgs` | 글의 SDGs 태그(최대 3) |
-| `likes` / `likedByMe` | `social_post_likes` | 좋아요(사용자당 글 하나에 한 번) |
+| `likes` / `likedBy` | `social_post_likes` | 좋아요(계정당 글 하나에 한 번). 앱은 두 계정(학생·기업)을 `likedBy: Role[]` 로 들고, DB 는 사용자마다 한 행 |
 | `SocialPost.official` | `official_share_slots` | 공식 SNS 게시 날짜·요금·상태 |
 | `PostAchievement` | `social_posts.activity_id` → `activities` | 자랑 글에 붙은 실적(앱은 다른 학생의 샘플 글을 위해 스냅샷으로 들고 있어요) |
 | — | `reports` (`target_type='post'` 추가) | 신고(F-702). 앱 화면은 없어요 |

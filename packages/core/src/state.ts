@@ -1,12 +1,13 @@
 // 데모 상태와 그것을 바꾸는 reducer (순수 함수). 화면은 dispatch(action) 만 하고, 계산·검사는 모두 여기와 core 의 다른 모듈이 해요.
 // 시각은 모두 action 의 at("YYYY-MM-DDTHH:mm")로 받아서 reducer 가 항상 같은 입력에 같은 결과를 내요(테스트하기 쉬워요).
-import { deriveActivities } from "./activities";
+import { deriveActivities, showableActivities } from "./activities";
 import { buildChallenge, validateChallengeDraft, type ChallengeDraft } from "./challenge";
 import { clampCertValue } from "./certification";
-import type { AwardKind, CertCriterionId, DemoState, Match, Proposal, Review, Scout, ScoutKind, SkillId, TeamPost } from "./domain";
+import type { AwardKind, BragPost, CertCriterionId, DemoState, Match, PrPost, Proposal, Review, Role, Scout, ScoutKind, SkillId, TeamPost } from "./domain";
 import { addDays, daysBetween } from "./format";
 import { levelOf } from "./impact";
 import { splitMatchFee } from "./fees";
+import { authorRole, nextOfficialDate, OFFICIAL_SHARE_FEE_YEN, POST_LIMITS, postContext, uniqueSdgs, validatePostDraft, type PostDraft } from "./post";
 import { fileFingerprint, makeReceiptNo, validateProposalDraft, type ProposalDraft } from "./proposal";
 import { canSendScout } from "./scout";
 import { isOpenFor } from "./recommend";
@@ -29,6 +30,12 @@ export type Action =
   | { type: "respondScout"; scoutId: string; response: "accepted" | "declined" }
   | { type: "markScoutRead"; scoutId: string }
   | { type: "recordShare" }
+  /** F-503·F-504: 학생 자랑 글(kind brag) 또는 우리 회사 홍보 글(kind pr)을 올려요. 입력 검사(validatePostDraft)를 통과하지 못하면 아무것도 바뀌지 않아요 */
+  | { type: "createPost"; draft: PostDraft; at: string }
+  /** role = 지금 화면의 계정. 자기가 쓴 글에는 좋아요를 누를 수 없고, 학생·기업 계정이 따로 눌러요 */
+  | { type: "togglePostLike"; postId: string; role: Role }
+  /** 내 글만 지울 수 있어요 (자랑 글은 학생 계정, 홍보 글은 기업 계정에서) */
+  | { type: "deletePost"; postId: string; role: Role }
   | { type: "setCertAnswer"; id: CertCriterionId; value?: number; evidence?: boolean }
   | { type: "generateEsg"; at: string };
 
@@ -207,6 +214,62 @@ export function reducer(state: DemoState, action: Action): DemoState {
     case "recordShare":
       return { ...state, shares: state.shares + 1 };
 
+    case "createPost": {
+      const draft = action.draft;
+      if (validatePostDraft(draft, postContext(state)).length > 0) return state;
+      const id = `po${state.seq}`;
+      if (draft.kind === "brag") {
+        const activity = showableActivities(state).find((a) => a.id === draft.activityId);
+        if (!activity) return state;
+        const post: BragPost = {
+          id,
+          kind: "brag",
+          authorName: state.me.nickname,
+          authorLevel: levelOf(myPoints(state)),
+          body: draft.body.trim(),
+          // 실적의 SDGs 가 자동으로 붙어요 (최대 3개)
+          sdgIds: activity.sdgIds.slice(0, POST_LIMITS.maxSdgs),
+          achievement: { activityId: activity.id, kind: activity.kind, title: activity.title, companyName: activity.companyName, award: activity.award ?? null, sdgIds: activity.sdgIds },
+          createdAt: action.at,
+          likes: 0,
+          likedBy: [],
+          mine: true,
+        };
+        return { ...state, seq: state.seq + 1, posts: [post, ...state.posts] };
+      }
+      const post: PrPost = {
+        id,
+        kind: "pr",
+        companyId: state.myCompanyId,
+        title: (draft.title ?? "").trim(),
+        body: draft.body.trim(),
+        sdgIds: uniqueSdgs(draft.sdgIds),
+        challengeId: draft.challengeId || null,
+        // 공식 SNS 게시 신청: 내일부터 가장 빠른 빈 날짜 (하루에 한 회사만)
+        official: draft.requestOfficial ? { on: nextOfficialDate(state.posts, state.today), feeYen: OFFICIAL_SHARE_FEE_YEN, status: "scheduled" } : null,
+        createdAt: action.at,
+        likes: 0,
+        likedBy: [],
+        mine: true,
+      };
+      return { ...state, seq: state.seq + 1, posts: [post, ...state.posts] };
+    }
+
+    case "togglePostLike": {
+      const post = state.posts.find((p) => p.id === action.postId);
+      if (!post || (post.mine && authorRole(post.kind) === action.role)) return state;
+      const liked = post.likedBy.includes(action.role);
+      const likedBy = liked ? post.likedBy.filter((r) => r !== action.role) : [...post.likedBy, action.role];
+      return { ...state, posts: state.posts.map((p) => (p.id === post.id ? { ...p, likedBy, likes: p.likes + (liked ? -1 : 1) } : p)) };
+    }
+
+    case "deletePost": {
+      const post = state.posts.find((p) => p.id === action.postId);
+      // 내 글만 지울 수 있어요. 공식 게시 날짜는 글에 들어 있어서 글과 함께 비워져요.
+      if (!post || !post.mine || authorRole(post.kind) !== action.role) return state;
+      return { ...state, posts: state.posts.filter((p) => p.id !== post.id) };
+    }
+
     case "setCertAnswer": {
       const current = state.cert[action.id];
       const next = {
@@ -249,6 +312,10 @@ export function rebaseState(state: DemoState, today: string): DemoState {
     history: state.history.map((a) => ({ ...a, date: shift(a.date, delta) })),
     scouts: state.scouts.map((s) => ({ ...s, sentAt: shift(s.sentAt, delta) })),
     matches: state.matches.map((m) => ({ ...m, matchedOn: shift(m.matchedOn, delta) })),
+    posts: state.posts.map((p) => {
+      const createdAt = shift(p.createdAt, delta);
+      return p.kind === "pr" && p.official ? { ...p, createdAt, official: { ...p.official, on: shift(p.official.on, delta) } } : { ...p, createdAt };
+    }),
     esgGeneratedOn: state.esgGeneratedOn ? shift(state.esgGeneratedOn, delta) : null,
   };
 }

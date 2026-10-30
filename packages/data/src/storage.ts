@@ -3,6 +3,7 @@
 import { CERT_CRITERIA } from "@sdgs-compass/core/certification";
 import type { DemoState, Role } from "@sdgs-compass/core/domain";
 import { isLocale, type Locale } from "@sdgs-compass/core/i18n";
+import { SDG_IDS, type SdgId } from "@sdgs-compass/core/sdg";
 import { rebaseState } from "@sdgs-compass/core/state";
 import { createInitialState } from "./seed";
 
@@ -119,6 +120,36 @@ export async function savePrefs(kv: AsyncKeyValueStore, prefs: Prefs): Promise<v
 const isObject = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null && !Array.isArray(value);
 const isDay = (value: unknown): value is string => typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value);
 
+const isDateTime = (value: unknown): value is string => typeof value === "string" && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(value);
+/** 한 가지 언어의 글이거나 { ja, ko } 한 쌍 */
+const isText = (value: unknown): boolean => typeof value === "string" || (isObject(value) && typeof value.ja === "string" && typeof value.ko === "string");
+const isSdgList = (value: unknown): boolean => Array.isArray(value) && value.every((id) => SDG_IDS.includes(id as SdgId));
+
+/** SNS 피드 글 한 건이 지금 앱이 이해하는 모양인지 (rebase 와 화면이 깨지지 않을 만큼만 확인해요) */
+function isSocialPost(value: unknown): boolean {
+  if (!isObject(value) || typeof value.id !== "string") return false;
+  if (!isText(value.body) || !isSdgList(value.sdgIds) || !isDateTime(value.createdAt)) return false;
+  if (typeof value.likes !== "number" || typeof value.mine !== "boolean") return false;
+  if (!Array.isArray(value.likedBy) || !value.likedBy.every(isRole)) return false;
+  if (value.kind === "brag") {
+    const a = value.achievement;
+    return (
+      typeof value.authorName === "string" && typeof value.authorLevel === "number" &&
+      isObject(a) && (a.activityId === null || typeof a.activityId === "string") &&
+      (a.kind === "award" || a.kind === "submission" || a.kind === "participation") &&
+      isText(a.title) && isText(a.companyName) && (a.award === null || a.award === "grand" || a.award === "excellence" || a.award === "special") && isSdgList(a.sdgIds)
+    );
+  }
+  if (value.kind === "pr") {
+    const o = value.official;
+    return (
+      typeof value.companyId === "string" && isText(value.title) && (value.challengeId === null || typeof value.challengeId === "string") &&
+      (o === null || (isObject(o) && isDay(o.on) && typeof o.feeYen === "number" && o.status === "scheduled"))
+    );
+  }
+  return false;
+}
+
 /** 저장돼 있던 값이 지금 앱이 이해하는 모양인지 확인해요 (다르면 샘플 데이터로 새로 시작해요) */
 export function isDemoState(value: unknown): value is DemoState {
   if (!isObject(value) || value.version !== 1) return false;
@@ -126,8 +157,9 @@ export function isDemoState(value: unknown): value is DemoState {
   if (typeof value.myCompanyId !== "string") return false;
   if (!(value.esgGeneratedOn === null || typeof value.esgGeneratedOn === "string")) return false;
   if (!isObject(value.me) || typeof value.me.id !== "string" || typeof value.me.nickname !== "string") return false;
-  const lists = ["companies", "challenges", "teamPosts", "bookmarks", "proposals", "history", "talent", "scouts", "matches"] as const;
+  const lists = ["companies", "challenges", "teamPosts", "bookmarks", "proposals", "history", "talent", "scouts", "matches", "posts"] as const;
   for (const key of lists) if (!Array.isArray(value[key])) return false;
+  if (!(value.posts as unknown[]).every(isSocialPost)) return false;
   if (!(value.challenges as unknown[]).every((c) => isObject(c) && typeof c.id === "string" && isDay(c.opensOn) && isDay(c.closesOn))) return false;
   if (!(value.proposals as unknown[]).every((p) => isObject(p) && typeof p.id === "string" && Array.isArray(p.versions) && typeof p.submittedAt === "string")) return false;
   if (!isObject(value.cert)) return false;
@@ -142,10 +174,21 @@ export function serializeState(state: DemoState): string {
   return JSON.stringify(state);
 }
 
+/**
+ * SNS 피드(posts)가 생기기 전에 저장된 상태에는 posts 가 없어요. 그 상태를 버리지 않고,
+ * 저장했을 때의 "오늘" 기준 샘플 글을 채워 넣어서 이어서 쓸 수 있게 해요(날짜는 불러올 때 rebase 가 옮겨요).
+ */
+function upgradeSaved(data: unknown): unknown {
+  if (isObject(data) && data.version === 1 && data.posts === undefined && isDay(data.today)) {
+    return { ...data, posts: createInitialState(data.today).posts };
+  }
+  return data;
+}
+
 export function parseState(raw: string | null): DemoState | null {
   if (raw === null) return null;
   try {
-    const data: unknown = JSON.parse(raw);
+    const data = upgradeSaved(JSON.parse(raw));
     return isDemoState(data) ? data : null;
   } catch {
     return null;

@@ -125,3 +125,63 @@ describe("데모 상태 저장", () => {
     expect(await kv.getItem(STORAGE_KEYS.prefs)).toBeNull();
   });
 });
+
+describe("SNS 피드가 생기기 전에 저장된 데모 상태", () => {
+  it("posts 가 없는 예전 상태도 버리지 않고, 저장했을 때의 날짜 기준 샘플 글을 채워서 이어 써요", async () => {
+    const { posts: _posts, ...legacy } = createInitialState("2026-10-20");
+    void _posts;
+    const withMine = { ...legacy, shares: 3 }; // 예전에 쓰던 흔적(공유 3회)도 그대로 남아야 해요
+    const kv = memoryStorage({ [STORAGE_KEYS.state]: JSON.stringify(withMine) });
+    const loaded = await loadState(kv, "2026-10-30");
+    expect(loaded.shares).toBe(3);
+    expect(loaded.today).toBe("2026-10-30");
+    expect(loaded.posts).toEqual(createInitialState("2026-10-30").posts); // 날짜도 오늘 기준으로 옮겨졌어요
+    expect(isDemoState(loaded)).toBe(true);
+  });
+
+  it("parseState 는 예전 상태에 샘플 글을 채워 주지만, isDemoState 는 posts 가 있어야 통과해요", () => {
+    const { posts: _posts, ...legacy } = createInitialState(TODAY);
+    void _posts;
+    expect(isDemoState(legacy)).toBe(false);
+    expect(parseState(JSON.stringify(legacy))?.posts).toHaveLength(8);
+  });
+
+  it("오늘 날짜가 깨진 예전 상태는 채우지 않고 버려요", () => {
+    const { posts: _posts, ...legacy } = createInitialState(TODAY);
+    void _posts;
+    expect(parseState(JSON.stringify({ ...legacy, today: "어제" }))).toBeNull();
+  });
+});
+
+describe("SNS 피드 글 검사", () => {
+  const good = createInitialState(TODAY);
+  const withPosts = (posts: unknown) => JSON.stringify({ ...good, posts });
+
+  it("올바른 글(샘플 8건 + 내가 올린 글)은 통과해요", () => {
+    const next = reducer(good, { type: "createPost", draft: { kind: "pr", title: "t", body: "b", sdgIds: [14], requestOfficial: true }, at: "2026-10-30T10:00" });
+    expect(parseState(serializeState(next))).toEqual(next);
+  });
+
+  it("글이 배열이 아니거나, 모양이 틀린 글이 하나라도 있으면 버려요", () => {
+    const [first, ...rest] = good.posts;
+    expect(parseState(withPosts("글"))).toBeNull();
+    expect(parseState(withPosts([...rest, { ...first, kind: "story" }]))).toBeNull();
+    expect(parseState(withPosts([...rest, { ...first, createdAt: "어제" }]))).toBeNull();
+    expect(parseState(withPosts([...rest, { ...first, body: 42 }]))).toBeNull();
+    expect(parseState(withPosts([...rest, { ...first, likes: "많음" }]))).toBeNull();
+    expect(parseState(withPosts([...rest, { ...first, likedBy: ["admin"] }]))).toBeNull();
+    expect(parseState(withPosts([...rest, { ...first, sdgIds: [99] }]))).toBeNull();
+    expect(parseState(withPosts([...rest, 1]))).toBeNull();
+  });
+
+  it("자랑 글은 실적이, 홍보 글은 기업·제목이 있어야 해요", () => {
+    const brag = good.posts.find((p) => p.kind === "brag")!;
+    const pr = good.posts.find((p) => p.kind === "pr")!;
+    const others = (id: string) => good.posts.filter((p) => p.id !== id);
+    expect(parseState(withPosts([...others(brag.id), { ...brag, achievement: null }]))).toBeNull();
+    expect(parseState(withPosts([...others(brag.id), { ...brag, achievement: { ...(brag as { achievement: object }).achievement, kind: "share" } }]))).toBeNull();
+    expect(parseState(withPosts([...others(pr.id), { ...pr, companyId: 7 }]))).toBeNull();
+    expect(parseState(withPosts([...others(pr.id), { ...pr, official: { on: "내일", feeYen: 3000, status: "scheduled" } }]))).toBeNull();
+    expect(parseState(withPosts([...others(pr.id), { ...pr, official: { on: "2026-11-01", feeYen: 3000, status: "posted" } }]))).toBeNull();
+  });
+});

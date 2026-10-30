@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { evaluateCertification } from "@sdgs-compass/core/certification";
 import { daysBetween } from "@sdgs-compass/core/format";
+import { pick } from "@sdgs-compass/core/i18n";
+import { levelOf } from "@sdgs-compass/core/impact";
+import { containsContact, POST_LIMITS } from "@sdgs-compass/core/post";
+import { charCount } from "@sdgs-compass/core/proposal";
 import { selectEsg, selectHome, selectImpact } from "@sdgs-compass/core/selectors";
 import { createInitialState, DEMO_COMPANY_ID, DEMO_STUDENT_ID } from "./seed";
 
@@ -36,7 +40,7 @@ describe("샘플 데이터", () => {
   it("id 는 모음마다 겹치지 않아요", () => {
     for (const [name, list] of Object.entries({
       companies: state.companies, challenges: state.challenges, teamPosts: state.teamPosts, proposals: state.proposals,
-      history: state.history, talent: state.talent, scouts: state.scouts, matches: state.matches,
+      history: state.history, talent: state.talent, scouts: state.scouts, matches: state.matches, posts: state.posts,
     })) {
       const ids = list.map((x) => x.id);
       expect(new Set(ids).size, name).toBe(ids.length);
@@ -139,5 +143,76 @@ describe("샘플 데이터", () => {
     const text = JSON.stringify(state);
     expect(text).not.toMatch(/専修|전수|早稲田|慶應|서울대|東京大学/);
     expect(text).toContain("サンプル");
+  });
+});
+
+describe("SNS 피드 샘플 글 (F-503 · F-504)", () => {
+  const prs = state.posts.flatMap((p) => (p.kind === "pr" ? [p] : []));
+  const brags = state.posts.flatMap((p) => (p.kind === "brag" ? [p] : []));
+
+  it("기업 홍보 4건 + 학생 자랑 4건이고, 번호는 po-1 부터예요", () => {
+    expect(state.posts.map((p) => p.id)).toEqual(["po-1", "po-2", "po-3", "po-4", "po-5", "po-6", "po-7", "po-8"]);
+    expect(prs).toHaveLength(4);
+    expect(brags).toHaveLength(4);
+  });
+
+  it("홍보 글: 기업이 실제로 있고, 연결한 챌린지는 그 기업의 것이에요", () => {
+    const companies = new Map(state.companies.map((c) => [c.id, c]));
+    for (const p of prs) {
+      expect(companies.has(p.companyId), p.id).toBe(true);
+      if (p.challengeId) expect(state.challenges.find((c) => c.id === p.challengeId)?.companyId, p.id).toBe(p.companyId);
+    }
+  });
+
+  it("우리 회사 글은 한 건이고, 학생(나)이 쓴 자랑 글은 처음에 없어요 (발표 때 직접 올려 보여 줘요)", () => {
+    expect(prs.filter((p) => p.mine).map((p) => p.companyId)).toEqual([DEMO_COMPANY_ID]);
+    expect(state.posts.filter((p) => p.mine)).toHaveLength(1);
+    expect(brags.some((p) => p.mine)).toBe(false);
+    expect(state.posts.some((p) => p.id.startsWith("po-") && p.likedBy.length > 0)).toBe(false);
+  });
+
+  it("공식 SNS 게시 날짜는 모두 내일 이후이고 겹치지 않으며, 우리 회사가 신청하면 3일 뒤가 돼요", () => {
+    const days = prs.flatMap((p) => (p.official ? [p.official.on] : []));
+    expect(days).toHaveLength(2);
+    expect(new Set(days).size).toBe(days.length);
+    for (const day of days) expect(daysBetween(TODAY, day)).toBeGreaterThanOrEqual(1);
+    expect(days.map((d) => daysBetween(TODAY, d)).sort()).toEqual([1, 2]);
+    expect(prs.find((p) => p.companyId === DEMO_COMPANY_ID)?.official).toBeNull();
+  });
+
+  it("자랑 글: 닉네임·레벨·실적만 있고, 샘플 학생과 레벨이 맞아요 (이메일·학교 이름 없음)", () => {
+    for (const p of brags) {
+      const candidate = state.talent.find((c) => c.nickname === p.authorName);
+      expect(candidate, p.id).toBeDefined();
+      expect(p.authorLevel, p.id).toBe(levelOf(candidate!.points));
+      expect(p.achievement.activityId, p.id).toBeNull(); // 다른 학생의 실적이라 내 활동 기록에는 없어요
+      expect(p.sdgIds, p.id).toEqual(p.achievement.sdgIds.slice(0, 3));
+      expect(JSON.stringify(p)).not.toMatch(/大学|대학교|@/);
+    }
+  });
+
+  it("글자 수·SDGs 태그가 규칙을 지키고, 연락처 같은 글자가 없어요 (두 언어 모두)", () => {
+    for (const p of state.posts) {
+      expect(p.sdgIds.length, p.id).toBeGreaterThanOrEqual(1);
+      expect(p.sdgIds.length, p.id).toBeLessThanOrEqual(POST_LIMITS.maxSdgs);
+      expect(p.likes, p.id).toBeGreaterThanOrEqual(p.likedBy.length);
+      for (const locale of ["ja", "ko"] as const) {
+        const body = pick(p.body, locale);
+        expect(charCount(body), `${p.id} ${locale} 본문`).toBeLessThanOrEqual(p.kind === "brag" ? POST_LIMITS.bragBody : POST_LIMITS.prBody);
+        expect(containsContact(body), `${p.id} ${locale} 본문`).toBe(false);
+        if (p.kind === "pr") {
+          const title = pick(p.title, locale);
+          expect(charCount(title), `${p.id} ${locale} 제목`).toBeLessThanOrEqual(POST_LIMITS.prTitle);
+          expect(containsContact(title), `${p.id} ${locale} 제목`).toBe(false);
+        }
+      }
+    }
+  });
+
+  it("글은 모두 과거 시각이고 오늘 기준 상대 날짜예요", () => {
+    for (const p of state.posts) {
+      expect(p.createdAt).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/);
+      expect(daysBetween(TODAY, p.createdAt.slice(0, 10)), p.id).toBeLessThan(0);
+    }
   });
 });

@@ -177,6 +177,62 @@ export interface Match {
   recipient: Text;
 }
 
+/** SNS 피드 글의 종류: brag = 학생이 올리는 실적 자랑(F-503), pr = 기업이 올리는 홍보(F-504). 설계는 docs/sns-feed.md */
+export type PostKind = "brag" | "pr";
+
+/** 자랑 글에 붙는 실적 한 건. 활동 기록(Activity)의 사본이라서, 다른 학생의 샘플 글도 같은 모양으로 보여 줄 수 있어요 */
+export interface PostAchievement {
+  /** 내 활동(Activity)의 id. 다른 학생의 샘플 글은 null (DB 에서는 social_posts.activity_id) */
+  activityId: string | null;
+  kind: Exclude<ActivityKind, "share">;
+  title: Text;
+  companyName: Text;
+  award: AwardKind | null;
+  sdgIds: SdgId[];
+}
+
+/** 기업 홍보 글의 공식 SNS(Instagram 스토리) 게시 신청. 하루에 한 회사만 가능하고, 데모에는 관리자 화면이 없어서 상태는 "예정"뿐이에요 */
+export interface OfficialShare {
+  /** 게시 예정일 (YYYY-MM-DD) */
+  on: string;
+  feeYen: number;
+  status: "scheduled";
+}
+
+interface PostBase {
+  id: string;
+  /** 사람이 쓴 글: 내가 쓴 글은 쓴 언어 그대로(string), 샘플은 두 언어 (자동 번역은 하지 않아요) */
+  body: Text;
+  sdgIds: SdgId[];
+  /** YYYY-MM-DDTHH:mm */
+  createdAt: string;
+  /** 좋아요 수 (아래 likedBy 의 좋아요도 들어 있어요) */
+  likes: number;
+  /** 이 데모의 두 계정(학생 b2c · 기업 b2b) 중 좋아요를 누른 쪽 (DB 에서는 social_post_likes 의 행) */
+  likedBy: Role[];
+  /** 이 데모의 계정이 쓴 글 (학생 글은 me, 기업 글은 myCompanyId 의 글). 샘플로 들어 있는 다른 사람·다른 기업의 글은 false */
+  mine: boolean;
+}
+
+/** F-503 학생 자랑 글: 닉네임·레벨만 보이고, 플랫폼에 기록된 실적 1건이 붙어요 */
+export interface BragPost extends PostBase {
+  kind: "brag";
+  authorName: string;
+  authorLevel: number;
+  achievement: PostAchievement;
+}
+
+/** F-504 기업 홍보 글: 항상 "PR" 표시가 붙고, 우리 회사 챌린지를 연결하거나 공식 SNS 게시를 신청할 수 있어요 */
+export interface PrPost extends PostBase {
+  kind: "pr";
+  companyId: string;
+  title: Text;
+  challengeId: string | null;
+  official: OfficialShare | null;
+}
+
+export type SocialPost = BragPost | PrPost;
+
 /** SDGs 인증마크 심사 항목 (certification.ts) */
 export type CertCriterionId = "ecoPackage" | "renewable" | "donation" | "womenManagers" | "volunteer" | "disclosure";
 export interface CertAnswer {
@@ -207,6 +263,8 @@ export interface DemoState {
   talent: Candidate[];
   scouts: Scout[];
   matches: Match[];
+  /** F-503·F-504 SNS 피드의 글 (내가 올린 글을 맨 앞에 더해요. 화면에서는 최신순으로 정렬해요) */
+  posts: SocialPost[];
   cert: CertAnswers;
   esgGeneratedOn: string | null;
 }

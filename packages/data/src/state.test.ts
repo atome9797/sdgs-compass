@@ -3,11 +3,13 @@ import { evaluateCertification } from "@sdgs-compass/core/certification";
 import { daysBetween } from "@sdgs-compass/core/format";
 import { verifyCertificate } from "@sdgs-compass/core/certificate";
 import type { DemoState } from "@sdgs-compass/core/domain";
+import { POST_LIMITS, type PostDraft } from "@sdgs-compass/core/post";
 import { LIMITS, type ProposalDraft } from "@sdgs-compass/core/proposal";
 import { selectApplicants, selectB2bDashboard, selectCertificates, selectHome, selectImpact, selectInbox, selectReceipt, selectSearch, selectTalent } from "@sdgs-compass/core/selectors";
 import { reducer, rebaseState, type Action } from "@sdgs-compass/core/state";
 import { createStore } from "@sdgs-compass/core/store";
 import { createInitialState } from "./seed";
+import { parseState, serializeState } from "./storage";
 
 const TODAY = "2026-10-30";
 const AT = "2026-10-30T10:00";
@@ -295,5 +297,139 @@ describe("발표 시나리오 한 바퀴 (학생 ↔ 기업)", () => {
 
     // 5) 기업 대시보드에는 기부가 늘어남
     expect(selectB2bDashboard(store.getState(), "ja").kpis.find((k) => k.id === "donation")?.value).toBe("¥45,000");
+  });
+});
+
+describe("SNS 피드: 글 올리기·좋아요·삭제 (F-503 · F-504)", () => {
+  const brag = (overrides: Partial<PostDraft> = {}): PostDraft => ({ kind: "brag", body: "  優秀賞をいただきました！  ", activityId: "h-5b", ...overrides });
+  const pr = (overrides: Partial<PostDraft> = {}): PostDraft => ({ kind: "pr", title: " 朝市で容器を減らしました ", body: "学生の提案を試しました。", sdgIds: [14, 12], ...overrides });
+  const create = (state: DemoState, draft: PostDraft) => run(state, { type: "createPost", draft, at: AT });
+  const post = (state: DemoState, id: string) => state.posts.find((p) => p.id === id)!;
+
+  it("자랑 글: 내 실적 1건이 붙고 SDGs 가 자동으로 붙어요 (포인트·레벨은 그대로)", () => {
+    const next = create(initial, brag());
+    expect(next.posts).toHaveLength(initial.posts.length + 1);
+    expect(next.posts[0]).toMatchObject({
+      id: `po${initial.seq}`, kind: "brag", authorName: "Mina", authorLevel: 3, body: "優秀賞をいただきました！",
+      sdgIds: [14, 12], createdAt: AT, likes: 0, likedBy: [], mine: true,
+    });
+    expect(next.posts[0]).toMatchObject({ achievement: { activityId: "h-5b", kind: "award", award: "excellence" } });
+    expect(next.seq).toBe(initial.seq + 1);
+    expect(points(next)).toBe(points(initial));
+  });
+
+  it("자랑 글: 방금 낸 기획서도 붙일 수 있고, 카드뉴스 공유 기록은 붙일 수 없어요", () => {
+    const submitted = run(initial, { type: "submitProposal", challengeId: "ch-plastic", draft: draft(), at: AT });
+    const proposalId = submitted.proposals.find((p) => p.mine)!.id;
+    const withPost = create(submitted, brag({ activityId: `act-${proposalId}` }));
+    expect(withPost.posts[0]).toMatchObject({ kind: "brag", achievement: { activityId: `act-${proposalId}`, kind: "submission" } });
+    expect(create(initial, brag({ activityId: "act-share-1" }))).toBe(initial);
+  });
+
+  it("자랑 글: 검사를 통과하지 못하면 아무것도 바뀌지 않아요", () => {
+    for (const bad of [
+      brag({ activityId: null }), brag({ activityId: "남의 실적" }), brag({ body: "   " }),
+      brag({ body: "あ".repeat(POST_LIMITS.bragBody + 1) }), brag({ body: "連絡は mina@example.com まで" }), brag({ body: "090-1234-5678" }),
+    ]) {
+      expect(create(initial, bad)).toBe(initial);
+    }
+  });
+
+  it("홍보 글: 우리 회사 이름으로 올라가고, 제목·본문은 앞뒤 공백을 지우고, SDGs 는 중복을 빼요", () => {
+    const next = create(initial, pr({ sdgIds: [14, 12, 14], challengeId: "ch-plastic" }));
+    expect(next.posts[0]).toMatchObject({
+      kind: "pr", companyId: initial.myCompanyId, title: "朝市で容器を減らしました", body: "学生の提案を試しました。",
+      sdgIds: [14, 12], challengeId: "ch-plastic", official: null, likes: 0, likedBy: [], mine: true,
+    });
+    expect(next.seq).toBe(initial.seq + 1);
+  });
+
+  it("홍보 글: 검사를 통과하지 못하면 아무것도 바뀌지 않아요 (제목 없음 · SDGs 없음 · 다른 회사 챌린지 · 연락처)", () => {
+    for (const bad of [
+      pr({ title: "" }), pr({ sdgIds: [] }), pr({ sdgIds: [1, 2, 3, 4] }), pr({ challengeId: "ch-solar" }),
+      pr({ title: "題".repeat(POST_LIMITS.prTitle + 1) }), pr({ body: "文".repeat(POST_LIMITS.prBody + 1) }),
+      pr({ body: "お問い合わせは info@example.co.jp まで" }),
+    ]) {
+      expect(create(initial, bad)).toBe(initial);
+    }
+  });
+
+  it("공식 SNS 게시: 내일부터 가장 빠른 빈 날짜가 배정돼요 (다른 기업이 내일·모레를 받아서 3일 뒤)", () => {
+    const first = create(initial, pr({ requestOfficial: true }));
+    expect(first.posts[0]).toMatchObject({ official: { on: "2026-11-02", feeYen: 3000, status: "scheduled" } });
+    const second = create(first, pr({ title: "もう一件", requestOfficial: true }));
+    expect(second.posts[0]).toMatchObject({ official: { on: "2026-11-03" } });
+    // 신청하지 않으면 날짜는 없고, 다른 날짜도 차지하지 않아요
+    const plain = create(second, pr({ title: "申込なし" }));
+    expect(plain.posts[0]).toMatchObject({ official: null });
+    // 첫 글을 지우면 그 날짜가 다시 비어요 (하루에 한 회사만)
+    const deleted = run(second, { type: "deletePost", postId: first.posts[0].id, role: "b2b" });
+    expect(deleted.posts.find((p) => p.id === first.posts[0].id)).toBeUndefined();
+    const again = create(deleted, pr({ title: "다시", requestOfficial: true }));
+    expect(again.posts[0]).toMatchObject({ official: { on: "2026-11-02" } });
+  });
+
+  it("공식 게시 날짜는 어떤 글도 겹치지 않아요", () => {
+    let state = initial;
+    for (let i = 0; i < 6; i++) state = create(state, pr({ title: `申込${i}`, requestOfficial: true }));
+    const days = state.posts.flatMap((p) => (p.kind === "pr" && p.official ? [p.official.on] : []));
+    expect(new Set(days).size).toBe(days.length);
+    expect(days.every((d) => daysBetween(TODAY, d) >= 1)).toBe(true);
+  });
+
+  it("좋아요: 학생·기업 계정이 따로 누르고, 다시 누르면 취소돼요", () => {
+    const likedByStudent = run(initial, { type: "togglePostLike", postId: "po-1", role: "b2c" });
+    expect(post(likedByStudent, "po-1")).toMatchObject({ likes: post(initial, "po-1").likes + 1, likedBy: ["b2c"] });
+    const both = run(likedByStudent, { type: "togglePostLike", postId: "po-1", role: "b2b" });
+    expect(post(both, "po-1")).toMatchObject({ likes: post(initial, "po-1").likes + 2, likedBy: ["b2c", "b2b"] });
+    const undone = run(both, { type: "togglePostLike", postId: "po-1", role: "b2c" });
+    expect(post(undone, "po-1")).toMatchObject({ likes: post(initial, "po-1").likes + 1, likedBy: ["b2b"] });
+    expect(run(undone, { type: "togglePostLike", postId: "po-1", role: "b2b" })).toEqual(initial);
+  });
+
+  it("좋아요: 내가 쓴 글에는 누를 수 없어요 (남의 계정이 쓴 글에는 눌러요)", () => {
+    // 우리 회사 글(po-4): 기업 계정은 못 누르고, 학생 계정은 눌러요
+    expect(run(initial, { type: "togglePostLike", postId: "po-4", role: "b2b" })).toBe(initial);
+    expect(post(run(initial, { type: "togglePostLike", postId: "po-4", role: "b2c" }), "po-4").likedBy).toEqual(["b2c"]);
+    // 내가 쓴 자랑 글: 학생 계정은 못 누르고, 기업 계정은 눌러요
+    const mine = create(initial, brag());
+    const id = mine.posts[0].id;
+    expect(run(mine, { type: "togglePostLike", postId: id, role: "b2c" })).toBe(mine);
+    expect(post(run(mine, { type: "togglePostLike", postId: id, role: "b2b" }), id).likedBy).toEqual(["b2b"]);
+    expect(run(initial, { type: "togglePostLike", postId: "없음", role: "b2c" })).toBe(initial);
+  });
+
+  it("삭제: 내 글만, 글을 쓴 계정에서만 지울 수 있어요", () => {
+    const mine = create(initial, brag());
+    const id = mine.posts[0].id;
+    expect(run(mine, { type: "deletePost", postId: id, role: "b2b" })).toBe(mine); // 기업 계정은 학생의 글을 못 지워요
+    expect(run(mine, { type: "deletePost", postId: id, role: "b2c" }).posts).toEqual(initial.posts); // (글 번호용 seq 는 되돌리지 않아요)
+    // 샘플로 들어 있는 남의 글은 지울 수 없어요
+    expect(run(initial, { type: "deletePost", postId: "po-1", role: "b2c" })).toBe(initial);
+    expect(run(initial, { type: "deletePost", postId: "po-5", role: "b2b" })).toBe(initial);
+    // 우리 회사의 샘플 글(po-4)은 기업 계정에서만 지울 수 있어요
+    expect(run(initial, { type: "deletePost", postId: "po-4", role: "b2c" })).toBe(initial);
+    expect(run(initial, { type: "deletePost", postId: "po-4", role: "b2b" }).posts.map((p) => p.id)).not.toContain("po-4");
+    expect(run(initial, { type: "deletePost", postId: "없음", role: "b2c" })).toBe(initial);
+  });
+
+  it("기준일을 옮기면 글의 시각과 공식 게시 날짜도 같은 날수만큼 옮겨져요", () => {
+    const state = create(create(initial, brag()), pr({ requestOfficial: true }));
+    const later = rebaseState(state, "2026-11-10");
+    state.posts.forEach((p, i) => {
+      expect(daysBetween(later.today, later.posts[i].createdAt.slice(0, 10))).toBe(daysBetween(TODAY, p.createdAt.slice(0, 10)));
+      expect(later.posts[i].createdAt.slice(10)).toBe(p.createdAt.slice(10));
+      if (p.kind === "pr" && p.official) {
+        const moved = later.posts[i];
+        expect(moved.kind === "pr" && moved.official && daysBetween(later.today, moved.official.on)).toBe(daysBetween(TODAY, p.official.on));
+      }
+    });
+    // 새로 시작한 상태와 같은 모양이에요
+    expect(rebaseState(initial, "2026-11-10").posts).toEqual(createInitialState("2026-11-10").posts);
+  });
+
+  it("글이 있는 상태도 저장했다 불러오면 그대로예요", () => {
+    const state = create(create(initial, brag()), pr({ requestOfficial: true, challengeId: "ch-bottle" }));
+    expect(parseState(serializeState(state))).toEqual(state);
   });
 });

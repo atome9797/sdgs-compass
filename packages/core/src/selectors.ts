@@ -1,15 +1,16 @@
 // 화면용 데이터(뷰 모델) 만들기. 상태(DemoState)와 언어(Locale)를 받아 "그대로 그리면 되는" 글자·숫자로 바꿔 줘요.
 // 웹·모바일 화면은 이 함수들의 결과만 그려서 두 앱의 표시 내용이 늘 같고, 계산·번역 실수는 core 테스트가 잡아요.
-import { deriveActivities } from "./activities";
+import { deriveActivities, showableActivities, type ShowableActivity } from "./activities";
 import { CERT_CRITERIA, criterionOf, evaluateCertification, type CertUnit, type EsgCategory } from "./certification";
-import { certificateFromActivity, qrPayload, verifyCode, type Certificate } from "./certificate";
-import type { Activity, ActivityKind, AwardKind, Candidate, Challenge, ChallengeStatus, CertCriterionId, Company, DemoState, Proposal, ProposalStatus, Review, ScoutKind, ScoutStatus, SkillId } from "./domain";
+import { certificateFromActivity, certificateIdAt, qrPayload, verifyCode, type Certificate } from "./certificate";
+import type { Activity, ActivityKind, AwardKind, Candidate, Challenge, ChallengeStatus, CertCriterionId, Company, DemoState, PostKind, Proposal, ProposalStatus, Review, Role, ScoutKind, ScoutStatus, SkillId, SocialPost } from "./domain";
 import { summarizeMatches, splitMatchFee } from "./fees";
-import { dDayLabel, daysBetween, formatBytes, formatDate, formatDateTime, formatNumber, formatPeople, formatPoints, formatYen } from "./format";
+import { dDayLabel, daysBetween, formatBytes, formatDate, formatDateShort, formatDateTime, formatNumber, formatPeople, formatPoints, formatYen } from "./format";
 import { computeBadges, computeImpactIndex, BADGE_EMOJI, levelProgress, levelOf, type BadgeCode } from "./impact";
 import { pick, type Locale } from "./i18n";
 import { awardLabel, challengeStatusLabel, participationLabel, proposalStatusLabel, rewardLabel, scoutKindLabel, sdgShort, skillLabel } from "./labels";
 import { makeT, translate, type TFunction } from "./messages";
+import { authorRole, bodyLimit, defaultPrSdgs, nextOfficialDate, OFFICIAL_SHARE_FEE_YEN, POST_LIMITS } from "./post";
 import { qrMatrix } from "./qr";
 import { isOpenFor, recommendChallenges, scoreChallenge, type Reason, type Recommendation } from "./recommend";
 import { remainingScouts, SCOUT_DAILY_LIMIT, alreadyScouted, canSendScout } from "./scout";
@@ -380,9 +381,7 @@ export function certificateVM(cert: Certificate, locale: Locale): CertificateVM 
 
 /** 발급할 수 있는 증명서 목록 (수상 → 참가·제출 순으로, 최근 것부터) */
 export function selectCertificates(state: DemoState, locale: Locale): CertificateVM[] {
-  const activities = deriveActivities(state).filter((a) => a.kind !== "share");
-  const ordered = [...activities.filter((a) => a.kind === "award"), ...activities.filter((a) => a.kind !== "award")];
-  return ordered.flatMap((activity, index) => {
+  return showableActivities(state).flatMap((activity, index) => {
     const cert = certificateFromActivity(activity, state.me.nickname, index);
     return cert ? [certificateVM(cert, locale)] : [];
   });
@@ -402,8 +401,7 @@ export interface ShareVM {
 }
 
 export function selectShare(state: DemoState, locale: Locale, template: CardTemplate, activityId: string | null): ShareVM {
-  const activities = deriveActivities(state).filter((a) => a.kind === "award" || a.kind === "submission" || a.kind === "participation");
-  const ordered = [...activities.filter((a) => a.kind === "award"), ...activities.filter((a) => a.kind !== "award")];
+  const ordered = showableActivities(state);
   const options = ordered.map((a) => ({ id: a.id, label: `${a.award ? `🏆 ${awardLabel(a.award, locale)} · ` : ""}${pick(a.title, locale)}` }));
   const selected = ordered.find((a) => a.id === activityId) ?? ordered[0] ?? null;
   if (!selected) return { options, selectedId: null, card: null };
@@ -813,6 +811,231 @@ export function selectEsg(state: DemoState, locale: Locale): EsgVM {
     generatedLabel: state.esgGeneratedOn ? t("esg.generated", { date: formatDate(state.esgGeneratedOn, locale) }) : t("esg.notGenerated"),
     needEvidence: result.missingEvidence.length > 0,
     disclaimer: t("esg.disclaimer"),
+  };
+}
+
+// ───────── SNS 피드 (F-503 학생 자랑 글 · F-504 기업 홍보 글, 설계: docs/sns-feed.md) ─────────
+
+export type FeedFilter = "all" | "pr" | "brag";
+export const FEED_FILTERS: readonly FeedFilter[] = ["all", "pr", "brag"];
+
+export interface PostAchievementVM {
+  /** 수상 / 기획서 제출 / 참가 */
+  kindLabel: string;
+  title: string;
+  companyName: string;
+  awardLabel: string | null;
+  sdgIds: SdgId[];
+  /** 증명서 화면의 번호 (내 실적에 붙인 글일 때만, 아니면 null) */
+  certificateId: string | null;
+}
+
+export interface PostVM {
+  id: string;
+  kind: PostKind;
+  /** "PR"(광고 표시, 홍보 글에 항상) 또는 "실적/자랑" */
+  chipLabel: string;
+  authorName: string;
+  /** 자랑 글은 "Lv.3", 홍보 글은 업종 */
+  authorMeta: string;
+  /** 홍보 글은 기업 이모지, 자랑 글은 닉네임의 첫 글자 */
+  avatar: string;
+  /** 홍보 글은 기업 색, 자랑 글은 null (화면 기본색) */
+  avatarColor: string | null;
+  /** 홍보 글의 기업 인증 ✓ */
+  verified: boolean;
+  title: string | null;
+  body: string;
+  sdgIds: SdgId[];
+  dateLabel: string;
+  likes: number;
+  /** 지금 화면의 계정(학생/기업)이 좋아요를 눌렀는지 */
+  likedByMe: boolean;
+  /** 지금 화면의 계정이 쓴 글인지 */
+  mine: boolean;
+  /** 내 글에는 좋아요를 누를 수 없어요 */
+  canLike: boolean;
+  /** 내 글만 지울 수 있어요 */
+  canDelete: boolean;
+  achievement: PostAchievementVM | null;
+  /** 홍보 글에 연결된 챌린지 (챌린지 상세로 이어져요) */
+  challenge: { id: string; title: string } | null;
+  /** 공식 SNS 게시 신청: "공식 SNS 게시 예정 · 11/19", "게시료 ¥3,000(샘플)" */
+  official: { label: string; feeLabel: string } | null;
+  /** 공유·복사로 내보낼 글 (홍보 글은 맨 앞에 [PR] 이 붙어요) */
+  shareText: string;
+}
+
+export interface FeedVM {
+  filter: FeedFilter;
+  filters: { id: FeedFilter; label: string; count: number }[];
+  posts: PostVM[];
+}
+
+function hashtagsOf(sdgIds: readonly SdgId[], locale: Locale): string {
+  return [translate("share.hashtags", locale), ...sdgIds.map((id) => `#SDGs${id}`)].join(" ");
+}
+
+function postVM(state: DemoState, post: SocialPost, locale: Locale, role: Role, showable: readonly ShowableActivity[]): PostVM {
+  // 데모에는 학생·기업 두 계정이 있어서, "내 글"은 지금 화면의 계정이 쓴 글만이에요
+  const mine = post.mine && authorRole(post.kind) === role;
+  const base = {
+    id: post.id,
+    kind: post.kind,
+    body: pick(post.body, locale),
+    sdgIds: post.sdgIds,
+    dateLabel: formatDateTime(post.createdAt, locale),
+    likes: post.likes,
+    likedByMe: post.likedBy.includes(role),
+    mine,
+    canLike: !mine,
+    canDelete: mine,
+  };
+  const tags = hashtagsOf(post.sdgIds, locale);
+
+  if (post.kind === "brag") {
+    const a = post.achievement;
+    const index = a.activityId === null ? -1 : showable.findIndex((x) => x.id === a.activityId);
+    const award = a.award ? awardLabel(a.award, locale) : null;
+    const achievement: PostAchievementVM = {
+      kindLabel: translate(`activity.${a.kind}`, locale),
+      title: pick(a.title, locale),
+      companyName: pick(a.companyName, locale),
+      awardLabel: award,
+      sdgIds: a.sdgIds,
+      certificateId: index >= 0 ? certificateIdAt(index) : null,
+    };
+    return {
+      ...base,
+      chipLabel: translate("feed.chip.brag", locale),
+      authorName: post.authorName,
+      authorMeta: translate("feed.level", locale, { level: post.authorLevel }),
+      avatar: [...post.authorName][0]?.toUpperCase() ?? "?",
+      avatarColor: null,
+      verified: false,
+      title: null,
+      achievement,
+      challenge: null,
+      official: null,
+      shareText: [base.body, `${achievement.title} · ${achievement.companyName}${award ? ` · ${award}` : ""}`, tags].join("\n"),
+    };
+  }
+
+  const company = companyOf(state, post.companyId);
+  const challenge = post.challengeId ? state.challenges.find((c) => c.id === post.challengeId) : undefined;
+  const title = pick(post.title, locale);
+  const companyName = company ? pick(company.name, locale) : "";
+  return {
+    ...base,
+    chipLabel: translate("feed.chip.pr", locale),
+    authorName: companyName,
+    authorMeta: company ? pick(company.industry, locale) : "",
+    avatar: company?.emoji ?? "🏢",
+    avatarColor: company?.accent ?? null,
+    verified: company?.verified ?? false,
+    title,
+    achievement: null,
+    challenge: challenge ? { id: challenge.id, title: pick(challenge.title, locale) } : null,
+    official: post.official
+      ? {
+          label: translate("feed.officialScheduled", locale, { date: formatDateShort(post.official.on) }),
+          feeLabel: translate("feed.officialFee", locale, { fee: formatYen(post.official.feeYen, locale) }),
+        }
+      : null,
+    shareText: [translate("feed.sharePr", locale, { title }), base.body, `${companyName} ${tags}`].join("\n"),
+  };
+}
+
+/** 피드 목록: 최신순이고, 전체 / 기업 홍보 / 학생 자랑 으로 걸러 볼 수 있어요 */
+export function selectFeed(state: DemoState, locale: Locale, role: Role, filter: FeedFilter = "all"): FeedVM {
+  const showable = showableActivities(state);
+  const sorted = [...state.posts].sort((a, b) => b.createdAt.localeCompare(a.createdAt) || b.id.localeCompare(a.id));
+  const count = (kind: PostKind) => state.posts.filter((p) => p.kind === kind).length;
+  return {
+    filter,
+    filters: [
+      { id: "all", label: translate("feed.filter.all", locale), count: state.posts.length },
+      { id: "pr", label: translate("feed.filter.pr", locale), count: count("pr") },
+      { id: "brag", label: translate("feed.filter.brag", locale), count: count("brag") },
+    ],
+    posts: sorted.filter((p) => filter === "all" || p.kind === filter).map((p) => postVM(state, p, locale, role, showable)),
+  };
+}
+
+/** 글쓰기 화면을 다른 화면에서 열 때 미리 채워 둘 값 (카드뉴스 화면 → 실적, 응모자 화면 → 챌린지) */
+export interface PostPreset {
+  activityId?: string | null;
+  challengeId?: string | null;
+}
+
+export interface ComposerVM {
+  kind: PostKind;
+  title: string;
+  privacyNote: string;
+  bodyPlaceholder: string;
+  bodyLimit: number;
+  titleLimit: number;
+  maxSdgs: number;
+  /** 글쓴이로 보이는 모습 (미리보기·머리말에 써요) */
+  author: { name: string; meta: string; avatar: string; avatarColor: string | null; verified: boolean };
+  /** 자랑 글: 고를 수 있는 내 실적(수상 → 제출·참가 순)과, 처음 선택된 것 */
+  activities: { id: string; label: string; sdgIds: SdgId[] }[];
+  selectedActivityId: string | null;
+  /** 홍보 글: 연결할 수 있는 우리 회사 챌린지와, 미리 고른 것(없으면 null) */
+  challenges: { id: string; title: string; sdgIds: SdgId[] }[];
+  selectedChallengeId: string | null;
+  /** 홍보 글의 SDGs 기본값: 고른 챌린지의 SDGs → 챌린지가 없으면 기업의 SDGs */
+  defaultSdgIds: SdgId[];
+  /** 챌린지를 연결하지 않았을 때의 기본 SDGs (기업의 SDGs, 최대 3개) */
+  companySdgIds: SdgId[];
+  /** 홍보 글의 공식 SNS 게시 신청 안내: 지금 신청하면 배정될 날짜 */
+  official: { feeYen: number; feeLabel: string; hint: string; nextDate: string; nextDateLabel: string };
+}
+
+export function selectComposer(state: DemoState, locale: Locale, kind: PostKind, preset: PostPreset = {}): ComposerVM {
+  const t = makeT(locale);
+  const company = companyOf(state, state.myCompanyId);
+  const points = deriveActivities(state).reduce((sum, a) => sum + a.points, 0);
+
+  const activities = showableActivities(state).map((a) => ({
+    id: a.id,
+    label: `${a.award ? `🏆 ${awardLabel(a.award, locale)} · ` : ""}${pick(a.title, locale)}`,
+    sdgIds: a.sdgIds.slice(0, POST_LIMITS.maxSdgs),
+  }));
+  const selectedActivityId = activities.find((a) => a.id === preset.activityId)?.id ?? activities[0]?.id ?? null;
+
+  const open = state.challenges.filter((c) => c.companyId === state.myCompanyId && c.status === "open");
+  const others = state.challenges.filter((c) => c.companyId === state.myCompanyId && c.status !== "open");
+  const challenges = [...open, ...others].map((c) => ({ id: c.id, title: pick(c.title, locale), sdgIds: c.sdgIds.slice(0, POST_LIMITS.maxSdgs) }));
+  const selectedChallenge = challenges.find((c) => c.id === preset.challengeId) ?? null;
+  const companySdgIds = defaultPrSdgs(company?.sdgIds ?? [], null);
+  const nextDate = nextOfficialDate(state.posts, state.today);
+
+  return {
+    kind,
+    title: t(kind === "brag" ? "post.title.brag" : "post.title.pr"),
+    privacyNote: t(kind === "brag" ? "post.privacy.brag" : "post.privacy.pr"),
+    bodyPlaceholder: t(kind === "brag" ? "post.bodyPlaceholder.brag" : "post.bodyPlaceholder.pr"),
+    bodyLimit: bodyLimit(kind),
+    titleLimit: POST_LIMITS.prTitle,
+    maxSdgs: POST_LIMITS.maxSdgs,
+    author:
+      kind === "brag"
+        ? { name: state.me.nickname, meta: t("feed.level", { level: levelOf(points) }), avatar: [...state.me.nickname][0]?.toUpperCase() ?? "?", avatarColor: null, verified: false }
+        : { name: company ? pick(company.name, locale) : "", meta: company ? pick(company.industry, locale) : "", avatar: company?.emoji ?? "🏢", avatarColor: company?.accent ?? null, verified: company?.verified ?? false },
+    activities,
+    selectedActivityId,
+    challenges,
+    selectedChallengeId: selectedChallenge?.id ?? null,
+    defaultSdgIds: defaultPrSdgs(company?.sdgIds ?? [], selectedChallenge?.sdgIds ?? null),
+    companySdgIds,
+    official: {
+      feeYen: OFFICIAL_SHARE_FEE_YEN,
+      feeLabel: formatYen(OFFICIAL_SHARE_FEE_YEN, locale),
+      hint: t("post.officialHint", { fee: formatYen(OFFICIAL_SHARE_FEE_YEN, locale) }),
+      nextDate,
+      nextDateLabel: t("post.officialDate", { date: formatDate(nextDate, locale) }),
+    },
   };
 }
 

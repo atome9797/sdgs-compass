@@ -3,14 +3,14 @@
 import { deriveActivities, showableActivities, type ShowableActivity } from "./activities";
 import { CERT_CRITERIA, criterionOf, evaluateCertification, type CertUnit, type EsgCategory } from "./certification";
 import { certificateFromActivity, certificateIdAt, qrPayload, verifyCode, type Certificate } from "./certificate";
-import type { Activity, ActivityKind, AwardKind, Candidate, Challenge, ChallengeStatus, CertCriterionId, Company, DemoState, PostKind, Proposal, ProposalStatus, Review, Role, ScoutKind, ScoutStatus, SkillId, SocialPost } from "./domain";
+import type { Activity, ActivityKind, AwardKind, Candidate, Challenge, ChallengeStatus, CertCriterionId, Company, DemoState, OfficialChannel, PostKind, Proposal, ProposalStatus, Review, Role, ScoutKind, ScoutStatus, SkillId, SocialPost } from "./domain";
 import { summarizeMatches, splitMatchFee } from "./fees";
 import { dDayLabel, daysBetween, formatBytes, formatDate, formatDateShort, formatDateTime, formatNumber, formatPeople, formatPoints, formatYen } from "./format";
 import { computeBadges, computeImpactIndex, BADGE_EMOJI, levelProgress, levelOf, type BadgeCode } from "./impact";
 import { pick, type Locale } from "./i18n";
 import { awardLabel, challengeStatusLabel, participationLabel, proposalStatusLabel, rewardLabel, scoutKindLabel, sdgShort, skillLabel } from "./labels";
 import { makeT, translate, type TFunction } from "./messages";
-import { authorRole, bodyLimit, defaultPrSdgs, nextOfficialDate, OFFICIAL_SHARE_FEE_YEN, POST_LIMITS } from "./post";
+import { authorRole, bodyLimit, DEFAULT_OFFICIAL_CHANNEL, defaultPrSdgs, nextOfficialDate, OFFICIAL_CHANNELS, OFFICIAL_SHARE_FEE_YEN, officialChannelFormat, officialChannelLabel, officialChannelName, POST_LIMITS } from "./post";
 import { qrMatrix } from "./qr";
 import { isOpenFor, recommendChallenges, scoreChallenge, type Reason, type Recommendation } from "./recommend";
 import { remainingScouts, SCOUT_DAILY_LIMIT, alreadyScouted, canSendScout } from "./scout";
@@ -860,10 +860,23 @@ export interface PostVM {
   achievement: PostAchievementVM | null;
   /** 홍보 글에 연결된 챌린지 (챌린지 상세로 이어져요) */
   challenge: { id: string; title: string } | null;
-  /** 공식 SNS 게시 신청: "공식 SNS 게시 예정 · 11/19", "게시료 ¥3,000(샘플)" */
-  official: { label: string; feeLabel: string } | null;
+  /** 공식 SNS 게시 신청: "공식 SNS 게시 예정 · X · 11/19", "게시료 ¥3,000(샘플)" */
+  official: PostOfficialVM | null;
   /** 공유·복사로 내보낼 글 (홍보 글은 맨 앞에 [PR] 이 붙어요) */
   shareText: string;
+}
+
+/** 글 카드에 보이는 공식 SNS 게시 신청 */
+export interface PostOfficialVM {
+  /** "공식 SNS 게시 예정 · X · 11/19" */
+  label: string;
+  /** "게시료 ¥3,000(샘플)" */
+  feeLabel: string;
+  channel: OfficialChannel;
+  /** 채널 이름: "X" / "Instagram" / "Facebook" (한국어는 인스타그램·페이스북) */
+  channelName: string;
+  /** 채널 이름 + 올라가는 모양: "X ポスト" / "Instagram ストーリー" / "Facebook ページ投稿" */
+  channelLabel: string;
 }
 
 export interface FeedVM {
@@ -938,8 +951,11 @@ function postVM(state: DemoState, post: SocialPost, locale: Locale, role: Role, 
     challenge: challenge ? { id: challenge.id, title: pick(challenge.title, locale) } : null,
     official: post.official
       ? {
-          label: translate("feed.officialScheduled", locale, { date: formatDateShort(post.official.on) }),
+          label: translate("feed.officialScheduled", locale, { channel: officialChannelName(post.official.channel, locale), date: formatDateShort(post.official.on) }),
           feeLabel: translate("feed.officialFee", locale, { fee: formatYen(post.official.feeYen, locale) }),
+          channel: post.official.channel,
+          channelName: officialChannelName(post.official.channel, locale),
+          channelLabel: officialChannelLabel(post.official.channel, locale),
         }
       : null,
     shareText: [translate("feed.sharePr", locale, { title }), base.body, `${companyName} ${tags}`].join("\n"),
@@ -988,8 +1004,31 @@ export interface ComposerVM {
   defaultSdgIds: SdgId[];
   /** 챌린지를 연결하지 않았을 때의 기본 SDGs (기업의 SDGs, 최대 3개) */
   companySdgIds: SdgId[];
-  /** 홍보 글의 공식 SNS 게시 신청 안내: 지금 신청하면 배정될 날짜 */
-  official: { feeYen: number; feeLabel: string; hint: string; nextDate: string; nextDateLabel: string };
+  /** 홍보 글의 공식 SNS 게시 신청 안내: 고를 수 있는 채널과, 지금 신청하면 채널마다 배정될 날짜 */
+  official: {
+    feeYen: number;
+    feeLabel: string;
+    hint: string;
+    /** 채널 선택지 (화면 순서: X · Instagram · Facebook) */
+    channels: OfficialChannelOptionVM[];
+    /** 처음 골라 두는 채널 */
+    defaultChannel: OfficialChannel;
+  };
+}
+
+/** 글쓰기의 채널 선택지 한 줄: 이름 · 올라가는 모양 · 지금 신청하면 이 채널에서 배정될 날짜 */
+export interface OfficialChannelOptionVM {
+  id: OfficialChannel;
+  /** "X" / "Instagram" / "Facebook" */
+  name: string;
+  /** "ポスト" / "ストーリー" / "ページ投稿" */
+  format: string;
+  /** 이름 + 모양: "Instagram ストーリー" (읽어 주는 글·미리보기에 써요) */
+  label: string;
+  /** 이 채널에서 내일부터 가장 빠른 빈 날짜 (YYYY-MM-DD) */
+  nextDate: string;
+  /** "게시 예정일: 2026年11月2日" */
+  nextDateLabel: string;
 }
 
 export function selectComposer(state: DemoState, locale: Locale, kind: PostKind, preset: PostPreset = {}): ComposerVM {
@@ -1009,7 +1048,17 @@ export function selectComposer(state: DemoState, locale: Locale, kind: PostKind,
   const challenges = [...open, ...others].map((c) => ({ id: c.id, title: pick(c.title, locale), sdgIds: c.sdgIds.slice(0, POST_LIMITS.maxSdgs) }));
   const selectedChallenge = challenges.find((c) => c.id === preset.challengeId) ?? null;
   const companySdgIds = defaultPrSdgs(company?.sdgIds ?? [], null);
-  const nextDate = nextOfficialDate(state.posts, state.today);
+  const channels: OfficialChannelOptionVM[] = OFFICIAL_CHANNELS.map((id) => {
+    const nextDate = nextOfficialDate(state.posts, state.today, id);
+    return {
+      id,
+      name: officialChannelName(id, locale),
+      format: officialChannelFormat(id, locale),
+      label: officialChannelLabel(id, locale),
+      nextDate,
+      nextDateLabel: t("post.officialDate", { date: formatDate(nextDate, locale) }),
+    };
+  });
 
   return {
     kind,
@@ -1033,8 +1082,8 @@ export function selectComposer(state: DemoState, locale: Locale, kind: PostKind,
       feeYen: OFFICIAL_SHARE_FEE_YEN,
       feeLabel: formatYen(OFFICIAL_SHARE_FEE_YEN, locale),
       hint: t("post.officialHint", { fee: formatYen(OFFICIAL_SHARE_FEE_YEN, locale) }),
-      nextDate,
-      nextDateLabel: t("post.officialDate", { date: formatDate(nextDate, locale) }),
+      channels,
+      defaultChannel: DEFAULT_OFFICIAL_CHANNEL,
     },
   };
 }

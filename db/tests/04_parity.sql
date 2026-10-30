@@ -111,6 +111,9 @@ SELECT pg_temp.fails(format($s$INSERT INTO social_post_sdgs (post_id, position, 
 INSERT INTO official_share_slots (post_id, scheduled_on) VALUES ('90000000-0000-0000-0000-0000000000a1', jst_date(now()) + 1);
 SELECT pg_temp.eq((SELECT fee_yen FROM official_share_slots WHERE post_id = '90000000-0000-0000-0000-0000000000a1'), (SELECT value FROM golden_post_limits WHERE name = 'officialFeeYen'),
                   'OFFICIAL_SHARE_FEE_YEN 이 공식 게시 신청의 기본 게시료와 같다');
+SELECT pg_temp.eq((SELECT count(*) FROM golden_official_channels WHERE is_default)::int, 1, 'core 의 기본 채널(DEFAULT_OFFICIAL_CHANNEL)은 하나다');
+SELECT pg_temp.eq((SELECT channel::text FROM official_share_slots WHERE post_id = '90000000-0000-0000-0000-0000000000a1'), (SELECT channel FROM golden_official_channels WHERE is_default),
+                  '채널을 말하지 않은 신청의 채널(DB 열의 기본값)이 core 의 DEFAULT_OFFICIAL_CHANNEL 과 같다');
 DELETE FROM social_posts WHERE id = '90000000-0000-0000-0000-0000000000a1';
 
 -- 6-2) 글자 수: charCount(= 앞뒤 공백을 자르고 코드포인트를 센다) ↔ post_char_count
@@ -130,30 +133,50 @@ SELECT pg_temp.none($q$SELECT g.case_no, g.content, g.has_contact AS core, (mask
 SELECT pg_temp.ok((SELECT count(*) FILTER (WHERE has_contact) FROM golden_post_contacts) >= 10
               AND (SELECT count(*) FILTER (WHERE NOT has_contact) FROM golden_post_contacts) >= 10, '연락처가 있는 사례와 없는 사례가 모두 충분히 들어 있다');
 
--- 6-4) 공식 SNS 게시 날짜: nextOfficialDate(posts, today) ↔ next_official_share_date(today)
---      (core 에서는 홍보 글의 official.on 이 "이미 받은 날짜"예요. 같은 날짜로 신청 행을 만들어 두고 DB 에 물어봐요.)
+-- 6-4) 공식 SNS 게시 날짜: nextOfficialDate(posts, today, channel) ↔ next_official_share_date(today, channel)
+--      (core 에서는 홍보 글의 official.on 이 "이미 받은 날짜"예요. 같은 채널·같은 날짜로 신청 행을 만들어 두고 DB 에 물어봐요.
+--       channel 이 NULL 인 사례는 채널을 말하지 않은 경우예요 — DB 에서도 인자를 생략해서 기본값(instagram)이 core 와 같은지 함께 봐요.)
 CREATE TEMP TABLE parity_official_result (case_no integer PRIMARY KEY, next_on date);
 DO $$
 DECLARE
   r record;
-  taken_on date;
+  i integer;
   pid uuid;
 BEGIN
   FOR r IN SELECT * FROM golden_official_dates ORDER BY case_no LOOP
-    FOREACH taken_on IN ARRAY r.taken LOOP
+    FOR i IN 1 .. COALESCE(array_length(r.taken, 1), 0) LOOP
       pid := gen_random_uuid();
       PERFORM pg_temp.mk_pr(pid, 'b0000000-0000-0000-0000-000000000001', 'd0000000-0000-0000-0000-000000000001');
       -- 신청 시각을 아주 옛날로 두어, 골든의 날짜가 "신청한 날의 다음 날 이후" 규칙에 걸리지 않게 해요
-      INSERT INTO official_share_slots (post_id, scheduled_on, requested_at) VALUES (pid, taken_on, timestamptz '2020-01-01 09:00+09');
+      INSERT INTO official_share_slots (post_id, scheduled_on, channel, requested_at)
+      VALUES (pid, r.taken[i], r.taken_channels[i]::official_channel, timestamptz '2020-01-01 09:00+09');
     END LOOP;
-    INSERT INTO parity_official_result VALUES (r.case_no, next_official_share_date(r.today));
+    INSERT INTO parity_official_result VALUES (r.case_no,
+      CASE WHEN r.channel IS NULL THEN next_official_share_date(r.today) ELSE next_official_share_date(r.today, r.channel::official_channel) END);
     DELETE FROM official_share_slots;
   END LOOP;
 END $$;
 SELECT pg_temp.eq((SELECT count(*) FROM parity_official_result)::int, (SELECT count(*) FROM golden_official_dates)::int, '날짜 대조: 모든 사례를 DB 에 물어보았다');
-SELECT pg_temp.none($q$SELECT g.case_no, g.label, g.today, g.taken, g.next_on AS core, r.next_on AS db
+SELECT pg_temp.none($q$SELECT g.case_no, g.label, g.today, g.channel, g.taken, g.taken_channels, g.next_on AS core, r.next_on AS db
                          FROM golden_official_dates g JOIN parity_official_result r USING (case_no) WHERE g.next_on IS DISTINCT FROM r.next_on$q$,
-                    'next_official_share_date 가 core 의 nextOfficialDate 와 모두 같다 (월말·연말·윤년 포함)');
+                    'next_official_share_date 가 core 의 nextOfficialDate 와 모두 같다 (채널별 · 월말·연말·윤년 포함)');
+SELECT pg_temp.ok((SELECT count(DISTINCT channel) FROM golden_official_dates) >= 3 AND (SELECT count(*) FROM golden_official_dates WHERE channel IS NULL) >= 10
+              AND (SELECT count(*) FROM golden_official_dates g WHERE EXISTS (SELECT 1 FROM unnest(g.taken_channels) c WHERE c <> COALESCE(g.channel, (SELECT channel FROM golden_official_channels WHERE is_default)))) >= 6,
+                  '채널을 말한 사례 · 말하지 않은 사례 · "다른 채널이 찬 날"이 섞인 사례가 모두 충분히 들어 있다');
+
+-- 6-4b) 채널 값: 앱(isOfficialChannel)이 받아들이는 글자만 DB 의 열거형도 받아들인다 (YouTube · 대소문자 · 공백 · 옛 이름은 모두 거절)
+CREATE FUNCTION pg_temp.accepts_channel(v text) RETURNS boolean LANGUAGE plpgsql AS $$
+BEGIN
+  PERFORM v::official_channel;
+  RETURN true;
+EXCEPTION WHEN invalid_text_representation THEN
+  RETURN false;
+END $$;
+SELECT pg_temp.none($q$SELECT g.case_no, g.value, g.valid AS core, pg_temp.accepts_channel(g.value) AS db
+                         FROM golden_official_channel_values g WHERE g.valid <> pg_temp.accepts_channel(g.value)$q$,
+                    '앱이 받아들이는 채널 값은 DB 도 받아들이고, 앱이 거절하는 값은 DB 도 거절한다');
+SELECT pg_temp.ok((SELECT count(*) FILTER (WHERE valid) FROM golden_official_channel_values) = (SELECT count(*) FROM golden_official_channels)
+              AND (SELECT count(*) FILTER (WHERE NOT valid) FROM golden_official_channel_values) >= 8, '받아들이는 값(채널 전부)과 거절하는 값이 모두 충분히 들어 있다');
 
 -- 6-5) 입력 검사: 앱(validatePostDraft)이 받아들이는 글은 DB 도 받아들이고, 거절하는 글은 DB 도 거절한다 — 같은 이유로
 --      사례를 하나씩 실제 INSERT 로 옮겨요. 받아들여진 글도 곧바로 되돌려서 다음 사례에 영향을 주지 않아요.

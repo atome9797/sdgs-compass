@@ -3,6 +3,7 @@
 import { CERT_CRITERIA } from "@sdgs-compass/core/certification";
 import type { DemoState, Role } from "@sdgs-compass/core/domain";
 import { isLocale, type Locale } from "@sdgs-compass/core/i18n";
+import { DEFAULT_OFFICIAL_CHANNEL, isOfficialChannel } from "@sdgs-compass/core/post";
 import { SDG_IDS, type SdgId } from "@sdgs-compass/core/sdg";
 import { rebaseState } from "@sdgs-compass/core/state";
 import { createInitialState } from "./seed";
@@ -144,7 +145,7 @@ function isSocialPost(value: unknown): boolean {
     const o = value.official;
     return (
       typeof value.companyId === "string" && isText(value.title) && (value.challengeId === null || typeof value.challengeId === "string") &&
-      (o === null || (isObject(o) && isDay(o.on) && typeof o.feeYen === "number" && o.status === "scheduled"))
+      (o === null || (isObject(o) && isDay(o.on) && isOfficialChannel(o.channel) && typeof o.feeYen === "number" && o.status === "scheduled"))
     );
   }
   return false;
@@ -175,13 +176,23 @@ export function serializeState(state: DemoState): string {
 }
 
 /**
- * SNS 피드(posts)가 생기기 전에 저장된 상태에는 posts 가 없어요. 그 상태를 버리지 않고,
- * 저장했을 때의 "오늘" 기준 샘플 글을 채워 넣어서 이어서 쓸 수 있게 해요(날짜는 불러올 때 rebase 가 옮겨요).
+ * 공식 SNS 게시 채널(channel)이 생기기 전에 저장된 홍보 글의 게시 신청에는 channel 이 없어요.
+ * 그때는 Instagram 스토리 전용이었으니 instagram 으로 읽어요(이미 channel 이 있으면 — 틀린 값이어도 — 그대로 두고 isSocialPost 가 판단해요).
+ */
+function withOfficialChannel(post: unknown): unknown {
+  if (!isObject(post) || post.kind !== "pr" || !isObject(post.official) || post.official.channel !== undefined) return post;
+  return { ...post, official: { ...post.official, channel: DEFAULT_OFFICIAL_CHANNEL } };
+}
+
+/**
+ * 예전 버전에서 저장된 상태를 지금 모양으로 이어 줘요(버리지 않고 이어서 쓸 수 있게):
+ * - SNS 피드(posts)가 생기기 전의 상태에는 posts 가 없어요 → 저장했을 때의 "오늘" 기준 샘플 글을 채워 넣어요(날짜는 불러올 때 rebase 가 옮겨요).
+ * - 공식 SNS 게시 채널이 생기기 전의 글에는 official.channel 이 없어요 → instagram 으로 읽어요.
  */
 function upgradeSaved(data: unknown): unknown {
-  if (isObject(data) && data.version === 1 && data.posts === undefined && isDay(data.today)) {
-    return { ...data, posts: createInitialState(data.today).posts };
-  }
+  if (!isObject(data) || data.version !== 1) return data;
+  if (data.posts === undefined && isDay(data.today)) return { ...data, posts: createInitialState(data.today).posts };
+  if (Array.isArray(data.posts)) return { ...data, posts: data.posts.map(withOfficialChannel) };
   return data;
 }
 

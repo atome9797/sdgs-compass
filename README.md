@@ -1347,7 +1347,7 @@ erDiagram
 
 #### ⑧ SNS 피드 · 공식 SNS 게시 — F-503, F-504
 
-학생의 실적 자랑 글(200자)과 기업의 홍보 글(제목 40자·본문 400자)을 한 피드에 모아요. 글마다 SDGs 태그 1~3개, 좋아요(사람마다 한 번·내 글 제외), 공식 SNS(Instagram 스토리) 게시 신청(하루에 한 회사)이 붙어요.
+학생의 실적 자랑 글(200자)과 기업의 홍보 글(제목 40자·본문 400자)을 한 피드에 모아요. 글마다 SDGs 태그 1~3개, 좋아요(사람마다 한 번·내 글 제외), 공식 SNS(X·Instagram·Facebook) 게시 신청(채널마다 하루에 한 회사)이 붙어요.
 
 ```mermaid
 erDiagram
@@ -1376,6 +1376,7 @@ erDiagram
   }
   official_share_slots {
     uuid post_id PK, FK
+    official_channel channel
     date scheduled_on
     int fee_yen
     official_status status
@@ -1413,7 +1414,7 @@ erDiagram
 | `social_posts` | SNS 피드 글 (학생 자랑 200자·기업 홍보 400자, 연락처 금지) | F-503, F-504 |
 | `social_post_sdgs` | 피드 글의 SDGs 태그 (글당 1~3개) | F-503, F-504 |
 | `social_post_likes` | 피드 글 좋아요 (사람마다 한 번, 내 글 제외) | F-503, F-504 |
-| `official_share_slots` | 공식 SNS(Instagram 스토리) 게시 신청 (하루 한 회사, 게시료 ¥3,000 샘플) | F-504 |
+| `official_share_slots` | 공식 SNS(X·Instagram·Facebook) 게시 신청 (채널마다 하루 한 회사, 게시료 ¥3,000 샘플) | F-504 |
 
 #### 뷰 (집계·화면용)
 

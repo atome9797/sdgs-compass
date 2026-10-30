@@ -7,7 +7,7 @@ import type { AwardKind, BragPost, CertCriterionId, DemoState, Match, PrPost, Pr
 import { addDays, daysBetween } from "./format";
 import { levelOf } from "./impact";
 import { splitMatchFee } from "./fees";
-import { authorRole, nextOfficialDate, OFFICIAL_SHARE_FEE_YEN, POST_LIMITS, postContext, uniqueSdgs, validatePostDraft, type PostDraft } from "./post";
+import { authorRole, DEFAULT_OFFICIAL_CHANNEL, nextOfficialDate, OFFICIAL_SHARE_FEE_YEN, POST_LIMITS, postContext, uniqueSdgs, validatePostDraft, type PostDraft } from "./post";
 import { fileFingerprint, makeReceiptNo, validateProposalDraft, type ProposalDraft } from "./proposal";
 import { canSendScout } from "./scout";
 import { isOpenFor } from "./recommend";
@@ -237,6 +237,7 @@ export function reducer(state: DemoState, action: Action): DemoState {
         };
         return { ...state, seq: state.seq + 1, posts: [post, ...state.posts] };
       }
+      const channel = draft.officialChannel ?? DEFAULT_OFFICIAL_CHANNEL;
       const post: PrPost = {
         id,
         kind: "pr",
@@ -245,8 +246,8 @@ export function reducer(state: DemoState, action: Action): DemoState {
         body: draft.body.trim(),
         sdgIds: uniqueSdgs(draft.sdgIds),
         challengeId: draft.challengeId || null,
-        // 공식 SNS 게시 신청: 내일부터 가장 빠른 빈 날짜 (하루에 한 회사만)
-        official: draft.requestOfficial ? { on: nextOfficialDate(state.posts, state.today), feeYen: OFFICIAL_SHARE_FEE_YEN, status: "scheduled" } : null,
+        // 공식 SNS 게시 신청: 고른 채널에서 내일부터 가장 빠른 빈 날짜 (채널마다 하루에 한 회사만)
+        official: draft.requestOfficial ? { on: nextOfficialDate(state.posts, state.today, channel), channel, feeYen: OFFICIAL_SHARE_FEE_YEN, status: "scheduled" } : null,
         createdAt: action.at,
         likes: 0,
         likedBy: [],

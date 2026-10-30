@@ -1,7 +1,7 @@
 // F-503 학생 자랑 글 · F-504 기업 홍보 글 (설계: docs/sns-feed.md): 입력 검사, 연락처 검출, 공식 SNS 게시 날짜 배정.
 // 화면은 이 규칙을 그대로 쓰고(validatePostDraft), reducer(state.ts)도 같은 검사를 한 번 더 해요.
 import { showableActivities } from "./activities";
-import type { DemoState, PostKind, Role, SocialPost } from "./domain";
+import type { DemoState, OfficialChannel, PostKind, Role, SocialPost } from "./domain";
 import { addDays } from "./format";
 import type { Locale } from "./i18n";
 import { translate } from "./messages";
@@ -17,8 +17,21 @@ export const POST_LIMITS = {
   maxSdgs: 3,
 } as const;
 
-/** 공식 SNS(Instagram 스토리) 게시 신청의 게시료(샘플 값, 정산은 하지 않아요) */
+/** 공식 SNS 게시 신청의 게시료 — 어느 채널이든 같은 샘플 값이에요(정산은 하지 않아요) */
 export const OFFICIAL_SHARE_FEE_YEN = 3000;
+
+/**
+ * 공식 SNS 게시 신청에서 고를 수 있는 채널 — 화면에 보이는 순서예요(X · Instagram · Facebook).
+ * YouTube 는 앱 사용법·활동 소개 영상을 올리는 채널이라 신청 대상이 아니에요. DB 의 열거형 official_channel 과 같은 값이어야 해요(db/tests/04_parity.sql).
+ */
+export const OFFICIAL_CHANNELS: readonly OfficialChannel[] = ["x", "instagram", "facebook"];
+
+/** 채널을 고르지 않았을 때의 채널 — 채널 선택이 생기기 전의 데이터·호출이 그대로 통하게 Instagram 이에요 */
+export const DEFAULT_OFFICIAL_CHANNEL: OfficialChannel = "instagram";
+
+export function isOfficialChannel(value: unknown): value is OfficialChannel {
+  return typeof value === "string" && (OFFICIAL_CHANNELS as readonly string[]).includes(value);
+}
 
 export const POST_KINDS: readonly PostKind[] = ["brag", "pr"];
 
@@ -58,6 +71,8 @@ export interface PostDraft {
   challengeId?: string | null;
   /** 홍보 글만: 공식 SNS 게시 신청 */
   requestOfficial?: boolean;
+  /** 홍보 글만, 게시 신청을 켰을 때만 뜻이 있어요: 게시할 채널 (비우면 Instagram) */
+  officialChannel?: OfficialChannel;
 }
 
 export type PostError =
@@ -70,6 +85,7 @@ export type PostError =
   | "sdgs_required"
   | "sdgs_too_many"
   | "challenge_not_found"
+  | "official_channel_invalid"
   | "contact_info";
 
 /** 검사에 필요한 "지금 고를 수 있는 것" (상태에서 postContext 로 만들어요) */
@@ -119,6 +135,8 @@ export function validatePostDraft(draft: PostDraft, context: PostContext): PostE
     if (sdgs.length === 0) errors.push("sdgs_required");
     else if (sdgs.length > POST_LIMITS.maxSdgs) errors.push("sdgs_too_many");
     if (draft.challengeId && !context.challengeIds.includes(draft.challengeId)) errors.push("challenge_not_found");
+    // 공식 SNS 게시 채널: 신청을 켰을 때만 봐요. 비워 두면 기본 채널, 목록에 없는 값은 거절해요(화면은 목록에 있는 것만 고르게 해요)
+    if (draft.requestOfficial && draft.officialChannel !== undefined && !isOfficialChannel(draft.officialChannel)) errors.push("official_channel_invalid");
   }
 
   if (containsContact(draft.body) || (draft.kind === "pr" && containsContact(title))) errors.push("contact_info");
@@ -135,14 +153,30 @@ export function postErrorText(error: PostError, kind: PostKind, locale: Locale):
 
 /**
  * 공식 SNS 게시를 신청했을 때 배정할 날짜: 내일부터 가장 빠른 빈 날짜.
- * 이미 어느 기업이 받은 날짜는 건너뛰어요(하루에 한 회사만).
+ * 같은 채널에서 이미 어느 기업이 받은 날짜는 건너뛰어요(채널마다 하루에 한 회사만 — 다른 채널이 받은 날짜는 상관없어요).
+ * DB 의 next_official_share_date(today, channel) 와 같은 답을 내요.
  */
-export function nextOfficialDate(posts: readonly SocialPost[], today: string): string {
+export function nextOfficialDate(posts: readonly SocialPost[], today: string, channel: OfficialChannel = DEFAULT_OFFICIAL_CHANNEL): string {
   const taken = new Set<string>();
-  for (const post of posts) if (post.kind === "pr" && post.official) taken.add(post.official.on);
+  for (const post of posts) if (post.kind === "pr" && post.official && post.official.channel === channel) taken.add(post.official.on);
   let day = addDays(today, 1);
   while (taken.has(day)) day = addDays(day, 1);
   return day;
+}
+
+/** 채널 이름 (브랜드 이름이라 일본어는 그대로, 한국어는 익숙한 표기): X / Instagram / Facebook */
+export function officialChannelName(channel: OfficialChannel, locale: Locale): string {
+  return translate(`post.channel.${channel}`, locale);
+}
+
+/** 채널마다 올라가는 모양: Instagram → 스토리, X → 포스트, Facebook → 페이지 게시 */
+export function officialChannelFormat(channel: OfficialChannel, locale: Locale): string {
+  return translate(`post.channelFormat.${channel}`, locale);
+}
+
+/** 이름 + 올라가는 모양: "Instagram ストーリー" / "X ポスト" / "Facebook ページ投稿" (선택지·안내 문구에 써요) */
+export function officialChannelLabel(channel: OfficialChannel, locale: Locale): string {
+  return `${officialChannelName(channel, locale)} ${officialChannelFormat(channel, locale)}`;
 }
 
 /** 홍보 글의 SDGs 기본값: 연결한 챌린지의 SDGs → 챌린지가 없으면 기업의 SDGs (최대 3개) */

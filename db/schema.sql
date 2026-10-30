@@ -78,6 +78,7 @@ CREATE TYPE cert_kind          AS ENUM ('participation', 'award');
 CREATE TYPE verify_result      AS ENUM ('valid', 'revoked', 'tampered', 'unknown');
 CREATE TYPE post_kind          AS ENUM ('brag', 'pr');                          -- F-503 학생 자랑 글 / F-504 기업 홍보 글
 CREATE TYPE official_status    AS ENUM ('scheduled', 'posted', 'cancelled');    -- 공식 SNS 게시 신청 (데모 앱은 scheduled 만 써요)
+CREATE TYPE official_channel   AS ENUM ('instagram', 'x', 'facebook');          -- 공식 SNS 게시 신청의 채널 (YouTube 는 영상 채널이라 신청 대상이 아니에요)
 
 -- ============================================================================
 -- 1. 참조 데이터 (앱의 상수와 같은 값: db/seed.sql 이 packages/core 에서 만들어져요)
@@ -1358,19 +1359,21 @@ BEGIN
 END $$;
 CREATE TRIGGER social_post_likes_guard_ins BEFORE INSERT ON social_post_likes FOR EACH ROW EXECUTE FUNCTION social_post_likes_guard();
 
--- F-504 공식 SNS(Instagram 스토리) 게시 신청: 기업 홍보 글 하나에 한 번, 하루에 한 회사만(예정·게시 완료 상태의 같은 날짜는 한 건뿐).
--- 취소하거나 글을 지우면 그 날짜는 다시 비어요. 게시료 ¥3,000 은 샘플 값이고 정산은 하지 않아요(OFFICIAL_SHARE_FEE_YEN).
--- 데모 앱에는 관리자 화면이 없어서 scheduled 까지만 써요. posted·cancelled 는 서버의 운영 도구가 바꿔요.
+-- F-504 공식 SNS(X · Instagram · Facebook) 게시 신청: 기업 홍보 글 하나에 한 번(채널은 하나만 골라요), 하루에 한 회사만 — 채널마다 따로 센다.
+-- 같은 채널의 예정·게시 완료 상태의 같은 날짜는 한 건뿐이지만, 채널이 다르면 같은 날에도 신청할 수 있어요(같은 날 X 에는 A사, Instagram 에는 B사).
+-- 취소하거나 글을 지우면 그 채널의 그 날짜는 다시 비어요. 게시료 ¥3,000 은 샘플 값이고 모든 채널이 같으며 정산은 하지 않아요(OFFICIAL_SHARE_FEE_YEN).
+-- 데모 앱에는 관리자 화면이 없어서 scheduled 까지만 써요. posted·cancelled 는 서버의 운영 도구가 바꿔요. (실제로 올리는 일은 이 표 밖의 운영 일이에요 — OAuth·자동 게시는 하지 않아요.)
 CREATE TABLE official_share_slots (
   post_id      uuid PRIMARY KEY REFERENCES social_posts (id) ON DELETE CASCADE,
-  scheduled_on date            NOT NULL,                                   -- 게시 예정일 (신청한 날의 다음 날 이후)
+  channel      official_channel NOT NULL DEFAULT 'instagram',              -- 올릴 공식 SNS (채널이 없던 때의 신청은 모두 Instagram 스토리였어요)
+  scheduled_on date            NOT NULL,                                   -- 그 채널의 게시 예정일 (신청한 날의 다음 날 이후)
   fee_yen      integer         NOT NULL DEFAULT 3000 CHECK (fee_yen >= 0),
   status       official_status NOT NULL DEFAULT 'scheduled',
   requested_at timestamptz     NOT NULL DEFAULT now(),
   posted_at    timestamptz,
   CONSTRAINT official_share_posted CHECK ((status = 'posted') = (posted_at IS NOT NULL))
 );
-CREATE UNIQUE INDEX official_share_slots_one_per_day ON official_share_slots (scheduled_on) WHERE status IN ('scheduled', 'posted');
+CREATE UNIQUE INDEX official_share_slots_one_per_channel_day ON official_share_slots (channel, scheduled_on) WHERE status IN ('scheduled', 'posted');
 
 CREATE FUNCTION official_share_slots_guard() RETURNS trigger
   LANGUAGE plpgsql AS $$
@@ -1387,8 +1390,8 @@ BEGIN
     IF NOT (OLD.status = NEW.status OR (OLD.status = 'scheduled' AND NEW.status IN ('posted', 'cancelled'))) THEN
       RAISE EXCEPTION '게시 신청 상태를 % → % 로 바꿀 수 없어요', OLD.status, NEW.status USING ERRCODE = 'check_violation';
     END IF;
-    IF OLD.status <> 'scheduled' AND NEW.scheduled_on IS DISTINCT FROM OLD.scheduled_on THEN
-      RAISE EXCEPTION '게시를 마쳤거나 취소한 신청의 날짜는 바꿀 수 없어요' USING ERRCODE = 'check_violation';
+    IF OLD.status <> 'scheduled' AND (NEW.scheduled_on IS DISTINCT FROM OLD.scheduled_on OR NEW.channel IS DISTINCT FROM OLD.channel) THEN
+      RAISE EXCEPTION '게시를 마쳤거나 취소한 신청의 채널·날짜는 바꿀 수 없어요' USING ERRCODE = 'check_violation';
     END IF;
     IF NEW.status = 'posted' AND OLD.status <> 'posted' THEN
       NEW.posted_at := COALESCE(NEW.posted_at, now());
@@ -1402,14 +1405,15 @@ END $$;
 CREATE TRIGGER official_share_slots_guard_ins BEFORE INSERT ON official_share_slots FOR EACH ROW EXECUTE FUNCTION official_share_slots_guard();
 CREATE TRIGGER official_share_slots_guard_upd BEFORE UPDATE ON official_share_slots FOR EACH ROW EXECUTE FUNCTION official_share_slots_guard();
 
--- 신청에 배정할 날짜: 오늘(일본 시간) 다음 날부터 가장 빠른 빈 날짜. 앱의 nextOfficialDate() 와 같아요.
--- 이미 받은(예정·게시 완료) 날짜를 건너뛰어요. 받은 날짜가 N 개면 N+1 일 안에 반드시 빈 날이 있어요.
-CREATE FUNCTION next_official_share_date(p_today date DEFAULT jst_date(now())) RETURNS date
+-- 신청에 배정할 날짜: 오늘(일본 시간) 다음 날부터, 그 채널에서 가장 빠른 빈 날짜. 앱의 nextOfficialDate(posts, today, channel) 와 같아요.
+-- 그 채널이 이미 받은(예정·게시 완료) 날짜만 건너뛰고 다른 채널의 날짜는 상관없어요. 채널을 말하지 않으면 instagram 이에요(앱의 기본값과 같아요).
+-- 그 채널이 받은 날짜가 N 개면 N+1 일 안에 반드시 빈 날이 있어요.
+CREATE FUNCTION next_official_share_date(p_today date DEFAULT jst_date(now()), p_channel official_channel DEFAULT 'instagram') RETURNS date
   LANGUAGE sql STABLE
   AS $$
     SELECT p_today + g
-      FROM generate_series(1, 1 + (SELECT count(*)::integer FROM official_share_slots WHERE status IN ('scheduled', 'posted'))) AS g
-     WHERE NOT EXISTS (SELECT 1 FROM official_share_slots s WHERE s.scheduled_on = p_today + g AND s.status IN ('scheduled', 'posted'))
+      FROM generate_series(1, 1 + (SELECT count(*)::integer FROM official_share_slots WHERE channel = p_channel AND status IN ('scheduled', 'posted'))) AS g
+     WHERE NOT EXISTS (SELECT 1 FROM official_share_slots s WHERE s.channel = p_channel AND s.scheduled_on = p_today + g AND s.status IN ('scheduled', 'posted'))
      ORDER BY g
      LIMIT 1
   $$;
@@ -1612,7 +1616,7 @@ CREATE VIEW company_fee_summary AS
     FROM matches
    GROUP BY company_id;
 
--- 피드 화면(F-503·F-504): 블라인드되지 않은 글 + 글쓴이 표시 + 붙은 실적 + 태그 + 좋아요 수 + 공식 게시 날짜.
+-- 피드 화면(F-503·F-504): 블라인드되지 않은 글 + 글쓴이 표시 + 붙은 실적 + 태그 + 좋아요 수 + 공식 게시 채널·날짜.
 -- 자랑 글은 닉네임과 레벨만, 홍보 글은 기업 정보만 보여요 (이메일·연락처 열은 없어요). 최신순은 화면이 ORDER BY created_at DESC 로 정해요.
 -- 레벨은 지금 값이에요 (앱의 샘플 글은 올린 때의 레벨을 그대로 들고 있어요).
 CREATE VIEW feed_posts AS
@@ -1625,7 +1629,7 @@ CREATE VIEW feed_posts AS
          a.kind AS achievement_kind, a.title AS achievement_title, a.company_name AS achievement_company, aw.kind AS achievement_award,
          ARRAY(SELECT s.sdg_id FROM social_post_sdgs s WHERE s.post_id = p.id ORDER BY s.position) AS sdg_ids,
          (SELECT count(*) FROM social_post_likes l WHERE l.post_id = p.id)::integer AS like_count,
-         o.scheduled_on AS official_on, o.fee_yen AS official_fee_yen, o.status AS official_status
+         o.channel AS official_channel, o.scheduled_on AS official_on, o.fee_yen AS official_fee_yen, o.status AS official_status
     FROM social_posts p
     LEFT JOIN student_profiles sp    ON sp.user_id = p.author_id AND p.kind = 'brag'
     LEFT JOIN impact_totals t        ON t.user_id = p.author_id AND p.kind = 'brag'
@@ -1706,7 +1710,7 @@ COMMENT ON TABLE interview_slots            IS '면접 일정 (확정 일정은 
 COMMENT ON TABLE social_posts               IS 'SNS 피드 글 (학생 자랑 200자·기업 홍보 400자, 연락처 금지) — F-503, F-504';
 COMMENT ON TABLE social_post_sdgs           IS '피드 글의 SDGs 태그 (글당 1~3개) — F-503, F-504';
 COMMENT ON TABLE social_post_likes          IS '피드 글 좋아요 (사람마다 한 번, 내 글 제외) — F-503, F-504';
-COMMENT ON TABLE official_share_slots       IS '공식 SNS(Instagram 스토리) 게시 신청 (하루 한 회사, 게시료 ¥3,000 샘플) — F-504';
+COMMENT ON TABLE official_share_slots       IS '공식 SNS(X·Instagram·Facebook) 게시 신청 (채널마다 하루 한 회사, 게시료 ¥3,000 샘플) — F-504';
 COMMENT ON TABLE esg_reports                IS 'ESG 성과 리포트 (PDF/Excel) — F-403';
 COMMENT ON TABLE cert_applications          IS 'SDGs 인증마크 신청 (점수·★1~3) — 인증마크';
 COMMENT ON TABLE cert_answers               IS '인증마크 항목별 답변과 증빙 — 인증마크';

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { daysBetween } from "@sdgs-compass/core/format";
+import { addDays, daysBetween } from "@sdgs-compass/core/format";
 import { reducer } from "@sdgs-compass/core/state";
 import { createInitialState } from "./seed";
 import {
@@ -150,6 +150,70 @@ describe("SNS 피드가 생기기 전에 저장된 데모 상태", () => {
     const { posts: _posts, ...legacy } = createInitialState(TODAY);
     void _posts;
     expect(parseState(JSON.stringify({ ...legacy, today: "어제" }))).toBeNull();
+  });
+});
+
+describe("공식 SNS 게시 채널이 생기기 전에 저장된 데모 상태", () => {
+  const current = createInitialState(TODAY);
+  // 그때(Instagram 스토리 전용 · 하루 1사)의 저장 모양: official 에 channel 이 없어요.
+  // 신청이 있던 글은 다른 기업의 po-1(내일) · po-2(모레)와 우리 회사 po-4(3일 뒤)예요.
+  const legacyOfficial = (n: number) => ({ on: addDays(TODAY, n), feeYen: 3000, status: "scheduled" });
+  const legacyPosts = current.posts.map((p) => {
+    if (p.id === "po-1") return { ...p, official: legacyOfficial(1) };
+    if (p.id === "po-2") return { ...p, official: legacyOfficial(2) };
+    if (p.id === "po-3") return { ...p, official: null };
+    if (p.id === "po-4") return { ...p, official: legacyOfficial(3) };
+    return p;
+  });
+  const legacyJson = JSON.stringify({ ...current, posts: legacyPosts });
+  const officialsOf = (state: { posts: readonly { id: string; kind: string; official?: unknown }[] }) =>
+    state.posts.flatMap((p) => (p.kind === "pr" && p.official ? [[p.id, p.official] as const] : []));
+
+  it("옛 모양 JSON 은 그대로 불러와지고, channel 이 없는 신청은 instagram 으로 읽어요 (날짜·게시료·상태는 그대로)", () => {
+    expect(JSON.stringify(legacyPosts)).not.toContain('"channel"'); // 정말 옛 모양인지
+    const loaded = parseState(legacyJson);
+    expect(loaded).not.toBeNull();
+    expect(isDemoState(loaded)).toBe(true);
+    expect(officialsOf(loaded!)).toEqual([
+      ["po-1", { on: addDays(TODAY, 1), channel: "instagram", feeYen: 3000, status: "scheduled" }],
+      ["po-2", { on: addDays(TODAY, 2), channel: "instagram", feeYen: 3000, status: "scheduled" }],
+      ["po-4", { on: addDays(TODAY, 3), channel: "instagram", feeYen: 3000, status: "scheduled" }],
+    ]);
+    // 신청이 없는 글과 다른 글은 건드리지 않아요
+    const untouched = (posts: readonly { id: string }[]) => posts.filter((p) => !["po-1", "po-2", "po-4"].includes(p.id));
+    expect(untouched(loaded!.posts)).toEqual(untouched(legacyPosts));
+  });
+
+  it("옛 상태를 다른 날 불러와도 날짜가 같은 날수만큼 옮겨지고 channel 은 instagram 이에요", async () => {
+    const kv = memoryStorage({ [STORAGE_KEYS.state]: legacyJson });
+    const loaded = await loadState(kv, "2026-11-02"); // 3일 뒤
+    expect(officialsOf(loaded)).toEqual([
+      ["po-1", { on: "2026-11-03", channel: "instagram", feeYen: 3000, status: "scheduled" }],
+      ["po-2", { on: "2026-11-04", channel: "instagram", feeYen: 3000, status: "scheduled" }],
+      ["po-4", { on: "2026-11-05", channel: "instagram", feeYen: 3000, status: "scheduled" }],
+    ]);
+    expect(isDemoState(loaded)).toBe(true);
+  });
+
+  it("옛 상태에서 이어 신청하면 Instagram 은 옛 날짜를 건너뛰고, X · Facebook 은 비어 있어요", () => {
+    const loaded = parseState(legacyJson)!;
+    const next = (channel: "instagram" | "x" | "facebook") =>
+      reducer(loaded, { type: "createPost", draft: { kind: "pr", title: "t", body: "b", sdgIds: [14], requestOfficial: true, officialChannel: channel }, at: "2026-10-30T10:00" }).posts[0];
+    expect(next("instagram")).toMatchObject({ official: { on: addDays(TODAY, 4), channel: "instagram" } }); // +1 +2 +3 이 찼어요
+    expect(next("x")).toMatchObject({ official: { on: addDays(TODAY, 1), channel: "x" } });
+    expect(next("facebook")).toMatchObject({ official: { on: addDays(TODAY, 1), channel: "facebook" } });
+  });
+
+  it("channel 이 틀린 값이면 (youtube · 빈 글자 · 대소문자 · null · 숫자) 저장된 상태를 버려요", () => {
+    for (const bad of ["youtube", "", "Instagram", null, 7]) {
+      const posts = current.posts.map((p) => (p.id === "po-1" && p.kind === "pr" ? { ...p, official: { ...p.official, channel: bad } } : p));
+      expect(parseState(JSON.stringify({ ...current, posts })), String(bad)).toBeNull();
+    }
+  });
+
+  it("지금 모양(X · Instagram · Facebook)은 저장했다 불러와도 그대로예요", () => {
+    expect(officialsOf(current).map(([, o]) => (o as { channel: string }).channel).sort()).toEqual(["facebook", "instagram", "x"]);
+    expect(parseState(serializeState(current))).toEqual(current);
   });
 });
 

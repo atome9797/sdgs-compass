@@ -12,8 +12,10 @@ import { BADGE_CODES, BADGE_EMOJI, levelOf, SDG_SATURATION } from "../packages/c
 import { CERT_CRITERIA, evaluateCertification } from "../packages/core/src/certification";
 import { splitMatchFee } from "../packages/core/src/fees";
 import { issueCertificate, qrPayload, verifyCode } from "../packages/core/src/certificate";
-import type { ActivityKind, AwardKind, CertAnswers, CertCriterionId, ChallengeStatus, OfficialShare, Participation, PostKind, ProposalStatus, RewardKind, Role, ScoutKind, ScoutStatus, SocialPost } from "../packages/core/src/domain";
-import { containsContact, nextOfficialDate, OFFICIAL_SHARE_FEE_YEN, POST_LIMITS, validatePostDraft } from "../packages/core/src/post";
+import type { ActivityKind, AwardKind, CertAnswers, CertCriterionId, ChallengeStatus, OfficialChannel, OfficialShare, Participation, PostKind, ProposalStatus, RewardKind, Role, ScoutKind, ScoutStatus, SocialPost } from "../packages/core/src/domain";
+import {
+  containsContact, DEFAULT_OFFICIAL_CHANNEL, isOfficialChannel, nextOfficialDate, OFFICIAL_CHANNELS, OFFICIAL_SHARE_FEE_YEN, POST_LIMITS, validatePostDraft,
+} from "../packages/core/src/post";
 import type { PostContext, PostDraft } from "../packages/core/src/post";
 import { charCount } from "../packages/core/src/proposal";
 import { LOCALES } from "../packages/core/src/i18n";
@@ -186,6 +188,7 @@ const ENUMS: Array<{ name: string; labels: string[]; exact: boolean }> = [
   { name: "activity_kind", labels: keysOf<ActivityKind>({ participation: true, submission: true, award: true, share: true }), exact: true },
   { name: "post_kind", labels: keysOf<PostKind>({ brag: true, pr: true }), exact: true },
   { name: "official_status", labels: keysOf<OfficialShare["status"]>({ scheduled: true }), exact: false },
+  { name: "official_channel", labels: keysOf<OfficialChannel>({ instagram: true, x: true, facebook: true }), exact: true },
   { name: "scout_kind", labels: keysOf<ScoutKind>({ internship: true, offer: true, interview: true }), exact: true },
   { name: "scout_status", labels: keysOf<ScoutStatus>({ sent: true, read: true, accepted: true, declined: true }), exact: false },
   { name: "user_role", labels: keysOf<Role>({ b2c: true, b2b: true }), exact: false },
@@ -342,39 +345,76 @@ function buildFeedGolden(): string[] {
   out.push(`CREATE TEMP TABLE golden_post_contacts (case_no integer PRIMARY KEY, content text NOT NULL, has_contact boolean NOT NULL);`);
   out.push(`INSERT INTO golden_post_contacts VALUES\n${rows(contactTexts.map((content, i) => `(${i + 1}, ${sqlText(content)}, ${bool(containsContact(content))})`))}\n`);
 
-  // 공식 SNS 게시 날짜: 내일부터 가장 빠른 빈 날짜 (이미 받은 날짜는 건너뛰어요). 홍보 글이 아니거나 신청이 없는 글은 날짜를 잡지 않아요.
-  const prPost = (id: string, on: string | null): SocialPost => ({
+  // 공식 SNS 게시 채널: 값 · 말하지 않았을 때의 기본값. DB 의 열거형(official_channel)은 이 값과 정확히 같아야 하고(golden_enums),
+  // 기본값(채널 열의 DEFAULT 와 next_official_share_date 의 p_channel)도 같아야 해요. 화면에 보이는 순서는 앱의 일이라 DB 는 몰라요.
+  out.push(`CREATE TEMP TABLE golden_official_channels (channel text PRIMARY KEY, is_default boolean NOT NULL);`);
+  out.push(`INSERT INTO golden_official_channels VALUES\n${rows(OFFICIAL_CHANNELS.map((channel) => `(${q(channel)}, ${bool(channel === DEFAULT_OFFICIAL_CHANNEL)})`))}\n`);
+  // 채널 값 검사: 앱의 isOfficialChannel 이 받아들이는 글자만 DB 의 열거형도 받아들여요 (YouTube · 대소문자 · 공백 · 옛 이름은 모두 거절)
+  const channelValues = [
+    ...OFFICIAL_CHANNELS, "youtube", "Instagram", "X", "FACEBOOK", " x", "x ", "", "twitter", "linkedin", "instagram-story", "insta", "facebook page",
+  ];
+  out.push(`CREATE TEMP TABLE golden_official_channel_values (case_no integer PRIMARY KEY, value text NOT NULL, valid boolean NOT NULL);`);
+  out.push(`INSERT INTO golden_official_channel_values VALUES\n${rows(channelValues.map((value, i) => `(${i + 1}, ${q(value)}, ${bool(isOfficialChannel(value))})`))}\n`);
+
+  // 공식 SNS 게시 날짜: 채널마다 내일부터 가장 빠른 빈 날짜 (그 채널이 이미 받은 날짜만 건너뛰어요). 홍보 글이 아니거나 신청이 없는 글은 날짜를 잡지 않아요.
+  const prPost = (id: string, on: string | null, channel: OfficialChannel = DEFAULT_OFFICIAL_CHANNEL): SocialPost => ({
     id, kind: "pr", companyId: "co-1", title: "題", body: "本文", sdgIds: [14], createdAt: "2026-10-30T09:00", likes: 0, likedBy: [], mine: false, challengeId: null,
-    official: on === null ? null : { on, feeYen: OFFICIAL_SHARE_FEE_YEN, status: "scheduled" },
+    official: on === null ? null : { on, channel, feeYen: OFFICIAL_SHARE_FEE_YEN, status: "scheduled" },
   });
   const bragPost: SocialPost = {
     id: "po-brag", kind: "brag", authorName: "Mina", authorLevel: 1, body: "本文", sdgIds: [14], createdAt: "2026-10-30T09:00", likes: 0, likedBy: [], mine: false,
     achievement: { activityId: null, kind: "participation", title: "題", companyName: "社", award: null, sdgIds: [14] },
   };
-  const dateCases: Array<[string, string, string[]]> = [
-    ["신청이 없으면 내일", "2026-10-30", []],
-    ["내일이 찼으면 모레", "2026-10-30", ["2026-10-31"]],
-    ["연달아 찼으면 그다음 날", "2026-10-30", ["2026-10-31", "2026-11-01"]],
-    ["내일은 비어 있고 모레만 찼다", "2026-10-30", ["2026-11-01"]],
-    ["가운데가 비어 있으면 가장 빠른 빈 날짜", "2026-10-30", ["2026-10-31", "2026-11-02"]],
-    ["오늘 이전·오늘 날짜는 상관없다", "2026-10-30", ["2026-10-29", "2026-10-30"]],
-    ["먼 미래만 찼다", "2026-10-30", ["2026-11-19"]],
-    ["닷새 연속으로 찼다", "2026-10-30", ["2026-10-31", "2026-11-01", "2026-11-02", "2026-11-03", "2026-11-04"]],
-    ["순서가 뒤섞여 있어도 같다", "2026-10-30", ["2026-11-02", "2026-10-31", "2026-11-01"]],
-    ["연말: 12/31 → 이듬해 1/1", "2026-12-31", []],
-    ["연말: 1/1 이 찼으면 1/2", "2026-12-31", ["2027-01-01"]],
-    ["월말: 11/30 → 12/1", "2026-11-30", []],
-    ["윤년 2/28 → 2/29", "2028-02-28", []],
-    ["윤년 2/29 가 찼으면 3/1", "2028-02-28", ["2028-02-29"]],
-    ["평년 2/28 → 3/1", "2027-02-28", []],
+  /** 이미 받은 날짜: [날짜] 만 쓰면 기본 채널(instagram), [날짜, 채널] 이면 그 채널의 날짜 */
+  type Taken = string | readonly [string, OfficialChannel];
+  const takenOn = (t: Taken) => (typeof t === "string" ? t : t[0]);
+  const takenChannel = (t: Taken): OfficialChannel => (typeof t === "string" ? DEFAULT_OFFICIAL_CHANNEL : t[1]);
+  /** [설명, 기준일, 이미 받은 날짜들, 물어보는 채널 — undefined 면 채널을 말하지 않은 것(기본 instagram)] */
+  const dateCases: Array<[string, string, Taken[], OfficialChannel | undefined]> = [
+    ["신청이 없으면 내일", "2026-10-30", [], undefined],
+    ["내일이 찼으면 모레", "2026-10-30", ["2026-10-31"], undefined],
+    ["연달아 찼으면 그다음 날", "2026-10-30", ["2026-10-31", "2026-11-01"], undefined],
+    ["내일은 비어 있고 모레만 찼다", "2026-10-30", ["2026-11-01"], undefined],
+    ["가운데가 비어 있으면 가장 빠른 빈 날짜", "2026-10-30", ["2026-10-31", "2026-11-02"], undefined],
+    ["오늘 이전·오늘 날짜는 상관없다", "2026-10-30", ["2026-10-29", "2026-10-30"], undefined],
+    ["먼 미래만 찼다", "2026-10-30", ["2026-11-19"], undefined],
+    ["닷새 연속으로 찼다", "2026-10-30", ["2026-10-31", "2026-11-01", "2026-11-02", "2026-11-03", "2026-11-04"], undefined],
+    ["순서가 뒤섞여 있어도 같다", "2026-10-30", ["2026-11-02", "2026-10-31", "2026-11-01"], undefined],
+    ["연말: 12/31 → 이듬해 1/1", "2026-12-31", [], undefined],
+    ["연말: 1/1 이 찼으면 1/2", "2026-12-31", ["2027-01-01"], undefined],
+    ["월말: 11/30 → 12/1", "2026-11-30", [], undefined],
+    ["윤년 2/28 → 2/29", "2028-02-28", [], undefined],
+    ["윤년 2/29 가 찼으면 3/1", "2028-02-28", ["2028-02-29"], undefined],
+    ["평년 2/28 → 3/1", "2027-02-28", [], undefined],
+    // 채널별: 같은 채널이 받은 날짜만 건너뛰고, 다른 채널의 날짜는 상관없다
+    ["X: 신청이 없으면 내일", "2026-10-30", [], "x"],
+    ["Facebook: 신청이 없으면 내일", "2026-10-30", [], "facebook"],
+    ["Instagram 을 이름으로 말해도 기본값과 같다", "2026-10-30", ["2026-10-31"], "instagram"],
+    ["X: 같은 채널의 내일이 찼으면 모레", "2026-10-30", [["2026-10-31", "x"]], "x"],
+    ["X: Instagram·Facebook 의 내일은 상관없다", "2026-10-30", [["2026-10-31", "instagram"], ["2026-10-31", "facebook"]], "x"],
+    ["Instagram: X 의 내일은 상관없다 (같은 날 다른 채널)", "2026-10-30", [["2026-10-31", "x"]], "instagram"],
+    ["말하지 않으면 Instagram: X·Facebook 이 찬 날은 건너뛰지 않는다", "2026-10-30", [["2026-10-31", "x"], ["2026-11-01", "facebook"]], undefined],
+    ["말하지 않으면 Instagram: Instagram 이 찬 날만 건너뛴다", "2026-10-30", [["2026-10-31", "x"], ["2026-10-31", "instagram"], ["2026-11-01", "x"]], undefined],
+    ["세 채널이 같은 날을 각각 받았다 — Instagram", "2026-10-30", [["2026-10-31", "x"], ["2026-10-31", "instagram"], ["2026-10-31", "facebook"]], "instagram"],
+    ["세 채널이 같은 날을 각각 받았다 — Facebook", "2026-10-30", [["2026-10-31", "x"], ["2026-10-31", "instagram"], ["2026-10-31", "facebook"]], "facebook"],
+    ["채널마다 찬 날이 달라 답이 모두 다르다 — X 는 3일 뒤", "2026-10-30", [["2026-10-31", "x"], ["2026-11-01", "x"], ["2026-11-01", "instagram"], ["2026-10-31", "facebook"]], "x"],
+    ["채널마다 찬 날이 달라 답이 모두 다르다 — Instagram 은 내일", "2026-10-30", [["2026-10-31", "x"], ["2026-11-01", "x"], ["2026-11-01", "instagram"], ["2026-10-31", "facebook"]], "instagram"],
+    ["채널마다 찬 날이 달라 답이 모두 다르다 — Facebook 은 모레", "2026-10-30", [["2026-10-31", "x"], ["2026-11-01", "x"], ["2026-11-01", "instagram"], ["2026-10-31", "facebook"]], "facebook"],
+    ["Facebook: 가운데가 비어 있으면 가장 빠른 빈 날짜", "2026-10-30", [["2026-10-31", "facebook"], ["2026-11-02", "facebook"], ["2026-11-01", "x"]], "facebook"],
+    ["X: 연말 12/31 → 이듬해 1/1", "2026-12-31", [["2027-01-01", "facebook"]], "x"],
+    ["Facebook: 윤년 2/29 가 찼으면 3/1", "2028-02-28", [["2028-02-29", "facebook"], ["2028-02-29", "x"]], "facebook"],
   ];
-  out.push(`CREATE TEMP TABLE golden_official_dates (case_no integer PRIMARY KEY, label text NOT NULL, today date NOT NULL, taken date[] NOT NULL, next_on date NOT NULL);`);
+  out.push(
+    `CREATE TEMP TABLE golden_official_dates (case_no integer PRIMARY KEY, label text NOT NULL, today date NOT NULL, channel text, taken date[] NOT NULL, taken_channels text[] NOT NULL, next_on date NOT NULL);`,
+  );
   out.push(
     `INSERT INTO golden_official_dates VALUES\n${rows(
-      dateCases.map(([label, today, taken], i) => {
-        const posts = [...taken.map((on, n) => prPost(`po-${n}`, on)), prPost("po-none", null), bragPost];
-        const dates = taken.length === 0 ? "ARRAY[]::date[]" : `ARRAY[${taken.map((on) => `DATE ${q(on)}`).join(", ")}]`;
-        return `(${i + 1}, ${q(label)}, DATE ${q(today)}, ${dates}, DATE ${q(nextOfficialDate(posts, today))})`;
+      dateCases.map(([label, today, taken, channel], i) => {
+        const posts = [...taken.map((t, n) => prPost(`po-${n}`, takenOn(t), takenChannel(t))), prPost("po-none", null), bragPost];
+        const dates = taken.length === 0 ? "ARRAY[]::date[]" : `ARRAY[${taken.map((t) => `DATE ${q(takenOn(t))}`).join(", ")}]`;
+        const channels = taken.length === 0 ? "ARRAY[]::text[]" : `ARRAY[${taken.map((t) => q(takenChannel(t))).join(", ")}]`;
+        const next = channel === undefined ? nextOfficialDate(posts, today) : nextOfficialDate(posts, today, channel);
+        return `(${i + 1}, ${q(label)}, DATE ${q(today)}, ${channel === undefined ? "NULL" : q(channel)}, ${dates}, ${channels}, DATE ${q(next)})`;
       }),
     )}\n`,
   );

@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
-import type { PrPost, SocialPost } from "./domain";
+import type { OfficialChannel, PrPost, SocialPost } from "./domain";
 import {
-  authorRole, bodyLimit, containsContact, defaultPrSdgs, nextOfficialDate, OFFICIAL_SHARE_FEE_YEN, POST_LIMITS, postErrorText, uniqueSdgs, validatePostDraft,
+  authorRole, bodyLimit, containsContact, DEFAULT_OFFICIAL_CHANNEL, defaultPrSdgs, isOfficialChannel, nextOfficialDate, OFFICIAL_CHANNELS, OFFICIAL_SHARE_FEE_YEN, officialChannelFormat,
+  officialChannelLabel, officialChannelName, POST_LIMITS, postErrorText, uniqueSdgs, validatePostDraft,
   type PostContext, type PostDraft,
 } from "./post";
 import type { SdgId } from "./sdg";
@@ -77,6 +78,19 @@ describe("입력 검사", () => {
     expect(validatePostDraft(pr({ challengeId: "다른 회사 챌린지" }), context)).toEqual(["challenge_not_found"]);
   });
 
+  it("홍보 글: 공식 SNS 게시 채널은 신청을 켰을 때만 봐요 (비우면 기본 채널, 목록에 없는 값은 거절)", () => {
+    for (const channel of OFFICIAL_CHANNELS) expect(validatePostDraft(pr({ requestOfficial: true, officialChannel: channel }), context), channel).toEqual([]);
+    expect(validatePostDraft(pr({ requestOfficial: true }), context)).toEqual([]);
+    expect(validatePostDraft(pr({ requestOfficial: true, officialChannel: "youtube" as OfficialChannel }), context)).toEqual(["official_channel_invalid"]);
+    expect(validatePostDraft(pr({ requestOfficial: true, officialChannel: null as unknown as OfficialChannel }), context)).toEqual(["official_channel_invalid"]);
+    expect(validatePostDraft(pr({ requestOfficial: true, officialChannel: "" as OfficialChannel }), context)).toEqual(["official_channel_invalid"]);
+    // 신청하지 않으면 채널 값은 아무 뜻이 없어요
+    expect(validatePostDraft(pr({ requestOfficial: false, officialChannel: "youtube" as OfficialChannel }), context)).toEqual([]);
+    expect(validatePostDraft(pr({ officialChannel: "youtube" as OfficialChannel }), context)).toEqual([]);
+    // 자랑 글은 공식 게시를 신청할 수 없어서 채널을 보지 않아요
+    expect(validatePostDraft(brag({ requestOfficial: true, officialChannel: "youtube" as OfficialChannel }), context)).toEqual([]);
+  });
+
   it("이메일·전화번호가 본문이나 제목에 있으면 올릴 수 없어요", () => {
     expect(validatePostDraft(brag({ body: "連絡は mina@example.com へ" }), context)).toEqual(["contact_info"]);
     expect(validatePostDraft(pr({ body: "お問い合わせは 03-1234-5678" }), context)).toEqual(["contact_info"]);
@@ -85,8 +99,8 @@ describe("입력 검사", () => {
 
   it("오류는 화면의 입력 순서대로 나와요 (연락처 검사는 마지막)", () => {
     expect(validatePostDraft({ kind: "brag", body: "", activityId: null }, context)).toEqual(["achievement_required", "body_required"]);
-    expect(validatePostDraft({ kind: "pr", body: "a@b.cd", title: "", sdgIds: [], challengeId: "없음" }, context)).toEqual([
-      "title_required", "sdgs_required", "challenge_not_found", "contact_info",
+    expect(validatePostDraft({ kind: "pr", body: "a@b.cd", title: "", sdgIds: [], challengeId: "없음", requestOfficial: true, officialChannel: "youtube" as OfficialChannel }, context)).toEqual([
+      "title_required", "sdgs_required", "challenge_not_found", "official_channel_invalid", "contact_info",
     ]);
   });
 
@@ -108,13 +122,15 @@ describe("오류 문장", () => {
   it("두 언어 모두 채워진 문장이에요", () => {
     expect(postErrorText("contact_info", "brag", "ja")).toMatch(/メール/);
     expect(postErrorText("contact_info", "brag", "ko")).toMatch(/이메일/);
+    expect(postErrorText("official_channel_invalid", "pr", "ja")).toMatch(/SNS/);
+    expect(postErrorText("official_channel_invalid", "pr", "ko")).toMatch(/SNS/);
   });
 });
 
-describe("공식 SNS 게시 날짜 (하루에 한 회사)", () => {
-  const prPost = (id: string, on: string | null): PrPost => ({
+describe("공식 SNS 게시 날짜 (채널마다 하루에 한 회사)", () => {
+  const prPost = (id: string, on: string | null, channel: OfficialChannel = "instagram"): PrPost => ({
     id, kind: "pr", companyId: "co-x", title: "t", body: "b", sdgIds: [14], challengeId: null,
-    official: on ? { on, feeYen: OFFICIAL_SHARE_FEE_YEN, status: "scheduled" } : null,
+    official: on ? { on, channel, feeYen: OFFICIAL_SHARE_FEE_YEN, status: "scheduled" } : null,
     createdAt: "2026-10-29T10:00", likes: 0, likedBy: [], mine: false,
   });
   const today = "2026-10-30";
@@ -139,6 +155,63 @@ describe("공식 SNS 게시 날짜 (하루에 한 회사)", () => {
 
   it("월말·연말을 넘어도 맞아요", () => {
     expect(nextOfficialDate([], "2026-12-31")).toBe("2027-01-01");
+  });
+
+  it("채널을 안 적으면 Instagram 이에요 (채널 선택이 생기기 전의 호출이 그대로 통해요)", () => {
+    expect(DEFAULT_OFFICIAL_CHANNEL).toBe("instagram");
+    const posts: SocialPost[] = [prPost("a", "2026-10-31", "instagram"), prPost("b", "2026-10-31", "x")];
+    expect(nextOfficialDate(posts, today)).toBe(nextOfficialDate(posts, today, "instagram"));
+    expect(nextOfficialDate(posts, today)).toBe("2026-11-01");
+  });
+
+  it("같은 날도 채널이 다르면 받을 수 있어요: 다른 채널이 받은 날짜는 건너뛰지 않아요", () => {
+    const posts: SocialPost[] = [prPost("a", "2026-10-31", "x")];
+    expect(nextOfficialDate(posts, today, "x")).toBe("2026-11-01");
+    expect(nextOfficialDate(posts, today, "instagram")).toBe("2026-10-31");
+    expect(nextOfficialDate(posts, today, "facebook")).toBe("2026-10-31");
+  });
+
+  it("같은 채널에서는 하루에 한 회사만: 채널마다 따로 건너뛰어요", () => {
+    const posts: SocialPost[] = [
+      prPost("a", "2026-10-31", "instagram"), prPost("b", "2026-11-01", "instagram"),
+      prPost("c", "2026-10-31", "x"),
+      prPost("d", "2026-11-02", "facebook"),
+    ];
+    expect(nextOfficialDate(posts, today, "instagram")).toBe("2026-11-02");
+    expect(nextOfficialDate(posts, today, "x")).toBe("2026-11-01");
+    expect(nextOfficialDate(posts, today, "facebook")).toBe("2026-10-31");
+  });
+
+  it("글을 지우면(목록에서 빠지면) 그 채널의 그 날짜가 다시 비어요", () => {
+    const posts: SocialPost[] = [prPost("a", "2026-10-31", "x"), prPost("b", "2026-11-01", "x")];
+    expect(nextOfficialDate(posts, today, "x")).toBe("2026-11-02");
+    expect(nextOfficialDate(posts.filter((p) => p.id !== "a"), today, "x")).toBe("2026-10-31");
+  });
+
+  it("월말·연말을 넘는 채널별 배정", () => {
+    expect(nextOfficialDate([prPost("a", "2027-01-01", "facebook")], "2026-12-31", "facebook")).toBe("2027-01-02");
+    expect(nextOfficialDate([prPost("a", "2027-01-01", "facebook")], "2026-12-31", "x")).toBe("2027-01-01");
+  });
+});
+
+describe("공식 SNS 채널", () => {
+  it("운영하는 채널은 X · Instagram · Facebook 이고 화면 순서가 이 순서예요 (YouTube 는 영상 채널이라 대상이 아니에요)", () => {
+    expect([...OFFICIAL_CHANNELS]).toEqual(["x", "instagram", "facebook"]);
+    expect(OFFICIAL_CHANNELS).toContain(DEFAULT_OFFICIAL_CHANNEL);
+  });
+
+  it("isOfficialChannel: 목록에 있는 값만 채널이에요", () => {
+    for (const channel of OFFICIAL_CHANNELS) expect(isOfficialChannel(channel)).toBe(true);
+    for (const value of ["youtube", "linkedin", "X", "Instagram", "", null, undefined, 1, {}]) expect(isOfficialChannel(value), String(value)).toBe(false);
+  });
+
+  it("채널 이름과 올라가는 모양: Instagram 스토리 · X 포스트 · Facebook 페이지 게시", () => {
+    expect(OFFICIAL_CHANNELS.map((c) => officialChannelName(c, "ja"))).toEqual(["X", "Instagram", "Facebook"]);
+    expect(OFFICIAL_CHANNELS.map((c) => officialChannelFormat(c, "ja"))).toEqual(["ポスト", "ストーリー", "ページ投稿"]);
+    expect(OFFICIAL_CHANNELS.map((c) => officialChannelName(c, "ko"))).toEqual(["X", "인스타그램", "페이스북"]);
+    expect(OFFICIAL_CHANNELS.map((c) => officialChannelFormat(c, "ko"))).toEqual(["포스트", "스토리", "페이지 게시"]);
+    expect(OFFICIAL_CHANNELS.map((c) => officialChannelLabel(c, "ja"))).toEqual(["X ポスト", "Instagram ストーリー", "Facebook ページ投稿"]);
+    expect(OFFICIAL_CHANNELS.map((c) => officialChannelLabel(c, "ko"))).toEqual(["X 포스트", "인스타그램 스토리", "페이스북 페이지 게시"]);
   });
 });
 

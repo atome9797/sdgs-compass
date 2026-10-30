@@ -2,7 +2,7 @@
 // 실서비스에서는 이 모양의 데이터를 서버(PostgreSQL, db/schema.sql)가 돌려줘요.
 import { emptyCertAnswers } from "@sdgs-compass/core/certification";
 import type {
-  Activity, Candidate, Challenge, Company, DemoState, Match, Proposal, Scout, SocialPost, StudentProfile, TeamPost,
+  Activity, Candidate, Challenge, Company, DemoState, Match, OfficialChannel, Proposal, Scout, SocialPost, StudentProfile, TeamPost,
 } from "@sdgs-compass/core/domain";
 import { splitMatchFee } from "@sdgs-compass/core/fees";
 import { addDays } from "@sdgs-compass/core/format";
@@ -563,14 +563,16 @@ function buildScouts(today: string): Scout[] {
 function buildPosts(today: string): SocialPost[] {
   const d = (n: number) => addDays(today, n);
   const at = (n: number, time: string) => `${d(n)}T${time}`;
-  const scheduled = (n: number) => ({ on: d(n), feeYen: OFFICIAL_SHARE_FEE_YEN, status: "scheduled" as const });
+  const scheduled = (n: number, channel: OfficialChannel) => ({ on: d(n), channel, feeYen: OFFICIAL_SHARE_FEE_YEN, status: "scheduled" as const });
   const levelOfStudent = (id: string) => levelOf(talent.find((c) => c.id === id)?.points ?? 0);
   const minato = { ja: "みなと海洋フーズ株式会社", ko: "미나토 해양푸드(주)" };
   const hikari = { ja: "ひかりエナジー株式会社", ko: "히카리 에너지(주)" };
   const yasai = { ja: "やさい未来ファーム", ko: "야채 미래 팜" };
   const kotoba = { ja: "ことば教育サポート株式会社", ko: "코토바 교육 서포트(주)" };
   return [
-    // 기업 홍보 글. 다른 기업이 내일(po-1)·모레(po-2)의 공식 SNS 게시 날짜를 이미 받아서, 우리 회사가 신청하면 3일 뒤가 배정돼요.
+    // 기업 홍보 글. 다른 기업 셋이 공식 SNS 게시 날짜를 이미 받았어요 — Instagram 은 내일(po-1), X 는 모레(po-2), Facebook 은 내일(po-3).
+    // 같은 날(내일)도 채널이 다르면 함께 받을 수 있고, 같은 채널에서만 하루에 한 회사예요. 그래서 우리 회사가 지금 신청하면
+    // X 는 내일, Instagram·Facebook 은 모레가 배정돼요(채널을 바꾸면 날짜가 달라지는 모습이 보여요).
     {
       id: "po-1", kind: "pr", companyId: "co-green", challengeId: "ch-foodloss", sdgIds: [12, 2],
       title: { ja: "売り場のフードロス、学生の発想で減らしませんか", ko: "매장의 푸드 로스, 학생의 발상으로 줄여 볼까요" },
@@ -578,7 +580,7 @@ function buildPosts(today: string): SocialPost[] {
         ja: "賞味期限が近い商品をどう見せれば、手に取ってもらえるか。店舗での実験データを公開して、学生のみなさんの提案を待っています。",
         ko: "유통기한이 가까운 상품을 어떻게 보여 주면 손이 갈까요? 매장 실험 데이터를 공개하고 학생 여러분의 제안을 기다리고 있어요.",
       },
-      official: scheduled(1), createdAt: at(-1, "09:30"), likes: 18, likedBy: [], mine: false,
+      official: scheduled(1, "instagram"), createdAt: at(-1, "09:30"), likes: 18, likedBy: [], mine: false,
     },
     {
       id: "po-2", kind: "pr", companyId: "co-hikari", challengeId: "ch-solar", sdgIds: [7, 13],
@@ -587,7 +589,7 @@ function buildPosts(today: string): SocialPost[] {
         ja: "再エネ導入のストーリーを、入居する学生の目線で企画してください。採用された企画は、実際の説明会で使います。",
         ko: "재생에너지 도입 이야기를 입주 학생의 시선으로 기획해 주세요. 채택된 기획은 실제 설명회에서 사용해요.",
       },
-      official: scheduled(2), createdAt: at(-2, "15:00"), likes: 24, likedBy: [], mine: false,
+      official: scheduled(2, "x"), createdAt: at(-2, "15:00"), likes: 24, likedBy: [], mine: false,
     },
     {
       id: "po-3", kind: "pr", companyId: "co-machi", challengeId: "ch-shotengai", sdgIds: [11, 8],
@@ -596,7 +598,7 @@ function buildPosts(today: string): SocialPost[] {
         ja: "シャッターが閉まったままの店舗を、SNSで人が集まる場所に変えたい。若い世代のアイデアを募集中です。",
         ko: "셔터가 내려간 점포를 SNS로 사람이 모이는 곳으로 바꾸고 싶어요. 젊은 세대의 아이디어를 모집 중이에요.",
       },
-      official: null, createdAt: at(-3, "11:10"), likes: 9, likedBy: [], mine: false,
+      official: scheduled(1, "facebook"), createdAt: at(-3, "11:10"), likes: 9, likedBy: [], mine: false,
     },
     {
       id: "po-4", kind: "pr", companyId: "co-minato", challengeId: "ch-bottle", sdgIds: [14, 12],

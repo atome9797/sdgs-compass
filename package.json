@@ -34,7 +34,9 @@
     "db:check": "tsx scripts/gen-db-reference.ts --check",
     "erd": "node scripts/erd.mjs --write",
     "erd:check": "node scripts/erd.mjs --check",
-    "erd:render": "node scripts/erd.mjs --render"
+    "erd:render": "node scripts/erd.mjs --render",
+    "qr": "tsx scripts/gen-qr.ts",
+    "qr:check": "tsx scripts/gen-qr.ts --check"
   },
   "devDependencies": {
     "tsx": "4.23.12"

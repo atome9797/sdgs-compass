@@ -18,6 +18,7 @@
   그래서 어느 쪽에서 해도 결과와 문구가 같아요. ([SchedulAI](https://github.com/atome9797/SchedulAI) 와 같은 방식)
 - **DB 설계까지 검증**: PostgreSQL 16 스키마(표 58개 · 뷰 5개)를 실제 DB에 올려 시험 5개 파일(구조·규칙·흐름·앱↔DB 대조·운영)을 통과시켰어요. ERD 는 그 DB에서 읽어 자동으로 만들어요.
 - **GitHub Actions**: CI(웹·앱·DB 검사), GitHub Pages 웹 데모 자동 배포, Android 데모 APK 자동 빌드(+ Releases 업로드).
+- **QR 로 바로 체험**: 발표 당일에는 QR 코드를 공개하고, 청중이 휴대폰으로 읽어 설치 없이 웹 데모에 들어와요 → [열기](#열기).
 
 > 🇯🇵 日本語の概要は[一番下](#日本語の概要)にあります.
 
@@ -55,13 +56,40 @@
 
 ### 열기
 
+발표 당일은 **QR 코드를 공개하고, 청중이 휴대폰으로 읽어서 웹 데모에 들어오는** 방식으로 설명해요. 설치할 것이 없어요.
+
+<table>
+<tr>
+<td width="210"><img src="docs/qr/web-demo.svg" alt="웹 데모 QR 코드" width="190"></td>
+<td>
+<b>휴대폰 카메라로 읽어 보세요</b> → <a href="https://atome9797.github.io/sdgs-compass/">https://atome9797.github.io/sdgs-compass/</a><br>
+처음에는 <b>언어 선택</b>(<code>日本語</code> / <code>한국어</code>)이 나와요. 입력한 내용은 각자 기기에만 저장돼서 서로 영향이 없어요.<br>
+슬라이드용 이미지: <a href="docs/qr/web-demo.png">PNG</a> · <a href="docs/qr/web-demo.svg">SVG</a> (주소가 바뀌면 <code>npm run qr</code> 로 다시 만들어요)
+</td>
+</tr>
+</table>
+
 | 방법 | 어디서 | 메모 |
 | --- | --- | --- |
-| **웹** | https://atome9797.github.io/sdgs-compass/ | GitHub Pages(`pages.yml`)가 main 에 푸시될 때마다 배포해요. **처음 한 번** 저장소 Settings › Pages › Source 를 **GitHub Actions** 로 바꿔야 해요 ([자세히](#github-pages-웹-데모-켜기)). 휴대폰 브라우저에서 "홈 화면에 추가"하면 앱처럼 열려요 |
-| **Android 앱(APK)** | [Releases › demo-latest](https://github.com/atome9797/sdgs-compass/releases/tag/demo-latest) 의 `sdgs-compass-demo.apk` | 서버·개발 서버 없이 혼자 실행돼요. 설치할 때 "출처를 알 수 없는 앱" 허용이 필요해요 ([자세히](#android-데모-apk-받기)) |
+| **웹** (QR) | https://atome9797.github.io/sdgs-compass/ | **발표 당일의 기본 경로**예요. GitHub Pages(`pages.yml`)가 main 에 푸시될 때마다 배포해요. **처음 한 번** 저장소 Settings › Pages › Source 를 **GitHub Actions** 로 바꿔야 해요 ([자세히](#github-pages-웹-데모-켜기)). 휴대폰 브라우저에서 "홈 화면에 추가"하면 앱처럼 열려요 |
+| **Android 앱(APK)** | [Releases › demo-latest](https://github.com/atome9797/sdgs-compass/releases/tag/demo-latest) 의 `sdgs-compass-demo.apk` | 인터넷이 불안할 때의 **백업**이에요. 서버·개발 서버 없이 혼자 실행돼요. 설치할 때 "출처를 알 수 없는 앱" 허용이 필요해요 ([자세히](#android-데모-apk-받기)) |
 | **내 컴퓨터** | `npm install` → `npm run dev` (웹) / `npm run mobile` (앱) | [실행하기](#실행하기) |
 
 > iPhone 용 설치 파일(IPA)은 Apple 개발자 계정과 서명이 필요해서 만들지 않았어요. iPhone 에서는 **웹 데모**("홈 화면에 추가")가 가장 확실해요. 개발용으로는 컴퓨터에서 `npm run mobile` 후 Expo Go 로 열 수도 있지만, 이 앱이 쓰는 Expo SDK 58 을 지원하는 Expo Go 여야 해요.
+
+### 발표 당일: QR → 웹
+
+1. 슬라이드에 QR(`docs/qr/web-demo.png`)과 주소를 함께 보여 줘요. **슬라이드 높이의 1/3 정도로 크게** 넣고, QR 둘레의 흰 여백은 자르지 마세요(어두운 배경 위에서도 읽혀요).
+2. 청중이 휴대폰 카메라(iPhone 은 카메라 앱, Android 는 카메라나 Google 렌즈, 일본에서는 LINE 의 QR 리더도 많이 써요)로 읽으면 웹 데모가 열려요.
+3. 처음 화면은 **언어 선택**이에요. 발표가 일본어라면 `日本語` 를 누르게 안내해요.
+4. 발표자는 자기 폰(또는 노트북)으로 아래 [시연 순서](#시연-순서예시)대로 보여 주고, 청중은 각자 폰에서 따라 눌러 봐요.
+
+| 알아 둘 점 | 내용 |
+| --- | --- |
+| 인터넷 | 청중 폰이 인터넷에 연결돼야 해요. 배포물 전체(모든 화면 포함)가 압축하면 약 0.3MB 라 느린 회선에서도 가벼워요. 발표장 인터넷이 약하면 발표자 폰의 APK(화면 미러링)와 화면 녹화로 이어 가요 |
+| 데이터 | 입력한 내용은 **각자 기기의 브라우저에만** 저장되고 서버로 보내지 않아요. 청중이 눌러도 발표자 화면에 영향이 없고, `설정 › 데모 초기화` 로 처음 상태로 돌려요 |
+| 화면 | 개발 중에 폰 폭(390px·320px)에서 가로 넘침과 터치 영역(44px)을 점검했어요. 실제 iPhone·Android·LINE 앱에서 열리는지는 [발표 전 점검표](#발표-전-점검표-5분)로 직접 확인해 주세요 |
+| QR | 오류 정정 M 단계의 29×29 칸 QR 이에요. OpenCV 판독기 3종으로 원본·100px 까지 축소·흐림·JPEG·기울기 상태를 읽어 봤어요. `npm run qr:check` 로 주소와 맞는지 확인해요 |
 
 ### 첫 화면과 역할 전환
 
@@ -73,6 +101,7 @@
 
 | 순서 | 역할 | 보여 줄 것 | 눈여겨볼 점 |
 | --- | --- | --- | --- |
+| ⓪ | — | 슬라이드의 **QR 공개** → 청중이 휴대폰으로 웹 데모에 접속 | 설치 없이 바로 열림 · 각자 기기에서 독립 실행 |
 | ① | — | 언어 선택 → `日本語` → 학생(B2C) | 같은 앱이 일본어/한국어로 바뀜 |
 | ② | B2C | 홈: SDGs 17 타일, AI 추천(매칭률·이유), 마감 임박 | 관심 SDGs·스킬·마감 임박도·상금으로 계산한 규칙 기반 추천 |
 | ③ | B2C | 챌린지 상세(브리핑·상금·마감) → 팀 탭 → "함께하고 싶어요" | SDGs 태그, 팀 모집 게시판 |
@@ -89,13 +118,16 @@
 
 실제 폰에서의 실행은 자동 검사로 확인되지 않아요. 발표 전날 한 번 해 보세요.
 
-- [ ] Android 폰에 `sdgs-compass-demo.apk` 설치 → 앱이 열리고 **언어 선택**이 나온다
+- [ ] 슬라이드의 QR 을 **iPhone 과 Android 의 카메라**로 읽는다 → 웹 데모가 열리고 **언어 선택**이 나온다 (LINE 앱의 QR 리더로도 열어 본다)
+- [ ] 발표장과 같은 조건(와이파이 또는 모바일 데이터)에서 첫 화면이 몇 초 안에 뜬다
+- [ ] 프로젝터·모니터에 띄운 QR 을 **맨 뒤 자리**에서도 읽을 수 있다 (크기·밝기·화면 비율 확인)
 - [ ] `日本語` → 역할 선택 → 학생(B2C) 홈이 일본어로 보인다
 - [ ] 머리글의 `日本語 | 한국어` 로 한국어로 바뀌고, 다시 일본어로 돌아온다
 - [ ] 역할 칩으로 기업(B2B) 대시보드에 갔다가 학생 홈으로 돌아온다
 - [ ] 기획서 제출 → 수령증(`SC-…`) → Impact → 디지털 증명서 → 진위 확인 ✓ / 변조 ✗ 까지 한 바퀴 돈다
 - [ ] 설정 › 데모 초기화 → 언어 선택부터 다시 시작한다 (**발표 직전에 한 번 눌러 두면** 깨끗한 샘플 상태로 시작해요)
-- [ ] 웹 데모(Pages 주소)도 같은 순서로 열린다 — 발표장 인터넷이 불안하면 앱(APK)을 주로 쓰세요
+- [ ] (백업) Android 폰에 `sdgs-compass-demo.apk` 를 설치해 두었고 같은 순서로 열린다 — 인터넷이 안 될 때는 이 화면을 미러링해요
+- [ ] (백업) 시연 화면을 녹화한 영상을 준비했다
 - [ ] 폰 화면을 띄울 방법(케이블·미러링)과 충전기를 챙겼다
 
 ## 서비스 흐름 (플로우차트)
@@ -1351,10 +1383,12 @@ sdgs-compass/
 │  └─ tests/             구조 · 규칙 · 흐름 · 앱↔DB 대조 · 운영 시험 (golden.sql 은 자동 생성)
 ├─ docs/
 │  ├─ mockups/           화면 목업 이미지
+│  ├─ qr/                웹 데모 주소 QR 이미지 (npm run qr)
 │  └─ erd/               ERD 그림 파일 (npm run erd:render)
 ├─ scripts/
 │  ├─ erd.mjs            README 의 ERD·표 목록을 DB 에서 읽어 만들거나 확인
 │  ├─ gen-db-reference.ts  db/seed.sql · db/tests/golden.sql 생성·확인
+│  ├─ gen-qr.ts          웹 데모 주소의 QR 이미지(SVG·PNG) 생성·확인
 │  └─ check-single-react.mjs  모노레포에 React 가 한 벌인지 확인
 └─ .github/
    ├─ workflows/         ci.yml · pages.yml · android-apk.yml
@@ -1415,6 +1449,7 @@ PGDATABASE=sdgs_compass npm run erd                    # 스키마를 바꿨다�
 | `npm run lint` · `npm test` · `npm run typecheck` | 전체 워크스페이스 |
 | `npm run db:test` | DB 시험 5개 파일 (`PG*` 환경 변수 필요) |
 | `npm run db:generate` · `db:check` | `db/seed.sql` · `db/tests/golden.sql` 생성 · 최신 여부 확인 |
+| `npm run qr` · `qr:check` | 웹 데모 주소의 QR 이미지(`docs/qr/`) 만들기 · 주소와 맞는지 확인 (`npm run qr -- <주소> <파일 이름>` 으로 다른 주소도 만들 수 있어요) |
 | `npm run erd` · `erd:check` · `erd:render` | README 의 ERD 생성 · 확인 · `docs/erd/*.png` 그림 파일 만들기 (mermaid-cli 필요) |
 
 ## CI / 배포 (GitHub Actions)
@@ -1499,6 +1534,7 @@ PGDATABASE=sdgs_compass npm run erd                    # 스키마를 바꿨다�
 
 - **日本語／韓国語の両対応**：初回起動時に言語を選び（端末の言語を事前に強調表示）、ヘッダーの「日本語 | 한국어」でいつでも切り替えられます。
 - **2つの立場**：学生・個人（B2C）と企業・団体（B2B）を選択、ヘッダーのチップで切り替えて、1つのアプリで両方の流れをデモできます。
+- **発表当日はQRコードを公開**：スマホでQRコードを読み取ると、インストール不要でWebデモが開きます（言語選択から開始。入力内容は各自の端末にだけ保存されます）。
 - **サーバー不要のデモ**：サンプルデータ（すべて架空）で、課題出題 → 応募 → 審査 → 受賞 → Impact → 証明書 → スカウト → 採用 → 手数料・寄付まで一巡できます。
 - **Web（Next.js）＋ モバイル（Expo / React Native）** を1つのリポジトリで管理し、ロジック・文言は共通パッケージを共有。DB設計（PostgreSQL、58テーブル）とER図も含みます。
 - Android用デモAPKは[Releases](https://github.com/atome9797/sdgs-compass/releases/tag/demo-latest)、Web版は https://atome9797.github.io/sdgs-compass/ （初回のみ Settings › Pages › Source を「GitHub Actions」に設定）。

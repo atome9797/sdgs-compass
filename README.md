@@ -1446,6 +1446,7 @@ PGDATABASE=sdgs_compass npm run erd                    # 스키마를 바꿨다�
 
 - 기본 빌드는 `arm64-v8a`(대부분의 실제 폰)예요. 안드로이드 에뮬레이터(x86_64)용은 Actions 에서 수동 실행할 때 `abis` 에 `arm64-v8a,x86_64` 처럼 적어요.
 - Expo 템플릿의 공개 `debug.keystore` 로 서명한 **데모용**이라 스토어 배포용이 아니에요.
+- 요청하는 권한은 **인터넷(React Native 기본) 하나**예요. 저장소 읽기·쓰기, 진동, 다른 앱 위에 표시 권한은 `apps/mobile/app.config.ts` 의 `blockedPermissions` 로 막아 두었고, 빌드할 때마다 CI 가 `aapt2` 로 확인해요(남아 있으면 빌드 실패). 앱 코드는 서버와 통신하지 않아요.
 - Actions › Android APK (demo) 실행의 Artifacts(`sdgs-compass-demo-apk`)에도 14일간 같은 파일이 있어요.
 
 ### package-lock.json 에 대해

@@ -14,9 +14,10 @@
   발표는 일본어로, 개발·확인은 한국어로 같은 앱을 써요.
 - **두 가지 역할**: 언어 다음에 **학생·개인(B2C)** / **기업·기관(B2B)** 중 고르고, 머리글의 역할 칩으로 언제든 전환해요. 한 앱에서 양쪽 흐름을 모두 시연할 수 있어요.
 - **서버 없이 전체 흐름이 돌아가는 데모**: 샘플 데이터(모두 가상)로 챌린지 출제 → 응모 → 심사 → 수상 → Impact → 증명서 → 스카우트 → 채용 → 수수료·기부까지 한 바퀴를 돌려 볼 수 있어요. 화면마다 `DEMO` 배지가 붙어요.
+- **SNS 피드**: 학생은 수상·제출·참가 실적을 **자랑 글**로, 기업은 SDGs 활동을 **홍보 글**(항상 `PR` 표시)로 올려요. 이메일 주소·전화번호처럼 보이는 글자는 올릴 수 없고, 공식 SNS(Instagram 스토리) 게시 신청은 하루에 한 회사만 받아요 → [설계](docs/sns-feed.md).
 - **웹(Next.js) + 모바일(Expo / React Native)** 이 한 저장소(npm 워크스페이스 모노레포)에 있고, 규칙·계산·화면 모델·문구는 `packages/core`, 샘플 데이터·저장은 `packages/data`를 함께 써요.
   그래서 어느 쪽에서 해도 결과와 문구가 같아요. ([SchedulAI](https://github.com/atome9797/SchedulAI) 와 같은 방식)
-- **DB 설계까지 검증**: PostgreSQL 16 스키마(표 58개 · 뷰 5개)를 실제 DB에 올려 시험 5개 파일(구조·규칙·흐름·앱↔DB 대조·운영)을 통과시켰어요. ERD 는 그 DB에서 읽어 자동으로 만들어요.
+- **DB 설계까지 검증**: PostgreSQL 16 스키마(표 62개 · 뷰 6개)를 실제 DB에 올려 시험 6개 파일(구조·규칙·흐름·앱↔DB 대조·운영·SNS 피드)을 통과시켰어요. ERD 는 그 DB에서 읽어 자동으로 만들어요.
 - **GitHub Actions**: CI(웹·앱·DB 검사), GitHub Pages 웹 데모 자동 배포, Android 데모 APK 자동 빌드(+ Releases 업로드).
 - **QR 로 바로 체험**: 발표 당일에는 QR 코드를 공개하고, 청중이 휴대폰으로 읽어 설치 없이 웹 데모에 들어와요 → [열기](#열기).
 
@@ -43,8 +44,8 @@
 | | 학생·개인 (B2C) | 기업·기관 (B2B) |
 | --- | --- | --- |
 | 하는 일 | 관심 SDGs·스킬에 맞는 챌린지를 찾고, 팀을 꾸려 기획서를 내요 | SDGs 과제를 출제하고, 응모작을 심사·수상·채용해요 |
-| 얻는 것 | 수상·참가 실적이 **Impact Index · 배지 · 디지털 증명서 · SNS 카드뉴스**로 남아요 | 과제 해결 아이디어, 검증된 인재, **ESG 성과 리포트 · 인증마크** |
-| 핵심 화면 | 홈 · 검색 · 챌린지 상세 · 기획서 제출 · Impact · 증명서 · 카드뉴스 · 메시지 | 대시보드 · 새 챌린지 · 응모자·심사 · 인재 검색·스카우트 · ESG·인증마크 |
+| 얻는 것 | 수상·참가 실적이 **Impact Index · 배지 · 디지털 증명서 · SNS 카드뉴스**로 남고, 피드에 **자랑 글**로 올릴 수 있어요 | 과제 해결 아이디어, 검증된 인재, **ESG 성과 리포트 · 인증마크**, 피드의 **홍보 글** |
+| 핵심 화면 | 홈 · 피드 · 검색 · 챌린지 상세 · 기획서 제출 · Impact · 증명서 · 카드뉴스 · 메시지 | 대시보드 · 피드 · 새 챌린지 · 응모자·심사 · 인재 검색·스카우트 · ESG·인증마크 |
 | 돈 | 무료 | 채용(매칭) 1건당 **¥30,000** (그중 **50%는 기업 이름으로 SDGs 활동에 기부**) |
 
 - **왜 플랫폼을 거치나요?** 학생의 SDGs 활동 이력이 한곳에 쌓이고(포트폴리오), 기업은 같은 자리에서 아이디어·인재·ESG 성과를 얻어요.
@@ -108,11 +109,13 @@
 | ④ | B2C | 기획서 제출(팀 → 파일 → 제목·요약 → 확인) → **제출 수령증** `SC-YYYYMMDD-NNNN` | 입력 검사(글자 수·파일 형식·마감), 다시 내면 버전이 쌓임 |
 | ⑤ | B2C | Impact: 레벨·SDG 레이더 차트·배지 → **디지털 증명서(QR)** → **진위 확인 ✓ / 변조 ✗** | SHA-256 해시, 변조하면 검증 실패 |
 | ⑥ | B2C | SNS 카드뉴스(Instagram 1:1 / LinkedIn 1.91:1) → 공유 | 공유도 활동 포인트(최대 5회) |
-| ⑦ | B2C | 메시지: 기업의 스카우트 수신 → 수락 | 수락하면 1:1 대화로 이어지는 설계(대화는 DB 설계까지) |
-| ⑧ | B2B | 역할 전환 → 대시보드(KPI 5개) · 새 챌린지(SDGs 최대 3개, 마감 7~90일) | 입력 검사 |
-| ⑨ | B2B | 응모자: 심사(1~5점 × 3축) → 수상 → **채용(매칭)** | 채용하면 **수수료 ¥30,000 / 기부 ¥15,000**이 대시보드에 반영 |
-| ⑩ | B2B | 인재 검색 → 스카우트(하루 3건 제한) | 비공개 학생은 검색에서 제외 |
-| ⑪ | B2B | ESG·인증마크: 6개 기준 입력 → 점수·★ 단계 → 리포트 생성 | **증빙을 올린 기준만** 점수에 들어감, 면책 문구 |
+| ⑦ | B2C | **피드**: 기업의 홍보 글(`PR` 표시)을 보고 좋아요 → **자랑 글 쓰기**(내 수상·제출·참가 실적 1건 선택 → 본문) → 올리기 | 닉네임·레벨만 공개 · 이메일/전화번호는 올릴 수 없음 · 올린 글이 맨 위에 |
+| ⑧ | B2C | 메시지: 기업의 스카우트 수신 → 수락 | 수락하면 1:1 대화로 이어지는 설계(대화는 DB 설계까지) |
+| ⑨ | B2B | 역할 전환 → 대시보드(KPI 5개) · 새 챌린지(SDGs 최대 3개, 마감 7~90일) | 입력 검사 |
+| ⑩ | B2B | 응모자: 심사(1~5점 × 3축) → 수상 → **채용(매칭)** | 채용하면 **수수료 ¥30,000 / 기부 ¥15,000**이 대시보드에 반영 |
+| ⑪ | B2B | **피드**: 수상 건의 `홍보하기` → 홍보 글(제목·본문·SDGs·챌린지 연결) → **공식 SNS 게시 신청** | 하루에 한 회사만 · 빈 날짜가 자동 배정(샘플에서는 3일 뒤) · 학생 자랑 글에 좋아요도 눌러 볼 수 있음 |
+| ⑫ | B2B | 인재 검색 → 스카우트(하루 3건 제한) | 비공개 학생은 검색에서 제외 |
+| ⑬ | B2B | ESG·인증마크: 6개 기준 입력 → 점수·★ 단계 → 리포트 생성 | **증빙을 올린 기준만** 점수에 들어감, 면책 문구 |
 
 ### 발표 전 점검표 (5분)
 
@@ -125,6 +128,7 @@
 - [ ] 머리글의 `日本語 | 한국어` 로 한국어로 바뀌고, 다시 일본어로 돌아온다
 - [ ] 역할 칩으로 기업(B2B) 대시보드에 갔다가 학생 홈으로 돌아온다
 - [ ] 기획서 제출 → 수령증(`SC-…`) → Impact → 디지털 증명서 → 진위 확인 ✓ / 변조 ✗ 까지 한 바퀴 돈다
+- [ ] 학생 피드에서 자랑 글을 올리면(실적 선택 → 본문) 맨 위에 보이고, 기업 피드에서 홍보 글에 공식 SNS 게시 신청을 켜면 게시 예정일이 붙는다 (이메일·전화번호를 넣으면 올라가지 않는다)
 - [ ] 설정 › 데모 초기화 → 언어 선택부터 다시 시작한다 (**발표 직전에 한 번 눌러 두면** 깨끗한 샘플 상태로 시작해요)
 - [ ] (백업) Android 폰에 `sdgs-compass-demo.apk` 를 설치해 두었고 같은 순서로 열린다 — 인터넷이 안 될 때는 이 화면을 미러링해요
 - [ ] (백업) 시연 화면을 녹화한 영상을 준비했다
@@ -255,9 +259,10 @@ flowchart LR
   subgraph gate["첫 실행"]
     g1["언어 선택"] --> g2["역할 선택"]
   end
-  subgraph b2c["학생·개인 (B2C) — 하단 탭 5개"]
+  subgraph b2c["학생·개인 (B2C) — 하단 탭 6개"]
     direction TB
     home["🏠 홈 · SCR-01"]
+    feed1["💬 SNS 피드 · F-503"]
     search["🔎 검색"]
     impact["📊 Impact · SCR-04"]
     msg["✉️ 메시지"]
@@ -266,13 +271,16 @@ flowchart LR
     sub["기획서 제출 · SCR-03 → 수령증"]
     cert["디지털 증명서"]
     share["SNS 카드뉴스 · SCR-05"]
+    post1["자랑 글 쓰기"]
     home --> ch
     search --> ch
     ch --> sub
     impact --> cert
     impact --> share
+    feed1 --> post1
+    share -. "피드에도 올리기" .-> post1
   end
-  subgraph b2b["기업·기관 (B2B) — 하단 탭 5개"]
+  subgraph b2b["기업·기관 (B2B) — 하단 탭 6개"]
     direction TB
     dash["📋 대시보드 · SCR-06"]
     new["새 챌린지"]
@@ -280,19 +288,42 @@ flowchart LR
     tal["🧭 인재 검색 · 스카우트"]
     esg["🌱 ESG · 인증마크 · 리포트"]
     set2["⚙️ 설정"]
+    feed2["📣 SNS 피드 · F-504"]
+    post2["홍보 글 쓰기<br/>(공식 SNS 게시 신청)"]
     dash --> new
+    feed2 --> post2
+    app -. "홍보하기" .-> post2
   end
   g2 -- "B2C" --> b2c
   g2 -- "B2B" --> b2b
+```
+
+### 8. SNS 피드 (F-503 · F-504)
+
+학생의 자랑 글과 기업의 홍보 글이 한 피드에 최신순으로 모여요. 설계 전문은 [docs/sns-feed.md](docs/sns-feed.md).
+
+```mermaid
+flowchart TD
+  s1["학생: 피드 › 자랑 글 쓰기<br/>(카드뉴스 화면의 '피드에도 올리기'로도 들어와요)"] --> s2["내 실적 1건 선택<br/>수상 · 제출 · 참가 (공유 기록은 제외)"]
+  s2 --> s3["본문 1~200자<br/>SDGs 태그는 실적에서 자동 (최대 3개)"]
+  c1["기업: 피드 › 홍보 글 쓰기<br/>(응모자 화면의 '홍보하기'로도 들어와요)"] --> c2["제목 1~40자 · 본문 1~400자<br/>SDGs 1~3개 · 우리 회사 챌린지 연결(선택)"]
+  c2 --> c3{"공식 SNS 게시를<br/>신청하나요?"}
+  c3 -- "예" --> c4["내일부터 가장 빠른 빈 날짜를 배정<br/>하루에 한 회사만 · 게시료 ¥3,000(샘플)"]
+  c3 -- "아니요" --> v
+  s3 --> v{"이메일 주소·전화번호처럼<br/>보이는 글자가 있나요?"}
+  c4 --> v
+  v -- "있음" --> x["올릴 수 없어요<br/>(오류 문구가 보여요)"]
+  v -- "없음" --> p["피드에 최신순으로 표시<br/>기업 글에는 항상 PR 표시"]
+  p --> l["좋아요: 내가 쓰지 않은 글에만<br/>삭제: 내 글만 (삭제하면 공식 게시 날짜가 비워져요)"]
 ```
 
 ## 화면 목업
 
 <!-- mockups:begin -->
 > 웹 데모(`apps/web`)를 실제로 실행해서 찍은 화면이에요(샘플 데이터).
-> 학생(B2C) 화면은 휴대폰 폭(390×844), 기업(B2B) 화면은 PC 폭(1280)으로 찍었어요.
+> 학생(B2C) 화면은 휴대폰 폭(390×844, 자랑 글 쓰기만 미리보기가 보이도록 390×1180), 기업(B2B) 화면은 PC 폭(1280)으로 찍었어요. 하단 탭(왼쪽 메뉴)은 학생·기업 모두 6개예요.
 > 모바일 앱(`apps/mobile`)은 같은 화면 구성·같은 문구(`packages/core`)를 React Native 로 만든 것이라 모양이 같아요.
-> 화면 번호(SCR-01 ~ 06)와 기능 ID(F-xxx)는 기능명세(SPEC-2026-SDGS-01)를 따라요.
+> 화면 번호(SCR-01 ~ 06)와 기능 ID(F-xxx)는 기능명세(SPEC-2026-SDGS-01)를 따라요(F-503·F-504 는 명세에 없어서 이어 붙인 번호예요).
 
 ### 1. 첫 실행 — 언어 → 역할
 
@@ -325,6 +356,11 @@ flowchart LR
 </tr>
 <tr>
 <td align="center" valign="top"><img src="docs/mockups/web-b2c-share-ja.png" width="220" alt="SNS 카드뉴스 · SCR-05 (F-501)"><br><sub>SNS 카드뉴스 · SCR-05 (F-501)</sub></td>
+<td align="center" valign="top"><img src="docs/mockups/web-b2c-feed-ja.png" width="220" alt="SNS 피드 · 학생 (F-503) — 방금 올린 내 글이 맨 위, 필터 칩, 하단 탭 6개"><br><sub>SNS 피드 · 학생 (F-503) — 방금 올린 내 글이 맨 위, 필터 칩, 하단 탭 6개</sub></td>
+<td align="center" valign="top"><img src="docs/mockups/web-b2c-feed-ko.png" width="220" alt="SNS 피드 · 학생 (한국어)"><br><sub>SNS 피드 · 학생 (한국어)</sub></td>
+</tr>
+<tr>
+<td align="center" valign="top"><img src="docs/mockups/web-b2c-post-new-ja.png" width="220" alt="자랑 글 쓰기 (F-503) — 실적 선택 + 한마디(200자) + 올린 뒤 모습 미리보기"><br><sub>자랑 글 쓰기 (F-503) — 실적 선택 + 한마디(200자) + 올린 뒤 모습 미리보기</sub></td>
 </tr>
 </table>
 
@@ -345,6 +381,10 @@ PC 폭에서는 왼쪽 메뉴, 좁은 화면에서는 하단 탭으로 바뀌어
 <td align="center" valign="top"><img src="docs/mockups/web-b2b-talent-ja.png" width="460" alt="인재 검색 · 스카우트 (F-601 · F-602, 하루 3건)"><br><sub>인재 검색 · 스카우트 (F-601 · F-602, 하루 3건)</sub></td>
 <td align="center" valign="top"><img src="docs/mockups/web-b2b-esg-ja.png" width="460" alt="ESG 입력 · 리포트 · 인증마크 (F-403)"><br><sub>ESG 입력 · 리포트 · 인증마크 (F-403)</sub></td>
 </tr>
+<tr>
+<td align="center" valign="top"><img src="docs/mockups/web-b2b-feed-ja.png" width="460" alt="SNS 피드 · 기업 (F-504) — PC 2열, PR 표시, 공식 SNS 게시 예정, 왼쪽 메뉴 フィード"><br><sub>SNS 피드 · 기업 (F-504) — PC 2열, PR 표시, 공식 SNS 게시 예정, 왼쪽 메뉴 <code>フィード</code></sub></td>
+<td align="center" valign="top"><img src="docs/mockups/web-b2b-post-new-ja.png" width="460" alt="홍보 글 쓰기 (F-504) — 제목·본문·SDGs·챌린지 연결, 공식 SNS 게시 신청을 켠 상태(게시 예정일)와 미리보기"><br><sub>홍보 글 쓰기 (F-504) — 제목·본문·SDGs·챌린지 연결, 공식 SNS 게시 신청을 켠 상태(게시 예정일)와 미리보기</sub></td>
+</tr>
 </table>
 <!-- mockups:end -->
 
@@ -358,6 +398,8 @@ PC 폭에서는 왼쪽 메뉴, 좁은 화면에서는 하단 탭으로 바뀌어
 | 언어 선택 | (게이트) | `language` | 웹 `components/Gate.tsx`(LanguageGate) · 앱 `LanguageScreen.tsx` |
 | 역할 선택 | (게이트) | `role` | 웹 `components/Gate.tsx`(RoleGate) · 앱 `RoleScreen.tsx` |
 | 홈 · SCR-01 | `/home/` | `(tabs)/index` | `HomeScreen.tsx` |
+| SNS 피드 · 학생 (F-503) | `/feed/` | `(tabs)/feed` | `FeedScreen.tsx` (카드는 `components/PostCard.tsx`) |
+| 자랑 글 쓰기 (F-503) | `/feed/new/?activity=…` | `feed/new` | `PostComposerScreen.tsx` |
 | 챌린지 찾기 | `/search/` | `(tabs)/search` | `SearchScreen.tsx` |
 | 챌린지 상세 · SCR-02 | `/challenge/?id=…` | `challenge/[id]` | `ChallengeScreen.tsx` |
 | 기획서 제출 · SCR-03 · 수령증 | `/challenge/submit/?id=…` | `challenge/submit/[id]` | `SubmitScreen.tsx` |
@@ -367,13 +409,16 @@ PC 폭에서는 왼쪽 메뉴, 좁은 화면에서는 하단 탭으로 바뀌어
 | 메시지(스카우트 수신함) | `/messages/` | `(tabs)/messages` | `MessagesScreen.tsx` |
 | 설정 · 데모 초기화 (학생) | `/settings/` | `(tabs)/settings` | `SettingsScreen.tsx` |
 | 대시보드 · SCR-06 | `/b2b/` | `b2b/(tabs)/index` | `DashboardScreen.tsx` |
+| SNS 피드 · 기업 (F-504) | `/b2b/feed/` | `b2b/(tabs)/feed` | `FeedScreen.tsx` |
+| 홍보 글 쓰기 (F-504) | `/b2b/feed/new/?challenge=…` | `b2b/feed/new` | `PostComposerScreen.tsx` |
 | 새 챌린지 출제 | `/b2b/new/` | `b2b/new` | `NewChallengeScreen.tsx` |
 | 응모자 · 심사 · 수상 · 채용 | `/b2b/applicants/` | `b2b/(tabs)/applicants` | `ApplicantsScreen.tsx` |
 | 인재 검색 · 스카우트 | `/b2b/talent/` | `b2b/(tabs)/talent` | `TalentScreen.tsx` |
 | ESG · 인증마크 · 리포트 | `/b2b/esg/` | `b2b/(tabs)/esg` | `EsgScreen.tsx` |
 | 설정 (기업) | `/b2b/settings/` | `b2b/(tabs)/settings` | `SettingsScreen.tsx` |
 
-- GitHub Pages 에서는 저장소 이름이 앞에 붙어요(예: `https://atome9797.github.io/sdgs-compass/home/`). 상세 화면은 정적 내보내기를 위해 `[id]` 대신 쿼리(`?id=`)로 구분해요.
+- GitHub Pages 에서는 저장소 이름이 앞에 붙어요(예: `https://atome9797.github.io/sdgs-compass/home/`). 상세 화면은 정적 내보내기를 위해 `[id]` 대신 쿼리(`?id=`)로 구분해요. 글쓰기 화면이 미리 채우는 값(`?activity=` 실적, `?challenge=` 챌린지)도 쿼리예요.
+- 하단 탭(웹은 PC 폭에서 왼쪽 메뉴)은 학생·기업 모두 **6개**이고 `피드`는 홈(대시보드) 바로 다음이에요. 글쓰기 화면이 미리 채우는 값은 쿼리가 없으면 학생은 첫 실적, 기업은 "연결 안 함"이에요. 웹은 글을 올리면 `/feed/?posted=<글 id>` 로 돌아와서 안내 문구와 새 글 강조를 보여 줘요.
 - 앱은 `Stack.Protected`(언어 → 역할 → B2C 또는 B2B 순서)가 게이트를 맡고, 다른 역할의 화면으로 들어가면 `RoleGuard` 가 그 역할의 홈으로 돌려보내요.
 
 ## ERD (DB 설계)
@@ -384,7 +429,7 @@ PC 폭에서는 왼쪽 메뉴, 좁은 화면에서는 하단 탭으로 바뀌어
 설계 원칙:
 
 - **규칙은 DB 도 한 번 더 지켜요**: 앱이 막아도 서버·관리자 도구·직접 SQL 로 우회되지 않게 `CHECK`·복합 외래 키·트리거로 같은 규칙을 넣었어요 (아래 [표](#db-가-지키는-규칙)).
-- **앱 ↔ DB 대조 시험**: 수수료·레벨·인증 점수·증명서 해시 같은 계산은 `packages/core` 의 값이 기준이고, `scripts/gen-db-reference.ts` 가 만든 정답표(`db/tests/golden.sql`)로 DB 계산이 같은지 CI 가 확인해요.
+- **앱 ↔ DB 대조 시험**: 수수료·레벨·인증 점수·증명서 해시 같은 계산과 SNS 글의 글자 수·연락처 검출·공식 게시 날짜·입력 검사는 `packages/core` 의 값이 기준이고, `scripts/gen-db-reference.ts` 가 만든 정답표(`db/tests/golden.sql`)로 DB 계산이 같은지 CI 가 확인해요.
 - **한 번 기록하면 못 고치는 것**: 제출 버전, 활동 기록, 디지털 증명서, 감사 로그는 `UPDATE`/`DELETE` 를 트리거로 막아요(증명서의 폐기 표시만 예외).
 - **일본어/한국어**: 이름·문구 열은 `name_ja`/`name_ko` 로 두고, 사용자가 쓴 글의 번역은 `content_translations` 에 캐시해요.
 - **날짜는 일본 시간(JST) 기준**: 수령증 번호·스카우트 하루 한도는 `jst_date()` 로 계산해요.
@@ -1405,8 +1450,15 @@ erDiagram
 | 면접 일정이 겹치지 않음 | `EXCLUDE USING gist` (`btree_gist`) |
 | 인증 점수·레벨(★1~3: 40/60/80점) | 트리거 `cert_answers_compute` + 생성 열 `cert_applications.level` |
 | 블랙리스트 적용, 감사 로그 변경 불가 | `blacklist_apply_*` 트리거, `admin_actions_immutable` |
+| SNS 자랑 글: 내 수상·제출·참가 실적 1건 필수(카드뉴스 공유 기록 제외), 본문 1~200자 | 복합 외래 키 `(activity_id, author_id)` + `social_posts_guard` + `social_posts_body_len` |
+| SNS 홍보 글: 승인된 기업의 담당자만, 제목 1~40자·본문 1~400자, 연결 챌린지는 우리 기업 것 | `social_posts_guard` + 복합 외래 키 `(challenge_id, company_id)` + `social_posts_title_len`·`_body_len` |
+| 글자 수 = 앞뒤 공백을 자른 코드포인트 수(이모지·한자도 1글자, 전각 공백·NBSP 포함) | `post_char_count()` (JS `trim()` 과 BMP 6만여 글자를 하나씩 대조) |
+| 글에 이메일·전화번호처럼 보이는 글자 금지 | `social_posts_no_contact` (`mask_contacts()`) |
+| SDGs 태그 1~3개 (자랑 글은 실적의 SDGs 중에서) | `position 1..3` 기본 키 + 지연 제약 트리거 `social_posts_has_sdg`·`social_post_sdgs_keep_one` + `social_post_sdgs_guard` |
+| 좋아요는 사람마다 한 번, 내 글(기업 글은 우리 기업 담당자 전원)에는 불가 | 기본 키 `(post_id, user_id)` + `social_post_likes_guard` |
+| 공식 SNS 게시: 홍보 글만, 내일 이후, 하루에 한 회사, 게시료 ¥3,000 | `official_share_slots` + 부분 유일 인덱스 `official_share_slots_one_per_day` + `official_share_slots_guard` |
 
-시험은 `db/tests/` 의 SQL 5개 파일이에요: 01 구조(표·열·인덱스·주석) · 02 계정·챌린지 · 03 제출부터 매칭까지 흐름 · 04 앱↔DB 대조 · 05 스카우트·인증·운영.
+시험은 `db/tests/` 의 SQL 6개 파일이에요: 01 구조(표·열·인덱스·주석) · 02 계정·챌린지 · 03 제출부터 매칭까지 흐름 · 04 앱↔DB 대조 · 05 스카우트·인증·운영 · 06 SNS 피드(글자 수·연락처·공식 게시 날짜).
 모두 트랜잭션 안에서 실행하고 `ROLLBACK` 해서 데이터가 남지 않아요. (`npm run db:test`)
 
 ## 기능 구현 현황
@@ -1431,6 +1483,8 @@ erDiagram
 | F-403 | ESG 성과 리포트 | ✅ | ESG: 리포트 생성·요약 | `esg_reports` |
 | F-501 | SNS 카드뉴스(Instagram 1:1·LinkedIn 1.91:1) | ✅ | 카드 미리보기·공유 | `share_cards` |
 | F-502 | 디지털 증명서(해시·QR·진위 확인) | ✅ | 증명서: 검증 ✓ / 변조 ✗ | `certificates`, `certificate_verifications` |
+| F-503 | 학생 자랑 글(SNS 피드) | ✅ | 피드: 내 실적 1건을 골라 글 올리기 · 좋아요 · 삭제 (이메일/전화번호 글은 차단) | `social_posts`(`kind='brag'`), `social_post_sdgs`, `social_post_likes` |
+| F-504 | 기업 홍보 글 · 공식 SNS 게시 신청 | 🟡 | 피드: `PR` 표시 홍보 글, 공식 게시 날짜 배정(하루 한 회사). 실제 Instagram 게시·정산은 없음 | `social_posts`(`kind='pr'`), `official_share_slots` |
 | F-601 | 인재 검색 | ✅ | B2B 인재 | `student_profiles` (`scoutable`) |
 | F-602 | 스카우트(하루 3건) | ✅ | 보내기·수신함·수락/거절 | `scouts` |
 | F-603 | 1:1 메시지·면접 일정 | 📐 | 수신함까지(대화·면접은 DB) | `conversations`, `messages`, `interview_slots` |
@@ -1449,14 +1503,15 @@ sdgs-compass/
 │  └─ mobile/            Expo SDK 58 · React Native 0.88 · expo-router — 모바일 앱(Android APK 를 빌드해요)
 ├─ packages/
 │  ├─ core/              순수 TypeScript (UI 없음): 도메인 타입 · reducer · 화면 모델(selectors) ·
-│  │                     Impact/수수료/인증 점수/증명서 해시/QR 규칙 · 문구(ja·ko) · 디자인 토큰
+│  │                     Impact/수수료/인증 점수/증명서 해시/QR/게시글 규칙 · 문구(ja·ko) · 디자인 토큰
 │  └─ data/              샘플 데이터(seed) · 저장소 어댑터(AsyncStorage/localStorage) · 앱 상태(언어·역할·데모)
 ├─ db/
-│  ├─ schema.sql         PostgreSQL 16 스키마 (표 58 · 뷰 5)
+│  ├─ schema.sql         PostgreSQL 16 스키마 (표 62 · 뷰 6)
 │  ├─ seed.sql           참조 데이터 (자동 생성: packages/core 값에서)
 │  ├─ run-tests.sh       새 DB 에 올려서 tests/ 를 돌려요
-│  └─ tests/             구조 · 규칙 · 흐름 · 앱↔DB 대조 · 운영 시험 (golden.sql 은 자동 생성)
+│  └─ tests/             구조 · 규칙 · 흐름 · 앱↔DB 대조 · 운영 · SNS 피드 시험 (golden.sql 은 자동 생성)
 ├─ docs/
+│  ├─ sns-feed.md        SNS 피드(F-503·F-504) 설계: 규칙 · 화면 · 데이터 대응
 │  ├─ mockups/           화면 목업 이미지
 │  ├─ qr/                웹 데모 주소 QR 이미지 (npm run qr)
 │  └─ erd/               ERD 그림 파일 (npm run erd:render)
@@ -1509,7 +1564,7 @@ npm run mobile       # Expo 개발 서버 → QR 을 Expo Go 로 스캔
 ```bash
 createdb sdgs_compass
 psql -d sdgs_compass -v ON_ERROR_STOP=1 -f db/schema.sql -f db/seed.sql
-PGHOST=127.0.0.1 PGUSER=postgres npm run db:test      # 시험 5개 파일
+PGHOST=127.0.0.1 PGUSER=postgres npm run db:test      # 시험 6개 파일
 npm run db:generate                                    # 앱 규칙을 바꿨다면 seed.sql / golden.sql 다시 만들기
 PGDATABASE=sdgs_compass npm run erd                    # 스키마를 바꿨다면 README 의 ERD 다시 만들기
 ```
@@ -1522,7 +1577,7 @@ PGDATABASE=sdgs_compass npm run erd                    # 스키마를 바꿨다�
 | `npm run mobile` | Expo 개발 서버 |
 | `npm run check` | react 한 벌 · lint · 테스트 · 빌드 · 타입 검사 (웹 + 공용 패키지) |
 | `npm run lint` · `npm test` · `npm run typecheck` | 전체 워크스페이스 |
-| `npm run db:test` | DB 시험 5개 파일 (`PG*` 환경 변수 필요) |
+| `npm run db:test` | DB 시험 6개 파일 (`PG*` 환경 변수 필요) |
 | `npm run db:generate` · `db:check` | `db/seed.sql` · `db/tests/golden.sql` 생성 · 최신 여부 확인 |
 | `npm run qr` · `qr:check` | 웹 데모 주소의 QR 이미지(`docs/qr/`) 만들기 · 주소와 맞는지 확인 (`npm run qr -- <주소> <파일 이름>` 으로 다른 주소도 만들 수 있어요) |
 | `npm run erd` · `erd:check` · `erd:render` | README 의 ERD 생성 · 확인 · `docs/erd/*.png` 그림 파일 만들기 (mermaid-cli 필요) |
@@ -1533,7 +1588,7 @@ PGDATABASE=sdgs_compass npm run erd                    # 스키마를 바꿨다�
 
 | 워크플로 | 언제 | 하는 일 |
 | --- | --- | --- |
-| `ci.yml` | main·`feat/**` 푸시, PR, 수동 | **db**: PostgreSQL 16 에 스키마·시드를 올려 시험 5개 파일 → 생성 파일(`seed.sql`·`golden.sql`)·README ERD 최신 여부<br>**web**: react 한 벌 · lint(web, core·data) · 테스트(core·data·web) · 타입 검사 · 빌드 · Pages 용 정적 내보내기<br>**mobile**: 타입 검사 · lint · Jest · `expo install --check` · `expo-doctor` · `expo prebuild` · `expo export`(iOS+Android 번들)<br>**lockfile**: `package-lock.json` 이 없으면 한 번 만들어 main 에 커밋 |
+| `ci.yml` | main·`feat/**` 푸시, PR, 수동 | **db**: PostgreSQL 16 에 스키마·시드를 올려 시험 6개 파일 → 생성 파일(`seed.sql`·`golden.sql`)·README ERD 최신 여부<br>**web**: react 한 벌 · lint(web, core·data) · 테스트(core·data·web) · 타입 검사 · 빌드 · Pages 용 정적 내보내기<br>**mobile**: 타입 검사 · lint · Jest · `expo install --check` · `expo-doctor` · `expo prebuild` · `expo export`(iOS+Android 번들)<br>**lockfile**: `package-lock.json` 이 없으면 한 번 만들어 main 에 커밋 |
 | `pages.yml` | main 푸시(웹·공용 패키지 변경), 수동 | 웹 정적 내보내기(`NEXT_PUBLIC_BASE_PATH=/<저장소 이름>`) → GitHub Pages 배포 |
 | `android-apk.yml` | main 푸시(앱·공용 패키지 변경), 수동 | `expo prebuild` → `./gradlew :app:assembleRelease`(기본 arm64) → 서명 확인 → Artifacts 와 **Releases `demo-latest`** 에 `sdgs-compass-demo.apk` 업로드 |
 
@@ -1572,7 +1627,7 @@ PGDATABASE=sdgs_compass npm run erd                    # 스키마를 바꿨다�
 | | SchedulAI | SDGsコンパス | 이유 |
 | --- | --- | --- | --- |
 | 데이터 | Firebase(Firestore) + 로그인 | **서버 없음** — 샘플 데이터 + 기기 저장 | 공모전 시연용이라 어디서든(오프라인 포함) 바로 열려야 해요 |
-| DB 설계 | Firestore 컬렉션 | **PostgreSQL ERD**(58표) + 시험 | 기업·학생·심사·매칭처럼 관계가 많고, 수수료·인증처럼 일관성이 중요해요 |
+| DB 설계 | Firestore 컬렉션 | **PostgreSQL ERD**(62표) + 시험 | 기업·학생·심사·매칭처럼 관계가 많고, 수수료·인증처럼 일관성이 중요해요 |
 | 언어 | 한국어 | **일본어/한국어**, 첫 화면에서 선택 | 발표는 일본어, 개발은 한국어 |
 | 화면 모델 | 화면에서 계산 | **`packages/core/selectors.ts`** 가 화면 모델을 만들고 화면은 그리기만 | 웹·앱이 같은 결과를 내고 화면 없이 시험할 수 있어요 |
 | 모바일 | 개발 빌드(dev client)·Firebase·푸시 | **독립 실행 release APK**, 네이티브 모듈 추가 없음 | 개발 서버 없이 발표 때 휴대폰에서 바로 열기 |
@@ -1584,6 +1639,7 @@ PGDATABASE=sdgs_compass npm run erd                    # 스키마를 바꿨다�
 
 - **서버·DB 연결 없음**: 화면의 데이터는 샘플(가상)이고 웹은 `localStorage`, 앱은 `AsyncStorage` 에 저장돼요. DB 스키마는 설계·검증용이에요.
 - **없는 것**: 소셜/이메일 로그인과 본인 확인, 결제·송금, 푸시/카카오/SMS 알림, 관리자(승인·신고) 화면, 1:1 대화·면접 일정 화면, Q&A 게시판.
+- **SNS 피드는 앱 안의 게시판이에요.** 실제 Instagram·LinkedIn 계정으로 올리는 기능, 이미지·영상 업로드, 댓글·팔로우·알림, 관리자 검수·신고 화면은 없어요. 공식 SNS 게시 신청은 '예정'(날짜 배정)까지만 하고 실제 게시와 게시료 정산은 하지 않아요. 글은 쓴 언어 그대로 보여요(자동 번역 없음).
 - **파일 첨부는 업로드가 아니에요.** 웹은 진짜 파일 선택기(`<input type="file">`)로 고르거나 "샘플 기획서" 단추를 쓰는데, 파일의 **이름과 크기만** 읽고 내용은 읽지도 보내지도 않아요. 모바일 앱은 파일 선택기 없이 견본 파일 3개(마지막 하나는 일부러 형식이 틀린 파일) 중에서 골라요. 두 곳 모두 제출 수령증의 지문(SHA-256)은 파일 이름·크기·제목·요약·버전으로 만들어요.
 - **디지털 증명서**의 해시 검증은 앱 안에서만 해요(블록체인 기록·외부 검증 서버 없음). 변조 시연은 "복사본을 고쳐서 검증 실패 확인"으로 보여 줘요.
 - **AI 추천**은 규칙 기반 점수(관심 SDGs 우선순위 · 스킬 · 마감 임박도 · 상금)예요. 실서비스에서는 같은 입출력의 추천 모델로 바꿔요.
@@ -1611,6 +1667,7 @@ PGDATABASE=sdgs_compass npm run erd                    # 스키마를 바꿨다�
 - **2つの立場**：学生・個人（B2C）と企業・団体（B2B）を選択、ヘッダーのチップで切り替えて、1つのアプリで両方の流れをデモできます。
 - **発表当日はQRコードを公開**：スマホでQRコードを読み取ると、インストール不要でWebデモが開きます（言語選択から開始。入力内容は各自の端末にだけ保存されます）。
 - **サーバー不要のデモ**：サンプルデータ（すべて架空）で、課題出題 → 応募 → 審査 → 受賞 → Impact → 証明書 → スカウト → 採用 → 手数料・寄付まで一巡できます。
-- **Web（Next.js）＋ モバイル（Expo / React Native）** を1つのリポジトリで管理し、ロジック・文言は共通パッケージを共有。DB設計（PostgreSQL、58テーブル）とER図も含みます。
+- **SNSフィード**：学生は受賞・提出・参加の実績を「実績投稿」として、企業はSDGs活動を「PR投稿」（必ず「PR」表示）として投稿できます。メールアドレスや電話番号は書けません。公式SNS（Instagramストーリー）への掲載申込みは1日1社までです。
+- **Web（Next.js）＋ モバイル（Expo / React Native）** を1つのリポジトリで管理し、ロジック・文言は共通パッケージを共有。DB設計（PostgreSQL、62テーブル）とER図も含みます。
 - Android用デモAPKは[Releases](https://github.com/atome9797/sdgs-compass/releases/tag/demo-latest)、Web版は https://atome9797.github.io/sdgs-compass/ （初回のみ Settings › Pages › Source を「GitHub Actions」に設定）。
 - 当サービスの認証マークは、UN SDGsの指標を基盤とした独自システムであり、国連の公式認証を代理・保証するものではありません。

@@ -31,6 +31,15 @@ const config: ExpoConfig = {
       foregroundImage: "./assets/images/adaptive-icon.png",
       backgroundColor: PRIMARY,
     },
+    // Expo 템플릿이 기본으로 넣는 권한 중 이 앱에 필요 없는 것을 빼요. 파일·진동·다른 앱 위에 그리기를 쓰지 않고(저장은 앱 안 AsyncStorage 만),
+    // "서버·로그인 없음"이라는 설명과 설치 화면의 권한 목록이 어긋나지 않게 하려는 거예요. 남는 것은 INTERNET(React Native 기본) 하나예요.
+    // android-apk.yml 이 빌드한 APK 에서 이 권한들이 정말 빠졌는지 확인해요.
+    blockedPermissions: [
+      "android.permission.READ_EXTERNAL_STORAGE",
+      "android.permission.WRITE_EXTERNAL_STORAGE",
+      "android.permission.SYSTEM_ALERT_WINDOW",
+      "android.permission.VIBRATE",
+    ],
   },
   plugins: [
     "expo-router",

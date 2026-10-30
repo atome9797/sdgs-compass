@@ -14,7 +14,6 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
-# (임시) 모바일 앱·잠금 파일 작업은 다음 커밋에서 더해요.
 # 이 저장소는 공개(public)라서 GitHub 서버(ubuntu-latest)의 실행 시간이 무료예요. SchedulAI 와 달리 self-hosted 실행기는 쓰지 않아요.
 # 잠금 파일(package-lock.json)이 아직 없으면 `npm install` 로 설치하고, 있으면 `npm ci` 로 정확히 같은 버전을 설치해요.
 # (잠금 파일은 아래 lockfile 작업이 main 에 한 번 만들어 줘요.)
@@ -142,3 +141,104 @@ jobs:
         env:
           NEXT_PUBLIC_BASE_PATH: /${{ github.event.repository.name }}
         run: bash .github/scripts/run-step.sh "build web (export)" npm run build:export -w @sdgs-compass/web
+
+  mobile:
+    name: mobile · typecheck · lint · jest · expo checks · export
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      CI: "1"
+      EXPO_NO_TELEMETRY: "1"
+      EXPO_NO_GIT_STATUS: "1"
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: ${{ hashFiles('package-lock.json') != '' && 'npm' || '' }}
+          package-manager-cache: ${{ hashFiles('package-lock.json') != '' }}
+
+      - name: Disable problem matchers
+        run: |
+          echo "::remove-matcher owner=tsc::"
+          echo "::remove-matcher owner=eslint-compact::"
+          echo "::remove-matcher owner=eslint-stylish::"
+
+      - name: Install dependencies
+        id: install
+        run: bash .github/scripts/run-step.sh "npm install" bash -c 'if [ -f package-lock.json ]; then npm ci --no-audit --no-fund; else npm install --no-audit --no-fund; fi'
+
+      # expo customize tsconfig.json 으로 expo-env.d.ts 와 타입 있는 경로(.expo/types)를 만든 뒤 tsc 를 돌립니다.
+      - name: Typecheck
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: bash .github/scripts/run-step.sh "typecheck mobile" npm run typecheck -w @sdgs-compass/mobile
+
+      - name: Lint
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: bash .github/scripts/run-step.sh "lint mobile" npm run lint -w @sdgs-compass/mobile
+
+      - name: Jest
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: bash .github/scripts/run-step.sh "jest" npm test -w @sdgs-compass/mobile
+
+      - name: Expo dependency versions
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: bash .github/scripts/run-step.sh "expo install --check" npm run expo:check -w @sdgs-compass/mobile
+
+      - name: Expo doctor
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: bash .github/scripts/run-step.sh "expo-doctor" npm run doctor -w @sdgs-compass/mobile
+
+      # 설정 플러그인(스플래시, 아이콘)을 모두 실행해 네이티브 프로젝트를 만들어 봅니다.
+      - name: Prebuild (config plugins)
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: bash .github/scripts/run-step.sh "prebuild" npm run prebuild:check -w @sdgs-compass/mobile
+
+      # 환경 변수 없이도 JS 번들(Hermes 바이트코드)이 만들어지는지 확인합니다. (이 앱은 서버·비밀 값이 없어요)
+      - name: Export JS bundles (ios + android)
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: bash .github/scripts/run-step.sh "export" npm run export -w @sdgs-compass/mobile
+
+  # package-lock.json 이 없을 때만, main 에 푸시되면 한 번 만들어서 커밋해요.
+  # (이 저장소를 만든 환경에서는 npm 레지스트리에 접속할 수 없어서 잠금 파일을 미리 만들 수 없었어요.
+  #  GITHUB_TOKEN 으로 푸시한 커밋은 워크플로를 다시 부르지 않아요. 이후 실행부터는 `npm ci` 로 같은 버전을 설치해요.)
+  lockfile:
+    name: package-lock.json 만들기 (없을 때만)
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: package-lock.json 이 있나요?
+        id: need
+        run: |
+          if [ -f package-lock.json ]; then
+            echo "need=false" >> "$GITHUB_OUTPUT"
+            echo "package-lock.json 이 이미 있어요 — 할 일 없음"
+          else
+            echo "need=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/setup-node@v7
+        if: ${{ steps.need.outputs.need == 'true' }}
+        with:
+          node-version-file: .nvmrc
+          package-manager-cache: false
+
+      - name: 잠금 파일만 만들기 (패키지는 설치하지 않아요)
+        if: ${{ steps.need.outputs.need == 'true' }}
+        run: bash .github/scripts/run-step.sh "package-lock.json" npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+
+      - name: 커밋하고 main 에 푸시
+        if: ${{ steps.need.outputs.need == 'true' }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package-lock.json
+          git commit -m "chore: package-lock.json 생성 (CI) [skip ci]"
+          git pull --rebase origin main
+          git push origin HEAD:main

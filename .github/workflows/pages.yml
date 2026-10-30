@@ -1,0 +1,84 @@
+name: Deploy web demo (GitHub Pages)
+
+# 웹 데모를 GitHub Pages 에 올려요 → https://<계정>.github.io/<저장소 이름>/  (예: https://atome9797.github.io/sdgs-compass/)
+# 처음 한 번만 저장소 설정이 필요해요: Settings › Pages › Build and deployment › Source 를 "GitHub Actions" 로.
+# (설정 전에는 이 워크플로의 deploy 작업이 실패하고, 어떻게 켜는지 요약에 안내해요. CI 워크플로에는 영향이 없어요.)
+on:
+  push:
+    branches: [main]
+    paths:
+      - "apps/web/**"
+      - "packages/**"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# 배포는 한 번에 하나씩, 진행 중인 배포는 끊지 않아요.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: build static export
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      NEXT_TELEMETRY_DISABLED: "1"
+      # 저장소 하위 주소로 올라가므로 모든 링크·자원 경로 앞에 /<저장소 이름> 을 붙여요 (apps/web/next.config.ts)
+      NEXT_PUBLIC_BASE_PATH: /${{ github.event.repository.name }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: ${{ hashFiles('package-lock.json') != '' && 'npm' || '' }}
+          package-manager-cache: ${{ hashFiles('package-lock.json') != '' }}
+
+      - name: Install dependencies
+        run: bash .github/scripts/run-step.sh "npm install" bash -c 'if [ -f package-lock.json ]; then npm ci --no-audit --no-fund; else npm install --no-audit --no-fund; fi'
+
+      - name: Build (static export)
+        run: bash .github/scripts/run-step.sh "build:export" npm run build:export -w @sdgs-compass/web
+
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: apps/web/out
+
+  deploy:
+    name: deploy to GitHub Pages
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v5
+        continue-on-error: true
+
+      - name: Pages 가 아직 꺼져 있다면
+        if: ${{ steps.deployment.outcome == 'failure' }}
+        run: |
+          {
+            echo "### ⚠️ GitHub Pages 에 올리지 못했어요"
+            echo
+            echo "대부분 저장소에서 Pages 를 아직 켜지 않아서예요. 한 번만 설정하면 돼요:"
+            echo
+            echo "1. 저장소의 **Settings › Pages** 를 열어요."
+            echo "2. **Build and deployment › Source** 를 **GitHub Actions** 로 바꿔요."
+            echo "3. **Actions** 탭에서 이 워크플로(Deploy web demo)를 골라 **Run workflow** 를 눌러요."
+            echo
+            echo "그래도 안 되면 위 Deploy 단계의 로그를 확인해 주세요."
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "::error title=GitHub Pages 배포 실패::Settings › Pages › Source 를 'GitHub Actions' 로 바꾼 뒤 이 워크플로를 다시 실행해 주세요."
+          exit 1

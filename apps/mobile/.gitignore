@@ -1,0 +1,27 @@
+# Expo / React Native (apps/mobile)
+# android/, ios/ 는 expo prebuild 가 app.config.ts 로 만드는 폴더 (Continuous Native Generation)
+/android/
+/ios/
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+coverage/
+
+# 환경 변수: 이 앱은 비밀 값이 필요 없지만, 실수로 올라가지 않게 막아 둬요
+.env
+.env*.local
+
+# 서명 키·인증서 (절대 커밋하지 않기)
+*.jks
+*.keystore
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.pem
+credentials.json
+
+# 기타
+*.orig.*
+npm-debug.*

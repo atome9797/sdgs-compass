@@ -9,6 +9,8 @@ export const extraMobile = {
   "mobile.roleSwitchLabel": { ja: "利用タイプ：{current}。{target}に切り替える", ko: "이용 유형: {current}. {target}(으)로 전환" },
   "mobile.tabsUnread": { ja: "{label}、未読{count}件", ko: "{label}, 읽지 않은 메시지 {count}건" },
   "mobile.notFoundBack": { ja: "ホームへ戻る", ko: "홈으로 돌아가기" },
+  // 아래 탭 이름은 한 줄에 들어가야 해서 짧게 (기업 쪽 첫 탭 "ダッシュボード"는 휴대폰 너비에 넘쳐요)
+  "mobile.tabDashboard": { ja: "ホーム", ko: "대시보드" },
 
   // 홈·챌린지 상세
   "mobile.reasonsTitle": { ja: "おすすめの理由", ko: "추천 이유" },

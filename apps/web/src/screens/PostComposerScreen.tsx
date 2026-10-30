@@ -10,8 +10,8 @@ import { postContext, postErrorText, validatePostDraft } from "@sdgs-compass/cor
 import { selectComposer, selectSdgTiles } from "@sdgs-compass/core/selectors";
 import { PostCard } from "@/components/PostCard";
 import { SdgChips, SdgMiniRow } from "@/components/sdg";
-import { Banner, Button, ButtonLink, Counter, Empty, Field, ScreenHead } from "@/components/ui";
-import { chooseChallenge, counterOf, initialPostFields, previewDraft, previewPost, toggleSdg, toPostDraft, visibleFieldErrors, type PostField, type PostFields } from "@/lib/postForm";
+import { Button, ButtonLink, Counter, Empty, Field, ScreenHead } from "@/components/ui";
+import { chooseChallenge, chooseOfficialChannel, counterOf, initialPostFields, previewDraft, previewPost, toggleSdg, toPostDraft, visibleFieldErrors, type PostField, type PostFields } from "@/lib/postForm";
 import { buildHref, feedHref, ROUTES } from "@/lib/routes";
 import { useSession } from "@/lib/session";
 import { nowIso } from "@/lib/time";
@@ -21,6 +21,7 @@ function Composer({ kind, presetId }: { kind: PostKind; presetId: string | null 
   const router = useRouter();
   const formRef = useRef<HTMLFormElement>(null);
   const officialHintId = useId();
+  const channelGroupName = useId();
   const previewHeadingId = useId();
 
   const composer = useMemo(() => selectComposer(demo, locale, kind, kind === "brag" ? { activityId: presetId } : { challengeId: presetId }), [demo, locale, kind, presetId]);
@@ -175,9 +176,33 @@ function Composer({ kind, presetId }: { kind: PostKind; presetId: string | null 
                   {composer.official.hint}
                 </p>
                 {fields.requestOfficial ? (
-                  <Banner tone="info" icon="📣">
-                    {composer.official.nextDateLabel}
-                  </Banner>
+                  <fieldset className="channels" tabIndex={-1} data-invalid={shown.official ? "true" : undefined}>
+                    <legend className="field__label">{t("post.officialChannelLabel")}</legend>
+                    {composer.official.channels.map((channel) => {
+                      const selected = fields.officialChannel === channel.id;
+                      return (
+                        <label key={channel.id} className={selected ? "channel channel--on" : "channel"}>
+                          <input
+                            type="radio"
+                            name={channelGroupName}
+                            value={channel.id}
+                            checked={selected}
+                            onChange={() => {
+                              setFields((current) => chooseOfficialChannel(current, channel.id));
+                              touch("official");
+                            }}
+                          />
+                          <span className="channel__text">
+                            <span className="channel__name">
+                              {channel.name} <span className="channel__format">{channel.format}</span>
+                            </span>
+                            <span className="channel__date">{channel.nextDateLabel}</span>
+                          </span>
+                        </label>
+                      );
+                    })}
+                    {message("official") ? <p className="field__error">{message("official")}</p> : null}
+                  </fieldset>
                 ) : null}
               </div>
             </>

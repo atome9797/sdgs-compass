@@ -1,7 +1,7 @@
 // 화면 경로 만들기 (typedRoutes 를 쓰지 않아서 글자로 적어요). 경로 규칙은 src/app 폴더 구조와 같아요 (expo-router 가 폴더·파일 이름으로 경로를 만들어요).
 //   학생·개인: /  /feed  /search  /impact  /messages  /settings  /challenge/[id]  /challenge/submit/[id]  /certificate/[id]  /share  /feed/new
 //   기업·단체: /b2b  /b2b/feed  /b2b/applicants  /b2b/talent  /b2b/esg  /b2b/settings  /b2b/new  /b2b/feed/new
-import type { PostKind, Role } from "@sdgs-compass/core/domain";
+import type { OfficialChannel, PostKind, Role } from "@sdgs-compass/core/domain";
 
 export const ROUTES = {
   home: "/",
@@ -66,11 +66,12 @@ export function composeHref(kind: PostKind, presetId?: string | null): string {
 }
 
 /**
- * 글을 올린 뒤 가는 피드 탭: 맨 위에 "올렸어요" 안내가 떠요. officialOn = 공식 SNS 게시 예정일(YYYY-MM-DD, 신청했을 때만).
- * 기업 글은 신청하지 않았어도 official 을 비워서 붙여요 — 앞서 올린 글의 안내 값이 닫히지 않고 남아 있어도 덮어쓰이도록요.
+ * 글을 올린 뒤 가는 피드 탭: 맨 위에 "올렸어요" 안내가 떠요. official = 공식 SNS 게시 신청(게시 예정일 YYYY-MM-DD + 채널, 신청했을 때만).
+ * 기업 글은 신청하지 않았어도 official·channel 을 비워서 붙여요 — 앞서 올린 글의 안내 값이 닫히지 않고 남아 있어도 덮어쓰이도록요.
  */
-export function postedHref(role: Role, officialOn: string | null): string {
-  const query = role === "b2b" ? `posted=1&official=${officialOn ? encodeURIComponent(officialOn) : ""}` : "posted=1";
+export function postedHref(role: Role, official: { on: string; channel: OfficialChannel } | null): string {
+  if (role !== "b2b") return `${feedRoute(role)}?posted=1`;
+  const query = official ? `posted=1&official=${encodeURIComponent(official.on)}&channel=${encodeURIComponent(official.channel)}` : "posted=1&official=&channel=";
   return `${feedRoute(role)}?${query}`;
 }
 

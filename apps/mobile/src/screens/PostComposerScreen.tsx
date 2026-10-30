@@ -19,7 +19,9 @@ import {
   errorsByField,
   initialPostForm,
   pickChallenge,
+  pickOfficialChannel,
   previewPost,
+  selectedOfficialOption,
   toPostDraft,
   toggleFormSdg,
   type PostField,
@@ -64,9 +66,10 @@ export function PostComposerScreen({ kind }: { kind: PostKind }) {
     if (errors.length > 0) return;
     sending.current = true;
     setSubmitted(true);
-    const officialOn = kind === "pr" && form.requestOfficial ? vm.official.nextDate : null;
+    // 화면에 보여 준 채널·예정일을 피드의 안내로 넘겨요 (reducer 도 같은 규칙으로 같은 날짜를 배정해요)
+    const option = kind === "pr" && form.requestOfficial ? selectedOfficialOption(vm, form) : null;
     dispatch({ type: "createPost", draft, at: nowIso() });
-    router.navigate(postedHref(authorRole(kind), officialOn));
+    router.navigate(postedHref(authorRole(kind), option ? { on: option.nextDate, channel: option.id } : null));
   };
 
   // 올릴 실적이 하나도 없으면 글을 쓸 수 없어요 — 챌린지에 먼저 응모하도록 안내해요
@@ -174,7 +177,28 @@ export function PostComposerScreen({ kind }: { kind: PostKind }) {
 
           <View style={styles.stack}>
             <LabeledSwitch testID="post-official" label={t("post.officialLabel")} hint={vm.official.hint} value={form.requestOfficial} onValueChange={(requestOfficial) => update({ requestOfficial })} />
-            {form.requestOfficial ? <Notice testID="post-official-date" tone="info" message={`📅 ${vm.official.nextDateLabel}`} /> : null}
+            {form.requestOfficial ? (
+              <Section title={t("post.officialChannelLabel")}>
+                <View accessibilityRole="radiogroup" accessibilityLabel={t("post.officialChannelLabel")} style={styles.stack}>
+                  {vm.official.channels.map((option) => (
+                    <OptionRow
+                      key={option.id}
+                      testID={`post-official-channel-${option.id}`}
+                      title={option.label}
+                      subtitle={option.nextDateLabel}
+                      subtitleLines={2}
+                      selected={option.id === form.officialChannel}
+                      onPress={() => setForm((current) => pickOfficialChannel(current, option.id, vm))}
+                    />
+                  ))}
+                </View>
+                {errorText("official") ? (
+                  <Txt variant="small" tone="danger" accessibilityLiveRegion="polite">
+                    {errorText("official")}
+                  </Txt>
+                ) : null}
+              </Section>
+            ) : null}
           </View>
         </>
       ) : null}

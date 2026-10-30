@@ -1,11 +1,12 @@
 // SNS 글쓰기(F-503 학생 자랑 글 · F-504 기업 홍보 글)의 입력 모음: 처음 값, SDGs·챌린지 고르기, 입력 → PostDraft 변환,
 // 오류를 칸별로 나누기, 미리보기, 올린 뒤 피드에 뜨는 안내. 검사는 core 의 validatePostDraft 가 하고, 여기서는 입력 칸 쪽 규칙만 둬요.
-import type { PostKind } from "@sdgs-compass/core/domain";
+import type { OfficialChannel, PostKind } from "@sdgs-compass/core/domain";
+import { formatDateShort } from "@sdgs-compass/core/format";
 import type { TFunction } from "@sdgs-compass/core/messages";
-import { containsContact, defaultPrSdgs, POST_LIMITS, type PostDraft, type PostError } from "@sdgs-compass/core/post";
+import { containsContact, DEFAULT_OFFICIAL_CHANNEL, defaultPrSdgs, isOfficialChannel, POST_LIMITS, type PostDraft, type PostError } from "@sdgs-compass/core/post";
 import { charCount } from "@sdgs-compass/core/proposal";
 import type { SdgId } from "@sdgs-compass/core/sdg";
-import type { ComposerVM, PostVM } from "@sdgs-compass/core/selectors";
+import type { ComposerVM, OfficialChannelOptionVM, PostVM } from "@sdgs-compass/core/selectors";
 import { paramText } from "./nav";
 import { toggleSdg } from "./newChallenge";
 
@@ -22,12 +23,14 @@ export interface PostFormState {
   sdgsTouched: boolean;
   /** 홍보 글: 연결할 우리 회사 챌린지 (없으면 null) */
   challengeId: string | null;
-  /** 홍보 글: 공식 SNS(Instagram 스토리) 게시 신청 */
+  /** 홍보 글: 공식 SNS(X · Instagram · Facebook 중 하나) 게시 신청 */
   requestOfficial: boolean;
+  /** 홍보 글: 신청할 공식 SNS (신청을 켠 뒤에만 의미가 있어요. 껐다 켜도 고른 채널은 그대로예요) */
+  officialChannel: OfficialChannel;
 }
 
 /** 글쓰기 화면을 처음 열 때의 값: 미리 고른 실적·챌린지가 있으면 그것으로, SDGs 는 기본값(챌린지 → 없으면 기업의 SDGs)으로 */
-export function initialPostForm(composer: Pick<ComposerVM, "kind" | "selectedActivityId" | "selectedChallengeId" | "defaultSdgIds">): PostFormState {
+export function initialPostForm(composer: Pick<ComposerVM, "kind" | "selectedActivityId" | "selectedChallengeId" | "defaultSdgIds" | "official">): PostFormState {
   return {
     kind: composer.kind,
     body: "",
@@ -37,13 +40,22 @@ export function initialPostForm(composer: Pick<ComposerVM, "kind" | "selectedAct
     sdgsTouched: false,
     challengeId: composer.kind === "pr" ? composer.selectedChallengeId : null,
     requestOfficial: false,
+    officialChannel: composer.official.defaultChannel,
   };
 }
 
 /** 입력 → core 의 PostDraft (종류에 없는 칸은 보내지 않아요) */
 export function toPostDraft(form: PostFormState): PostDraft {
   if (form.kind === "brag") return { kind: "brag", body: form.body, activityId: form.activityId };
-  return { kind: "pr", body: form.body, title: form.title, sdgIds: form.sdgIds, challengeId: form.challengeId, requestOfficial: form.requestOfficial };
+  return {
+    kind: "pr",
+    body: form.body,
+    title: form.title,
+    sdgIds: form.sdgIds,
+    challengeId: form.challengeId,
+    requestOfficial: form.requestOfficial,
+    officialChannel: form.officialChannel,
+  };
 }
 
 /** 홍보 글의 SDGs 를 직접 켜고 꺼요 (최대 POST_LIMITS.maxSdgs 개) */
@@ -62,6 +74,18 @@ export function pickChallenge(form: PostFormState, challengeId: string | null, c
   return { ...form, challengeId, sdgIds: defaultPrSdgs(composer.companySdgIds, challenge?.sdgIds ?? null) };
 }
 
+/** 신청할 공식 SNS 를 골라요. 선택지(composer.official.channels)에 없는 값은 무시해요 (아무것도 바뀌지 않아요) */
+export function pickOfficialChannel(form: PostFormState, channel: string, composer: Pick<ComposerVM, "official">): PostFormState {
+  if (!isOfficialChannel(channel) || !composer.official.channels.some((option) => option.id === channel)) return form;
+  return { ...form, officialChannel: channel };
+}
+
+/** 지금 고른 공식 SNS 의 선택지 (이름 · 올라가는 모양 · 배정될 날짜). 고른 값이 선택지에 없으면 처음 골라 두는 채널, 그것도 없으면 null */
+export function selectedOfficialOption(composer: Pick<ComposerVM, "official">, form: Pick<PostFormState, "officialChannel">): OfficialChannelOptionVM | null {
+  const { channels, defaultChannel } = composer.official;
+  return channels.find((option) => option.id === form.officialChannel) ?? channels.find((option) => option.id === defaultChannel) ?? null;
+}
+
 /** 글자 수 표시용: 이모지·한자도 1글자 (core 의 charCount), 한도를 넘으면 over */
 export function counterOf(text: string, limit: number): { count: number; over: boolean } {
   const count = charCount(text);
@@ -69,7 +93,7 @@ export function counterOf(text: string, limit: number): { count: number; over: b
 }
 
 /** 오류가 붙는 입력 칸 */
-export type PostField = "activity" | "title" | "body" | "sdgs" | "challenge";
+export type PostField = "activity" | "title" | "body" | "sdgs" | "challenge" | "official";
 
 /** 오류가 어느 칸의 것인지. 연락처 오류는 연락처가 들어 있는 칸에 붙여요 (제목·본문 둘 다일 수도 있어요) */
 export function fieldsOfError(error: PostError, form: Pick<PostFormState, "kind" | "title" | "body">): PostField[] {
@@ -88,6 +112,8 @@ export function fieldsOfError(error: PostError, form: Pick<PostFormState, "kind"
       return ["sdgs"];
     case "challenge_not_found":
       return ["challenge"];
+    case "official_channel_invalid":
+      return ["official"];
     case "contact_info": {
       const fields: PostField[] = [];
       if (form.kind === "pr" && containsContact(form.title)) fields.push("title");
@@ -116,6 +142,7 @@ export function previewPost(composer: ComposerVM, form: PostFormState, t: TFunct
   const isBrag = form.kind === "brag";
   const activity = isBrag ? composer.activities.find((a) => a.id === form.activityId) : undefined;
   const challenge = !isBrag && form.challengeId !== null ? composer.challenges.find((c) => c.id === form.challengeId) : undefined;
+  const official = !isBrag && form.requestOfficial ? selectedOfficialOption(composer, form) : null;
   return {
     id: "preview",
     kind: form.kind,
@@ -136,17 +163,26 @@ export function previewPost(composer: ComposerVM, form: PostFormState, t: TFunct
     canDelete: false,
     achievement: activity ? { kindLabel: "", title: activity.label, companyName: "", awardLabel: null, sdgIds: activity.sdgIds, certificateId: null } : null,
     challenge: challenge ? { id: challenge.id, title: challenge.title } : null,
-    official: !isBrag && form.requestOfficial ? { label: composer.official.nextDateLabel, feeLabel: t("feed.officialFee", { fee: composer.official.feeLabel }) } : null,
+    // 피드의 글 카드와 같은 글: "공식 SNS 게시 예정 · X · 11/2" (고른 채널에서 지금 신청하면 배정될 날짜)
+    official: official
+      ? {
+          label: t("feed.officialScheduled", { channel: official.name, date: formatDateShort(official.nextDate) }),
+          feeLabel: t("feed.officialFee", { fee: composer.official.feeLabel }),
+          channel: official.id,
+          channelName: official.name,
+          channelLabel: official.label,
+        }
+      : null,
     shareText: "",
   };
 }
 
 // ───────── 올린 뒤의 안내 ─────────
-// 글을 올리면 피드 탭이 ?posted=1(&official=게시 예정일)로 열려요. 피드는 이 값으로 맨 위에 안내를 보여 주고, 닫으면 값을 지워요.
+// 글을 올리면 피드 탭이 ?posted=1(&official=게시 예정일&channel=채널)로 열려요. 피드는 이 값으로 맨 위에 안내를 보여 주고, 닫으면 값을 지워요.
 
 export interface PostedParams {
-  /** 공식 SNS 게시 예정일 (YYYY-MM-DD). 신청하지 않았으면 null */
-  officialOn: string | null;
+  /** 공식 SNS 게시 신청: 게시 예정일(YYYY-MM-DD)과 채널. 신청하지 않았으면 null */
+  official: { on: string; channel: OfficialChannel } | null;
 }
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -154,9 +190,13 @@ const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 /** 피드의 경로 매개변수에서 "방금 올렸어요" 안내를 읽어요. 안내할 게 없으면 null */
 export function parsePostedParams(raw: Record<string, string | string[] | undefined>): PostedParams | null {
   if (paramText(raw.posted) !== "1") return null;
-  const official = paramText(raw.official);
-  return { officialOn: ISO_DATE.test(official) ? official : null };
+  const on = paramText(raw.official);
+  if (!ISO_DATE.test(on)) return { official: null };
+  const channel = paramText(raw.channel);
+  // channel 이 없는(빈) 옛 주소는 그때 하나뿐이던 Instagram 으로 읽어요. 모르는 값이면 엉뚱한 채널을 보여 주지 않으려고 신청 안내를 빼요.
+  if (channel === "") return { official: { on, channel: DEFAULT_OFFICIAL_CHANNEL } };
+  return { official: isOfficialChannel(channel) ? { on, channel } : null };
 }
 
 /** 안내를 닫을 때 router.setParams 에 넣는 값 */
-export const CLEAR_POSTED_PARAMS = { posted: "", official: "" } as const;
+export const CLEAR_POSTED_PARAMS = { posted: "", official: "", channel: "" } as const;

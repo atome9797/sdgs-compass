@@ -5,7 +5,7 @@ import type { PostError } from "@sdgs-compass/core/post";
 import type { SdgId } from "@sdgs-compass/core/sdg";
 import { selectComposer } from "@sdgs-compass/core/selectors";
 import { createInitialState } from "@sdgs-compass/data/seed";
-import { chooseChallenge, counterOf, initialPostFields, previewDraft, previewPost, toggleSdg, toPostDraft, visibleFieldErrors, type PostFields } from "./postForm";
+import { chooseChallenge, chooseOfficialChannel, counterOf, initialPostFields, previewDraft, previewPost, toggleSdg, toPostDraft, visibleFieldErrors, type PostFields } from "./postForm";
 
 const TODAY = "2026-10-30";
 const demo = createInitialState(TODAY);
@@ -23,7 +23,7 @@ describe("처음 값", () => {
     const composer = bragComposer();
     const fields = initialPostFields(composer);
     expect(fields.activityId).toBe(composer.activities[0].id);
-    expect(fields).toMatchObject({ body: "", title: "", sdgIds: [], sdgTouched: false, challengeId: null, requestOfficial: false });
+    expect(fields).toMatchObject({ body: "", title: "", sdgIds: [], sdgTouched: false, challengeId: null, requestOfficial: false, officialChannel: "instagram" });
   });
 
   it("자랑 글: 다른 화면에서 넘긴 실적이 있으면 그것이 골라져 있어요", () => {
@@ -42,6 +42,7 @@ describe("처음 값", () => {
     expect(fields.challengeId).toBeNull();
     expect(fields.activityId).toBe(composer.selectedActivityId);
     expect(fields.requestOfficial).toBe(false);
+    expect(fields.officialChannel).toBe(composer.official.defaultChannel); // 신청을 켜면 Instagram 이 골라져 있어요
   });
 
   it("홍보 글: 응모자 화면에서 넘긴 챌린지가 있으면 그 챌린지와 SDGs 로 시작해요", () => {
@@ -75,7 +76,21 @@ describe("입력값 → 초안", () => {
       sdgIds: fields.sdgIds,
       challengeId: "ch-bottle",
       requestOfficial: true,
+      officialChannel: "instagram",
     });
+  });
+
+  it("홍보 글 초안에는 고른 공식 SNS 채널이 그대로 들어가요", () => {
+    for (const channel of ["x", "instagram", "facebook"] as const) {
+      const fields = withFields(initialPostFields(prComposer()), { title: "題", body: "文", requestOfficial: true, officialChannel: channel });
+      expect(toPostDraft("pr", fields)).toMatchObject({ requestOfficial: true, officialChannel: channel });
+      expect(validatePostDraft(toPostDraft("pr", fields), context)).toEqual([]);
+    }
+  });
+
+  it("자랑 글 초안에는 채널이 들어가지 않아요", () => {
+    const fields = withFields(initialPostFields(bragComposer()), { body: "初めての受賞です！", officialChannel: "x" });
+    expect(toPostDraft("brag", fields)).not.toHaveProperty("officialChannel");
   });
 
   it("처음 값에 본문(·제목)만 채우면 core 검사를 그대로 통과해요", () => {
@@ -157,6 +172,52 @@ describe("챌린지 고르기", () => {
     const fields = chooseChallenge(initialPostFields(composer), composer, "ch-다른회사");
     expect(fields.challengeId).toBeNull();
     expect(fields.sdgIds).toEqual(composer.companySdgIds);
+  });
+});
+
+describe("공식 SNS 채널 고르기", () => {
+  const composer = prComposer();
+  const base = initialPostFields(composer);
+
+  it("채널을 고르면 그 채널로 바뀌고, 다른 입력은 그대로예요", () => {
+    const typed = withFields(base, { title: "題", body: "文", requestOfficial: true, sdgTouched: true });
+    for (const channel of composer.official.channels) {
+      const next = chooseOfficialChannel(typed, channel.id);
+      expect(next).toEqual({ ...typed, officialChannel: channel.id });
+    }
+    expect(typed.officialChannel).toBe("instagram"); // 원본은 그대로
+  });
+
+  it("라디오가 보내는 값이 채널이 아니면 (깨진 값 · YouTube) 지금 채널을 그대로 둬요", () => {
+    const x = withFields(base, { officialChannel: "x" });
+    for (const bad of ["youtube", "", "Instagram", "undefined"]) expect(chooseOfficialChannel(x, bad)).toBe(x);
+  });
+
+  it("신청을 껐다 켜도 고른 채널은 남아요", () => {
+    const picked = chooseOfficialChannel(base, "facebook");
+    expect(withFields(withFields(picked, { requestOfficial: true }), { requestOfficial: false }).officialChannel).toBe("facebook");
+  });
+
+  it("composer 의 채널 목록은 X · Instagram · Facebook 순서이고, 각 줄에 이름 · 모양 · 배정될 날짜가 있어요", () => {
+    expect(composer.official.channels.map((c) => c.id)).toEqual(["x", "instagram", "facebook"]);
+    for (const channel of composer.official.channels) {
+      expect(channel.name).not.toBe("");
+      expect(channel.format).not.toBe("");
+      expect(channel.nextDateLabel).toContain(String(channel.nextDate.slice(0, 4)));
+    }
+  });
+
+  it("채널을 바꾸면 미리보기 카드의 채널과 날짜가 바로 바뀌어요 (X 는 내일, Instagram·Facebook 은 모레)", () => {
+    const typed = withFields(base, { title: "題", body: "文", requestOfficial: true });
+    const labelOf = (channel: string) => previewPost(demo, "ja", "b2b", previewDraft("pr", chooseOfficialChannel(typed, channel), composer, TITLE_PLACEHOLDER).draft)?.official?.label;
+    expect(labelOf("x")).toBe("公式SNS掲載予定 · X · 10/31");
+    expect(labelOf("instagram")).toBe("公式SNS掲載予定 · Instagram · 11/1");
+    expect(labelOf("facebook")).toBe("公式SNS掲載予定 · Facebook · 11/1");
+  });
+
+  it("신청을 끄면 채널을 골라 둬도 미리보기 카드에는 공식 게시가 없어요", () => {
+    const off = withFields(base, { title: "題", body: "文", requestOfficial: false, officialChannel: "x" });
+    expect(previewPost(demo, "ja", "b2b", previewDraft("pr", off, composer, TITLE_PLACEHOLDER).draft)?.official).toBeNull();
   });
 });
 
@@ -317,6 +378,7 @@ describe("미리보기 초안", () => {
       { body: "あ".repeat(500), title: "題".repeat(100), sdgIds: [1, 2, 3, 4, 5, 6] },
       { body: "090-1234-5678", title: "mina@example.com", sdgIds: [] },
       { challengeId: "ch-다른회사", activityId: null },
+      { requestOfficial: true, officialChannel: "youtube" as never },
     ];
     for (const over of messy) {
       for (const kind of ["brag", "pr"] as const) {
@@ -349,9 +411,23 @@ describe("미리보기 카드", () => {
     expect(card).toMatchObject({ kind: "pr", title: "マイボトル企画", body: "学生の案を待っています。", mine: true, verified: true, challenge: { id: "ch-bottle" } });
     expect(card?.chipLabel).toBe("PR");
     expect(card?.official).not.toBeNull();
-    // 배정되는 날짜는 composer 가 미리 알려 준 날짜와 같아요
-    expect(composer.official.nextDate).toBe(nextOfficialDate(demo.posts, demo.today));
-    expect(card?.official?.label).toContain(formatDateShort(composer.official.nextDate));
+    // 배정되는 날짜는 composer 가 그 채널에 미리 알려 준 날짜와 같아요 (채널을 말하지 않으면 Instagram)
+    const instagram = composer.official.channels.find((c) => c.id === "instagram")!;
+    expect(instagram.nextDate).toBe(nextOfficialDate(demo.posts, demo.today));
+    expect(instagram.nextDate).toBe(nextOfficialDate(demo.posts, demo.today, "instagram"));
+    expect(card?.official?.label).toContain(formatDateShort(instagram.nextDate));
+    expect(card?.official).toMatchObject({ channel: "instagram", channelName: "Instagram" });
+  });
+
+  it("홍보 글: 고른 채널마다 composer 가 알려 준 그 채널의 날짜로 카드가 만들어져요", () => {
+    const composer = prComposer();
+    for (const channel of composer.official.channels) {
+      const fields = withFields(initialPostFields(composer), { title: "題", body: "文", requestOfficial: true, officialChannel: channel.id });
+      const card = previewPost(demo, "ja", "b2b", previewDraft("pr", fields, composer, TITLE_PLACEHOLDER).draft); // composer 도 ja
+      expect(card?.official?.channel).toBe(channel.id);
+      expect(card?.official?.label).toContain(formatDateShort(channel.nextDate));
+      expect(card?.official?.label).toContain(channel.name);
+    }
   });
 
   it("공식 게시를 신청하지 않으면 official 이 없어요", () => {

@@ -1,15 +1,15 @@
 // 글쓰기 화면(학생 자랑 글 · 기업 홍보 글, F-503·F-504)의 입력 모으기: 입력값 → 초안, 오류를 언제 보여 줄지, 챌린지를 바꿀 때의 SDGs, 미리보기 카드.
 // 순수 함수라서 브라우저 없이 테스트해요. 입력 검사 자체는 core 의 validatePostDraft 가 하고, 여기서는 "화면이 그 결과를 어떻게 쓰는지"만 정해요.
-import type { DemoState, PostKind, Role } from "@sdgs-compass/core/domain";
+import type { DemoState, OfficialChannel, PostKind, Role } from "@sdgs-compass/core/domain";
 import type { Locale } from "@sdgs-compass/core/i18n";
-import { containsContact, defaultPrSdgs, POST_LIMITS, type PostDraft, type PostError } from "@sdgs-compass/core/post";
+import { containsContact, defaultPrSdgs, isOfficialChannel, POST_LIMITS, type PostDraft, type PostError } from "@sdgs-compass/core/post";
 import { charCount } from "@sdgs-compass/core/proposal";
 import type { SdgId } from "@sdgs-compass/core/sdg";
 import { selectFeed, type ComposerVM, type PostVM } from "@sdgs-compass/core/selectors";
 import { reducer } from "@sdgs-compass/core/state";
 
 /** 입력 칸 묶음: 화면에서 오류가 붙는 단위예요 */
-export type PostField = "activity" | "title" | "body" | "sdgs" | "challenge";
+export type PostField = "activity" | "title" | "body" | "sdgs" | "challenge" | "official";
 
 export interface PostFields {
   body: string;
@@ -25,6 +25,8 @@ export interface PostFields {
   challengeId: string | null;
   /** 홍보 글만: 공식 SNS 게시 신청 */
   requestOfficial: boolean;
+  /** 홍보 글만: 신청할 공식 SNS (신청을 켠 뒤에만 의미가 있어요. 끄고 다시 켜도 고른 채널은 그대로) */
+  officialChannel: OfficialChannel;
 }
 
 /** 글쓰기 화면을 처음 열었을 때의 값 (다른 화면에서 넘어왔다면 실적/챌린지가 미리 골라져 있어요) */
@@ -37,13 +39,22 @@ export function initialPostFields(composer: ComposerVM): PostFields {
     sdgTouched: false,
     challengeId: composer.selectedChallengeId,
     requestOfficial: false,
+    officialChannel: composer.official.defaultChannel,
   };
 }
 
 /** 화면의 입력값 → core 의 PostDraft (검사·올리기에 그대로 써요) */
 export function toPostDraft(kind: PostKind, fields: PostFields): PostDraft {
   if (kind === "brag") return { kind, body: fields.body, activityId: fields.activityId };
-  return { kind, title: fields.title, body: fields.body, sdgIds: fields.sdgIds, challengeId: fields.challengeId, requestOfficial: fields.requestOfficial };
+  return {
+    kind, title: fields.title, body: fields.body, sdgIds: fields.sdgIds, challengeId: fields.challengeId,
+    requestOfficial: fields.requestOfficial, officialChannel: fields.officialChannel,
+  };
+}
+
+/** 채널 고르기: 화면의 라디오가 보내는 값이 채널이 아니면(깨진 값) 지금 고른 채널을 그대로 둬요 */
+export function chooseOfficialChannel(fields: PostFields, channel: string): PostFields {
+  return isOfficialChannel(channel) ? { ...fields, officialChannel: channel } : fields;
 }
 
 /** SDGs 를 켜고 끄기: 최대 3개까지만 켜져요. 직접 바꿨다는 표시(sdgTouched)가 남아요 */
@@ -67,7 +78,9 @@ export function chooseChallenge(fields: PostFields, composer: ComposerVM, challe
 // ───────── 오류를 언제, 어디에 보여 줄까 ─────────
 
 /** 사용자가 방금 친 글자 때문에 생기는 오류는 입력하는 동안 바로 보여 줘요. 나머지(비었다 등)는 칸을 만져 본 뒤나 올리기를 눌러 본 뒤에 보여요. */
-const LIVE_ERRORS: readonly PostError[] = ["title_too_long", "body_too_long", "contact_info", "sdgs_too_many", "achievement_not_found", "challenge_not_found"];
+const LIVE_ERRORS: readonly PostError[] = [
+  "title_too_long", "body_too_long", "contact_info", "sdgs_too_many", "achievement_not_found", "challenge_not_found", "official_channel_invalid",
+];
 
 const FIELD_OF: Record<Exclude<PostError, "contact_info">, PostField> = {
   achievement_required: "activity",
@@ -79,6 +92,7 @@ const FIELD_OF: Record<Exclude<PostError, "contact_info">, PostField> = {
   sdgs_required: "sdgs",
   sdgs_too_many: "sdgs",
   challenge_not_found: "challenge",
+  official_channel_invalid: "official",
 };
 
 /** 연락처 오류는 연락처가 든 칸마다 붙어요 (제목이든 본문이든, 둘 다든) */
@@ -141,7 +155,8 @@ export function previewDraft(kind: PostKind, fields: PostFields, composer: Compo
   const title = titleOk ? fields.title : titlePlaceholder;
   const sdgIds = fields.sdgIds.length > 0 ? fields.sdgIds.slice(0, composer.maxSdgs) : composer.defaultSdgIds;
   const challengeId = composer.challenges.some((c) => c.id === fields.challengeId) ? fields.challengeId : null;
-  return { draft: { kind, title, body, sdgIds, challengeId, requestOfficial: fields.requestOfficial }, placeholder: !bodyOk || !titleOk };
+  const officialChannel = isOfficialChannel(fields.officialChannel) ? fields.officialChannel : composer.official.defaultChannel;
+  return { draft: { kind, title, body, sdgIds, challengeId, requestOfficial: fields.requestOfficial, officialChannel }, placeholder: !bodyOk || !titleOk };
 }
 
 /**

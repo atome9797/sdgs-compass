@@ -6,6 +6,7 @@ import { useMemo, useState } from "react";
 import { Share, StyleSheet, View } from "react-native";
 import type { Role } from "@sdgs-compass/core/domain";
 import { formatDate } from "@sdgs-compass/core/format";
+import { officialChannelLabel } from "@sdgs-compass/core/post";
 import { selectFeed, type FeedFilter, type PostVM } from "@sdgs-compass/core/selectors";
 import { PostCard, type PostLink } from "@/components/PostCard";
 import { Screen, ScreenTitle } from "@/components/Screen";
@@ -35,6 +36,11 @@ export function FeedScreen({ role }: { role: Role }) {
     if (posted !== null) setFilter("all");
   }
   const vm = useMemo(() => selectFeed(demo, locale, role, filter), [demo, locale, role, filter]);
+
+  // 방금 올렸다는 안내: 공식 SNS 를 신청했다면 채널(이름 + 올라가는 모양)과 게시 예정일까지
+  const postedText = posted?.official
+    ? t("post.postedOfficial", { channel: officialChannelLabel(posted.official.channel, locale), date: formatDate(posted.official.on, locale) })
+    : t("post.posted");
 
   const dismissPosted = () => {
     if (posted !== null) router.setParams(CLEAR_POSTED_PARAMS);
@@ -72,7 +78,7 @@ export function FeedScreen({ role }: { role: Role }) {
       <Button testID="feed-write" icon="✍️" label={t(role === "b2c" ? "feed.write.b2c" : "feed.write.b2b")} onPress={() => router.push(composeHref(kindOfRole(role)))} />
 
       {posted ? (
-        <Notice testID="feed-posted" tone="success" message={posted.officialOn ? t("post.postedOfficial", { date: formatDate(posted.officialOn, locale) }) : t("post.posted")}>
+        <Notice testID="feed-posted" tone="success" message={postedText}>
           <Button testID="feed-posted-close" small variant="ghost" label={t("common.close")} onPress={dismissPosted} style={styles.closePosted} />
         </Notice>
       ) : null}

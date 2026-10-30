@@ -61,10 +61,12 @@ test("글쓰기 경로: 자랑 글은 학생 화면, 홍보 글은 기업 화면
   expect(composeHref("pr", "a&b")).toBe("/b2b/feed/new?challenge=a%26b");
 });
 
-test("글을 올린 뒤 가는 곳: 쓴 계정의 피드 탭에 posted=1 (기업 글은 official 도: 신청한 날짜, 안 했으면 빈 값)", () => {
+test("글을 올린 뒤 가는 곳: 쓴 계정의 피드 탭에 posted=1 (기업 글은 official·channel 도: 신청한 날짜와 채널, 안 했으면 빈 값)", () => {
   expect(postedHref("b2c", null)).toBe("/feed?posted=1");
-  expect(postedHref("b2b", null)).toBe("/b2b/feed?posted=1&official=");
-  expect(postedHref("b2b", "2026-11-02")).toBe("/b2b/feed?posted=1&official=2026-11-02");
+  expect(postedHref("b2b", null)).toBe("/b2b/feed?posted=1&official=&channel=");
+  expect(postedHref("b2b", { on: "2026-11-02", channel: "instagram" })).toBe("/b2b/feed?posted=1&official=2026-11-02&channel=instagram");
+  expect(postedHref("b2b", { on: "2026-11-02", channel: "x" })).toBe("/b2b/feed?posted=1&official=2026-11-02&channel=x");
+  expect(postedHref("b2b", { on: "2026-11-03", channel: "facebook" })).toBe("/b2b/feed?posted=1&official=2026-11-03&channel=facebook");
 });
 
 test("수령증은 제출 화면과 같은 경로에 receipt=1 을 붙여요", () => {

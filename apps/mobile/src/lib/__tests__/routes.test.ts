@@ -68,7 +68,8 @@ test("SNS 피드 경로는 글을 쓰는 계정의 화면 묶음에 속해요 (�
   expect(redirectForPath("b2c", composeHref("brag", "h-5b"))).toBeNull();
   expect(redirectForPath("b2b", composeHref("pr", "ch-bottle"))).toBeNull();
   expect(redirectForPath("b2c", postedHref("b2c", null))).toBeNull();
-  expect(redirectForPath("b2b", postedHref("b2b", "2026-11-02"))).toBeNull();
+  expect(redirectForPath("b2b", postedHref("b2b", { on: "2026-11-02", channel: "x" }))).toBeNull();
+  expect(redirectForPath("b2b", postedHref("b2b", null))).toBeNull();
   expect(redirectForPath("b2c", feedRoute("b2c"))).toBeNull();
   expect(redirectForPath("b2b", feedRoute("b2b"))).toBeNull();
   // 카드뉴스(/share)는 학생 화면이에요 (그래서 피드는 기업 계정의 글에 카드뉴스 바로가기를 붙이지 않아요 — feed.test.ts)

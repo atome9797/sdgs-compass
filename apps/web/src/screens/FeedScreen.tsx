@@ -6,7 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Role, SocialPost } from "@sdgs-compass/core/domain";
 import { formatDate } from "@sdgs-compass/core/format";
-import { authorRole } from "@sdgs-compass/core/post";
+import { authorRole, officialChannelLabel } from "@sdgs-compass/core/post";
 import { selectFeed, type FeedFilter, type PostVM } from "@sdgs-compass/core/selectors";
 import { PostCard, type PostLinks } from "@/components/PostCard";
 import { Banner, ButtonLink, Empty, ScreenHead } from "@/components/ui";
@@ -49,7 +49,7 @@ export function FeedScreen() {
   const postedText =
     posted && posted.mine && authorRole(posted.kind) === role
       ? posted.kind === "pr" && posted.official
-        ? t("post.postedOfficial", { date: formatDate(posted.official.on, locale) })
+        ? t("post.postedOfficial", { channel: officialChannelLabel(posted.official.channel, locale), date: formatDate(posted.official.on, locale) })
         : t("post.posted")
       : null;
 

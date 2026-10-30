@@ -505,6 +505,19 @@ button.fcard__action:hover, a.fcard__action:hover { background: var(--bg); color
 .fcard__confirm { margin-left: auto; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .fcard__confirm-text { font-size: var(--fs-sm); font-weight: 700; }
 
+/* 공식 SNS 게시 신청의 채널 고르기: 라디오 3개를 한 묶음(fieldset)으로, 줄마다 채널 이름 · 올라가는 모양 · 배정될 날짜 */
+.channels { display: flex; flex-direction: column; gap: 8px; min-width: 0; margin: 0; padding: 0; border: 0; }
+.channels > legend { padding: 0; margin-bottom: 2px; }
+.channel { display: flex; align-items: center; gap: 12px; min-height: var(--tap); padding: 10px 14px; border: 1px solid var(--input-border); border-radius: var(--radius-md); background: var(--card); cursor: pointer; }
+.channel:hover { border-color: var(--primary); }
+.channel--on { border-color: var(--primary); background: var(--primary-soft); }
+.channel input { width: 22px; height: 22px; margin: 0; accent-color: var(--primary); flex: none; }
+.channel__text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.channel__name { font-weight: 800; line-height: 1.4; }
+.channel__format { font-size: var(--fs-sm); font-weight: 600; color: var(--text-muted); }
+.channel__date { font-size: var(--fs-sm); color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.channel--on .channel__date, .channel--on .channel__format { color: var(--primary-dark); }
+
 .composer { display: flex; flex-direction: column; gap: 20px; }
 .composer__preview { min-width: 0; }
 @media (min-width: 1024px) {

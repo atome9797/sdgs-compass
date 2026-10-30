@@ -6,12 +6,14 @@ import { COLORS, HIT, RADIUS, SPACE } from "@/theme";
 export interface OptionRowProps {
   title: string;
   subtitle?: string;
+  /** 보조 글을 몇 줄까지 보여 줄지 (기본 1줄. 날짜처럼 잘리면 안 되는 글은 2줄로 늘려요) */
+  subtitleLines?: number;
   selected: boolean;
   onPress: () => void;
   testID?: string;
 }
 
-export function OptionRow({ title, subtitle, selected, onPress, testID }: OptionRowProps) {
+export function OptionRow({ title, subtitle, subtitleLines = 1, selected, onPress, testID }: OptionRowProps) {
   return (
     <Pressable
       testID={testID}
@@ -32,7 +34,7 @@ export function OptionRow({ title, subtitle, selected, onPress, testID }: Option
           {title}
         </Txt>
         {subtitle ? (
-          <Txt variant="small" tone="muted" numberOfLines={1}>
+          <Txt variant="small" tone="muted" numberOfLines={subtitleLines}>
             {subtitle}
           </Txt>
         ) : null}

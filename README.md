@@ -391,7 +391,7 @@ PC 폭에서는 왼쪽 메뉴, 좁은 화면에서는 하단 탭으로 바뀌어
 - 아래 그림과 표 설명은 **실제 DB 에서 읽어 자동으로 만든 것**이에요(`npm run erd`). 스키마를 바꾸고 README 를 안 고치면 CI 가 실패해요.
 
 <!-- erd:begin — 자동 생성: node scripts/erd.mjs --write (db/schema.sql 에서 읽어요. 직접 고치지 마세요) -->
-표 58개 · 뷰 5개 · 외래 키 103개. 아래 그림과 표 설명은 `db/schema.sql` 을 실제 PostgreSQL 에 올려서 읽어 만든 거라, 스키마가 바뀌면 CI 가 README 를 다시 만들라고 알려 줘요.
+표 62개 · 뷰 6개 · 외래 키 112개. 아래 그림과 표 설명은 `db/schema.sql` 을 실제 PostgreSQL 에 올려서 읽어 만든 거라, 스키마가 바뀌면 CI 가 README 를 다시 만들라고 알려 줘요.
 
 #### 한눈에 보기 (핵심 표만, 열 생략)
 
@@ -435,6 +435,10 @@ erDiagram
   conversations ||..o{ messages : "conversation"
   companies ||..o{ cert_applications : "company"
   companies ||..o{ esg_reports : "company"
+  activities |o..o{ social_posts : "activity"
+  users ||..o{ social_posts : "author"
+  challenges |o..o{ social_posts : "challenge"
+  companies |o..o{ social_posts : "company"
 ```
 
 > 범례: `||` 정확히 하나 · `o|` 없거나 하나 · `o{` 없거나 여러 개 · 실선(`--`)은 부모 없이 존재할 수 없는 종속 관계(기본 키에 포함된 FK), 점선(`..`)은 일반 참조예요.
@@ -1296,12 +1300,83 @@ erDiagram
 | `analytics_daily` | 일별 통계 (SDG 별 트렌드 포함) | F-703 |
 | `content_translations` | 일본어↔한국어 번역 캐시 | 다국어 |
 
+#### ⑧ SNS 피드 · 공식 SNS 게시 — F-503, F-504
+
+학생의 실적 자랑 글(200자)과 기업의 홍보 글(제목 40자·본문 400자)을 한 피드에 모아요. 글마다 SDGs 태그 1~3개, 좋아요(사람마다 한 번·내 글 제외), 공식 SNS(Instagram 스토리) 게시 신청(하루에 한 회사)이 붙어요.
+
+```mermaid
+erDiagram
+  social_posts {
+    uuid id PK
+    post_kind kind
+    uuid author_id FK
+    uuid activity_id FK
+    uuid company_id FK
+    uuid challenge_id FK
+    text title
+    text body
+    locale_code source_lang
+    timestamptz blinded_at
+    timestamptz created_at
+  }
+  social_post_sdgs {
+    uuid post_id PK, FK
+    smallint position PK
+    smallint sdg_id FK
+  }
+  social_post_likes {
+    uuid post_id PK, FK
+    uuid user_id PK, FK
+    timestamptz created_at
+  }
+  official_share_slots {
+    uuid post_id PK, FK
+    date scheduled_on
+    int fee_yen
+    official_status status
+    timestamptz requested_at
+    timestamptz posted_at
+  }
+  activities {
+    uuid id PK
+  }
+  challenges {
+    uuid id PK
+  }
+  companies {
+    uuid id PK
+  }
+  sdgs {
+    smallint id PK
+  }
+  users {
+    uuid id PK
+  }
+  activities |o..o{ social_posts : "activity_id, author_id"
+  users ||..o{ social_posts : "author_id"
+  challenges |o..o{ social_posts : "challenge_id, company_id"
+  companies |o..o{ social_posts : "company_id"
+  social_posts ||--o{ social_post_sdgs : "post_id"
+  sdgs ||..o{ social_post_sdgs : "sdg_id"
+  social_posts ||--o{ social_post_likes : "post_id"
+  users ||--o{ social_post_likes : "user_id"
+  social_posts ||--o| official_share_slots : "post_id"
+```
+
+| 표 | 설명 | 기능 |
+| --- | --- | --- |
+| `social_posts` | SNS 피드 글 (학생 자랑 200자·기업 홍보 400자, 연락처 금지) | F-503, F-504 |
+| `social_post_sdgs` | 피드 글의 SDGs 태그 (글당 1~3개) | F-503, F-504 |
+| `social_post_likes` | 피드 글 좋아요 (사람마다 한 번, 내 글 제외) | F-503, F-504 |
+| `official_share_slots` | 공식 SNS(Instagram 스토리) 게시 신청 (하루 한 회사, 게시료 ¥3,000 샘플) | F-504 |
+
 #### 뷰 (집계·화면용)
 
 | 뷰 | 설명 | 기능 |
 | --- | --- | --- |
 | `challenge_stats` | 챌린지별 응모자 수·관심 수·평균 점수·남은 일수 | F-402 |
 | `company_fee_summary` | 기업별 수수료·기부·운영 수익 요약 | 수익 모델 |
+| `feed_posts` | 피드에 보이는 글 (닉네임·레벨 또는 기업 정보만, 블라인드 제외) | F-503, F-504 |
 | `impact_totals` | 학생별 누적 포인트와 레벨 | F-401 |
 | `proposal_current` | 제출 건 + 가장 최신 버전 (심사 화면용) | F-302 |
 | `talent_directory` | 인재 검색에 보이는 학생 (비공개·정지 계정 제외) | F-601 |

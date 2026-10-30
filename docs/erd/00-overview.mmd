@@ -37,3 +37,7 @@ erDiagram
   conversations ||..o{ messages : "conversation"
   companies ||..o{ cert_applications : "company"
   companies ||..o{ esg_reports : "company"
+  activities |o..o{ social_posts : "activity"
+  users ||..o{ social_posts : "author"
+  challenges |o..o{ social_posts : "challenge"
+  companies |o..o{ social_posts : "company"

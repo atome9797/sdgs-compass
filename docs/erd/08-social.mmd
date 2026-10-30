@@ -1,0 +1,56 @@
+erDiagram
+  social_posts {
+    uuid id PK
+    post_kind kind
+    uuid author_id FK
+    uuid activity_id FK
+    uuid company_id FK
+    uuid challenge_id FK
+    text title
+    text body
+    locale_code source_lang
+    timestamptz blinded_at
+    timestamptz created_at
+  }
+  social_post_sdgs {
+    uuid post_id PK, FK
+    smallint position PK
+    smallint sdg_id FK
+  }
+  social_post_likes {
+    uuid post_id PK, FK
+    uuid user_id PK, FK
+    timestamptz created_at
+  }
+  official_share_slots {
+    uuid post_id PK, FK
+    date scheduled_on
+    int fee_yen
+    official_status status
+    timestamptz requested_at
+    timestamptz posted_at
+  }
+  activities {
+    uuid id PK
+  }
+  challenges {
+    uuid id PK
+  }
+  companies {
+    uuid id PK
+  }
+  sdgs {
+    smallint id PK
+  }
+  users {
+    uuid id PK
+  }
+  activities |o..o{ social_posts : "activity_id, author_id"
+  users ||..o{ social_posts : "author_id"
+  challenges |o..o{ social_posts : "challenge_id, company_id"
+  companies |o..o{ social_posts : "company_id"
+  social_posts ||--o{ social_post_sdgs : "post_id"
+  sdgs ||..o{ social_post_sdgs : "sdg_id"
+  social_posts ||--o{ social_post_likes : "post_id"
+  users ||--o{ social_post_likes : "user_id"
+  social_posts ||--o| official_share_slots : "post_id"

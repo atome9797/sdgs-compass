@@ -71,11 +71,13 @@ CREATE TYPE slot_status        AS ENUM ('proposed', 'confirmed', 'cancelled');
 CREATE TYPE esg_category       AS ENUM ('E', 'S', 'G');
 CREATE TYPE cert_unit          AS ENUM ('percent', 'yen', 'hours', 'flag');
 CREATE TYPE cert_status        AS ENUM ('draft', 'submitted', 'granted', 'rejected');
-CREATE TYPE report_target      AS ENUM ('challenge', 'proposal', 'comment', 'message', 'user');
+CREATE TYPE report_target      AS ENUM ('challenge', 'proposal', 'comment', 'message', 'user', 'post');
 CREATE TYPE report_reason      AS ENUM ('copyright', 'plagiarism', 'inappropriate', 'spam', 'other');
 CREATE TYPE report_status      AS ENUM ('open', 'blinded', 'dismissed', 'deleted');
 CREATE TYPE cert_kind          AS ENUM ('participation', 'award');
 CREATE TYPE verify_result      AS ENUM ('valid', 'revoked', 'tampered', 'unknown');
+CREATE TYPE post_kind          AS ENUM ('brag', 'pr');                          -- F-503 학생 자랑 글 / F-504 기업 홍보 글
+CREATE TYPE official_status    AS ENUM ('scheduled', 'posted', 'cancelled');    -- 공식 SNS 게시 신청 (데모 앱은 scheduled 만 써요)
 
 -- ============================================================================
 -- 1. 참조 데이터 (앱의 상수와 같은 값: db/seed.sql 이 packages/core 에서 만들어져요)
@@ -870,6 +872,7 @@ CREATE TABLE activities (
   points        integer       NOT NULL CHECK (points >= 0),
   occurred_on   date          NOT NULL,
   created_at    timestamptz   NOT NULL DEFAULT now(),
+  UNIQUE (id, user_id),                                                -- 자랑 글(F-503)이 "내 실적"만 붙이도록 복합 FK 로 묶어요
   -- 수상 활동의 포인트는 수상 종류의 포인트와 같아야 해요 (award_id 가 NULL 이면 검사하지 않아요)
   FOREIGN KEY (award_id, points) REFERENCES awards (id, points),
   CONSTRAINT activities_kind_refs CHECK (
@@ -1207,6 +1210,211 @@ CREATE TABLE interview_slots (
 CREATE INDEX interview_slots_conversation_idx ON interview_slots (conversation_id, starts_at);
 
 -- ============================================================================
+-- 6-2. SNS 피드 — 학생 자랑 글 · 기업 홍보 글 · 좋아요 · 공식 SNS 게시 날짜 (F-503, F-504)
+--      앱의 규칙은 packages/core/src/post.ts (설계: docs/sns-feed.md). 같은 값을 db/tests/04_parity.sql 이 맞춰 봐요.
+--      연락처 검출은 위의 mask_contacts() 를 그대로 써요(앱의 containsContact 와 같은 규칙).
+-- ============================================================================
+
+-- 글자 수: 앞뒤의 공백(JavaScript trim 이 자르는 문자 전부 — 공백·탭·줄바꿈·NBSP·전각 공백·BOM 등)을 자르고 코드포인트를 세요.
+-- 앱의 charCount() 와 같아요: 이모지·한자도 1글자. (PostgreSQL 의 btrim 은 공백만 잘라서 쓰지 않아요.)
+CREATE FUNCTION post_char_count(txt text) RETURNS integer
+  LANGUAGE sql IMMUTABLE PARALLEL SAFE
+  AS $$
+    SELECT char_length(regexp_replace(txt, '^[\t\n\v\f\r \u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000\ufeff]+|[\t\n\v\f\r \u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000\ufeff]+$', '', 'g'))
+  $$;
+
+-- 피드의 글 한 건. brag = 학생 자랑 글(내 실적 1건 필수, 본문 1~200자), pr = 기업 홍보 글(제목 1~40자, 본문 1~400자).
+-- 둘 다 이메일 주소·전화번호처럼 보이는 글자는 쓸 수 없어요. 글은 쓴 언어 그대로 저장하고(source_lang), 다른 언어 번역은 content_translations 에 둬요.
+-- 글쓴이의 레벨은 저장하지 않아요: 앱(BragPost.authorLevel)은 글을 올린 때의 레벨을 스냅샷으로 들고 있지만, DB 는 feed_posts 뷰가 impact_totals 의 지금 값을 보여 줘요.
+CREATE TABLE social_posts (
+  id           uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  kind         post_kind   NOT NULL,
+  author_id    uuid        NOT NULL REFERENCES users (id) ON DELETE CASCADE,   -- brag: 학생 본인, pr: 그 기업의 담당자
+  activity_id  uuid,                                                          -- brag 만: 글에 붙인 내 실적(수상·제출·참가) — 아래 복합 FK 가 "내 실적"임을 보장
+  company_id   uuid        REFERENCES companies (id),                         -- pr 만: 홍보하는 기업
+  challenge_id uuid,                                                          -- pr 만(선택): 연결한 그 기업의 챌린지
+  title        text,                                                          -- pr 만: 1~40자 (POST_LIMITS.prTitle)
+  body         text        NOT NULL,                                          -- brag 1~200자 (bragBody) / pr 1~400자 (prBody)
+  source_lang  locale_code NOT NULL DEFAULT 'ja',
+  blinded_at   timestamptz,                                                   -- F-702 블라인드: 피드에서 빠져요
+  created_at   timestamptz NOT NULL DEFAULT now(),
+  FOREIGN KEY (activity_id, author_id)    REFERENCES activities (id, user_id) ON DELETE CASCADE,
+  FOREIGN KEY (challenge_id, company_id)  REFERENCES challenges (id, company_id) ON DELETE SET NULL (challenge_id),
+  CONSTRAINT social_posts_kind_fields CHECK (
+    CASE kind
+      WHEN 'brag' THEN activity_id IS NOT NULL AND company_id IS NULL AND challenge_id IS NULL AND title IS NULL
+      WHEN 'pr'   THEN activity_id IS NULL AND company_id IS NOT NULL AND title IS NOT NULL
+    END
+  ),
+  CONSTRAINT social_posts_title_len  CHECK (title IS NULL OR post_char_count(title) BETWEEN 1 AND 40),
+  CONSTRAINT social_posts_body_len   CHECK (post_char_count(body) BETWEEN 1 AND CASE kind WHEN 'brag' THEN 200 ELSE 400 END),
+  CONSTRAINT social_posts_no_contact CHECK (mask_contacts(body) = body AND (title IS NULL OR mask_contacts(title) = title))
+);
+CREATE INDEX social_posts_feed_idx      ON social_posts (created_at DESC);
+CREATE INDEX social_posts_kind_idx      ON social_posts (kind, created_at DESC);                              -- "기업 홍보 / 학생 자랑" 필터
+CREATE INDEX social_posts_author_idx    ON social_posts (author_id, created_at DESC);
+CREATE INDEX social_posts_company_idx   ON social_posts (company_id, created_at DESC) WHERE company_id IS NOT NULL;
+CREATE INDEX social_posts_activity_idx  ON social_posts (activity_id) WHERE activity_id IS NOT NULL;
+CREATE INDEX social_posts_challenge_idx ON social_posts (challenge_id) WHERE challenge_id IS NOT NULL;
+
+CREATE FUNCTION social_posts_guard() RETURNS trigger
+  LANGUAGE plpgsql AS $$
+DECLARE
+  act_kind activity_kind;
+BEGIN
+  IF TG_OP = 'UPDATE' THEN
+    -- 본문·제목·연결 챌린지만 고칠 수 있어요. 종류·글쓴이·붙인 실적·기업이 바뀌면 처음 검사를 건너뛸 수 있으니 막아요.
+    IF (NEW.kind, NEW.author_id, NEW.activity_id, NEW.company_id) IS DISTINCT FROM (OLD.kind, OLD.author_id, OLD.activity_id, OLD.company_id) THEN
+      RAISE EXCEPTION '글의 종류·글쓴이·붙인 실적·기업은 바꿀 수 없어요' USING ERRCODE = 'restrict_violation';
+    END IF;
+    RETURN NEW;
+  END IF;
+
+  IF NEW.kind = 'brag' THEN
+    -- 카드뉴스를 공유한 기록(share)은 실적이 아니에요. 수상·제출·참가 중 하나여야 해요 (F-503)
+    SELECT kind INTO act_kind FROM activities WHERE id = NEW.activity_id;
+    IF act_kind = 'share' THEN
+      RAISE EXCEPTION '자랑 글에는 수상·제출·참가 실적만 붙일 수 있어요 (카드뉴스 공유 기록은 안 돼요)' USING ERRCODE = 'check_violation';
+    END IF;
+  ELSE
+    IF NOT EXISTS (SELECT 1 FROM companies WHERE id = NEW.company_id AND status = 'approved') THEN
+      RAISE EXCEPTION '승인된 기업만 홍보 글을 올릴 수 있어요 (F-504)' USING ERRCODE = 'check_violation';
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM company_members WHERE company_id = NEW.company_id AND user_id = NEW.author_id) THEN
+      RAISE EXCEPTION '그 기업의 담당자만 홍보 글을 올릴 수 있어요 (F-504)' USING ERRCODE = 'check_violation';
+    END IF;
+  END IF;
+  RETURN NEW;
+END $$;
+CREATE TRIGGER social_posts_guard_ins BEFORE INSERT ON social_posts FOR EACH ROW EXECUTE FUNCTION social_posts_guard();
+CREATE TRIGGER social_posts_guard_upd BEFORE UPDATE ON social_posts FOR EACH ROW EXECUTE FUNCTION social_posts_guard();
+
+-- 글의 SDGs 태그: 글당 1~3개 (packages/core POST_LIMITS.maxSdgs). 챌린지의 SDGs 와 같이 position(1~3)을 PK 에 넣어서 "최대 3개"를 CHECK 하나로 보장해요.
+-- 자랑 글의 태그는 붙인 실적의 SDGs 중에서만 고를 수 있고, 홍보 글은 17개 중에서 자유롭게 골라요.
+CREATE TABLE social_post_sdgs (
+  post_id  uuid     NOT NULL REFERENCES social_posts (id) ON DELETE CASCADE,
+  position smallint NOT NULL CHECK (position BETWEEN 1 AND 3),
+  sdg_id   smallint NOT NULL REFERENCES sdgs (id),
+  PRIMARY KEY (post_id, position),
+  UNIQUE (post_id, sdg_id)
+);
+CREATE INDEX social_post_sdgs_sdg_idx ON social_post_sdgs (sdg_id);
+
+CREATE FUNCTION social_post_sdgs_guard() RETURNS trigger
+  LANGUAGE plpgsql AS $$
+DECLARE
+  post social_posts%ROWTYPE;
+BEGIN
+  SELECT * INTO post FROM social_posts WHERE id = NEW.post_id;
+  IF post.kind = 'brag' AND NOT EXISTS (SELECT 1 FROM activity_sdgs WHERE activity_id = post.activity_id AND sdg_id = NEW.sdg_id) THEN
+    RAISE EXCEPTION '자랑 글의 SDGs 태그는 붙인 실적의 SDGs 에서만 고를 수 있어요 (SDG %)', NEW.sdg_id USING ERRCODE = 'check_violation';
+  END IF;
+  RETURN NEW;
+END $$;
+CREATE TRIGGER social_post_sdgs_guard_ins BEFORE INSERT OR UPDATE ON social_post_sdgs FOR EACH ROW EXECUTE FUNCTION social_post_sdgs_guard();
+
+-- 글에는 태그가 1개 이상 있어야 해요 — 트랜잭션이 끝날 때 확인해요 (글과 태그를 같은 트랜잭션에서 넣고, 태그를 모두 지우는 것도 막아요).
+-- 글을 지울 때는 태그가 함께 지워지지만 글도 없어졌으니 통과해요.
+CREATE FUNCTION social_posts_require_sdg() RETURNS trigger
+  LANGUAGE plpgsql AS $$
+DECLARE
+  pid uuid;
+BEGIN
+  IF TG_OP = 'DELETE' THEN pid := OLD.post_id; ELSE pid := NEW.id; END IF;
+  IF EXISTS (SELECT 1 FROM social_posts WHERE id = pid) AND NOT EXISTS (SELECT 1 FROM social_post_sdgs WHERE post_id = pid) THEN
+    RAISE EXCEPTION '글에는 SDGs 태그가 1개 이상 있어야 해요 (최대 3개)' USING ERRCODE = 'check_violation';
+  END IF;
+  RETURN NULL;
+END $$;
+CREATE CONSTRAINT TRIGGER social_posts_has_sdg AFTER INSERT ON social_posts
+  DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION social_posts_require_sdg();
+CREATE CONSTRAINT TRIGGER social_post_sdgs_keep_one AFTER DELETE ON social_post_sdgs
+  DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION social_posts_require_sdg();
+
+-- 좋아요: 사람(계정)마다 글 하나에 한 번. 데모 앱은 학생 계정과 기업 계정의 좋아요를 따로 세는데(likedBy), DB 에서는 두 계정 = 두 사용자예요.
+CREATE TABLE social_post_likes (
+  post_id    uuid        NOT NULL REFERENCES social_posts (id) ON DELETE CASCADE,
+  user_id    uuid        NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (post_id, user_id)
+);
+CREATE INDEX social_post_likes_user_idx ON social_post_likes (user_id);
+
+-- 내가 쓴 글(홍보 글은 우리 기업 담당자 전원의 글)에는 누를 수 없고, 블라인드된 글에도 누를 수 없어요
+CREATE FUNCTION social_post_likes_guard() RETURNS trigger
+  LANGUAGE plpgsql AS $$
+DECLARE
+  post social_posts%ROWTYPE;
+BEGIN
+  SELECT * INTO post FROM social_posts WHERE id = NEW.post_id;
+  IF post.author_id = NEW.user_id
+     OR (post.company_id IS NOT NULL AND EXISTS (SELECT 1 FROM company_members WHERE company_id = post.company_id AND user_id = NEW.user_id)) THEN
+    RAISE EXCEPTION '내가 쓴 글(또는 우리 기업의 글)에는 좋아요를 누를 수 없어요' USING ERRCODE = 'check_violation';
+  END IF;
+  IF post.blinded_at IS NOT NULL THEN
+    RAISE EXCEPTION '블라인드된 글에는 좋아요를 누를 수 없어요' USING ERRCODE = 'check_violation';
+  END IF;
+  RETURN NEW;
+END $$;
+CREATE TRIGGER social_post_likes_guard_ins BEFORE INSERT ON social_post_likes FOR EACH ROW EXECUTE FUNCTION social_post_likes_guard();
+
+-- F-504 공식 SNS(Instagram 스토리) 게시 신청: 기업 홍보 글 하나에 한 번, 하루에 한 회사만(예정·게시 완료 상태의 같은 날짜는 한 건뿐).
+-- 취소하거나 글을 지우면 그 날짜는 다시 비어요. 게시료 ¥3,000 은 샘플 값이고 정산은 하지 않아요(OFFICIAL_SHARE_FEE_YEN).
+-- 데모 앱에는 관리자 화면이 없어서 scheduled 까지만 써요. posted·cancelled 는 서버의 운영 도구가 바꿔요.
+CREATE TABLE official_share_slots (
+  post_id      uuid PRIMARY KEY REFERENCES social_posts (id) ON DELETE CASCADE,
+  scheduled_on date            NOT NULL,                                   -- 게시 예정일 (신청한 날의 다음 날 이후)
+  fee_yen      integer         NOT NULL DEFAULT 3000 CHECK (fee_yen >= 0),
+  status       official_status NOT NULL DEFAULT 'scheduled',
+  requested_at timestamptz     NOT NULL DEFAULT now(),
+  posted_at    timestamptz,
+  CONSTRAINT official_share_posted CHECK ((status = 'posted') = (posted_at IS NOT NULL))
+);
+CREATE UNIQUE INDEX official_share_slots_one_per_day ON official_share_slots (scheduled_on) WHERE status IN ('scheduled', 'posted');
+
+CREATE FUNCTION official_share_slots_guard() RETURNS trigger
+  LANGUAGE plpgsql AS $$
+BEGIN
+  IF TG_OP = 'INSERT' THEN
+    IF NOT EXISTS (SELECT 1 FROM social_posts WHERE id = NEW.post_id AND kind = 'pr' AND blinded_at IS NULL) THEN
+      RAISE EXCEPTION '공식 SNS 게시는 (블라인드되지 않은) 기업 홍보 글에만 신청할 수 있어요 (F-504)' USING ERRCODE = 'check_violation';
+    END IF;
+    IF NEW.status <> 'scheduled' THEN
+      RAISE EXCEPTION '새 신청은 예정(scheduled) 상태로만 만들 수 있어요 (%)', NEW.status USING ERRCODE = 'check_violation';
+    END IF;
+  ELSE
+    -- 예정 → 게시 완료 / 취소만 가능하고, 끝난 신청은 되돌리거나 날짜를 옮길 수 없어요
+    IF NOT (OLD.status = NEW.status OR (OLD.status = 'scheduled' AND NEW.status IN ('posted', 'cancelled'))) THEN
+      RAISE EXCEPTION '게시 신청 상태를 % → % 로 바꿀 수 없어요', OLD.status, NEW.status USING ERRCODE = 'check_violation';
+    END IF;
+    IF OLD.status <> 'scheduled' AND NEW.scheduled_on IS DISTINCT FROM OLD.scheduled_on THEN
+      RAISE EXCEPTION '게시를 마쳤거나 취소한 신청의 날짜는 바꿀 수 없어요' USING ERRCODE = 'check_violation';
+    END IF;
+    IF NEW.status = 'posted' AND OLD.status <> 'posted' THEN
+      NEW.posted_at := COALESCE(NEW.posted_at, now());
+    END IF;
+  END IF;
+  IF (TG_OP = 'INSERT' OR NEW.scheduled_on IS DISTINCT FROM OLD.scheduled_on) AND NEW.scheduled_on <= jst_date(NEW.requested_at) THEN
+    RAISE EXCEPTION '게시 예정일은 신청한 날의 다음 날 이후여야 해요 (신청 %, 예정 %)', jst_date(NEW.requested_at), NEW.scheduled_on USING ERRCODE = 'check_violation';
+  END IF;
+  RETURN NEW;
+END $$;
+CREATE TRIGGER official_share_slots_guard_ins BEFORE INSERT ON official_share_slots FOR EACH ROW EXECUTE FUNCTION official_share_slots_guard();
+CREATE TRIGGER official_share_slots_guard_upd BEFORE UPDATE ON official_share_slots FOR EACH ROW EXECUTE FUNCTION official_share_slots_guard();
+
+-- 신청에 배정할 날짜: 오늘(일본 시간) 다음 날부터 가장 빠른 빈 날짜. 앱의 nextOfficialDate() 와 같아요.
+-- 이미 받은(예정·게시 완료) 날짜를 건너뛰어요. 받은 날짜가 N 개면 N+1 일 안에 반드시 빈 날이 있어요.
+CREATE FUNCTION next_official_share_date(p_today date DEFAULT jst_date(now())) RETURNS date
+  LANGUAGE sql STABLE
+  AS $$
+    SELECT p_today + g
+      FROM generate_series(1, 1 + (SELECT count(*)::integer FROM official_share_slots WHERE status IN ('scheduled', 'posted'))) AS g
+     WHERE NOT EXISTS (SELECT 1 FROM official_share_slots s WHERE s.scheduled_on = p_today + g AND s.status IN ('scheduled', 'posted'))
+     ORDER BY g
+     LIMIT 1
+  $$;
+
+-- ============================================================================
 -- 7. ESG 리포트 · SDGs 인증마크 (F-403, 인증마크 부여 프로세스)
 -- ============================================================================
 
@@ -1374,7 +1582,7 @@ CREATE UNIQUE INDEX analytics_daily_key ON analytics_daily (day, metric, COALESC
 
 -- 일본어↔한국어 번역 캐시: 사용자가 쓴 글(챌린지·기업 소개·게시글·메시지)을 반대 언어로 보여 줄 때 써요.
 CREATE TABLE content_translations (
-  entity             text        NOT NULL CHECK (entity IN ('challenge', 'company', 'team_post', 'comment', 'message')),
+  entity             text        NOT NULL CHECK (entity IN ('challenge', 'company', 'team_post', 'comment', 'message', 'social_post')),
   entity_id          uuid        NOT NULL,
   field              text        NOT NULL CHECK (field ~ '^[a-z_]+$'),
   locale             locale_code NOT NULL,
@@ -1403,6 +1611,29 @@ CREATE VIEW company_fee_summary AS
          sum(fee_yen)::integer AS fee_yen, sum(donation_yen)::integer AS donation_yen, sum(revenue_yen)::integer AS revenue_yen
     FROM matches
    GROUP BY company_id;
+
+-- 피드 화면(F-503·F-504): 블라인드되지 않은 글 + 글쓴이 표시 + 붙은 실적 + 태그 + 좋아요 수 + 공식 게시 날짜.
+-- 자랑 글은 닉네임과 레벨만, 홍보 글은 기업 정보만 보여요 (이메일·연락처 열은 없어요). 최신순은 화면이 ORDER BY created_at DESC 로 정해요.
+-- 레벨은 지금 값이에요 (앱의 샘플 글은 올린 때의 레벨을 그대로 들고 있어요).
+CREATE VIEW feed_posts AS
+  SELECT p.id, p.kind, p.created_at, p.source_lang, p.title, p.body,
+         CASE p.kind WHEN 'brag' THEN sp.nickname ELSE c.name END AS author_name,
+         CASE p.kind WHEN 'brag' THEN t.level END AS author_level,
+         c.industry AS company_industry,
+         (c.status = 'approved') AS company_verified,
+         p.company_id, p.challenge_id, p.activity_id,
+         a.kind AS achievement_kind, a.title AS achievement_title, a.company_name AS achievement_company, aw.kind AS achievement_award,
+         ARRAY(SELECT s.sdg_id FROM social_post_sdgs s WHERE s.post_id = p.id ORDER BY s.position) AS sdg_ids,
+         (SELECT count(*) FROM social_post_likes l WHERE l.post_id = p.id)::integer AS like_count,
+         o.scheduled_on AS official_on, o.fee_yen AS official_fee_yen, o.status AS official_status
+    FROM social_posts p
+    LEFT JOIN student_profiles sp    ON sp.user_id = p.author_id AND p.kind = 'brag'
+    LEFT JOIN impact_totals t        ON t.user_id = p.author_id AND p.kind = 'brag'
+    LEFT JOIN companies c            ON c.id = p.company_id
+    LEFT JOIN activities a           ON a.id = p.activity_id
+    LEFT JOIN awards aw              ON aw.id = a.award_id
+    LEFT JOIN official_share_slots o ON o.post_id = p.id AND o.status <> 'cancelled'
+   WHERE p.blinded_at IS NULL;
 
 -- ============================================================================
 -- 9-2. 외래 키 보조 색인 — 부모 행을 지울 때(CASCADE/SET NULL) 자식 표를 처음부터 끝까지 훑지 않게 해요
@@ -1472,6 +1703,10 @@ COMMENT ON TABLE scouts                     IS '스카우트 제안 (하루 3건
 COMMENT ON TABLE conversations              IS '기업 ↔ 학생 1:1 대화방 — F-603';
 COMMENT ON TABLE messages                   IS '메시지 (연락처 마스킹) — F-603';
 COMMENT ON TABLE interview_slots            IS '면접 일정 (확정 일정은 겹칠 수 없음) — F-603';
+COMMENT ON TABLE social_posts               IS 'SNS 피드 글 (학생 자랑 200자·기업 홍보 400자, 연락처 금지) — F-503, F-504';
+COMMENT ON TABLE social_post_sdgs           IS '피드 글의 SDGs 태그 (글당 1~3개) — F-503, F-504';
+COMMENT ON TABLE social_post_likes          IS '피드 글 좋아요 (사람마다 한 번, 내 글 제외) — F-503, F-504';
+COMMENT ON TABLE official_share_slots       IS '공식 SNS(Instagram 스토리) 게시 신청 (하루 한 회사, 게시료 ¥3,000 샘플) — F-504';
 COMMENT ON TABLE esg_reports                IS 'ESG 성과 리포트 (PDF/Excel) — F-403';
 COMMENT ON TABLE cert_applications          IS 'SDGs 인증마크 신청 (점수·★1~3) — 인증마크';
 COMMENT ON TABLE cert_answers               IS '인증마크 항목별 답변과 증빙 — 인증마크';
@@ -1486,3 +1721,5 @@ COMMENT ON VIEW impact_totals               IS '학생별 누적 포인트와 �
 COMMENT ON VIEW talent_directory            IS '인재 검색에 보이는 학생 (비공개·정지 계정 제외) — F-601';
 COMMENT ON VIEW challenge_stats             IS '챌린지별 응모자 수·관심 수·평균 점수·남은 일수 — F-402';
 COMMENT ON VIEW company_fee_summary         IS '기업별 수수료·기부·운영 수익 요약 — 수익 모델';
+COMMENT ON VIEW feed_posts                  IS '피드에 보이는 글 (닉네임·레벨 또는 기업 정보만, 블라인드 제외) — F-503, F-504';
+COMMENT ON COLUMN feed_posts.author_level   IS '자랑 글 글쓴이의 지금 레벨 (앱은 글을 올린 때의 레벨을 스냅샷으로 저장해요)';

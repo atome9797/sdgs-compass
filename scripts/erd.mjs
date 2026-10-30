@@ -52,13 +52,18 @@ const GROUPS = [
     summary: "마감 알림(D-7/D-3/D-1), 신고·블랙리스트, 변경 불가 감사 로그, 일별 통계, 일본어↔한국어 번역 캐시예요.",
     tables: ["notification_prefs", "device_tokens", "notifications", "reports", "blacklist_entries", "admin_actions", "analytics_daily", "content_translations"],
   },
+  {
+    id: "social", no: "⑧", title: "SNS 피드 · 공식 SNS 게시", features: "F-503, F-504",
+    summary: "학생의 실적 자랑 글(200자)과 기업의 홍보 글(제목 40자·본문 400자)을 한 피드에 모아요. 글마다 SDGs 태그 1~3개, 좋아요(사람마다 한 번·내 글 제외), 공식 SNS(Instagram 스토리) 게시 신청(하루에 한 회사)이 붙어요.",
+    tables: ["social_posts", "social_post_sdgs", "social_post_likes", "official_share_slots"],
+  },
 ];
 
 // "한눈에 보기" 에 넣을 핵심 표 (열은 생략하고 관계만 그려요)
 const OVERVIEW = [
   "users", "student_profiles", "companies", "company_members", "challenges", "challenge_judges", "teams", "team_members", "proposals", "proposal_versions",
   "reviews", "awards", "matches", "donations", "activities", "impact_scores", "certificates", "scouts", "conversations", "messages",
-  "cert_applications", "esg_reports", "sdgs",
+  "cert_applications", "esg_reports", "sdgs", "social_posts",
 ];
 
 // ───────── DB 읽기 ─────────

@@ -12,7 +12,10 @@ import { BADGE_CODES, BADGE_EMOJI, levelOf, SDG_SATURATION } from "../packages/c
 import { CERT_CRITERIA, evaluateCertification } from "../packages/core/src/certification";
 import { splitMatchFee } from "../packages/core/src/fees";
 import { issueCertificate, qrPayload, verifyCode } from "../packages/core/src/certificate";
-import type { ActivityKind, AwardKind, CertAnswers, CertCriterionId, ChallengeStatus, Participation, ProposalStatus, RewardKind, Role, ScoutKind, ScoutStatus } from "../packages/core/src/domain";
+import type { ActivityKind, AwardKind, CertAnswers, CertCriterionId, ChallengeStatus, OfficialShare, Participation, PostKind, ProposalStatus, RewardKind, Role, ScoutKind, ScoutStatus, SocialPost } from "../packages/core/src/domain";
+import { containsContact, nextOfficialDate, OFFICIAL_SHARE_FEE_YEN, POST_LIMITS, validatePostDraft } from "../packages/core/src/post";
+import type { PostContext, PostDraft } from "../packages/core/src/post";
+import { charCount } from "../packages/core/src/proposal";
 import { LOCALES } from "../packages/core/src/i18n";
 import { CARD_TEMPLATES } from "../packages/core/src/shareCard";
 import type { Certificate } from "../packages/core/src/certificate";
@@ -167,6 +170,8 @@ function buildGolden(): string {
   }
   out.push(`CREATE TEMP TABLE golden_certificates (serial_no text PRIMARY KEY, kind text, holder_name text, challenge_title text, company_name text, award_kind text, sdg_ids smallint[], points integer, issued_on date, content_hash text, verify_code text, qr_payload text);`);
   out.push(`INSERT INTO golden_certificates VALUES\n${rows(certRows)}\n`);
+
+  out.push(...buildFeedGolden());
   return out.join("\n");
 }
 
@@ -179,6 +184,8 @@ const ENUMS: Array<{ name: string; labels: string[]; exact: boolean }> = [
   { name: "proposal_status", labels: keysOf<ProposalStatus>({ submitted: true, reviewed: true, awarded: true, adopted: true }), exact: false },
   { name: "award_kind", labels: keysOf<AwardKind>({ grand: true, excellence: true, special: true }), exact: true },
   { name: "activity_kind", labels: keysOf<ActivityKind>({ participation: true, submission: true, award: true, share: true }), exact: true },
+  { name: "post_kind", labels: keysOf<PostKind>({ brag: true, pr: true }), exact: true },
+  { name: "official_status", labels: keysOf<OfficialShare["status"]>({ scheduled: true }), exact: false },
   { name: "scout_kind", labels: keysOf<ScoutKind>({ internship: true, offer: true, interview: true }), exact: true },
   { name: "scout_status", labels: keysOf<ScoutStatus>({ sent: true, read: true, accepted: true, declined: true }), exact: false },
   { name: "user_role", labels: keysOf<Role>({ b2c: true, b2b: true }), exact: false },
@@ -192,6 +199,264 @@ function blankAnswers(): CertAnswers {
   const answers = {} as CertAnswers;
   for (const c of CERT_CRITERIA) answers[c.id as CertCriterionId] = { value: 0, evidence: false };
   return answers;
+}
+
+// ───────── SNS 피드 (F-503 · F-504, docs/sns-feed.md §5) ─────────
+// packages/core/src/post.ts 의 규칙을 표로 만들어요: 한도 상수 · 글자 수 · 연락처 검출 · 공식 SNS 게시 날짜 · 입력 검사.
+// db/tests/04_parity.sql 이 같은 입력을 DB 에 넣어 보고 결과가 같은지 대조해요.
+
+/** 보이지 않거나 헷갈리는 글자(공백류·제어 문자·BOM·결합 문자 …)의 코드포인트 범위. SQL 파일에서도 눈에 보이게 U&'\+XXXXXX' 로 적어요 */
+const INVISIBLE_RANGES: ReadonlyArray<readonly [number, number]> = [
+  [0x0000, 0x001f], [0x007f, 0x00a0], [0x00ad, 0x00ad], [0x0300, 0x036f], [0x1680, 0x1680], [0x180e, 0x180e], [0x2000, 0x200f],
+  [0x2028, 0x202f], [0x205f, 0x2064], [0x2800, 0x2800], [0x3000, 0x3000], [0x3164, 0x3164], [0xfe00, 0xfe0f], [0xfeff, 0xfeff], [0xffa0, 0xffa0],
+];
+const isInvisible = (code: number) => INVISIBLE_RANGES.some(([from, to]) => code >= from && code <= to);
+
+function sqlLiteral(value: string): string {
+  let escaped = false;
+  let out = "";
+  for (const ch of value) {
+    const code = ch.codePointAt(0)!;
+    if (ch === "'") out += "''";
+    else if (ch === "\\") {
+      out += "\\\\";
+      escaped = true;
+    } else if (isInvisible(code)) {
+      out += `\\+${code.toString(16).toUpperCase().padStart(6, "0")}`;
+      escaped = true;
+    } else out += ch;
+  }
+  return escaped ? `U&'${out}'` : `'${out}'`;
+}
+
+/** 글 표의 글자 리터럴. 같은 글자가 20번 넘게 이어지면 repeat() 로 줄여요 (200자·400자 경계 시험용) */
+function sqlText(value: string): string {
+  const chars = [...value];
+  const parts: string[] = [];
+  let buffer = "";
+  for (let i = 0; i < chars.length; ) {
+    let j = i;
+    while (j < chars.length && chars[j] === chars[i]) j++;
+    if (j - i >= 20) {
+      if (buffer !== "") parts.push(sqlLiteral(buffer));
+      buffer = "";
+      parts.push(`repeat(${sqlLiteral(chars[i])}, ${j - i})`);
+    } else buffer += chars.slice(i, j).join("");
+    i = j;
+  }
+  if (buffer !== "" || parts.length === 0) parts.push(sqlLiteral(buffer));
+  return parts.length === 1 ? parts[0] : `(${parts.join(" || ")})`;
+}
+
+/** 소스 파일에 보이지 않는 글자를 그대로 쓰지 않도록, 코드포인트 번호로 만들어요 */
+const fromCodes = (...codes: number[]) => String.fromCodePoint(...codes);
+const NBSP = fromCodes(0x00a0);
+const IDEOGRAPHIC_SPACE = fromCodes(0x3000); // 전각 공백
+const ZWJ = fromCodes(0x200d);
+const BOM = fromCodes(0xfeff);
+const NEL = fromCodes(0x0085); // JS trim() 이 자르지 않는 줄 끝 문자
+const MONGOLIAN_VOWEL_SEPARATOR = fromCodes(0x180e); // 예전엔 공백이었지만 지금의 trim() 은 자르지 않아요
+const ZERO_WIDTH_SPACE = fromCodes(0x200b);
+const SOFT_HYPHEN = fromCodes(0x00ad);
+const HANGUL_FILLER = fromCodes(0x3164);
+const BRAILLE_BLANK = fromCodes(0x2800);
+const COMBINING_ACUTE = fromCodes(0x0301);
+/** 전각 문자로 바꿔요 (ASCII 0x21~0x7e → U+FF01~U+FF5E): 앱도 DB 도 전각 숫자·@ 는 연락처로 보지 않아요 */
+const fullwidth = (text: string) => [...text].map((c) => (c.codePointAt(0)! >= 0x21 && c.codePointAt(0)! <= 0x7e ? String.fromCodePoint(c.codePointAt(0)! + 0xfee0) : c)).join("");
+
+/** 입력 검사 대조표의 한 줄: 앱의 draft 는 아래 시나리오에서 만들고, DB 쪽 시험은 같은 시나리오를 실제 INSERT 로 옮겨요 */
+interface DraftScenario {
+  label: string;
+  kind: PostKind;
+  body: string;
+  title?: string;
+  /** 자랑 글: own = 내 참가 실적, none = 실적 없음, other = 다른 학생의 실적, share = 카드뉴스 공유 기록(실적이 아님) */
+  activity?: "own" | "none" | "other" | "share";
+  /** 홍보 글: 고른 SDGs 태그 수 (0~5) */
+  sdgCount?: number;
+  /** 홍보 글: none = 연결 없음, own = 우리 회사 챌린지, other = 다른 회사 챌린지 */
+  challenge?: "none" | "own" | "other";
+}
+
+function buildFeedGolden(): string[] {
+  const out: string[] = [];
+
+  // 한도: POST_LIMITS 의 모든 값 + 공식 게시료. core 에 한도가 늘면 여기에도 자동으로 들어와서, DB 쪽 대조가 없으면 04_parity.sql 이 알려 줘요.
+  const limits: Array<[string, number]> = [...Object.entries(POST_LIMITS), ["officialFeeYen", OFFICIAL_SHARE_FEE_YEN]];
+  out.push(`-- ───── SNS 피드 (F-503 · F-504) ─────`);
+  out.push(`CREATE TEMP TABLE golden_post_limits (name text PRIMARY KEY, value integer NOT NULL);`);
+  out.push(`INSERT INTO golden_post_limits VALUES\n${rows(limits.map(([name, value]) => `(${q(name)}, ${value})`))}\n`);
+
+  // 글자 수: JS trim() 이 잘라 내는 글자를 BMP 전체에서 찾아요. DB 의 post_char_count 가 글자마다 같은 판정을 하는지 대조해요.
+  const trimmed: number[] = [];
+  for (let code = 1; code <= 0xffff; code++) {
+    if (code >= 0xd800 && code <= 0xdfff) continue;
+    if (String.fromCharCode(code).trim() === "") trimmed.push(code);
+  }
+  out.push(`CREATE TEMP TABLE golden_trim_chars (code_point integer PRIMARY KEY);`);
+  out.push(`INSERT INTO golden_trim_chars VALUES\n${rows(trimmed.map((code) => `(${code} /* U+${code.toString(16).toUpperCase().padStart(4, "0")} */)`))}\n`);
+
+  const charCases: Array<[string, string]> = [
+    ["빈 글", ""],
+    ["공백 하나", " "],
+    ["영문 3글자", "abc"],
+    ["일본어", "初めての挑戦です"],
+    ["한국어", "첫 도전이었어요"],
+    ["한자 한 글자", "海"],
+    ["이모지 한 개", "🏆"],
+    ["이모지 세 개", "🏆🌊🌱"],
+    ["ZWJ 로 이은 가족 이모지 (코드포인트 5개)", `👨${ZWJ}👩${ZWJ}👧`],
+    ["피부색 이모지 (코드포인트 2개)", "👍🏽"],
+    ["결합 문자 (e + ´ = 코드포인트 2개)", `e${COMBINING_ACUTE}`],
+    ["가운데 공백은 센다", "あ  い"],
+    ["앞뒤 공백은 자른다", "  あ  "],
+    ["가운데 줄바꿈·탭은 센다", "あ\n\tい"],
+    ["CRLF 는 두 글자", "あ\r\nい"],
+    ["NBSP 가 가운데에 있으면 센다", `あ${NBSP}い`],
+    ["전각 공백뿐인 글", IDEOGRAPHIC_SPACE + IDEOGRAPHIC_SPACE],
+    ["전각 공백으로 감싼 한자", `${IDEOGRAPHIC_SPACE}題${IDEOGRAPHIC_SPACE}`],
+    ["BOM 으로 감싼 글", `${BOM}あ${BOM}`],
+    ["줄바꿈뿐인 글", "\n\n\n"],
+    ["NEL(U+0085)으로 감싼 글 — trim() 이 자르지 않는다", `${NEL}あ${NEL}`],
+    ["몽골 모음 구분자(U+180E)로 감싼 글 — 자르지 않는다", `${MONGOLIAN_VOWEL_SEPARATOR}あ${MONGOLIAN_VOWEL_SEPARATOR}`],
+    ["폭 없는 공백(U+200B)으로 감싼 글 — 자르지 않는다", `${ZERO_WIDTH_SPACE}あ${ZERO_WIDTH_SPACE}`],
+    ["소프트 하이픈(U+00AD)으로 감싼 글 — 자르지 않는다", `${SOFT_HYPHEN}あ${SOFT_HYPHEN}`],
+    ["한글 채움 문자(U+3164)로 감싼 글 — 자르지 않는다", `${HANGUL_FILLER}あ${HANGUL_FILLER}`],
+    ["점자 빈칸(U+2800)으로 감싼 글 — 자르지 않는다", `${BRAILLE_BLANK}あ${BRAILLE_BLANK}`],
+    ["한자 200자", "題".repeat(200)],
+    ["일본어 400자", "文".repeat(400)],
+  ];
+  out.push(`CREATE TEMP TABLE golden_post_chars (case_no integer PRIMARY KEY, label text NOT NULL, content text NOT NULL, chars integer NOT NULL);`);
+  out.push(`INSERT INTO golden_post_chars VALUES\n${rows(charCases.map(([label, content], i) => `(${i + 1}, ${q(label)}, ${sqlText(content)}, ${charCount(content)})`))}\n`);
+
+  // 연락처 검출: 이메일 · 전화번호 · 평범한 숫자 (post.test.ts 의 사례 + 경계)
+  const contactTexts = [
+    "連絡は mina@example.com まで", "mina.sample+sdgs@mail.example.co.jp", "a_b%c@x-y.org", "info@minato.example.jp", "MINA@EXAMPLE.COM", "x@y.jp",
+    "a@b.c", "user@localhost", "@handle", "メールは非公開です", fullwidth("abc@example.com"), "mina at example dot com",
+    "090-1234-5678", "03-1234-5678", "010-1234-5678", "+81 90 1234 5678", "+82-10-1234-5678", "09012345678", "TEL 0120-123-456",
+    "+1 650 253 0000", "+44 20 7946 0958", "123-456-7890", "12345678", "123456789012",
+    `${fullwidth("090")}-${fullwidth("1234")}-${fullwidth("5678")}`, "1234 5678", "12-34-56", "100-200", "電話:03(1234)5678",
+    "2026年10月30日に受賞", "2026-10-30", "賞金は¥30,000", "SDGs14 と SDGs12", "Lv.3 / 1,476 pt", "17目標すべてに挑戦", "참가자 1234567명", "11/14 13:00",
+    "1234567", "1,000,000円", "No.12-345", "",
+  ];
+  out.push(`CREATE TEMP TABLE golden_post_contacts (case_no integer PRIMARY KEY, content text NOT NULL, has_contact boolean NOT NULL);`);
+  out.push(`INSERT INTO golden_post_contacts VALUES\n${rows(contactTexts.map((content, i) => `(${i + 1}, ${sqlText(content)}, ${bool(containsContact(content))})`))}\n`);
+
+  // 공식 SNS 게시 날짜: 내일부터 가장 빠른 빈 날짜 (이미 받은 날짜는 건너뛰어요). 홍보 글이 아니거나 신청이 없는 글은 날짜를 잡지 않아요.
+  const prPost = (id: string, on: string | null): SocialPost => ({
+    id, kind: "pr", companyId: "co-1", title: "題", body: "本文", sdgIds: [14], createdAt: "2026-10-30T09:00", likes: 0, likedBy: [], mine: false, challengeId: null,
+    official: on === null ? null : { on, feeYen: OFFICIAL_SHARE_FEE_YEN, status: "scheduled" },
+  });
+  const bragPost: SocialPost = {
+    id: "po-brag", kind: "brag", authorName: "Mina", authorLevel: 1, body: "本文", sdgIds: [14], createdAt: "2026-10-30T09:00", likes: 0, likedBy: [], mine: false,
+    achievement: { activityId: null, kind: "participation", title: "題", companyName: "社", award: null, sdgIds: [14] },
+  };
+  const dateCases: Array<[string, string, string[]]> = [
+    ["신청이 없으면 내일", "2026-10-30", []],
+    ["내일이 찼으면 모레", "2026-10-30", ["2026-10-31"]],
+    ["연달아 찼으면 그다음 날", "2026-10-30", ["2026-10-31", "2026-11-01"]],
+    ["내일은 비어 있고 모레만 찼다", "2026-10-30", ["2026-11-01"]],
+    ["가운데가 비어 있으면 가장 빠른 빈 날짜", "2026-10-30", ["2026-10-31", "2026-11-02"]],
+    ["오늘 이전·오늘 날짜는 상관없다", "2026-10-30", ["2026-10-29", "2026-10-30"]],
+    ["먼 미래만 찼다", "2026-10-30", ["2026-11-19"]],
+    ["닷새 연속으로 찼다", "2026-10-30", ["2026-10-31", "2026-11-01", "2026-11-02", "2026-11-03", "2026-11-04"]],
+    ["순서가 뒤섞여 있어도 같다", "2026-10-30", ["2026-11-02", "2026-10-31", "2026-11-01"]],
+    ["연말: 12/31 → 이듬해 1/1", "2026-12-31", []],
+    ["연말: 1/1 이 찼으면 1/2", "2026-12-31", ["2027-01-01"]],
+    ["월말: 11/30 → 12/1", "2026-11-30", []],
+    ["윤년 2/28 → 2/29", "2028-02-28", []],
+    ["윤년 2/29 가 찼으면 3/1", "2028-02-28", ["2028-02-29"]],
+    ["평년 2/28 → 3/1", "2027-02-28", []],
+  ];
+  out.push(`CREATE TEMP TABLE golden_official_dates (case_no integer PRIMARY KEY, label text NOT NULL, today date NOT NULL, taken date[] NOT NULL, next_on date NOT NULL);`);
+  out.push(
+    `INSERT INTO golden_official_dates VALUES\n${rows(
+      dateCases.map(([label, today, taken], i) => {
+        const posts = [...taken.map((on, n) => prPost(`po-${n}`, on)), prPost("po-none", null), bragPost];
+        const dates = taken.length === 0 ? "ARRAY[]::date[]" : `ARRAY[${taken.map((on) => `DATE ${q(on)}`).join(", ")}]`;
+        return `(${i + 1}, ${q(label)}, DATE ${q(today)}, ${dates}, DATE ${q(nextOfficialDate(posts, today))})`;
+      }),
+    )}\n`,
+  );
+
+  // 입력 검사: 앱의 validatePostDraft 가 낸 오류 목록. 오류가 하나도 없으면 DB 도 받아들이고, 있으면 DB 도 거절해야 해요.
+  const context: PostContext = { activityIds: ["act-1", "act-2"], challengeIds: ["ch-1"] };
+  const ACTIVITY_IDS = { own: "act-1", none: null, other: "act-9", share: "act-share-1" } as const; // other·share 는 context 에 없는 id
+  const CHALLENGE_IDS = { none: null, own: "ch-1", other: "ch-9" } as const;
+  const SDG_ORDER: SdgId[] = [14, 12, 13, 11, 7];
+  const okBrag = "初めての受賞です！";
+  const okTitle = "漁港の朝市で容器を減らしました";
+  const okBody = "学生のアイデアを実際に試しました。";
+  const brag = (label: string, body: string, activity: DraftScenario["activity"] = "own"): DraftScenario => ({ label: `자랑: ${label}`, kind: "brag", body, activity });
+  const pr = (label: string, fields: Partial<DraftScenario>): DraftScenario => ({
+    label: `홍보: ${label}`, kind: "pr", title: okTitle, body: okBody, sdgCount: 1, challenge: "none", ...fields,
+  });
+  const bragLimit = POST_LIMITS.bragBody;
+  const scenarios: DraftScenario[] = [
+    brag("내 실적 + 본문", okBrag),
+    brag("실적을 안 붙였다", okBrag, "none"),
+    brag("다른 학생의 실적", okBrag, "other"),
+    brag("카드뉴스 공유 기록(실적이 아니다)", okBrag, "share"),
+    brag("빈 본문", ""),
+    brag("공백뿐인 본문", "   "),
+    brag("전각 공백·NBSP·탭·줄바꿈뿐인 본문", `${IDEOGRAPHIC_SPACE}${NBSP}\t\n`),
+    brag(`본문 ${bragLimit}자`, "あ".repeat(bragLimit)),
+    brag(`본문 ${bragLimit + 1}자`, "あ".repeat(bragLimit + 1)),
+    brag(`이모지 ${bragLimit}개`, "🏆".repeat(bragLimit)),
+    brag(`이모지 ${bragLimit + 1}개`, "🏆".repeat(bragLimit + 1)),
+    brag(`앞뒤 공백을 빼면 ${bragLimit}자`, `  ${"あ".repeat(bragLimit)}${IDEOGRAPHIC_SPACE}\n`),
+    brag(`가운데 공백까지 세면 ${bragLimit + 1}자`, `${"あ".repeat(bragLimit / 2)} ${"あ".repeat(bragLimit / 2)}`),
+    brag("이메일", "連絡は mina@example.com まで"),
+    brag("전화번호", "090-1234-5678"),
+    brag("8자리 숫자", "12345678"),
+    brag("평범한 숫자(날짜·금액·SDGs·Lv.)", "2026年10月30日に受賞、賞金は¥30,000、SDGs14 と Lv.3 / 1,476 pt"),
+    brag("실적 없음 + 빈 본문 (오류 둘)", "", "none"),
+    pr("제목·본문·태그 1개", {}),
+    pr("우리 회사 챌린지 연결 + 태그 3개", { challenge: "own", sdgCount: POST_LIMITS.maxSdgs }),
+    pr("다른 회사 챌린지", { challenge: "other" }),
+    pr("빈 제목", { title: "" }),
+    pr("공백뿐인 제목", { title: `${IDEOGRAPHIC_SPACE} ` }),
+    pr("제목 없음(undefined)", { title: undefined }),
+    pr(`제목 ${POST_LIMITS.prTitle}자`, { title: "題".repeat(POST_LIMITS.prTitle) }),
+    pr(`제목 ${POST_LIMITS.prTitle + 1}자`, { title: "題".repeat(POST_LIMITS.prTitle + 1) }),
+    pr(`제목 이모지 ${POST_LIMITS.prTitle}개`, { title: "🌊".repeat(POST_LIMITS.prTitle) }),
+    pr(`앞뒤 공백을 빼면 제목 ${POST_LIMITS.prTitle}자`, { title: `${IDEOGRAPHIC_SPACE}${"題".repeat(POST_LIMITS.prTitle)} ` }),
+    pr("빈 본문", { body: "" }),
+    pr("공백뿐인 본문", { body: " \n\t " }),
+    pr(`본문 ${POST_LIMITS.prBody}자`, { body: "文".repeat(POST_LIMITS.prBody) }),
+    pr(`본문 ${POST_LIMITS.prBody + 1}자`, { body: "文".repeat(POST_LIMITS.prBody + 1) }),
+    pr(`본문 이모지 ${POST_LIMITS.prBody}개`, { body: "🌱".repeat(POST_LIMITS.prBody) }),
+    pr("제목에 전화번호", { title: "電話 090-1234-5678 まで" }),
+    pr("제목에 이메일", { title: "info@minato.example.jp へ" }),
+    pr("본문에 이메일", { body: "お問い合わせは info@minato.example.jp へ" }),
+    pr("본문에 국제 전화번호", { body: "+81 90 1234 5678 までお電話ください" }),
+    pr("제목·본문의 평범한 숫자", { title: "2026年の取り組み 3つ", body: "参加者 1,234 人、予算 ¥30,000、SDGs14 と SDGs12" }),
+    pr("태그 0개", { sdgCount: 0 }),
+    pr("태그 3개", { sdgCount: 3 }),
+    pr("태그 4개", { sdgCount: 4 }),
+    pr("태그 5개", { sdgCount: 5 }),
+    pr("모두 틀렸다(빈 제목·빈 본문·태그 0개·다른 회사 챌린지)", { title: "", body: "", sdgCount: 0, challenge: "other" }),
+  ];
+  const draftOf = (s: DraftScenario): PostDraft =>
+    s.kind === "brag"
+      ? { kind: "brag", body: s.body, activityId: ACTIVITY_IDS[s.activity ?? "own"] }
+      : { kind: "pr", title: s.title, body: s.body, sdgIds: SDG_ORDER.slice(0, s.sdgCount ?? 1), challengeId: CHALLENGE_IDS[s.challenge ?? "none"] };
+  out.push(
+    `CREATE TEMP TABLE golden_post_cases (case_no integer PRIMARY KEY, label text NOT NULL, kind text NOT NULL, title text, body text NOT NULL, activity text, sdg_count integer, challenge text, errors text NOT NULL);`,
+  );
+  out.push(
+    `INSERT INTO golden_post_cases VALUES\n${rows(
+      scenarios.map((s, i) => {
+        const errors = validatePostDraft(draftOf(s), context).join(",");
+        const title = s.title === undefined ? "NULL" : sqlText(s.title);
+        const activity = s.kind === "brag" ? q(s.activity ?? "own") : "NULL";
+        const sdgCount = s.kind === "pr" ? String(s.sdgCount ?? 1) : "NULL";
+        const challenge = s.kind === "pr" ? q(s.challenge ?? "none") : "NULL";
+        return `(${i + 1}, ${q(s.label)}, ${q(s.kind)}, ${title}, ${sqlText(s.body)}, ${activity}, ${sdgCount}, ${challenge}, ${q(errors)})`;
+      }),
+    )}\n`,
+  );
+  return out;
 }
 
 // ───────── 쓰기 / 확인 ─────────

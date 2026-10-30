@@ -1,14 +1,15 @@
 "use client";
 
 // SCR-05 SNS 카드뉴스: 성과 한 건을 Instagram(1:1)·LinkedIn(1.91:1) 카드로 → 복사·공유·앱 내 저장
+import { useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
 import { MAX_SHARE_ACTIVITIES, SHARE_POINTS } from "@sdgs-compass/core/impact";
 import type { CardTemplate } from "@sdgs-compass/core/shareCard";
 import { selectShare } from "@sdgs-compass/core/selectors";
 import { ShareCardPreview } from "@/components/ShareCardPreview";
-import { Banner, Button, Empty, Field, ScreenHead, Tag } from "@/components/ui";
+import { Banner, Button, ButtonLink, Empty, Field, ScreenHead, Tag } from "@/components/ui";
 import { browserClipboardEnv, browserShareEnv, copyText, shareOrCopy } from "@/lib/clipboard";
-import { buildHref, ROUTES } from "@/lib/routes";
+import { buildHref, postNewHref, ROUTES } from "@/lib/routes";
 import { useSession } from "@/lib/session";
 
 type Notice = { tone: "success" | "danger" | "info"; text: string } | null;
@@ -21,8 +22,10 @@ export interface SharePreset {
 
 export function ShareScreen({ preset }: { preset?: SharePreset }) {
   const { demo, locale, t, dispatch } = useSession();
+  // 피드의 "카드뉴스로 만들기"에서 오면 주소의 activity 로 그 실적을 미리 골라 둬요
+  const requestedActivity = useSearchParams().get("activity");
   const [template, setTemplate] = useState<CardTemplate>(preset?.template ?? "instagram");
-  const [activityId, setActivityId] = useState<string | null>(preset?.activityId ?? null);
+  const [activityId, setActivityId] = useState<string | null>(preset?.activityId ?? requestedActivity);
   const [notice, setNotice] = useState<Notice>(null);
   const vm = useMemo(() => selectShare(demo, locale, template, activityId), [demo, locale, template, activityId]);
   const card = vm.card;
@@ -107,6 +110,10 @@ export function ShareScreen({ preset }: { preset?: SharePreset }) {
                 💾 {t("share.saveInApp")}
               </Button>
             </div>
+            {/* 같은 실적을 앱 안 SNS 피드(F-503)에도 올려요 — 글쓰기 화면이 이 실적을 미리 골라 둬요 */}
+            <ButtonLink href={postNewHref("b2c", vm.selectedId)} variant="secondary" block>
+              💬 {t("share.postToFeed")}
+            </ButtonLink>
           </div>
           <p className="small muted">🔒 {t("share.privacy")}</p>
         </>

@@ -112,9 +112,9 @@ export function Field({ label, hint, error, right, children }: { label: string; 
   );
 }
 
-/** 글자 수 표시 (예: 23/300). 넘치면 빨갛게 */
-export function Counter({ text }: { text: string }) {
-  return <span className="field__count">{text}</span>;
+/** 글자 수 표시 (예: 23/300). over 이면 한도를 넘은 것이라 빨갛고 굵게 보여요 (오류 문구가 따로 같이 나와서 색만으로 알리지 않아요) */
+export function Counter({ text, over = false }: { text: string; over?: boolean }) {
+  return <span className={over ? "field__count field__count--over" : "field__count"}>{text}</span>;
 }
 
 /** 오류 목록 상자 (입력 오류를 한꺼번에 알려요) */

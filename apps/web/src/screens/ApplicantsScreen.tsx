@@ -6,8 +6,8 @@ import { useId, useMemo, useState } from "react";
 import type { AwardKind } from "@sdgs-compass/core/domain";
 import { awardLabel } from "@sdgs-compass/core/labels";
 import { selectApplicants, type ApplicantVM } from "@sdgs-compass/core/selectors";
-import { Banner, Button, Empty, Field, ScreenHead, Tag } from "@/components/ui";
-import { applicantsHref } from "@/lib/routes";
+import { Banner, Button, ButtonLink, Empty, Field, ScreenHead, Tag } from "@/components/ui";
+import { applicantsHref, postNewHref } from "@/lib/routes";
 import { useSession } from "@/lib/session";
 import { nowIso } from "@/lib/time";
 
@@ -65,7 +65,7 @@ function ReviewForm({ applicant }: { applicant: ApplicantVM }) {
   );
 }
 
-function ApplicantCard({ applicant, feeNote }: { applicant: ApplicantVM; feeNote: string }) {
+function ApplicantCard({ applicant, feeNote, challengeId }: { applicant: ApplicantVM; feeNote: string; challengeId: string | null }) {
   const { t, locale, dispatch } = useSession();
   const [open, setOpen] = useState(false);
   const [award, setAward] = useState<AwardKind>(applicant.award ?? "excellence");
@@ -111,6 +111,12 @@ function ApplicantCard({ applicant, feeNote }: { applicant: ApplicantVM; feeNote
           {open ? "▲" : "▼"} {t("review.title")}
         </Button>
         {applicant.adopted ? <Tag tone="success">✓ {t("review.adopted")}</Tag> : null}
+        {/* 수상·채택된 기획서는 이 챌린지를 연결한 홍보 글(F-504)로 알릴 수 있어요 */}
+        {applicant.status === "awarded" || applicant.status === "adopted" ? (
+          <ButtonLink href={postNewHref("b2b", challengeId)} size="sm" variant="secondary">
+            <span aria-hidden="true">📣</span> {t("applicants.promote")}
+          </ButtonLink>
+        ) : null}
       </div>
 
       {open ? (
@@ -204,7 +210,7 @@ function ApplicantsView({ requestedId }: { requestedId: string | null }) {
           ) : (
             <ul className="card-list">
               {vm.applicants.map((applicant) => (
-                <ApplicantCard key={applicant.id} applicant={applicant} feeNote={vm.feeNote} />
+                <ApplicantCard key={applicant.id} applicant={applicant} feeNote={vm.feeNote} challengeId={vm.selectedId} />
               ))}
             </ul>
           )}

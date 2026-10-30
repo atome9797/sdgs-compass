@@ -22,7 +22,7 @@ export function TabBar({ items, badges = {}, variant = "b2c" }: { items: readonl
             <span className="tab__icon" aria-hidden="true">
               {item.icon}
             </span>
-            <span className="tab__label">{t(item.labelKey)}</span>
+            <span className="tab__label">{t(item.tabLabelKey ?? item.labelKey)}</span>
             {badge > 0 ? (
               <span className="tab__badge" aria-label={`${badge} ${t("inbox.unread")}`}>
                 {badge}

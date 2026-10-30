@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 import { MESSAGES } from "@sdgs-compass/core/messages";
 import { activeTabId, B2B_TABS, B2C_TABS, tabsFor } from "./nav";
 import {
-  areaOf, applicantsHref, buildHref, certificateHref, challengeHref, guardRedirect, homeFor, normalizeBasePath, normalizePath, parseSdgParam,
-  receiptHref, ROUTES, searchHref, stripBasePath, submitHref, withBase,
+  areaOf, applicantsHref, buildHref, certificateHref, challengeHref, feedHref, guardRedirect, homeFor, normalizeBasePath, normalizePath, parseSdgParam,
+  postNewHref, receiptHref, ROUTES, searchHref, shareHref, stripBasePath, submitHref, withBase,
 } from "./routes";
 
 describe("buildHref", () => {
@@ -33,6 +33,22 @@ describe("buildHref", () => {
     expect(searchHref()).toBe("/search/");
     expect(searchHref({ sdgIds: [14] })).toBe("/search/?sdg=14");
     expect(searchHref({ q: "海", sdgIds: [14, 12] })).toBe("/search/?q=%E6%B5%B7&sdg=14%2C12");
+  });
+
+  it("피드 주소: 역할마다 다른 경로에, 막 올린 글(posted)과 미리 고른 실적·챌린지는 쿼리로 넘겨요", () => {
+    expect(feedHref("b2c")).toBe("/feed/");
+    expect(feedHref("b2b")).toBe("/b2b/feed/");
+    expect(feedHref("b2c", "po100")).toBe("/feed/?posted=po100");
+    expect(feedHref("b2b", "po100")).toBe("/b2b/feed/?posted=po100");
+    expect(feedHref("b2c", null)).toBe("/feed/");
+    expect(postNewHref("b2c")).toBe("/feed/new/");
+    expect(postNewHref("b2b")).toBe("/b2b/feed/new/");
+    expect(postNewHref("b2c", "h-5b")).toBe("/feed/new/?activity=h-5b");
+    expect(postNewHref("b2b", "ch-bottle")).toBe("/b2b/feed/new/?challenge=ch-bottle");
+    expect(postNewHref("b2c", null)).toBe("/feed/new/");
+    expect(shareHref()).toBe("/share/");
+    expect(shareHref("h-5b")).toBe("/share/?activity=h-5b");
+    expect(shareHref(null)).toBe("/share/");
   });
 });
 
@@ -88,6 +104,10 @@ describe("areaOf / guardRedirect", () => {
     expect(areaOf("/settings")).toBe("b2c");
     expect(areaOf("/b2b/")).toBe("b2b");
     expect(areaOf("/b2b/talent/")).toBe("b2b");
+    expect(areaOf("/feed/")).toBe("b2c");
+    expect(areaOf("/feed/new/")).toBe("b2c");
+    expect(areaOf("/b2b/feed/")).toBe("b2b");
+    expect(areaOf("/b2b/feed/new/")).toBe("b2b");
     expect(areaOf("/")).toBe("neutral");
     expect(areaOf("/nope/")).toBe("neutral");
     expect(areaOf("/b2bx/")).toBe("neutral");
@@ -103,6 +123,10 @@ describe("areaOf / guardRedirect", () => {
     expect(guardRedirect("/challenge/", "b2c")).toBeNull();
     expect(guardRedirect("/b2b/", "b2c")).toBe("/home/");
     expect(guardRedirect("/b2b/talent/", "b2c")).toBe("/home/");
+    expect(guardRedirect("/feed/", "b2c")).toBeNull();
+    expect(guardRedirect("/feed/new/", "b2c")).toBeNull();
+    expect(guardRedirect("/b2b/feed/", "b2c")).toBe("/home/");
+    expect(guardRedirect("/b2b/feed/new/", "b2c")).toBe("/home/");
     expect(guardRedirect("/nope/", "b2c")).toBeNull();
   });
 
@@ -113,6 +137,10 @@ describe("areaOf / guardRedirect", () => {
     expect(guardRedirect("/b2b/", "b2b")).toBeNull();
     expect(guardRedirect("/b2b/esg/", "b2b")).toBeNull();
     expect(guardRedirect("/b2b/settings/", "b2b")).toBeNull();
+    expect(guardRedirect("/b2b/feed/", "b2b")).toBeNull();
+    expect(guardRedirect("/b2b/feed/new/", "b2b")).toBeNull();
+    expect(guardRedirect("/feed/", "b2b")).toBe("/b2b/");
+    expect(guardRedirect("/feed/new/", "b2b")).toBe("/b2b/");
     expect(homeFor("b2c")).toBe("/home/");
     expect(homeFor("b2b")).toBe("/b2b/");
   });
@@ -131,10 +159,12 @@ describe("탭 정의", () => {
     for (const tab of [...B2C_TABS, ...B2B_TABS]) {
       expect(routes).toContain(tab.path);
       expect(MESSAGES[tab.labelKey]).toBeDefined();
+      if (tab.tabLabelKey) expect(MESSAGES[tab.tabLabelKey]).toBeDefined();
       for (const p of tab.match) expect(routes).toContain(p);
     }
-    expect(B2C_TABS.map((t) => t.id)).toEqual(["home", "search", "impact", "messages", "settings"]);
-    expect(B2B_TABS.map((t) => t.id)).toEqual(["dashboard", "applicants", "talent", "esg", "settings"]);
+    // 피드는 두 번째 탭이에요 (6개 — 390px 폭에 들어가도록 짧은 이름을 써요)
+    expect(B2C_TABS.map((t) => t.id)).toEqual(["home", "feed", "search", "impact", "messages", "settings"]);
+    expect(B2B_TABS.map((t) => t.id)).toEqual(["dashboard", "feed", "applicants", "talent", "esg", "settings"]);
     expect(tabsFor("b2c")).toBe(B2C_TABS);
     expect(tabsFor("b2b")).toBe(B2B_TABS);
   });
@@ -144,11 +174,16 @@ describe("탭 정의", () => {
     expect(activeTabId(B2C_TABS, "/challenge/")).toBe("home");
     expect(activeTabId(B2C_TABS, "/challenge/submit/")).toBe("home");
     expect(activeTabId(B2C_TABS, "/search/")).toBe("search");
+    expect(activeTabId(B2C_TABS, "/feed/")).toBe("feed");
+    expect(activeTabId(B2C_TABS, "/feed/new/")).toBe("feed");
     expect(activeTabId(B2C_TABS, "/certificate/")).toBe("impact");
     expect(activeTabId(B2C_TABS, "/share/")).toBe("impact");
     expect(activeTabId(B2C_TABS, "/nope/")).toBeNull();
     expect(activeTabId(B2B_TABS, "/b2b/")).toBe("dashboard");
     expect(activeTabId(B2B_TABS, "/b2b/new/")).toBe("dashboard");
+    expect(activeTabId(B2B_TABS, "/b2b/feed/")).toBe("feed");
+    expect(activeTabId(B2B_TABS, "/b2b/feed/new/")).toBe("feed");
+    expect(activeTabId(B2B_TABS, "/sdgs-compass/b2b/feed/", "/sdgs-compass")).toBe("feed");
     expect(activeTabId(B2B_TABS, "/b2b/applicants/")).toBe("applicants");
     expect(activeTabId(B2B_TABS, "/b2b/settings/")).toBe("settings");
     expect(activeTabId(B2B_TABS, "/sdgs-compass/b2b/talent/", "/sdgs-compass")).toBe("talent");

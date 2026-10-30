@@ -13,12 +13,18 @@ export const ROUTES = {
   certificate: "/certificate",
   share: "/share",
   messages: "/messages",
+  /** SNS 피드(F-503·F-504): 학생용 목록과 자랑 글 쓰기 */
+  feed: "/feed",
+  feedNew: "/feed/new",
   settings: "/settings",
   b2b: "/b2b",
   b2bNew: "/b2b/new",
   b2bApplicants: "/b2b/applicants",
   b2bTalent: "/b2b/talent",
   b2bEsg: "/b2b/esg",
+  /** 기업용 피드 목록과 홍보 글 쓰기 */
+  b2bFeed: "/b2b/feed",
+  b2bFeedNew: "/b2b/feed/new",
   b2bSettings: "/b2b/settings",
 } as const;
 export type RoutePath = (typeof ROUTES)[keyof typeof ROUTES];
@@ -83,6 +89,13 @@ export const applicantsHref = (id?: string): string => buildHref(ROUTES.b2bAppli
 export function searchHref(opts: { q?: string; sdgIds?: readonly SdgId[] } = {}): string {
   return buildHref(ROUTES.search, { q: opts.q, sdg: opts.sdgIds && opts.sdgIds.length > 0 ? opts.sdgIds.join(",") : undefined });
 }
+/** 피드 주소 (학생 /feed/, 기업 /b2b/feed/). posted = 방금 올린 글의 id — 피드가 "올렸어요" 안내를 보여 주고 그 글을 강조해요 */
+export const feedHref = (role: Role, posted?: string | null): string => buildHref(role === "b2b" ? ROUTES.b2bFeed : ROUTES.feed, { posted });
+/** 글쓰기 주소: 학생은 올릴 실적(activity), 기업은 연결할 챌린지(challenge)를 미리 골라 둔 채로 열어요 */
+export const postNewHref = (role: Role, presetId?: string | null): string =>
+  role === "b2b" ? buildHref(ROUTES.b2bFeedNew, { challenge: presetId }) : buildHref(ROUTES.feedNew, { activity: presetId });
+/** 카드뉴스 화면 (실적 하나를 미리 골라 두고 열 수 있어요) */
+export const shareHref = (activityId?: string | null): string => buildHref(ROUTES.share, { activity: activityId });
 
 /** "14,12,abc,99,14" → [14, 12] (숫자가 아니거나 1~17 밖이거나 겹치면 버려요) */
 export function parseSdgParam(raw: string | null | undefined): SdgId[] {
@@ -98,7 +111,7 @@ export function parseSdgParam(raw: string | null | undefined): SdgId[] {
 
 export type Area = "b2c" | "b2b" | "neutral";
 
-const B2C_PATHS: readonly string[] = [ROUTES.home, ROUTES.search, ROUTES.challenge, ROUTES.submit, ROUTES.impact, ROUTES.certificate, ROUTES.share, ROUTES.messages, ROUTES.settings];
+const B2C_PATHS: readonly string[] = [ROUTES.home, ROUTES.search, ROUTES.challenge, ROUTES.submit, ROUTES.impact, ROUTES.certificate, ROUTES.share, ROUTES.messages, ROUTES.feed, ROUTES.feedNew, ROUTES.settings];
 
 export function areaOf(path: string): Area {
   const p = normalizePath(path);

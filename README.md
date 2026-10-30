@@ -61,7 +61,7 @@
 | **Android 앱(APK)** | [Releases › demo-latest](https://github.com/atome9797/sdgs-compass/releases/tag/demo-latest) 의 `sdgs-compass-demo.apk` | 서버·개발 서버 없이 혼자 실행돼요. 설치할 때 "출처를 알 수 없는 앱" 허용이 필요해요 ([자세히](#android-데모-apk-받기)) |
 | **내 컴퓨터** | `npm install` → `npm run dev` (웹) / `npm run mobile` (앱) | [실행하기](#실행하기) |
 
-> iPhone 용 설치 파일(IPA)은 Apple 개발자 계정과 서명이 필요해서 만들지 않았어요. iPhone 에서는 웹 데모를 쓰거나, 컴퓨터에서 `npm run mobile` 후 Expo Go 로 열어 보세요.
+> iPhone 용 설치 파일(IPA)은 Apple 개발자 계정과 서명이 필요해서 만들지 않았어요. iPhone 에서는 **웹 데모**("홈 화면에 추가")가 가장 확실해요. 개발용으로는 컴퓨터에서 `npm run mobile` 후 Expo Go 로 열 수도 있지만, 이 앱이 쓰는 Expo SDK 58 을 지원하는 Expo Go 여야 해요.
 
 ### 첫 화면과 역할 전환
 
@@ -84,6 +84,19 @@
 | ⑨ | B2B | 응모자: 심사(1~5점 × 3축) → 수상 → **채용(매칭)** | 채용하면 **수수료 ¥30,000 / 기부 ¥15,000**이 대시보드에 반영 |
 | ⑩ | B2B | 인재 검색 → 스카우트(하루 3건 제한) | 비공개 학생은 검색에서 제외 |
 | ⑪ | B2B | ESG·인증마크: 6개 기준 입력 → 점수·★ 단계 → 리포트 생성 | **증빙을 올린 기준만** 점수에 들어감, 면책 문구 |
+
+### 발표 전 점검표 (5분)
+
+실제 폰에서의 실행은 자동 검사로 확인되지 않아요. 발표 전날 한 번 해 보세요.
+
+- [ ] Android 폰에 `sdgs-compass-demo.apk` 설치 → 앱이 열리고 **언어 선택**이 나온다
+- [ ] `日本語` → 역할 선택 → 학생(B2C) 홈이 일본어로 보인다
+- [ ] 머리글의 `日本語 | 한국어` 로 한국어로 바뀌고, 다시 일본어로 돌아온다
+- [ ] 역할 칩으로 기업(B2B) 대시보드에 갔다가 학생 홈으로 돌아온다
+- [ ] 기획서 제출 → 수령증(`SC-…`) → Impact → 디지털 증명서 → 진위 확인 ✓ / 변조 ✗ 까지 한 바퀴 돈다
+- [ ] 설정 › 데모 초기화 → 언어 선택부터 다시 시작한다 (**발표 직전에 한 번 눌러 두면** 깨끗한 샘플 상태로 시작해요)
+- [ ] 웹 데모(Pages 주소)도 같은 순서로 열린다 — 발표장 인터넷이 불안하면 앱(APK)을 주로 쓰세요
+- [ ] 폰 화면을 띄울 방법(케이블·미러링)과 충전기를 챙겼다
 
 ## 서비스 흐름 (플로우차트)
 
@@ -302,6 +315,34 @@ PC 폭에서는 왼쪽 메뉴, 좁은 화면에서는 하단 탭으로 바뀌어
 </tr>
 </table>
 <!-- mockups:end -->
+
+### 4. 화면 ↔ 주소 ↔ 코드
+
+웹과 앱은 같은 화면 구성을 가져요. 규칙·문구·계산은 `packages/core`(화면용 값은 `selectors.ts`)에 있고, 아래 화면 파일은 그것을 그리기만 해요.
+화면 파일은 웹이 `apps/web/src/screens/`, 앱이 `apps/mobile/src/screens/` 에 같은 이름으로 있어요.
+
+| 화면 | 웹 주소 | 앱 경로(expo-router) | 화면 파일 |
+| --- | --- | --- | --- |
+| 언어 선택 | (게이트) | `language` | 웹 `components/Gate.tsx`(LanguageGate) · 앱 `LanguageScreen.tsx` |
+| 역할 선택 | (게이트) | `role` | 웹 `components/Gate.tsx`(RoleGate) · 앱 `RoleScreen.tsx` |
+| 홈 · SCR-01 | `/home/` | `(tabs)/index` | `HomeScreen.tsx` |
+| 챌린지 찾기 | `/search/` | `(tabs)/search` | `SearchScreen.tsx` |
+| 챌린지 상세 · SCR-02 | `/challenge/?id=…` | `challenge/[id]` | `ChallengeScreen.tsx` |
+| 기획서 제출 · SCR-03 · 수령증 | `/challenge/submit/?id=…` | `challenge/submit/[id]` | `SubmitScreen.tsx` |
+| 마이 Impact · SCR-04 | `/impact/` | `(tabs)/impact` | `ImpactScreen.tsx` |
+| 디지털 증명서 | `/certificate/?id=…` | `certificate/[id]` | `CertificateScreen.tsx` |
+| SNS 카드뉴스 · SCR-05 | `/share/` | `share` | `ShareScreen.tsx` |
+| 메시지(스카우트 수신함) | `/messages/` | `(tabs)/messages` | `MessagesScreen.tsx` |
+| 설정 · 데모 초기화 (학생) | `/settings/` | `(tabs)/settings` | `SettingsScreen.tsx` |
+| 대시보드 · SCR-06 | `/b2b/` | `b2b/(tabs)/index` | `DashboardScreen.tsx` |
+| 새 챌린지 출제 | `/b2b/new/` | `b2b/new` | `NewChallengeScreen.tsx` |
+| 응모자 · 심사 · 수상 · 채용 | `/b2b/applicants/` | `b2b/(tabs)/applicants` | `ApplicantsScreen.tsx` |
+| 인재 검색 · 스카우트 | `/b2b/talent/` | `b2b/(tabs)/talent` | `TalentScreen.tsx` |
+| ESG · 인증마크 · 리포트 | `/b2b/esg/` | `b2b/(tabs)/esg` | `EsgScreen.tsx` |
+| 설정 (기업) | `/b2b/settings/` | `b2b/(tabs)/settings` | `SettingsScreen.tsx` |
+
+- GitHub Pages 에서는 저장소 이름이 앞에 붙어요(예: `https://atome9797.github.io/sdgs-compass/home/`). 상세 화면은 정적 내보내기를 위해 `[id]` 대신 쿼리(`?id=`)로 구분해요.
+- 앱은 `Stack.Protected`(언어 → 역할 → B2C 또는 B2B 순서)가 게이트를 맡고, 다른 역할의 화면으로 들어가면 `RoleGuard` 가 그 역할의 홈으로 돌려보내요.
 
 ## ERD (DB 설계)
 
@@ -1328,7 +1369,7 @@ sdgs-compass/
 ### 필요한 것
 
 - Node.js **22.13 이상** (CI 는 `.nvmrc` 의 24), npm 10.9 이상
-- 앱을 폰에서 직접 열려면 Expo Go(또는 Releases 의 APK)
+- 앱을 폰에서 직접 열려면 Releases 의 APK(Android) 또는 Expo SDK 58 을 지원하는 Expo Go
 - DB 시험을 돌릴 때만: PostgreSQL 16 (`psql`, `createdb`, `dropdb`)
 
 ### 웹
@@ -1352,7 +1393,7 @@ npm install
 npm run mobile       # Expo 개발 서버 → QR 을 Expo Go 로 스캔
 ```
 
-이 앱은 네이티브 확장 모듈을 따로 쓰지 않아서(레이더·QR 도 기본 컴포넌트로 그려요) **Expo Go 로 바로 열려요**. 발표용으로는 개발 서버가 필요 없는 APK(아래)를 권해요.
+이 앱은 Expo 기본 모듈만 쓰고 직접 만든 네이티브 코드가 없어요(레이더·QR 도 기본 컴포넌트로 그려요). 그래서 **Expo SDK 58 을 지원하는 Expo Go** 에서는 열릴 거예요 — 다만 실제 기기의 Expo Go 로는 확인하지 못했어요(CI 에서는 타입 검사·Jest·번들 내보내기·`expo-doctor` 까지 확인해요). Expo Go 가 아직 SDK 58 을 지원하지 않으면 `npm run android -w @sdgs-compass/mobile`(Android Studio 필요) 또는 APK 를 쓰세요. 발표용으로는 개발 서버가 필요 없는 APK(아래)를 권해요.
 
 ### DB
 
@@ -1410,8 +1451,8 @@ PGDATABASE=sdgs_compass npm run erd                    # 스키마를 바꿨다�
 ### package-lock.json 에 대해
 
 이 저장소를 처음 만든 환경에서는 npm 레지스트리에 접속할 수 없어서 `package-lock.json` 을 미리 만들 수 없었어요.
-그래서 처음 main 에 푸시되면 CI 의 `lockfile` 작업이 한 번 만들어서 `chore: package-lock.json 생성 (CI)` 커밋으로 올려요(이후 모든 워크플로는 `npm ci` 로 같은 버전을 설치해요).
-로컬에서 이어서 작업한다면 먼저 `git pull` 하세요. 이미 잠금 파일이 있으면 아무것도 하지 않아요.
+그래서 처음 main 에 푸시됐을 때 CI 의 `lockfile` 작업이 한 번 만들어서 `chore: package-lock.json 생성 (CI)` 커밋으로 올렸고, 지금은 모든 워크플로가 `npm ci` 로 같은 버전을 설치해요.
+로컬에서 이어서 작업한다면 먼저 `git pull` 해서 이 커밋을 받으세요. 잠금 파일이 이미 있으면 `lockfile` 작업은 아무것도 하지 않아요.
 
 ## 설계 결정 — SchedulAI 와 다른 점
 
@@ -1432,13 +1473,14 @@ PGDATABASE=sdgs_compass npm run erd                    # 스키마를 바꿨다�
 
 - **서버·DB 연결 없음**: 화면의 데이터는 샘플(가상)이고 웹은 `localStorage`, 앱은 `AsyncStorage` 에 저장돼요. DB 스키마는 설계·검증용이에요.
 - **없는 것**: 소셜/이메일 로그인과 본인 확인, 결제·송금, 푸시/카카오/SMS 알림, 관리자(승인·신고) 화면, 1:1 대화·면접 일정 화면, Q&A 게시판.
-- **파일 첨부는 시뮬레이션**이에요. 앱은 샘플 파일 3개 중에서 고르고, 파일 이름·크기·요약으로 지문(SHA-256)을 만들어요. 실제 업로드는 하지 않아요.
+- **파일 첨부는 업로드가 아니에요.** 웹은 진짜 파일 선택기(`<input type="file">`)로 고르거나 "샘플 기획서" 단추를 쓰는데, 파일의 **이름과 크기만** 읽고 내용은 읽지도 보내지도 않아요. 모바일 앱은 파일 선택기 없이 견본 파일 3개(마지막 하나는 일부러 형식이 틀린 파일) 중에서 골라요. 두 곳 모두 제출 수령증의 지문(SHA-256)은 파일 이름·크기·제목·요약·버전으로 만들어요.
 - **디지털 증명서**의 해시 검증은 앱 안에서만 해요(블록체인 기록·외부 검증 서버 없음). 변조 시연은 "복사본을 고쳐서 검증 실패 확인"으로 보여 줘요.
 - **AI 추천**은 규칙 기반 점수(관심 SDGs 우선순위 · 스킬 · 마감 임박도 · 상금)예요. 실서비스에서는 같은 입출력의 추천 모델로 바꿔요.
 - **번역**은 화면 문구(일본어/한국어 사전)만 해요. 사용자가 쓴 글의 자동 번역은 DB 의 `content_translations` 에 자리만 있어요.
 - **인증마크**는 독자 시스템이에요. 국제연합의 공식 인증이 아니고, 관련 화면에 면책 문구가 항상 보여요.
 - **날짜**는 앱을 여는 날을 "오늘"로 삼고 샘플 날짜를 그만큼 옮겨서, 언제 열어도 D-day 가 자연스러워요(`rebase`).
-- iOS 설치 파일(IPA)은 만들지 않았어요. iPhone 은 웹 데모(홈 화면에 추가) 또는 Expo Go 를 쓰세요.
+- iOS 설치 파일(IPA)은 만들지 않았어요. iPhone 은 웹 데모(홈 화면에 추가)를 쓰세요. Expo Go 로 여는 방법은 "실행하기 › 모바일"을 보세요.
+- **실제 폰에서의 실행**은 자동 검사로 확인할 수 없어요. 앱은 CI(타입 검사·Jest·번들 내보내기·APK 빌드)와 같은 코드를 쓰는 웹 데모의 화면 점검까지만 확인했어요. 발표 전에 [발표 전 점검표](#발표-전-점검표-5분)대로 한 번 설치해서 눌러 보세요.
 
 ## 공개 저장소 안내
 

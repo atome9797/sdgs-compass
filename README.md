@@ -18,7 +18,7 @@
 - **웹(Next.js) + 모바일(Expo / React Native)** 이 한 저장소(npm 워크스페이스 모노레포)에 있고, 규칙·계산·화면 모델·문구는 `packages/core`, 샘플 데이터·저장은 `packages/data`를 함께 써요.
   그래서 어느 쪽에서 해도 결과와 문구가 같아요. ([SchedulAI](https://github.com/atome9797/SchedulAI) 와 같은 방식)
 - **DB 설계까지 검증**: PostgreSQL 16 스키마(표 62개 · 뷰 6개)를 실제 DB에 올려 시험 6개 파일(구조·규칙·흐름·앱↔DB 대조·운영·SNS 피드)을 통과시켰어요. ERD 는 그 DB에서 읽어 자동으로 만들어요.
-- **GitHub Actions**: CI(웹·앱·DB 검사), GitHub Pages 웹 데모 자동 배포, Android 데모 APK 자동 빌드(+ Releases 업로드).
+- **GitHub Actions**: CI(웹·앱·DB 검사), GitHub Pages 웹 데모 자동 배포, Android 데모 APK 자동 빌드(+ Releases 업로드), 마일스톤을 닫으면 태그·Release 자동 생성.
 - **QR 로 바로 체험**: 발표 당일에는 QR 코드를 공개하고, 청중이 휴대폰으로 읽어 설치 없이 웹 데모에 들어와요 → [열기](#열기).
 
 > 🇯🇵 日本語の概要は[一番下](#日本語の概要)にあります.
@@ -1514,6 +1514,7 @@ sdgs-compass/
 │  ├─ sns-feed.md        SNS 피드(F-503·F-504) 설계: 규칙 · 화면 · 데이터 대응
 │  ├─ mockups/           화면 목업 이미지
 │  ├─ qr/                웹 데모 주소 QR 이미지 (npm run qr)
+│  ├─ releases/          버전별 릴리스 노트 (v0.2.0.md …) — 마일스톤을 닫으면 Release 본문으로 써요
 │  └─ erd/               ERD 그림 파일 (npm run erd:render)
 ├─ scripts/
 │  ├─ erd.mjs            README 의 ERD·표 목록을 DB 에서 읽어 만들거나 확인
@@ -1521,8 +1522,8 @@ sdgs-compass/
 │  ├─ gen-qr.ts          웹 데모 주소의 QR 이미지(SVG·PNG) 생성·확인
 │  └─ check-single-react.mjs  모노레포에 React 가 한 벌인지 확인
 └─ .github/
-   ├─ workflows/         ci.yml · pages.yml · android-apk.yml
-   └─ scripts/run-step.sh  실패 원인을 GitHub 주석으로 남기는 실행 도우미
+   ├─ workflows/         ci.yml · pages.yml · android-apk.yml · release.yml
+   └─ scripts/           run-step.sh (실패 원인을 GitHub 주석으로 남기는 도우미) · release-from-milestone.sh (마일스톤 → 태그·Release)
 ```
 
 **한 방향으로만 의존해요**: `apps/*` → `packages/data` → `packages/core`. 화면은 얇게 두고(`selectXxx(상태, 언어)` → 그리기, `dispatch(액션)`), 규칙·문구·계산은 모두 `packages/core` 에만 있어요.
@@ -1591,6 +1592,18 @@ PGDATABASE=sdgs_compass npm run erd                    # 스키마를 바꿨다�
 | `ci.yml` | main·`feat/**` 푸시, PR, 수동 | **db**: PostgreSQL 16 에 스키마·시드를 올려 시험 6개 파일 → 생성 파일(`seed.sql`·`golden.sql`)·README ERD 최신 여부<br>**web**: react 한 벌 · lint(web, core·data) · 테스트(core·data·web) · 타입 검사 · 빌드 · Pages 용 정적 내보내기<br>**mobile**: 타입 검사 · lint · Jest · `expo install --check` · `expo-doctor` · `expo prebuild` · `expo export`(iOS+Android 번들)<br>**lockfile**: `package-lock.json` 이 없으면 한 번 만들어 main 에 커밋 |
 | `pages.yml` | main 푸시(웹·공용 패키지 변경), 수동 | 웹 정적 내보내기(`NEXT_PUBLIC_BASE_PATH=/<저장소 이름>`) → GitHub Pages 배포 |
 | `android-apk.yml` | main 푸시(앱·공용 패키지 변경), 수동 | `expo prebuild` → `./gradlew :app:assembleRelease`(기본 arm64) → 서명 확인 → Artifacts 와 **Releases `demo-latest`** 에 `sdgs-compass-demo.apk` 업로드 |
+| `release.yml` | **마일스톤을 닫을 때**, 수동 | 마일스톤 이름이 `v0.3 …` 처럼 버전으로 시작하면 태그 `v0.3.0` 과 GitHub Release 를 만들어요. 노트는 `docs/releases/v0.3.0.md` 가 있으면 그 파일, 없으면 마일스톤의 목표와 닫힌 이슈 목록이에요 ([자세히](#릴리스-마일스톤을-닫으면)) |
+
+### 릴리스 (마일스톤을 닫으면)
+
+마일스톤 이름이 `v0.3 …` 처럼 버전으로 시작하면, 그 마일스톤을 **닫을 때** `release.yml` 이 닫은 순간의 main 커밋에 태그 `v0.3.0` 을 붙이고 GitHub Release 를 만들어요(누가 닫든 같아요). 규칙은 [SchedulAI](https://github.com/atome9797/SchedulAI) 의 `release.yml` 과 같아요.
+
+1. 릴리스 노트를 `docs/releases/v0.3.0.md` 로 먼저 main 에 올려요(닫은 이슈 목록을 넣어요). 파일이 없으면 마일스톤의 "목표" 줄과 닫힌 이슈 목록으로 채워요.
+2. 마일스톤을 닫아요 (Issues › Milestones › Close milestone).
+3. Actions › **Release (마일스톤을 닫으면)** 실행이 성공했는지, Releases 에 새 항목이 생겼는지 확인해요.
+
+- 이미 닫은 마일스톤은 Actions › **Release (마일스톤을 닫으면)** › Run workflow 에 마일스톤 번호(마일스톤 주소 끝의 숫자)를 넣어서 만들어요. 태그는 그 마일스톤을 닫을 때까지의 main 커밋에 붙어요.
+- 같은 태그가 이미 있으면 건너뛰어요(다시 열었다 닫아도 두 번 만들지 않아요). "Latest" 표시는 가장 높은 버전에 있고, APK 를 올리는 `demo-latest` 는 계속 사전 릴리스(Pre-release)예요.
 
 ### GitHub Pages 웹 데모 켜기
 

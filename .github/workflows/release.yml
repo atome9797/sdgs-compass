@@ -1,0 +1,50 @@
+name: Release (마일스톤을 닫으면)
+
+# 마일스톤을 닫으면 그 버전의 태그(v1.4.0 …)와 GitHub Release 를 만들어요. 규칙은 .github/scripts/release-from-milestone.sh 맨 위에 있어요.
+# Claude Code 클라우드 세션은 태그·릴리스를 직접 만들 수 없어서, 마일스톤을 닫으면 여기서 이 레포의 Actions 권한으로 만들어요
+# (누가 닫든 같아요). 릴리스 노트는 docs/releases/<태그>.md 를 미리 올려 두면 그 내용을, 없으면 닫힌 이슈 목록을 써요.
+# 지난 마일스톤은 Actions > "Release (마일스톤을 닫으면)" > Run workflow 에 마일스톤 번호를 넣어 만들 수 있어요
+# (그 마일스톤을 닫은 때까지의 기본 브랜치 커밋에 태그가 붙어요).
+# 이 저장소는 공개(public)라서 GitHub 서버(ubuntu-latest)에서 돌려요. SchedulAI 의 release.yml 과 규칙은 같고, self-hosted 실행기를 고르는 부분만 뺐어요.
+on:
+  milestone:
+    types: [closed]
+  workflow_dispatch:
+    inputs:
+      milestone:
+        description: "마일스톤 번호 (마일스톤 주소 끝의 숫자, 예: 5)"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  issues: read
+
+concurrency:
+  group: release-${{ github.event.milestone.number || inputs.milestone }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: 태그 + GitHub Release
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+
+      # GitHub 서버의 실행기에는 gh 가 이미 있어서 보통 버전만 보여 줘요. 없을 때만 GitHub CLI 공식 릴리스 파일을 이 실행의 임시 폴더에 받아 써요(설치하지 않음).
+      - name: gh CLI
+        run: |
+          if command -v gh >/dev/null 2>&1; then gh --version | head -n 1; exit 0; fi
+          v=2.62.0
+          curl -fsSL "https://github.com/cli/cli/releases/download/v${v}/gh_${v}_linux_amd64.tar.gz" | tar -xz -C "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP/gh_${v}_linux_amd64/bin" >> "$GITHUB_PATH"
+          "$RUNNER_TEMP/gh_${v}_linux_amd64/bin/gh" --version | head -n 1
+
+      - name: 마일스톤 → 태그·릴리스
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MILESTONE: ${{ github.event.milestone.number || inputs.milestone }}
+          # 마일스톤을 닫은 순간의 기본 브랜치 커밋 (직접 돌릴 때는 비워서, 닫은 때까지의 마지막 커밋을 찾아요)
+          TARGET_SHA: ${{ github.event_name == 'milestone' && github.sha || '' }}
+        run: bash .github/scripts/release-from-milestone.sh

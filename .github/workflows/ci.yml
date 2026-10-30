@@ -1,0 +1,144 @@
+name: CI
+
+on:
+  push:
+    branches: [main, "feat/**"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# 같은 브랜치에 새로 푸시하면 이전 실행을 취소합니다.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+# (임시) 모바일 앱·잠금 파일 작업은 다음 커밋에서 더해요.
+# 이 저장소는 공개(public)라서 GitHub 서버(ubuntu-latest)의 실행 시간이 무료예요. SchedulAI 와 달리 self-hosted 실행기는 쓰지 않아요.
+# 잠금 파일(package-lock.json)이 아직 없으면 `npm install` 로 설치하고, 있으면 `npm ci` 로 정확히 같은 버전을 설치해요.
+# (잠금 파일은 아래 lockfile 작업이 main 에 한 번 만들어 줘요.)
+jobs:
+  db:
+    name: db · schema · tests · generated files
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      PGHOST: 127.0.0.1
+      PGPORT: "5432"
+      PGUSER: postgres
+      PGPASSWORD: postgres
+      PGDATABASE: sdgs_compass_test
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          package-manager-cache: false
+
+      - name: Disable problem matchers
+        run: |
+          echo "::remove-matcher owner=tsc::"
+          echo "::remove-matcher owner=eslint-compact::"
+          echo "::remove-matcher owner=eslint-stylish::"
+
+      - name: psql client
+        run: |
+          if ! command -v psql >/dev/null || ! command -v createdb >/dev/null; then
+            sudo apt-get update
+            sudo apt-get install -y postgresql-client
+          fi
+          psql --version
+
+      # 새 데이터베이스에 schema.sql + seed.sql 을 올리고 db/tests/*.sql 을 차례로 돌려요 (시험은 모두 ROLLBACK 해요).
+      - name: DB tests (schema.sql · seed.sql · tests/)
+        id: dbtests
+        run: bash .github/scripts/run-step.sh "db tests" bash db/run-tests.sh "$PGDATABASE"
+
+      # 앱(packages/core)의 규칙에서 만든 db/seed.sql · db/tests/golden.sql 이 최신인지 확인해요.
+      - name: Generated DB reference files are up to date
+        if: ${{ !cancelled() }}
+        run: bash .github/scripts/run-step.sh "db:generate --check" npx --yes tsx@4.23.12 scripts/gen-db-reference.ts --check
+
+      # README 의 ERD·표 목록은 위에서 올린 DB 에서 읽어 만들어요. 스키마를 바꾸고 README 를 안 고치면 여기서 실패해요.
+      - name: README ERD is up to date
+        if: ${{ !cancelled() && steps.dbtests.outcome == 'success' }}
+        run: bash .github/scripts/run-step.sh "erd --check" node scripts/erd.mjs --check
+
+  web:
+    name: core + data + web · lint · test · build · typecheck
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: ${{ hashFiles('package-lock.json') != '' && 'npm' || '' }}
+          package-manager-cache: ${{ hashFiles('package-lock.json') != '' }}
+
+      # 실패 원인은 run-step.sh 가 출력 끝부분을 주석으로 남깁니다.
+      # (setup-node 의 문제 매처 주석이 단계당 주석 한도를 먼저 채우지 않도록 끕니다.)
+      - name: Disable problem matchers
+        run: |
+          echo "::remove-matcher owner=tsc::"
+          echo "::remove-matcher owner=eslint-compact::"
+          echo "::remove-matcher owner=eslint-stylish::"
+
+      - name: Install dependencies
+        id: install
+        run: bash .github/scripts/run-step.sh "npm install" bash -c 'if [ -f package-lock.json ]; then npm ci --no-audit --no-fund; else npm install --no-audit --no-fund; fi'
+
+      # 각 단계는 앞 단계가 실패해도 실행해서 한 번에 모든 문제를 볼 수 있게 합니다.
+      - name: Single React copy
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: bash .github/scripts/run-step.sh "react 한 벌" npm run check:react
+
+      - name: Lint (web)
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: bash .github/scripts/run-step.sh "lint web" npm run lint -w @sdgs-compass/web
+
+      # 공용 패키지(core·data)도 웹과 같은 ESLint 설정으로 검사해요 (루트에서 실행: --config 의 경로는 현재 폴더 기준)
+      - name: Lint (core + data)
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: bash .github/scripts/run-step.sh "lint core·data" npm run lint:packages
+
+      - name: Unit tests (core + data + web)
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: bash .github/scripts/run-step.sh "test" npm test -w @sdgs-compass/core -w @sdgs-compass/data -w @sdgs-compass/web -- --reporter=default
+
+      - name: Typecheck (core + data)
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: bash .github/scripts/run-step.sh "typecheck core·data" npm run typecheck -w @sdgs-compass/core -w @sdgs-compass/data
+
+      - name: Build (web)
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: bash .github/scripts/run-step.sh "build web" npm run build -w @sdgs-compass/web
+
+      # next build 가 만드는 next-env.d.ts / .next/types 를 포함해 검사합니다.
+      - name: Typecheck (web)
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: bash .github/scripts/run-step.sh "typecheck web" npm run typecheck -w @sdgs-compass/web
+
+      # GitHub Pages 에 올리는 정적 내보내기(out/)가 만들어지는지도 확인해요 (저장소 하위 주소 /sdgs-compass 기준).
+      - name: Build (web, static export for GitHub Pages)
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        env:
+          NEXT_PUBLIC_BASE_PATH: /${{ github.event.repository.name }}
+        run: bash .github/scripts/run-step.sh "build web (export)" npm run build:export -w @sdgs-compass/web

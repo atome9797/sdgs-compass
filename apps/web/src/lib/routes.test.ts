@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { MESSAGES } from "@sdgs-compass/core/messages";
-import { activeTabId, B2B_TABS, B2C_TABS, tabsFor } from "./nav";
+import { activeTabId, ADMIN_TABS, B2B_TABS, B2C_TABS, tabsFor } from "./nav";
 import {
-  areaOf, applicantsHref, buildHref, certificateHref, challengeHref, feedHref, guardRedirect, homeFor, normalizeBasePath, normalizePath, parseSdgParam,
-  postNewHref, receiptHref, ROUTES, searchHref, shareHref, stripBasePath, submitHref, withBase,
+  ADMIN_PATHS, areaOf, applicantsHref, buildHref, certificateHref, challengeHref, feedHref, guardRedirect, homeFor, isAdminPath, normalizeBasePath, normalizePath,
+  parseSdgParam, postNewHref, receiptHref, ROUTES, searchHref, shareHref, stripBasePath, submitHref, withBase,
 } from "./routes";
 
 describe("buildHref", () => {
@@ -145,6 +145,42 @@ describe("areaOf / guardRedirect", () => {
     expect(homeFor("b2b")).toBe("/b2b/");
   });
 
+  it("운영자 화면(/admin/*)은 학생·기업 영역이 아니라 운영자 영역이에요", () => {
+    expect(areaOf("/admin/")).toBe("admin");
+    expect(areaOf("/admin")).toBe("admin");
+    expect(areaOf("/admin/sns/")).toBe("admin");
+    // 없는 주소는 운영자 화면이 아니에요 (404 가 게이트를 비껴가면 안 돼요)
+    expect(areaOf("/admin/nope/")).toBe("neutral");
+    expect(areaOf("/adminx/")).toBe("neutral");
+    expect(areaOf("/b2b/admin/")).toBe("b2b");
+  });
+
+  it("isAdminPath: 정확히 운영자 화면일 때만 (쿼리·끝 슬래시·basePath 는 무시)", () => {
+    expect(ADMIN_PATHS).toEqual(["/admin", "/admin/sns"]);
+    expect(isAdminPath("/admin/")).toBe(true);
+    expect(isAdminPath("/admin/sns/")).toBe(true);
+    expect(isAdminPath("/admin/sns/?x=1#y")).toBe(true);
+    expect(isAdminPath("/sdgs-compass/admin/", "/sdgs-compass")).toBe(true);
+    expect(isAdminPath("/sdgs-compass/admin/sns/", "/sdgs-compass")).toBe(true);
+    expect(isAdminPath("/admin/nope/")).toBe(false);
+    expect(isAdminPath("/admin/sns/extra/")).toBe(false);
+    expect(isAdminPath("/administrator/")).toBe(false);
+    expect(isAdminPath("/")).toBe(false);
+    expect(isAdminPath("/home/")).toBe(false);
+    expect(isAdminPath("/b2b/")).toBe(false);
+    // basePath 를 알려 주지 않고 붙은 채로 넘기면 운영자 화면으로 보지 않아요 (usePathname 은 이미 뺀 값이에요)
+    expect(isAdminPath("/sdgs-compass/admin/")).toBe(false);
+  });
+
+  it("운영자 화면은 어느 역할이든 옮기지 않아요 (역할을 아직 안 골랐을 때도)", () => {
+    for (const path of ["/admin/", "/admin/sns/"]) {
+      expect(guardRedirect(path, "b2c"), `b2c ${path}`).toBeNull();
+      expect(guardRedirect(path, "b2b"), `b2b ${path}`).toBeNull();
+      expect(guardRedirect(path, null), `null ${path}`).toBeNull();
+    }
+    expect(guardRedirect("/sdgs-compass/admin/sns/", "b2b", "/sdgs-compass")).toBeNull();
+  });
+
   it("basePath 가 붙은 경로도, 빠진 경로(usePathname)도 같게 다뤄요", () => {
     expect(guardRedirect("/sdgs-compass/", "b2c", "/sdgs-compass")).toBe("/home/");
     expect(guardRedirect("/sdgs-compass/home/", "b2b", "/sdgs-compass")).toBe("/b2b/");
@@ -169,7 +205,23 @@ describe("탭 정의", () => {
     expect(tabsFor("b2b")).toBe(B2B_TABS);
   });
 
+  it("운영자 탭도 실제 경로와 사전에 있는 문구를 가리켜요", () => {
+    const routes: readonly string[] = Object.values(ROUTES);
+    expect(ADMIN_TABS.map((t) => t.id)).toEqual(["usage", "sns"]);
+    for (const tab of ADMIN_TABS) {
+      expect(routes).toContain(tab.path);
+      expect(MESSAGES[tab.labelKey]).toBeDefined();
+      for (const p of tab.match) expect(ADMIN_PATHS).toContain(p);
+    }
+    // 운영자 화면의 주소는 모두 탭이 하나씩 맡아요
+    expect(ADMIN_TABS.map((t) => t.path)).toEqual([...ADMIN_PATHS]);
+  });
+
   it("지금 주소에 맞는 탭을 켜요", () => {
+    expect(activeTabId(ADMIN_TABS, "/admin/")).toBe("usage");
+    expect(activeTabId(ADMIN_TABS, "/admin/sns/")).toBe("sns");
+    expect(activeTabId(ADMIN_TABS, "/sdgs-compass/admin/sns/", "/sdgs-compass")).toBe("sns");
+    expect(activeTabId(ADMIN_TABS, "/home/")).toBeNull();
     expect(activeTabId(B2C_TABS, "/home/")).toBe("home");
     expect(activeTabId(B2C_TABS, "/challenge/")).toBe("home");
     expect(activeTabId(B2C_TABS, "/challenge/submit/")).toBe("home");

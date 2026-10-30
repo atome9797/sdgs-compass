@@ -35,6 +35,12 @@ export const B2B_TABS: readonly NavItem[] = [
 
 export const tabsFor = (role: Role): readonly NavItem[] => (role === "b2b" ? B2B_TABS : B2C_TABS);
 
+/** 운영자 화면(/admin/*)의 위쪽 탭. 학생·기업의 하단 탭·사이드바와는 따로 두고, 켜진 탭을 정하는 방법(activeTabId)만 같이 써요 */
+export const ADMIN_TABS: readonly NavItem[] = [
+  { id: "usage", path: ROUTES.admin, icon: "📈", labelKey: "admin.tab.usage", match: [ROUTES.admin] },
+  { id: "sns", path: ROUTES.adminSns, icon: "📲", labelKey: "admin.tab.sns", match: [ROUTES.adminSns] },
+];
+
 /** 지금 주소에서 켜져 있어야 하는 탭의 id (없으면 null) */
 export function activeTabId(tabs: readonly NavItem[], pathname: string, basePath = ""): string | null {
   const path = normalizePath(stripBasePath(pathname, basePath));

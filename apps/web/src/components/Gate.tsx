@@ -2,12 +2,13 @@
 
 // 앱 입구: 스플래시(불러오는 중) → 언어 선택(처음 한 번) → 역할 선택(학생/기업) → 화면.
 // 고른 값은 저장돼서 다음부터는 건너뛰고, 설정이나 헤더에서 언제든 바꿀 수 있어요.
+import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Suspense, useEffect, useState, type ReactNode } from "react";
 import type { Role } from "@sdgs-compass/core/domain";
 import { detectLocale, LOCALE_NAMES, LOCALES, pick, type Locale } from "@sdgs-compass/core/i18n";
 import { LANGUAGE_PICKER, makeT, translate } from "@sdgs-compass/core/messages";
-import { guardRedirect } from "@/lib/routes";
+import { buildHref, guardRedirect, isAdminPath, ROUTES } from "@/lib/routes";
 import { useBoot } from "@/lib/session";
 import { Splash } from "./Splash";
 import { LangToggle } from "./TopBar";
@@ -108,6 +109,10 @@ function RoleGate({ locale }: { locale: Locale }) {
         </div>
         <LangToggle />
         <p className="gate__note">{t("app.demoNote")}</p>
+        {/* 운영자 화면 입구는 여기 한 곳뿐이에요 (학생·기업 화면의 탭·사이드바·설정에는 두지 않아요) */}
+        <Link href={buildHref(ROUTES.admin)} className="link-more">
+          {t("admin.entry")}
+        </Link>
       </div>
     </main>
   );
@@ -126,7 +131,8 @@ export function Gate({ children }: { children: ReactNode }) {
 
   if (!app) return <Splash />;
   if (app.locale === null) return <LanguageGate />;
-  if (app.role === null) return <RoleGate locale={app.locale} />;
+  // 운영자 화면(/admin/*)은 역할을 안 골라도 열려요 — 운영자는 학생도 기업도 아니에요. (언어 선택은 거쳐요: 화면이 일본어·한국어 두 가지라서)
+  if (app.role === null && !isAdminPath(pathname)) return <RoleGate locale={app.locale} />;
   if (redirect) return <Splash />;
   return <Suspense fallback={<Splash />}>{children}</Suspense>;
 }

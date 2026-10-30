@@ -1,6 +1,7 @@
 // 화면 문구 사전: 모든 문구는 { ja, ko } 한 쌍. 키는 "영역.이름" 형식이고, 존재하지 않는 키는 타입 오류가 나요.
 // 새 문구는 영역별 파일(messages/*.ts)에 더하세요. 웹·모바일 전용 문구는 extraWeb.ts / extraMobile.ts 에.
 import { interpolate, type Locale, type LocalizedText, type MessageParams } from "./i18n";
+import { admin } from "./messages/admin";
 import { b2b } from "./messages/b2b";
 import { b2c } from "./messages/b2c";
 import { common } from "./messages/common";
@@ -9,7 +10,7 @@ import { extraWeb } from "./messages/extraWeb";
 import { feed } from "./messages/feed";
 import { settings } from "./messages/settings";
 
-export const MESSAGES = { ...common, ...b2c, ...b2b, ...feed, ...settings, ...extraWeb, ...extraMobile } as const;
+export const MESSAGES = { ...common, ...b2c, ...b2b, ...feed, ...settings, ...admin, ...extraWeb, ...extraMobile } as const;
 export type MessageKey = keyof typeof MESSAGES;
 
 /** 사전에서 문구를 꺼내 {자리표시자}를 채워요 */

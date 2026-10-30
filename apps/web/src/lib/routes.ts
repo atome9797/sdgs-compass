@@ -26,6 +26,9 @@ export const ROUTES = {
   b2bFeed: "/b2b/feed",
   b2bFeedNew: "/b2b/feed/new",
   b2bSettings: "/b2b/settings",
+  /** 운영자 화면(웹 전용 데모, 설계는 docs/admin.md): 이용 현황 · SNS 지표 */
+  admin: "/admin",
+  adminSns: "/admin/sns",
 } as const;
 export type RoutePath = (typeof ROUTES)[keyof typeof ROUTES];
 
@@ -109,13 +112,22 @@ export function parseSdgParam(raw: string | null | undefined): SdgId[] {
 
 // ───────── 역할별 영역과 경로 가드 ─────────
 
-export type Area = "b2c" | "b2b" | "neutral";
+export type Area = "b2c" | "b2b" | "admin" | "neutral";
 
 const B2C_PATHS: readonly string[] = [ROUTES.home, ROUTES.search, ROUTES.challenge, ROUTES.submit, ROUTES.impact, ROUTES.certificate, ROUTES.share, ROUTES.messages, ROUTES.feed, ROUTES.feedNew, ROUTES.settings];
+
+/** 운영자 화면의 주소들. /admin/* 전체가 아니라 실제로 있는 화면만 — 없는 주소(/admin/nope/)가 게이트를 비껴가지 않게 정확히 같을 때만 운영자 화면이에요 */
+export const ADMIN_PATHS: readonly string[] = [ROUTES.admin, ROUTES.adminSns];
+
+/** 운영자 화면인가요? (쿼리·끝 슬래시는 무시, basePath 가 붙어 있어도 돼요) */
+export function isAdminPath(pathname: string, basePath = ""): boolean {
+  return ADMIN_PATHS.includes(normalizePath(stripBasePath(pathname, basePath)));
+}
 
 export function areaOf(path: string): Area {
   const p = normalizePath(path);
   if (p === ROUTES.b2b || p.startsWith(`${ROUTES.b2b}/`)) return "b2b";
+  if (ADMIN_PATHS.includes(p)) return "admin";
   return B2C_PATHS.includes(p) ? "b2c" : "neutral";
 }
 
@@ -124,6 +136,7 @@ export const homeFor = (role: Role): string => (role === "b2b" ? buildHref(ROUTE
 /**
  * 지금 주소(usePathname 값)와 역할로 "옮겨야 할 주소"를 정해요. 옮길 필요가 없으면 null.
  * b2c ⇒ 학생 화면만, b2b ⇒ /b2b/* 만. 루트(/)는 역할의 홈으로. 역할을 아직 안 골랐으면 게이트가 화면을 가리므로 그대로 둬요.
+ * 운영자 화면(/admin/*)은 어느 역할이든 그대로 열려요 — 운영자는 학생도 기업도 아니라서 옮기지 않아요.
  * pathname 은 basePath 가 빠진 값(Next 의 usePathname)이어도, 붙은 값이어도 돼요.
  */
 export function guardRedirect(pathname: string, role: Role | null, basePath = ""): string | null {

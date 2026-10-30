@@ -1,0 +1,51 @@
+erDiagram
+  esg_reports {
+    uuid id PK
+    uuid company_id FK
+    date period_start
+    date period_end
+    text file_format
+    text file_key
+    jsonb snapshot
+    uuid generated_by FK
+    timestamptz generated_at
+  }
+  cert_criteria {
+    text code PK
+    esg_category category
+    cert_unit unit
+    numeric target
+    smallint weight
+    numeric max_value
+  }
+  cert_applications {
+    uuid id PK
+    uuid company_id FK
+    cert_status status
+    smallint score
+    smallint level "자동 계산"
+    timestamptz submitted_at
+    timestamptz decided_at
+    uuid decided_by FK
+    date valid_until
+    timestamptz created_at
+  }
+  cert_answers {
+    uuid application_id PK, FK
+    text criterion_code PK, FK
+    bigint value
+    text evidence_key
+    numeric points
+  }
+  companies {
+    uuid id PK
+  }
+  users {
+    uuid id PK
+  }
+  companies ||..o{ esg_reports : "company_id"
+  users ||..o{ esg_reports : "generated_by"
+  companies ||..o{ cert_applications : "company_id"
+  users |o..o{ cert_applications : "decided_by"
+  cert_applications ||--o{ cert_answers : "application_id"
+  cert_criteria ||--o{ cert_answers : "criterion_code"

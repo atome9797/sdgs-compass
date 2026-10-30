@@ -1,0 +1,125 @@
+erDiagram
+  badges {
+    text code PK
+    text emoji
+    text name_ja
+    text name_ko
+    text desc_ja
+    text desc_ko
+  }
+  share_cards {
+    uuid id PK
+    uuid user_id FK
+    uuid challenge_id FK
+    uuid award_id FK
+    share_template template
+    text headline
+    text image_key
+    timestamptz created_at
+    timestamptz shared_at
+  }
+  activities {
+    uuid id PK
+    uuid user_id FK
+    activity_kind kind
+    uuid challenge_id FK
+    uuid proposal_id FK
+    uuid award_id FK
+    uuid share_card_id FK
+    text title
+    text company_name
+    int points FK
+    date occurred_on
+    timestamptz created_at
+  }
+  activity_sdgs {
+    uuid activity_id PK, FK
+    smallint sdg_id PK, FK
+  }
+  impact_scores {
+    uuid user_id PK, FK
+    smallint sdg_id PK, FK
+    int raw_points
+    smallint score "자동 계산"
+    timestamptz updated_at
+  }
+  user_badges {
+    uuid user_id PK, FK
+    text badge_code PK, FK
+    timestamptz earned_at
+  }
+  portfolio_files {
+    uuid id PK
+    uuid user_id FK
+    text kind
+    text title
+    text file_key
+    text url
+    timestamptz created_at
+  }
+  certificates {
+    uuid id PK
+    text serial_no UK
+    uuid user_id FK
+    uuid activity_id FK, UK
+    cert_kind kind
+    text holder_name
+    text challenge_title
+    text company_name
+    award_kind award_kind
+    smallint_array sdg_ids
+    int points
+    date issued_on
+    char content_hash
+    text verify_code "자동 계산"
+    text qr_payload "자동 계산"
+    text chain_tx
+    timestamptz revoked_at
+    text revoked_reason
+    timestamptz created_at
+  }
+  certificate_verifications {
+    bigint id PK
+    text serial_no
+    uuid certificate_id FK
+    verify_result result
+    uuid verifier_company_id FK
+    timestamptz verified_at
+  }
+  awards {
+    uuid id PK
+  }
+  challenges {
+    uuid id PK
+  }
+  companies {
+    uuid id PK
+  }
+  proposals {
+    uuid id PK
+  }
+  sdgs {
+    smallint id PK
+  }
+  student_profiles {
+    uuid user_id PK, FK
+  }
+  awards |o..o{ share_cards : "award_id"
+  challenges |o..o{ share_cards : "challenge_id"
+  student_profiles ||..o{ share_cards : "user_id"
+  awards |o..o{ activities : "award_id, points"
+  challenges |o..o{ activities : "challenge_id"
+  proposals |o..o{ activities : "proposal_id"
+  share_cards |o..o{ activities : "share_card_id"
+  student_profiles ||..o{ activities : "user_id"
+  activities ||--o{ activity_sdgs : "activity_id"
+  sdgs ||--o{ activity_sdgs : "sdg_id"
+  sdgs ||--o{ impact_scores : "sdg_id"
+  student_profiles ||--o{ impact_scores : "user_id"
+  badges ||--o{ user_badges : "badge_code"
+  student_profiles ||--o{ user_badges : "user_id"
+  student_profiles ||..o{ portfolio_files : "user_id"
+  activities |o..o| certificates : "activity_id"
+  student_profiles ||..o{ certificates : "user_id"
+  certificates |o..o{ certificate_verifications : "certificate_id"
+  companies |o..o{ certificate_verifications : "verifier_company_id"

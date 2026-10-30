@@ -1,0 +1,98 @@
+erDiagram
+  notification_prefs {
+    uuid user_id PK, FK
+    notif_kind kind PK
+    notif_channel channel PK
+    boolean enabled
+  }
+  device_tokens {
+    uuid id PK
+    uuid user_id FK
+    text platform
+    text token UK
+    timestamptz created_at
+    timestamptz last_seen_at
+  }
+  notifications {
+    uuid id PK
+    uuid user_id FK
+    notif_kind kind
+    notif_channel channel
+    uuid challenge_id FK
+    text title
+    text body
+    text link
+    timestamptz scheduled_at
+    timestamptz sent_at
+    timestamptz read_at
+    timestamptz created_at
+  }
+  reports {
+    uuid id PK
+    uuid reporter_id FK
+    report_target target_type
+    uuid target_id
+    report_reason reason
+    text detail
+    report_status status
+    uuid handled_by FK
+    timestamptz handled_at
+    timestamptz created_at
+  }
+  blacklist_entries {
+    uuid id PK
+    uuid user_id FK
+    uuid company_id FK
+    text reason
+    uuid created_by FK
+    timestamptz created_at
+    timestamptz released_at
+  }
+  admin_actions {
+    bigint id PK
+    uuid admin_id FK
+    text action
+    text target_type
+    uuid target_id
+    jsonb detail
+    timestamptz created_at
+  }
+  analytics_daily {
+    bigint id PK
+    date day
+    text metric
+    smallint sdg_id FK
+    numeric value
+  }
+  content_translations {
+    text entity PK
+    uuid entity_id PK
+    text field PK
+    locale_code locale PK
+    text body
+    boolean machine_translated
+    timestamptz created_at
+  }
+  challenges {
+    uuid id PK
+  }
+  companies {
+    uuid id PK
+  }
+  sdgs {
+    smallint id PK
+  }
+  users {
+    uuid id PK
+  }
+  users ||--o{ notification_prefs : "user_id"
+  users ||..o{ device_tokens : "user_id"
+  challenges |o..o{ notifications : "challenge_id"
+  users ||..o{ notifications : "user_id"
+  users |o..o{ reports : "handled_by"
+  users ||..o{ reports : "reporter_id"
+  companies |o..o{ blacklist_entries : "company_id"
+  users ||..o{ blacklist_entries : "created_by"
+  users |o..o{ blacklist_entries : "user_id"
+  users ||..o{ admin_actions : "admin_id"
+  sdgs |o..o{ analytics_daily : "sdg_id"

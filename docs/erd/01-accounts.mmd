@@ -1,0 +1,116 @@
+erDiagram
+  sdgs {
+    smallint id PK
+    char color
+    text name_ja
+    text name_ko
+    text short_ja
+    text short_ko
+  }
+  skills {
+    text code PK
+    text name_ja
+    text name_ko
+  }
+  users {
+    uuid id PK
+    text email
+    text password_hash
+    user_role role
+    account_status status
+    locale_code locale
+    timestamptz email_verified_at
+    timestamptz last_login_at
+    timestamptz created_at
+    timestamptz updated_at
+    timestamptz deleted_at
+  }
+  oauth_accounts {
+    uuid id PK
+    uuid user_id FK
+    oauth_provider provider
+    text provider_user_id
+    timestamptz created_at
+  }
+  student_profiles {
+    uuid user_id PK, FK
+    text nickname
+    text university_name
+    text faculty
+    smallint grad_year
+    text desired_job
+    text bio
+    text avatar_key
+    text identity_method
+    timestamptz identity_verified_at
+    boolean scoutable
+    visibility portfolio_visibility
+    timestamptz created_at
+    timestamptz updated_at
+  }
+  profile_sdg_interests {
+    uuid user_id PK, FK
+    smallint sdg_id PK, FK
+    smallint priority
+  }
+  profile_skills {
+    uuid user_id PK, FK
+    text skill_code PK, FK
+  }
+  companies {
+    uuid id PK
+    uuid owner_id FK
+    text name
+    text business_number
+    company_status status
+    timestamptz approved_at
+    uuid approved_by FK
+    text industry
+    text region
+    text logo_key
+    text homepage_url
+    text about
+    locale_code source_lang
+    text esg_goal
+    text desired_talent
+    text hiring_perks
+    text contact_name
+    text contact_email
+    timestamptz created_at
+    timestamptz updated_at
+  }
+  company_sdgs {
+    uuid company_id PK, FK
+    smallint sdg_id PK, FK
+  }
+  company_members {
+    uuid company_id PK, FK
+    uuid user_id PK, FK
+    member_role member_role
+    timestamptz created_at
+  }
+  company_documents {
+    uuid id PK
+    uuid company_id FK
+    text doc_type
+    text file_key
+    review_status review_status
+    uuid reviewed_by FK
+    timestamptz reviewed_at
+    text review_note
+    timestamptz uploaded_at
+  }
+  users ||..o{ oauth_accounts : "user_id"
+  users ||--o| student_profiles : "user_id"
+  sdgs ||--o{ profile_sdg_interests : "sdg_id"
+  student_profiles ||--o{ profile_sdg_interests : "user_id"
+  skills ||--o{ profile_skills : "skill_code"
+  student_profiles ||--o{ profile_skills : "user_id"
+  users |o..o{ companies : "approved_by"
+  users ||..o{ companies : "owner_id"
+  companies ||--o{ company_sdgs : "company_id"
+  sdgs ||--o{ company_sdgs : "sdg_id"
+  companies ||--o{ company_members : "company_id"
+  users ||--o{ company_members : "user_id"
+  companies ||..o{ company_documents : "company_id"
+  users |o..o{ company_documents : "reviewed_by"

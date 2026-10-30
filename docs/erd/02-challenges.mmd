@@ -1,0 +1,157 @@
+erDiagram
+  challenges {
+    uuid id PK
+    uuid company_id FK
+    uuid created_by FK
+    text title
+    text summary
+    text background
+    text mission
+    locale_code source_lang
+    challenge_status status
+    participation_kind participation
+    smallint max_team_size
+    smallint impact_points
+    smallint cover_hue
+    timestamptz opens_at
+    timestamptz closes_at
+    uuid approved_by FK
+    timestamptz approved_at
+    timestamptz created_at
+    timestamptz updated_at
+  }
+  challenge_sdgs {
+    uuid challenge_id PK, FK
+    smallint position PK
+    smallint sdg_id FK
+  }
+  challenge_skills {
+    uuid challenge_id PK, FK
+    text skill_code PK, FK
+  }
+  challenge_deliverables {
+    uuid challenge_id PK, FK
+    smallint position PK
+    text body
+  }
+  challenge_rewards {
+    uuid challenge_id PK, FK
+    reward_kind kind PK
+    int amount_yen
+    text note
+  }
+  challenge_attachments {
+    uuid id PK
+    uuid challenge_id FK
+    text file_key
+    text file_name
+    bigint size_bytes
+    timestamptz created_at
+  }
+  challenge_judges {
+    uuid challenge_id PK, FK
+    uuid company_id FK
+    uuid user_id PK, FK
+    timestamptz assigned_at
+  }
+  challenge_comments {
+    uuid id PK
+    uuid challenge_id FK
+    uuid parent_id FK
+    uuid author_id FK
+    comment_kind kind
+    text body
+    locale_code source_lang
+    timestamptz blinded_at
+    timestamptz created_at
+  }
+  team_posts {
+    uuid id PK
+    uuid challenge_id FK
+    uuid author_id FK
+    text title
+    text body
+    locale_code source_lang
+    timestamptz closed_at
+    timestamptz blinded_at
+    timestamptz created_at
+  }
+  team_post_roles {
+    uuid post_id PK, FK
+    text skill_code PK, FK
+  }
+  team_requests {
+    uuid id PK
+    uuid post_id FK
+    uuid requester_id FK
+    text message
+    request_status status
+    timestamptz created_at
+    timestamptz decided_at
+  }
+  teams {
+    uuid id PK
+    uuid challenge_id FK
+    text name
+    uuid leader_id FK
+    uuid source_post_id FK
+    timestamptz created_at
+  }
+  team_members {
+    uuid team_id PK, FK
+    uuid challenge_id FK
+    uuid user_id PK, FK
+    timestamptz joined_at
+  }
+  bookmarks {
+    uuid user_id PK, FK
+    uuid challenge_id PK, FK
+    timestamptz created_at
+  }
+  companies {
+    uuid id PK
+  }
+  company_members {
+    uuid company_id PK, FK
+    uuid user_id PK, FK
+  }
+  sdgs {
+    smallint id PK
+  }
+  skills {
+    text code PK
+  }
+  student_profiles {
+    uuid user_id PK, FK
+  }
+  users {
+    uuid id PK
+  }
+  users |o..o{ challenges : "approved_by"
+  companies ||..o{ challenges : "company_id"
+  users ||..o{ challenges : "created_by"
+  challenges ||--o{ challenge_sdgs : "challenge_id"
+  sdgs ||..o{ challenge_sdgs : "sdg_id"
+  challenges ||--o{ challenge_skills : "challenge_id"
+  skills ||--o{ challenge_skills : "skill_code"
+  challenges ||--o{ challenge_deliverables : "challenge_id"
+  challenges ||--o{ challenge_rewards : "challenge_id"
+  challenges ||..o{ challenge_attachments : "challenge_id"
+  challenges ||..o{ challenge_judges : "challenge_id, company_id"
+  company_members ||..o{ challenge_judges : "company_id, user_id"
+  users ||..o{ challenge_comments : "author_id"
+  challenges ||..o{ challenge_comments : "challenge_id"
+  challenge_comments |o..o{ challenge_comments : "parent_id, challenge_id"
+  student_profiles ||..o{ team_posts : "author_id"
+  challenges ||..o{ team_posts : "challenge_id"
+  team_posts ||--o{ team_post_roles : "post_id"
+  skills ||--o{ team_post_roles : "skill_code"
+  team_posts ||..o{ team_requests : "post_id"
+  student_profiles ||..o{ team_requests : "requester_id"
+  challenges ||..o{ teams : "challenge_id"
+  student_profiles ||..o{ teams : "leader_id"
+  team_posts |o..o{ teams : "source_post_id"
+  teams ||..o{ team_members : "team_id, challenge_id"
+  student_profiles ||--o{ team_members : "user_id"
+  challenges ||--o{ bookmarks : "challenge_id"
+  users ||--o{ bookmarks : "user_id"

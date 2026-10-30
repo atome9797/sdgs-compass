@@ -1,0 +1,110 @@
+erDiagram
+  receipt_counters {
+    date day PK
+    int last_no
+  }
+  proposals {
+    uuid id PK
+    uuid challenge_id FK
+    uuid submitter_id FK
+    uuid team_id FK
+    text team_name
+    text title
+    text summary
+    text video_url
+    text receipt_no UK
+    proposal_status status
+    timestamptz submitted_at
+    timestamptz updated_at
+  }
+  proposal_versions {
+    uuid proposal_id PK, FK
+    smallint version_no PK
+    text file_key
+    text file_name
+    text mime_type
+    bigint size_bytes
+    char sha256
+    text change_reason
+    timestamptz submitted_at
+  }
+  reviews {
+    uuid proposal_id PK, FK
+    uuid challenge_id FK
+    uuid judge_id PK, FK
+    smallint creativity
+    smallint feasibility
+    smallint sdg_contribution
+    numeric average "자동 계산"
+    text comment
+    timestamptz reviewed_at
+  }
+  awards {
+    uuid id PK
+    uuid proposal_id FK, UK
+    uuid challenge_id FK
+    award_kind kind
+    smallint points "자동 계산"
+    uuid awarded_by FK
+    timestamptz awarded_at
+  }
+  matches {
+    uuid id PK
+    uuid challenge_id FK
+    uuid company_id FK
+    uuid proposal_id FK, UK
+    uuid adopted_by FK
+    int fee_yen
+    int donation_yen "자동 계산"
+    int revenue_yen "자동 계산"
+    timestamptz matched_at
+  }
+  donation_recipients {
+    uuid id PK
+    text name_ja
+    text name_ko
+    smallint sdg_id FK
+    text url
+    boolean active
+  }
+  donations {
+    uuid id PK
+    uuid match_id FK, UK
+    int amount_yen FK
+    uuid recipient_id FK
+    text receipt_key
+    timestamptz donated_at
+  }
+  challenge_judges {
+    uuid challenge_id PK, FK
+    uuid user_id PK, FK
+  }
+  challenges {
+    uuid id PK
+  }
+  sdgs {
+    smallint id PK
+  }
+  student_profiles {
+    uuid user_id PK, FK
+  }
+  teams {
+    uuid id PK
+  }
+  users {
+    uuid id PK
+  }
+  challenges ||..o{ proposals : "challenge_id"
+  student_profiles ||..o{ proposals : "submitter_id"
+  teams |o..o{ proposals : "team_id, challenge_id"
+  proposals ||--o{ proposal_versions : "proposal_id"
+  challenge_judges ||..o{ reviews : "challenge_id, judge_id"
+  proposals ||..o{ reviews : "proposal_id, challenge_id"
+  users ||..o{ awards : "awarded_by"
+  proposals ||..o{ awards : "proposal_id, challenge_id"
+  users ||..o{ matches : "adopted_by"
+  challenges ||..o{ matches : "challenge_id, company_id"
+  proposals ||..o{ matches : "proposal_id, challenge_id"
+  sdgs |o..o{ donation_recipients : "sdg_id"
+  matches ||..o{ donations : "match_id, amount_yen"
+  donation_recipients ||..o{ donations : "recipient_id"

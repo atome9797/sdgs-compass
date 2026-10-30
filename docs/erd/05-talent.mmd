@@ -1,0 +1,72 @@
+erDiagram
+  scouts {
+    uuid id PK
+    uuid company_id FK
+    uuid sender_id FK
+    uuid student_id FK
+    uuid proposal_id FK
+    scout_kind kind
+    text message
+    locale_code source_lang
+    scout_status status
+    timestamptz sent_at
+    date sent_on "자동 계산"
+    timestamptz read_at
+    timestamptz responded_at
+  }
+  conversations {
+    uuid id PK
+    uuid company_id FK
+    uuid student_id FK
+    uuid scout_id FK, UK
+    timestamptz contact_released_at
+    timestamptz created_at
+  }
+  messages {
+    uuid id PK
+    uuid conversation_id FK
+    uuid sender_id FK
+    text body
+    text body_masked "자동 계산"
+    locale_code source_lang
+    timestamptz sent_at
+    timestamptz read_at
+    timestamptz blinded_at
+  }
+  interview_slots {
+    uuid id PK
+    uuid conversation_id FK
+    uuid proposed_by FK
+    timestamptz starts_at
+    timestamptz ends_at
+    slot_status status
+    text meeting_url
+    timestamptz created_at
+  }
+  companies {
+    uuid id PK
+  }
+  company_members {
+    uuid company_id PK, FK
+    uuid user_id PK, FK
+  }
+  proposals {
+    uuid id PK
+  }
+  student_profiles {
+    uuid user_id PK, FK
+  }
+  users {
+    uuid id PK
+  }
+  companies ||..o{ scouts : "company_id"
+  company_members ||..o{ scouts : "company_id, sender_id"
+  proposals |o..o{ scouts : "proposal_id"
+  student_profiles ||..o{ scouts : "student_id"
+  companies ||..o{ conversations : "company_id"
+  scouts |o..o| conversations : "scout_id"
+  student_profiles ||..o{ conversations : "student_id"
+  conversations ||..o{ messages : "conversation_id"
+  users ||..o{ messages : "sender_id"
+  conversations ||..o{ interview_slots : "conversation_id"
+  users ||..o{ interview_slots : "proposed_by"

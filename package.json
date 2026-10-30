@@ -1,0 +1,46 @@
+{
+  "name": "sdgs-compass",
+  "version": "0.1.0",
+  "private": true,
+  "description": "SDGsコンパス — 企業と学生をつなぐSDGs特化型マッチングプラットフォーム (웹 + iOS/Android 앱, 일본어/한국어 지원 데모)",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "devEngines": {
+    "runtime": {
+      "name": "node",
+      "version": ">=22.13.0",
+      "onFail": "error"
+    },
+    "packageManager": {
+      "name": "npm",
+      "version": ">=10.9.0",
+      "onFail": "warn"
+    }
+  },
+  "scripts": {
+    "dev": "npm run dev -w @sdgs-compass/web",
+    "build": "npm run build -w @sdgs-compass/web",
+    "lint": "npm run lint --workspaces --if-present && npm run lint:packages",
+    "lint:packages": "eslint -c apps/web/eslint.config.mjs packages/core/src packages/data/src",
+    "test": "npm run test --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "check:react": "node scripts/check-single-react.mjs",
+    "check": "npm run check:react && npm run lint && npm test && npm run build && npm run typecheck",
+    "mobile": "npm run start -w @sdgs-compass/mobile",
+    "db:test": "bash db/run-tests.sh",
+    "db:generate": "tsx scripts/gen-db-reference.ts",
+    "db:check": "tsx scripts/gen-db-reference.ts --check",
+    "erd": "node scripts/erd.mjs --write",
+    "erd:check": "node scripts/erd.mjs --check",
+    "erd:render": "node scripts/erd.mjs --render"
+  },
+  "devDependencies": {
+    "tsx": "4.23.12"
+  },
+  "overrides": {
+    "react": "19.3.0",
+    "react-dom": "19.3.0"
+  }
+}

@@ -1,0 +1,44 @@
+# dependencies (루트와 각 워크스페이스)
+node_modules/
+.pnp
+.pnp.*
+
+# testing
+coverage/
+
+# next.js (apps/web)
+.next/
+out/
+next-env.d.ts
+
+# expo (apps/mobile)
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+/apps/mobile/android/
+/apps/mobile/ios/
+
+# misc
+.DS_Store
+*.pem
+*.log
+npm-debug.log*
+
+# env files: 비밀값은 절대 커밋하지 않습니다 (이 프로젝트는 데모 모드라 필요한 비밀값이 없어요)
+.env
+.env*.local
+
+# 잠금 파일은 루트의 package-lock.json 하나만 씁니다
+apps/*/package-lock.json
+packages/*/package-lock.json
+yarn.lock
+
+# 서명 키·인증서 (절대 커밋하지 않기)
+*.jks
+*.keystore
+*.p8
+*.p12
+*.key
+*.mobileprovision
+credentials.json

@@ -1,0 +1,2 @@
+# tsconfig 의 incremental 설정이 만드는 캐시 (루트 .gitignore 에는 없어서 여기서 막아요)
+*.tsbuildinfo

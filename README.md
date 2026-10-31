@@ -115,11 +115,11 @@ QR 주소 끝의 <code>?lang=ja</code> 덕분에 언어 선택 없이 <b>일본�
 | ⑤ | B2C | Impact: 레벨·SDG 레이더 차트·배지 → **디지털 증명서(QR)** → **진위 확인 ✓ / 변조 ✗** → (선택) **신청용 요약**: 기간 고르기 → 「印刷・PDFで保存」 | SHA-256 해시, 변조하면 검증 실패 · 요약은 A4 한 장에 활동·SDGs·증명서 QR·고지(장학금·선정 보장 아님, 대학과 제휴 아님) |
 | ⑥ | B2C | SNS 카드뉴스(Instagram 1:1 / LinkedIn 1.91:1) → 공유 | 공유도 활동 포인트(최대 5회) |
 | ⑦ | B2C | **피드**: 기업의 홍보 글(`PR` 표시)을 보고 좋아요 → **자랑 글 쓰기**(내 수상·제출·참가 실적 1건 선택 → 본문) → 올리기 | 닉네임·레벨만 공개 · 이메일/전화번호는 올릴 수 없음 · 올린 글이 맨 위에 |
-| ⑧ | B2C | 메시지: 기업의 스카우트 수신 → 수락 | 수락하면 1:1 대화로 이어지는 설계(대화는 DB 설계까지) |
+| ⑧ | B2C | 메시지: 기업의 스카우트 수신 → 수락 | 수락하면 1:1 대화로 이어지는 설계(대화는 DB 설계까지) · 스카우트를 받을지는 **설정의 「스카우트 받기」 스위치**로 학생이 정해요(포인트·레벨과 무관) |
 | ⑨ | B2B | 역할 전환 → 대시보드(KPI 5개) · 새 챌린지(SDGs 최대 3개, 마감 7~90일) | 입력 검사 |
 | ⑩ | B2B | 응모자: 심사(1~5점 × 3축) → 수상 → **채용(매칭)** | 채용하면 **수수료 ¥30,000 / 기부 ¥15,000**이 대시보드에 반영 |
 | ⑪ | B2B | **피드**: 수상 건의 `홍보하기` → 홍보 글(제목·본문·SDGs·챌린지 연결) → **공식 SNS 게시 신청**(X·Instagram·Facebook 중 채널 선택) | 채널마다 하루에 한 회사만 · 빈 날짜가 자동 배정(샘플에서는 X 는 내일, Instagram·Facebook 은 모레 — 채널을 바꾸면 날짜가 달라져요) · 학생 자랑 글에 좋아요도 눌러 볼 수 있음 |
-| ⑫ | B2B | 인재 검색 → 스카우트(하루 3건 제한) | 비공개 학생은 검색에서 제외 |
+| ⑫ | B2B | 인재 검색 → 스카우트(하루 3건 제한) | 스카우트 받기를 끈 학생은 「스카우트 수신 안 함」으로 보이고 보낼 수 없음 · 포인트 기준선은 없음(포인트는 실적 표시·정렬에만 써요) |
 | ⑬ | B2B | ESG·실천 마크(取組みマーク): 6개 기준 입력 → 점수·★ 단계 → 리포트 생성 | **증빙을 올린 기준만** 점수에 들어감, 면책 문구 |
 | ⑭ | 운영자 | 역할 선택 화면 아래 `運営者画面（デモ）` → **이용 현황**: 지금의 숫자 12개 · 기간(7·30·90일) 추이 · 한 줄 읽기 | 학생·기업 화면과 같은 데모 데이터를 세기만 해요(날짜 없는 값은 "지금 값"만) |
 | ⑮ | 운영자 | **SNS 지표**: 샘플 불러오기 → X·Instagram·Facebook·YouTube 의 주별 추이 · 최신 주 비교 · CSV 내보내기 | 숫자는 사람이 옮겨 적는 방식(API 연동 없음), 같은 주·같은 SNS 는 덮어써요 |
@@ -370,7 +370,7 @@ flowchart TD
 <td align="center" valign="top"><img src="docs/mockups/web-b2c-messages-ja.png" width="220" alt="메시지 — 기업 스카우트 수신함 (F-602)"><br><sub>메시지 — 기업 스카우트 수신함 (F-602)</sub></td>
 </tr>
 <tr>
-<td align="center" valign="top"><img src="docs/mockups/web-b2c-impact-ja.png" width="220" alt="마이 Impact · SCR-04 (일본어, F-401 · F-402)"><br><sub>마이 Impact · SCR-04 (일본어, F-401 · F-402)</sub></td>
+<td align="center" valign="top"><img src="docs/mockups/web-b2c-impact-ja.png" width="220" alt="마이 Impact · SCR-04 (일본어, F-401 · F-402) — 포인트 아래 선으로 나눈 「스카우트 받기」 설정 줄"><br><sub>마이 Impact · SCR-04 (일본어, F-401 · F-402) — 포인트 아래 선으로 나눈 「스카우트 받기」 설정 줄</sub></td>
 <td align="center" valign="top"><img src="docs/mockups/web-b2c-impact-ko.png" width="220" alt="마이 Impact · SCR-04 (한국어, F-401 · F-402)"><br><sub>마이 Impact · SCR-04 (한국어, F-401 · F-402)</sub></td>
 <td align="center" valign="top"><img src="docs/mockups/web-b2c-certificate-ja.png" width="220" alt="디지털 증명서 (F-502)"><br><sub>디지털 증명서 (F-502)</sub></td>
 </tr>
@@ -1535,7 +1535,7 @@ erDiagram
 | F-502 | 디지털 증명서(해시·QR·진위 확인) | ✅ | 증명서: 검증 ✓ / 변조 ✗ | `certificates`, `certificate_verifications` |
 | F-503 | 학생 자랑 글(SNS 피드) | ✅ | 피드: 내 실적 1건을 골라 글 올리기 · 좋아요 · 삭제 (이메일/전화번호 글은 차단) | `social_posts`(`kind='brag'`), `social_post_sdgs`, `social_post_likes` |
 | F-504 | 기업 홍보 글 · 공식 SNS 게시 신청 | 🟡 | 피드: `PR` 표시 홍보 글, 공식 SNS 채널(X·Instagram·Facebook) 선택과 채널별 게시 날짜 배정(채널마다 하루 한 회사). 실제 SNS 게시·정산은 없음 | `social_posts`(`kind='pr'`), `official_share_slots` |
-| F-601 | 인재 검색 | ✅ | B2B 인재 | `student_profiles` (`scoutable`) |
+| F-601 | 인재 검색 | ✅ | B2B 인재 · 학생 설정의 「스카우트 받기」 켜기/끄기(Impact 에도 상태 표시) | `student_profiles` (`scoutable`) |
 | F-602 | 스카우트(하루 3건) | ✅ | 보내기·수신함·수락/거절 | `scouts` |
 | F-603 | 1:1 메시지·면접 일정 | 📐 | 수신함까지(대화·면접은 DB) | `conversations`, `messages`, `interview_slots` |
 | F-701 | 관리자 승인 | 📐 | — | `companies.status`, `company_documents` |

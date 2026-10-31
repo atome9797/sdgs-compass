@@ -1,4 +1,4 @@
-// SCR-04 마이 포트폴리오: 레벨·누적 지수 · SDGs Impact 레이더 차트(17목표) · 강점 SDGs · 배지 · 참여 실적 · 증명서/카드뉴스 단추.
+// SCR-04 마이 포트폴리오: 레벨·누적 지수 · 스카우트 수신 설정(따로 된 줄) · SDGs Impact 레이더 차트(17목표) · 강점 SDGs · 배지 · 참여 실적 · 증명서/카드뉴스 단추.
 // 레이더는 SVG 없이 View 로 그려요(components/RadarChart). 값은 모두 core 의 selectImpact 에서 와요.
 import { useRouter } from "expo-router";
 import { useMemo } from "react";
@@ -49,9 +49,21 @@ export function ImpactScreen() {
         <Txt variant="small" tone="muted">
           {vm.nextLevelLabel}
         </Txt>
-        <Txt variant="small" tone="muted">
-          {vm.scoutNote}
-        </Txt>
+        {/* 스카우트 수신은 포인트와 관계없는 "설정"이라, 진행 막대 아래가 아니라 선으로 나눈 따로 된 줄에 상태 + 설명 + 설정 단추로 보여요 */}
+        <View style={styles.scoutRow} testID="impact-scout">
+          <Txt accessibilityElementsHidden importantForAccessibility="no">
+            {vm.scoutable ? "🔔" : "🔕"}
+          </Txt>
+          <View style={styles.scoutText}>
+            <Txt variant="small" bold>
+              {vm.scoutStatus}
+            </Txt>
+            <Txt variant="small" tone="muted">
+              {vm.scoutNote}
+            </Txt>
+          </View>
+          <Button testID="impact-scout-settings" variant="ghost" small label={t("impact.scoutChange")} onPress={() => router.push(ROUTES.settings)} />
+        </View>
       </Card>
 
       <Section title={t("impact.radarTitle")} hint={t("impact.radarHint")}>
@@ -139,6 +151,8 @@ export function ImpactScreen() {
 const styles = StyleSheet.create({
   rowBetween: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: SPACE.sm },
   shrink: { flexShrink: 1 },
+  scoutRow: { flexDirection: "row", alignItems: "center", gap: SPACE.sm, paddingTop: SPACE.md, borderTopWidth: 1, borderTopColor: COLORS.border },
+  scoutText: { flex: 1, minWidth: 0 },
   center: { alignItems: "center" },
   topRow: { flexDirection: "row", alignItems: "center", gap: SPACE.md, minHeight: 44 },
   badges: { flexDirection: "row", flexWrap: "wrap", gap: SPACE.sm },

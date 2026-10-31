@@ -120,8 +120,12 @@ export const b2c = {
   "impact.history": { ja: "参加実績", ko: "참여 실적" },
   "impact.certificateButton": { ja: "デジタル証明書発行／QR", ko: "디지털 증명서 발급/QR" },
   "impact.shareButton": { ja: "SNSカードニュースを作る", ko: "SNS 카드뉴스 만들기" },
-  "impact.profileScoutOn": { ja: "企業からのスカウトを受け取る設定です", ko: "기업의 스카우트를 받을 수 있도록 설정되어 있어요" },
-  "impact.profileScoutOff": { ja: "スカウトの受け取りはオフです", ko: "스카우트 수신이 꺼져 있어요" },
+  // 스카우트 수신은 포인트·레벨과 관계없는 학생의 "설정"이에요(포인트를 모으면 받는다는 뜻으로 읽히지 않게, 상태 + 설명 + 설정 링크로 보여요)
+  "impact.scoutStatusOn": { ja: "スカウトの受け取り：オン", ko: "스카우트 받기: 켜짐" },
+  "impact.scoutStatusOff": { ja: "スカウトの受け取り：オフ", ko: "스카우트 받기: 꺼짐" },
+  "impact.profileScoutOn": { ja: "企業の人材検索にあなたのプロフィールが表示されます", ko: "기업의 인재 검색에 내 프로필이 보여요" },
+  "impact.profileScoutOff": { ja: "企業の人材検索には表示されません", ko: "기업의 인재 검색에 보이지 않아요" },
+  "impact.scoutChange": { ja: "設定で変更", ko: "설정에서 바꾸기" },
 
   "activity.participation": { ja: "参加", ko: "참여" },
   "activity.submission": { ja: "企画書提出", ko: "기획서 제출" },

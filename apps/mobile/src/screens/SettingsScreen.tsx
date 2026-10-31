@@ -1,12 +1,12 @@
-// 설정(학생·기업 공용): 언어 · 이용 유형 전환(데모) · 스카우트 수신 안내(학생) · 데모 초기화 · 앱 정보(샘플 데이터 안내) · 인증마크 유의 사항.
+// 설정(학생·기업 공용): 언어 · 이용 유형 전환(데모) · 스카우트 받기 켜기/끄기(학생) · 데모 초기화 · 앱 정보(샘플 데이터 안내) · 인증마크 유의 사항.
 // 언어·유형은 바꾸는 즉시 저장돼요. 데모 초기화는 경고창 대신 화면 안에서 한 번 더 확인해요.
 import { useMemo, useState } from "react";
 import { Linking, StyleSheet, View } from "react-native";
 import { CERT_DISCLAIMER } from "@sdgs-compass/core/certification";
 import { LOCALE_NAMES, LOCALES, pick } from "@sdgs-compass/core/i18n";
-import { selectImpact } from "@sdgs-compass/core/selectors";
+import { selectScoutSetting } from "@sdgs-compass/core/selectors";
 import { Screen, ScreenTitle } from "@/components/Screen";
-import { Button, Card, KeyValue, Notice, Section, Segmented, Txt } from "@/components/ui";
+import { Button, Card, KeyValue, LabeledSwitch, Notice, Section, Segmented, Txt } from "@/components/ui";
 import { useApp } from "@/lib/AppProvider";
 import { APP_VERSION, REPO_URL } from "@/lib/meta";
 import { otherRole } from "@/lib/routes";
@@ -20,7 +20,7 @@ export function SettingsScreen() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const role = app.role;
-  const scoutNote = useMemo(() => selectImpact(demo, locale).scoutNote, [demo, locale]);
+  const scout = useMemo(() => selectScoutSetting(demo, locale), [demo, locale]);
 
   const doReset = async () => {
     setBusy(true);
@@ -66,7 +66,16 @@ export function SettingsScreen() {
       {role === "b2c" ? (
         <Section title={t("mobile.scoutSetting")}>
           <Card>
-            <Txt variant="small">{scoutNote}</Txt>
+            <LabeledSwitch
+              testID="scout-switch"
+              label={t("settings.scoutToggle")}
+              hint={t("settings.scoutToggleHint")}
+              value={scout.enabled}
+              onValueChange={(value) => dispatch({ type: "setScoutable", scoutable: value })}
+            />
+            <Txt variant="small" bold accessibilityLiveRegion="polite" testID="scout-status">
+              {`${scout.status} — ${scout.note}`}
+            </Txt>
           </Card>
         </Section>
       ) : null}

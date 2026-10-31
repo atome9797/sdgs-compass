@@ -168,6 +168,23 @@ describe("스카우트 (F-601/F-602)", () => {
     expect(talent.candidates.every((c) => !c.canScout)).toBe(true);
   });
 
+  it("학생이 설정에서 스카우트 받기를 끄면 인재 검색에서 받지 않음이 되고 보낼 수 없어요 — 포인트와 관계없고, 다시 켜면 받아요", () => {
+    expect(initial.me.scoutable).toBe(true);
+    const off = run(initial, { type: "setScoutable", scoutable: false });
+    expect(off.me.scoutable).toBe(false);
+    expect(run(off, { type: "setScoutable", scoutable: false })).toBe(off); // 같은 값이면 그대로
+    const meOff = selectTalent(off, "ja", { query: "", sdgIds: [] }).candidates.find((c) => c.isDemoStudent);
+    expect(meOff?.scoutable).toBe(false);
+    expect(meOff?.canScout).toBe(false);
+    expect(send(off, "stu-mina")).toBe(off);
+    expect(points(off)).toBe(points(initial)); // 포인트는 그대로
+    expect(off.scouts).toBe(initial.scouts); // 이미 받은 스카우트는 그대로
+    const restored = parseState(serializeState(off));
+    expect(restored?.me.scoutable).toBe(false); // 저장했다 다시 열어도 꺼진 채
+    const on = run(off, { type: "setScoutable", scoutable: true });
+    expect(send(on, "stu-mina").scouts).toHaveLength(on.scouts.length + 1);
+  });
+
   it("학생 화면의 나(Mina)에게 보낸 스카우트가 받은 메시지에 도착하고, 읽음·수락 처리돼요", () => {
     const before = selectInbox(initial, "ja");
     expect(before.unreadCount).toBe(1);

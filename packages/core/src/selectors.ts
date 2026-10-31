@@ -310,8 +310,29 @@ export interface ImpactVM {
   topSdgs: { id: SdgId; name: string; score: number }[];
   badges: BadgeVM[];
   activities: ActivityVM[];
+  /** 스카우트 수신 설정(포인트·레벨과 관계없는 학생의 선택) — 화면은 포인트와 떨어진 줄에 보여요 */
   scoutable: boolean;
+  /** 「スカウトの受け取り：オン」 */
+  scoutStatus: string;
+  /** 「企業の人材検索にあなたのプロフィールが表示されます」 */
   scoutNote: string;
+}
+
+/** 학생의 스카우트 수신 설정 화면 모델(설정 화면의 스위치와 Impact 화면의 한 줄이 같은 문구를 써요) */
+export interface ScoutSettingVM {
+  enabled: boolean;
+  status: string;
+  note: string;
+}
+
+export function selectScoutSetting(state: DemoState, locale: Locale): ScoutSettingVM {
+  const t = makeT(locale);
+  const enabled = state.me.scoutable;
+  return {
+    enabled,
+    status: t(enabled ? "impact.scoutStatusOn" : "impact.scoutStatusOff"),
+    note: t(enabled ? "impact.profileScoutOn" : "impact.profileScoutOff"),
+  };
 }
 
 export function badgeVM(code: BadgeCode, locale: Locale): BadgeVM {
@@ -341,9 +362,13 @@ export function selectImpact(state: DemoState, locale: Locale): ImpactVM {
     topSdgs: index.topSdgs.map((id) => ({ id, name: getSdg(id).name[locale], score: index.perSdg[id] })),
     badges: computeBadges(activities).map((code) => badgeVM(code, locale)),
     activities: activities.map((a) => activityVM(a, locale)),
-    scoutable: state.me.scoutable,
-    scoutNote: t(state.me.scoutable ? "impact.profileScoutOn" : "impact.profileScoutOff"),
+    ...scoutFields(state, locale),
   };
+}
+
+function scoutFields(state: DemoState, locale: Locale): Pick<ImpactVM, "scoutable" | "scoutStatus" | "scoutNote"> {
+  const scout = selectScoutSetting(state, locale);
+  return { scoutable: scout.enabled, scoutStatus: scout.status, scoutNote: scout.note };
 }
 
 // ───────── 디지털 증명서 ─────────

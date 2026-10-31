@@ -20,6 +20,7 @@ import {
   selectFeed,
   selectHome,
   selectImpact,
+  selectScoutSetting,
   selectInbox,
   selectReceipt,
   selectSdgTiles,
@@ -330,6 +331,26 @@ describe("Impact·증명서·카드뉴스", () => {
       const second = selectShare(busy, locale, "instagram", share.options[1]?.id ?? null);
       expect(second.selectedId).toBe(share.options[1]?.id ?? share.options[0].id);
     }
+  });
+});
+
+describe("스카우트 받기 설정 (Impact 한 줄 · 설정 스위치)", () => {
+  it("켜짐/꺼짐 상태와 설명이 두 언어로 나오고, Impact 화면과 설정 화면이 같은 문구를 써요", () => {
+    const off = reducer(initial, { type: "setScoutable", scoutable: false });
+    for (const locale of LOCALES) {
+      const onVm = selectScoutSetting(initial, locale);
+      const offVm = selectScoutSetting(off, locale);
+      expect(onVm.enabled).toBe(true);
+      expect(offVm.enabled).toBe(false);
+      expect(onVm.status).not.toBe(offVm.status);
+      expect(onVm.note).not.toBe(offVm.note);
+      const impact = selectImpact(initial, locale);
+      expect([impact.scoutable, impact.scoutStatus, impact.scoutNote]).toEqual([true, onVm.status, onVm.note]);
+      const impactOff = selectImpact(off, locale);
+      expect([impactOff.scoutable, impactOff.scoutStatus, impactOff.scoutNote]).toEqual([false, offVm.status, offVm.note]);
+    }
+    expect(selectScoutSetting(initial, "ja").status).toBe("スカウトの受け取り：オン");
+    expect(selectScoutSetting(off, "ko").status).toBe("스카우트 받기: 꺼짐");
   });
 });
 

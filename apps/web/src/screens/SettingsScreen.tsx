@@ -1,11 +1,11 @@
 "use client";
 
-// 설정: 언어 · 역할 전환(데모) · 스카우트 수신 안내 · 데모 초기화 · 앱 정보(샘플 데이터 안내)
-import { useState } from "react";
+// 설정: 언어 · 역할 전환(데모) · 스카우트 받기 켜기/끄기(학생) · 데모 초기화 · 앱 정보(샘플 데이터 안내)
+import { useId, useMemo, useState } from "react";
 import { CERT_DISCLAIMER } from "@sdgs-compass/core/certification";
 import type { Role } from "@sdgs-compass/core/domain";
 import { LOCALE_NAMES, LOCALES, pick } from "@sdgs-compass/core/i18n";
-import { selectImpact } from "@sdgs-compass/core/selectors";
+import { selectScoutSetting } from "@sdgs-compass/core/selectors";
 import { Banner, Button, Card, ScreenHead, Section } from "@/components/ui";
 import { APP_VERSION, REPO_URL } from "@/lib/meta";
 import { useSession } from "@/lib/session";
@@ -15,6 +15,8 @@ export function SettingsScreen() {
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
   const other: Role = role === "b2c" ? "b2b" : "b2c";
+  const scout = useMemo(() => selectScoutSetting(demo, locale), [demo, locale]);
+  const scoutHintId = useId();
 
   const doReset = async () => {
     setBusy(true);
@@ -45,8 +47,17 @@ export function SettingsScreen() {
 
       {role === "b2c" ? (
         <Section title={t("web.settings.scout")}>
-          <Card>
-            <p className="small">{selectImpact(demo, locale).scoutNote}</p>
+          <Card className="stack stack--sm">
+            <label className="check">
+              <input type="checkbox" checked={scout.enabled} aria-describedby={scoutHintId} onChange={(event) => dispatch({ type: "setScoutable", scoutable: event.target.checked })} />
+              {t("settings.scoutToggle")}
+            </label>
+            <p id={scoutHintId} className="field__hint">
+              {t("settings.scoutToggleHint")}
+            </p>
+            <p className="small strong" role="status">
+              {scout.status} — {scout.note}
+            </p>
           </Card>
         </Section>
       ) : null}

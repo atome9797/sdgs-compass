@@ -30,6 +30,8 @@ export type Action =
   | { type: "respondScout"; scoutId: string; response: "accepted" | "declined" }
   | { type: "markScoutRead"; scoutId: string }
   | { type: "recordShare" }
+  /** 학생 설정: 기업의 스카우트를 받을지(= 기업의 인재 검색에 보일지). 포인트·레벨과는 관계없고, 이미 받은 스카우트는 그대로 둬요 */
+  | { type: "setScoutable"; scoutable: boolean }
   /** F-503·F-504: 학생 자랑 글(kind brag) 또는 우리 회사 홍보 글(kind pr)을 올려요. 입력 검사(validatePostDraft)를 통과하지 못하면 아무것도 바뀌지 않아요 */
   | { type: "createPost"; draft: PostDraft; at: string }
   /** role = 지금 화면의 계정. 자기가 쓴 글에는 좋아요를 누를 수 없고, 학생·기업 계정이 따로 눌러요 */
@@ -213,6 +215,9 @@ export function reducer(state: DemoState, action: Action): DemoState {
 
     case "recordShare":
       return { ...state, shares: state.shares + 1 };
+
+    case "setScoutable":
+      return state.me.scoutable === action.scoutable ? state : { ...state, me: { ...state.me, scoutable: action.scoutable } };
 
     case "createPost": {
       const draft = action.draft;

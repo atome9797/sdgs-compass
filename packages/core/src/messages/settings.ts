@@ -9,6 +9,11 @@ export const settings = {
   "settings.roleNote": { ja: "学生と企業の画面を切り替えて、一連の流れを確認できます。", ko: "학생 화면과 기업 화면을 바꿔 가며 전체 흐름을 확인할 수 있어요." },
   "settings.switchToB2c": { ja: "学生として見る", ko: "학생으로 보기" },
   "settings.switchToB2b": { ja: "企業として見る", ko: "기업으로 보기" },
+  "settings.scoutToggle": { ja: "企業からのスカウトを受け取る", ko: "기업의 스카우트 받기" },
+  "settings.scoutToggleHint": {
+    ja: "ポイントやレベルとは関係なく選べます。オフにすると企業の人材検索に表示されず、新しいスカウトも届きません（受け取ったメッセージは残ります）。",
+    ko: "포인트·레벨과 관계없이 고를 수 있어요. 끄면 기업의 인재 검색에 보이지 않고 새 스카우트도 오지 않아요(받은 메시지는 그대로예요).",
+  },
   "settings.resetTitle": { ja: "デモデータをリセット", ko: "데모 데이터 초기화" },
   "settings.resetDesc": { ja: "入力した内容を消して、最初のサンプル状態に戻します。", ko: "입력한 내용을 지우고 처음 샘플 상태로 되돌려요." },
   "settings.resetDone": { ja: "リセットしました", ko: "초기화했어요" },

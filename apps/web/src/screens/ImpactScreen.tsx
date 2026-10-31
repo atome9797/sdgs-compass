@@ -1,6 +1,7 @@
 "use client";
 
-// SCR-04 마이 포트폴리오: 레벨·누적 포인트 · 17개 SDGs 레이더 차트 · 강점 SDGs · 배지 · 참여 실적
+// SCR-04 마이 포트폴리오: 레벨·누적 포인트 · 스카우트 수신 설정(따로 된 줄) · 17개 SDGs 레이더 차트 · 강점 SDGs · 배지 · 참여 실적
+import Link from "next/link";
 import { useMemo } from "react";
 import { sdgLabel } from "@sdgs-compass/core/labels";
 import { selectImpact } from "@sdgs-compass/core/selectors";
@@ -42,7 +43,19 @@ export function ImpactScreen() {
           </div>
           <p className="small muted">{vm.nextLevelLabel}</p>
         </div>
-        <p className="small muted">{vm.scoutNote}</p>
+        {/* 스카우트 수신은 포인트와 관계없는 "설정"이라, 진행 막대 아래가 아니라 선으로 나눈 따로 된 줄에 상태 + 설명 + 설정 링크로 보여요 */}
+        <div className="profile__scout">
+          <span className="profile__scout-icon" aria-hidden="true">
+            {vm.scoutable ? "🔔" : "🔕"}
+          </span>
+          <div className="grow">
+            <p className="small strong">{vm.scoutStatus}</p>
+            <p className="small muted">{vm.scoutNote}</p>
+          </div>
+          <Link className="link-more profile__scout-link" href={buildHref(ROUTES.settings)}>
+            {t("impact.scoutChange")}
+          </Link>
+        </div>
       </section>
 
       <Section title={t("impact.radarTitle")} hint={t("impact.radarHint")}>

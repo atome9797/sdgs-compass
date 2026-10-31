@@ -14,7 +14,7 @@
 | ② SNS 지표 | `/admin/sns/` | X · Instagram · Facebook · YouTube 의 주별 추이, 최신 주 비교 | 운영자가 손으로(또는 CSV 로) 입력한 숫자 | 입력한 행 |
 | ③ 수지·자금 | `/admin/finance/` | 흑자 전환 시기 · 자금 잔액 · 손익분기 기업 수 · 민감도 · 두 시나리오 겹쳐 비교 | 운영자가 입력한 가정 | 시나리오(최대 20개) |
 
-- **들어가는 법**: 첫 화면(언어 선택) 아래의 「運営者画面（デモ）」(ko: 운영자 화면(데모)) 링크 한 곳뿐이에요. 학생·기업 화면의 탭·메뉴에는 두지 않았어요. 역할 선택은 건너뛰고, 위쪽 탭(이용 현황 · SNS 지표 · 수지·자금)으로 옮겨 다녀요.
+- **들어가는 법**: 역할 선택 화면 아래의 「運営者画面（デモ）」(ko: 운영자 화면(데모)) 링크 한 곳뿐이에요. 학생·기업 화면의 탭·메뉴에는 두지 않았어요. 역할 선택은 건너뛰고, 위쪽 탭(이용 현황 · SNS 지표 · 수지·자금)으로 옮겨 다녀요.
 - 모든 화면에 "데모 버전 화면이에요. 실제 운영에서는 로그인과 관리자 권한이 필요해요" 안내가 보여요. 문구는 일본어(기본)·한국어 둘 다 있어요.
 - 모든 그래프에는 **"표로 보기"** 단추(같은 숫자의 표)와 스크린 리더용 설명이 있어요. 모바일 폭에서 누르는 곳은 44px 이상으로 점검했어요.
 
@@ -210,7 +210,7 @@ X · Instagram · Facebook · YouTube 의 분석 화면에 나오는 숫자를 *
 | 계산·문장·문구 (UI 없음) | `packages/core/src/adminUsage.ts` · `adminSns.ts` · `adminFinance.ts` · `adminFinanceText.ts` · `adminFormat.ts` · `adminFixtures.ts`(가상의 샘플) · `messages/admin.ts` · `messages/adminFinance.ts` |
 | 화면 | `apps/web/src/screens/Admin*.tsx` · `apps/web/src/app/admin/**`(주소) · `apps/web/src/components/charts/*`(그래프) · `apps/web/src/app/admin.css` |
 | 저장·보조 | `apps/web/src/lib/adminStore.ts`(저장) · `adminSession.ts` · `adminChart.ts` · `adminFinanceView.ts` · `adminFiles.ts` |
-| 입구 | `apps/web/src/components/Gate.tsx`(언어 선택 화면의 링크) · `lib/routes.ts` · `lib/nav.ts`(탭) |
+| 입구 | `apps/web/src/components/Gate.tsx`(역할 선택 화면의 링크) · `lib/routes.ts` · `lib/nav.ts`(탭) |
 
 시험은 각 파일 옆의 `*.test.ts` 예요. 수지·자금은 숫자를 손으로 계산한 값과 맞춰 보고(반올림·월별 합계·시점 찾기·자금 부족), JSON 의 오류 위치와 이유, 시나리오 저장·선택·비교의 규칙까지 시험해요.
 스키마(`schemaVersion: 1`)와 공개 함수(`parseScenarioJson` · `serializeScenarioJson` · `simulate` · `sensitivity` …)를 바꿀 때는 `schemaVersion` 을 올리고 옛 버전을 읽을 수 있게 남겨요.

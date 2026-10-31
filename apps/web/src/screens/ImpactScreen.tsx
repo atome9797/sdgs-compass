@@ -98,6 +98,9 @@ export function ImpactScreen() {
 
       <div className="stack">
         <ButtonLink href={buildHref(ROUTES.certificate)}>🏅 {t("impact.certificateButton")}</ButtonLink>
+        <ButtonLink href={buildHref(ROUTES.impactSummary)} variant="secondary">
+          🗂 {t("summary.entry")}
+        </ButtonLink>
         <ButtonLink href={buildHref(ROUTES.share)} variant="secondary">
           📣 {t("impact.shareButton")}
         </ButtonLink>

@@ -78,3 +78,11 @@ test("SNS 피드 경로는 글을 쓰는 계정의 화면 묶음에 속해요 (�
   expect(redirectForPath("b2b", ROUTES.feedNew)).toBe("/b2b");
   expect(redirectForPath("b2c", ROUTES.b2bFeedNew)).toBe("/");
 });
+
+test("신청 요약(#22)은 학생 화면이에요: 기업 계정이면 기업 첫 화면으로", () => {
+  expect(ROUTES.summary).toBe("/impact-summary");
+  expect(areaOfPath(ROUTES.summary)).toBe("b2c");
+  expect(redirectForPath("b2c", ROUTES.summary)).toBeNull();
+  expect(redirectForPath("b2c", `${ROUTES.summary}?period=half`)).toBeNull();
+  expect(redirectForPath("b2b", ROUTES.summary)).toBe("/b2b");
+});

@@ -11,6 +11,8 @@ export const ROUTES = {
   submit: "/challenge/submit",
   impact: "/impact",
   certificate: "/certificate",
+  /** 학생용 신청 요약(#22): 기간을 골라 활동·증명서를 A4 한 장으로 (인쇄·PDF) */
+  impactSummary: "/impact/summary",
   share: "/share",
   messages: "/messages",
   /** SNS 피드(F-503·F-504): 학생용 목록과 자랑 글 쓰기 */
@@ -89,6 +91,8 @@ export const submitHref = (id: string): string => buildHref(ROUTES.submit, { id 
 /** 최종 제출 뒤 수령증 화면 (다시 열어도 같은 화면이 나와요) */
 export const receiptHref = (id: string): string => buildHref(ROUTES.submit, { id, receipt: 1 });
 export const certificateHref = (id?: string): string => buildHref(ROUTES.certificate, { id });
+/** 신청 요약 주소 (기간 프리셋: all · year · half — 기본값이면 쿼리를 붙이지 않아요) */
+export const impactSummaryHref = (period?: string | null): string => buildHref(ROUTES.impactSummary, { period: period === "all" ? null : period });
 export const applicantsHref = (id?: string): string => buildHref(ROUTES.b2bApplicants, { id });
 export function searchHref(opts: { q?: string; sdgIds?: readonly SdgId[] } = {}): string {
   return buildHref(ROUTES.search, { q: opts.q, sdg: opts.sdgIds && opts.sdgIds.length > 0 ? opts.sdgIds.join(",") : undefined });
@@ -115,7 +119,7 @@ export function parseSdgParam(raw: string | null | undefined): SdgId[] {
 
 export type Area = "b2c" | "b2b" | "admin" | "neutral";
 
-const B2C_PATHS: readonly string[] = [ROUTES.home, ROUTES.search, ROUTES.challenge, ROUTES.submit, ROUTES.impact, ROUTES.certificate, ROUTES.share, ROUTES.messages, ROUTES.feed, ROUTES.feedNew, ROUTES.settings];
+const B2C_PATHS: readonly string[] = [ROUTES.home, ROUTES.search, ROUTES.challenge, ROUTES.submit, ROUTES.impact, ROUTES.impactSummary, ROUTES.certificate, ROUTES.share, ROUTES.messages, ROUTES.feed, ROUTES.feedNew, ROUTES.settings];
 
 /** 운영자 화면의 주소들. /admin/* 전체가 아니라 실제로 있는 화면만 — 없는 주소(/admin/nope/)가 게이트를 비껴가지 않게 정확히 같을 때만 운영자 화면이에요 */
 export const ADMIN_PATHS: readonly string[] = [ROUTES.admin, ROUTES.adminSns, ROUTES.adminFinance];

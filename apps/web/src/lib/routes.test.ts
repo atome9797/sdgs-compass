@@ -2,9 +2,28 @@ import { describe, expect, it } from "vitest";
 import { MESSAGES } from "@sdgs-compass/core/messages";
 import { activeTabId, ADMIN_TABS, B2B_TABS, B2C_TABS, tabsFor } from "./nav";
 import {
-  ADMIN_PATHS, areaOf, applicantsHref, buildHref, certificateHref, challengeHref, feedHref, guardRedirect, homeFor, isAdminPath, normalizeBasePath, normalizePath,
+  ADMIN_PATHS, areaOf, applicantsHref, buildHref, certificateHref, challengeHref, feedHref, guardRedirect, homeFor, impactSummaryHref, isAdminPath, normalizeBasePath, normalizePath,
   parseSdgParam, postNewHref, receiptHref, ROUTES, searchHref, shareHref, stripBasePath, submitHref, withBase,
 } from "./routes";
+
+describe("신청 요약 (#22)", () => {
+  it("주소: 기본 기간(전체)은 쿼리 없이, 나머지는 ?period=", () => {
+    expect(ROUTES.impactSummary).toBe("/impact/summary");
+    expect(impactSummaryHref()).toBe("/impact/summary/");
+    expect(impactSummaryHref("all")).toBe("/impact/summary/");
+    expect(impactSummaryHref("year")).toBe("/impact/summary/?period=year");
+    expect(impactSummaryHref("half")).toBe("/impact/summary/?period=half");
+  });
+
+  it("학생 화면이에요: 기업은 기업 홈으로 돌려보내고, 하단 탭은 Impact 가 켜져요", () => {
+    expect(areaOf("/impact/summary/")).toBe("b2c");
+    expect(guardRedirect("/impact/summary/", "b2c")).toBeNull();
+    expect(guardRedirect("/impact/summary/?period=year", "b2b")).toBe("/b2b/");
+    expect(guardRedirect("/sdgs-compass/impact/summary/", "b2b", "/sdgs-compass")).toBe("/b2b/");
+    expect(activeTabId(B2C_TABS, "/impact/summary/")).toBe("impact");
+    expect(activeTabId(B2C_TABS, "/sdgs-compass/impact/summary/", "/sdgs-compass")).toBe("impact");
+  });
+});
 
 describe("buildHref", () => {
   it("항상 슬래시로 끝나는 앱 안 주소를 만들어요", () => {

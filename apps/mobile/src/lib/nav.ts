@@ -1,5 +1,5 @@
 // 화면 경로 만들기 (typedRoutes 를 쓰지 않아서 글자로 적어요). 경로 규칙은 src/app 폴더 구조와 같아요 (expo-router 가 폴더·파일 이름으로 경로를 만들어요).
-//   학생·개인: /  /feed  /search  /impact  /messages  /settings  /challenge/[id]  /challenge/submit/[id]  /certificate/[id]  /share  /feed/new
+//   학생·개인: /  /feed  /search  /impact  /messages  /settings  /challenge/[id]  /challenge/submit/[id]  /certificate/[id]  /share  /impact-summary  /feed/new
 //   기업·단체: /b2b  /b2b/feed  /b2b/applicants  /b2b/talent  /b2b/esg  /b2b/settings  /b2b/new  /b2b/feed/new
 import type { OfficialChannel, PostKind, Role } from "@sdgs-compass/core/domain";
 
@@ -12,6 +12,8 @@ export const ROUTES = {
   messages: "/messages",
   settings: "/settings",
   share: "/share",
+  /** 학생용 신청 요약(#22): 기간을 골라 활동·증명서를 한 장으로 — 모바일은 글로 공유 (PDF 는 웹) */
+  summary: "/impact-summary",
   b2bDashboard: "/b2b",
   b2bFeed: "/b2b/feed",
   b2bFeedNew: "/b2b/feed/new",

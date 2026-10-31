@@ -129,6 +129,7 @@ export function ImpactScreen() {
           }}
         />
         {firstCert ? null : <Notice tone="info" message={t("cert.empty")} />}
+        <Button testID="open-summary" variant="secondary" icon="🗂" label={t("summary.entry")} onPress={() => router.push(ROUTES.summary)} />
         <Button testID="open-share" variant="secondary" icon="📣" label={t("impact.shareButton")} onPress={() => router.push(ROUTES.share)} />
       </View>
     </Screen>

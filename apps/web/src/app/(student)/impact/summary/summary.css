@@ -1,0 +1,117 @@
+/* 학생용 신청 요약(#22): 화면에서는 종이 모양 미리보기, 인쇄하면 이 한 장만 A4 1쪽으로 나와요.
+   메뉴·머리글·버튼은 globals.css 의 @media print 규칙(.topbar · .tabbar · .sidebar · .no-print)이 숨겨요.
+   쪽 크기는 이름 붙인 쪽(page: summary)에만 적용해서, 다른 화면의 인쇄(ESG 리포트 등)는 바꾸지 않아요. */
+
+/* ───────── 기간 고르기 (라디오 3개) ───────── */
+.summary-periods { border: 0; margin: 0; padding: 0; min-width: 0; }
+.summary-periods__row { display: flex; flex-wrap: wrap; gap: var(--space-sm); margin-top: var(--space-xs); }
+.summary-period { display: inline-flex; align-items: center; gap: 6px; min-height: var(--tap); padding: 0 var(--space-lg); border: 1px solid var(--input-border); border-radius: var(--radius-pill); background: var(--card); font-size: var(--fs-sm); font-weight: 700; cursor: pointer; }
+.summary-period input { width: 18px; height: 18px; margin: 0; accent-color: var(--primary); }
+.summary-period--on { border-color: var(--primary); background: var(--primary-soft); color: var(--primary-dark); }
+.summary-period:focus-within { outline: 3px solid var(--primary); outline-offset: 2px; }
+.summary-preview-label { margin-top: var(--space-sm); font-size: var(--fs-sm); font-weight: 800; color: var(--text-muted); }
+
+/* ───────── 한 장 ───────── */
+.summary-sheet { page: summary; display: flex; flex-direction: column; gap: 14px; padding: 22px 24px; background: #fff; color: var(--text); border: 1px solid var(--border); border-radius: var(--radius-md); box-shadow: var(--shadow); font-size: 12.5px; line-height: 1.5; overflow-wrap: anywhere; }
+.summary-sheet__head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 12px; padding-bottom: 8px; border-bottom: 2px solid var(--primary); }
+.summary-sheet__title { margin: 0; font-size: 17px; font-weight: 800; color: var(--primary-dark); }
+.summary-sheet__date { margin: 0; font-size: 12px; color: var(--text-muted); }
+
+.summary-meta { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 16px; margin: 0; }
+.summary-meta div { display: flex; flex-direction: column; min-width: 0; }
+.summary-meta dt { font-size: 11px; font-weight: 700; color: var(--text-muted); }
+.summary-meta dd { margin: 0; font-weight: 700; }
+
+.summary-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin: 0; padding: 0; list-style: none; }
+.summary-stat { display: flex; flex-direction: column; gap: 2px; padding: 8px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: #F8FAFC; }
+.summary-stat__label { font-size: 11px; color: var(--text-muted); }
+.summary-stat__value { font-size: 15px; font-weight: 800; }
+
+.summary-block { display: flex; flex-direction: column; gap: 6px; }
+.summary-block__title { margin: 0; padding-left: 8px; border-left: 4px solid var(--primary); font-size: 13.5px; font-weight: 800; }
+.summary-empty { margin: 0; color: var(--text-muted); }
+.summary-more { margin: 0; font-size: 11px; color: var(--text-muted); }
+
+.summary-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+.summary-table th { padding: 4px 6px; font-size: 11px; font-weight: 700; text-align: left; color: var(--text-muted); background: #F1F4F8; border-bottom: 1px solid var(--border); }
+.summary-table td { padding: 5px 6px; vertical-align: top; border-bottom: 1px solid var(--border); }
+.summary-table th:nth-child(1) { width: 22%; }
+.summary-table th:nth-child(2) { width: 18%; }
+.summary-table th:nth-child(4) { width: 20%; }
+.summary-table__award { display: block; font-size: 11px; font-weight: 700; color: var(--warning); }
+.summary-table__name { display: block; font-weight: 700; }
+.summary-table__company { display: block; font-size: 11px; color: var(--text-muted); }
+.summary-table .sdg-mini { width: 20px; height: 20px; border-radius: 5px; font-size: 10.5px; }
+
+.summary-sdgs { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 0; padding: 0; list-style: none; }
+.summary-sdg { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
+.summary-sdg .sdg-mini { width: 20px; height: 20px; border-radius: 5px; font-size: 10.5px; }
+.summary-sdg__count { font-size: 11px; font-weight: 700; color: var(--text-muted); }
+
+.summary-certs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 0; padding: 0; list-style: none; }
+.summary-cert { display: flex; gap: 8px; align-items: flex-start; padding: 8px; border: 1px solid var(--border); border-radius: var(--radius-sm); min-width: 0; }
+.summary-cert__qr .qr { padding: 2px; border-radius: 4px; }
+.summary-cert__qr .qr svg { width: 64px; height: 64px; }
+.summary-cert__text { min-width: 0; }
+.summary-cert__text p { margin: 0; }
+.summary-cert__id { font-size: 11px; font-weight: 700; color: var(--text-muted); }
+.summary-cert__title { font-weight: 700; }
+.summary-cert__meta { font-size: 11px; color: var(--text-muted); }
+.summary-cert__code { font-size: 11px; font-weight: 800; letter-spacing: 0.04em; }
+
+.summary-notes { padding-top: 8px; border-top: 1px dashed var(--input-border); font-size: 11px; color: var(--text-muted); }
+.summary-notes__title { margin: 0 0 2px; font-size: 11px; font-weight: 800; color: var(--text); }
+.summary-notes ul { margin: 0; padding: 0; list-style: none; }
+
+/* 폰 폭: 표를 한 줄씩 카드처럼 접어요 (머리줄은 숨기고 날짜·종류를 위에) */
+@media (max-width: 599px) {
+  .summary-sheet { padding: 16px 14px; }
+  .summary-meta { grid-template-columns: minmax(0, 1fr); }
+  .summary-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .summary-certs { grid-template-columns: minmax(0, 1fr); }
+  .summary-table, .summary-table tbody { display: block; }
+  .summary-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); }
+  .summary-table tr { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 2px 8px; padding: 6px 0; border-bottom: 1px solid var(--border); }
+  .summary-table td { padding: 0; border: 0; }
+  .summary-table__subject, .summary-table__sdgs { grid-column: 1 / -1; }
+  .summary-table__date { color: var(--text-muted); }
+}
+
+/* ───────── 인쇄 ───────── */
+@page summary { size: A4 portrait; margin: 12mm; }
+@media print {
+  /* 학생 화면은 폰 폭(.phone, 430px) 틀 안에 있어요 — 이 화면을 인쇄할 때만 틀을 종이 폭으로 넓혀요 */
+  .phone:has(.summary-sheet) { max-width: none; min-height: 0; background: #fff; box-shadow: none; }
+  .summary-screen { padding: 0; gap: 0; }
+  /* 한 장에 들어가도록 글자·간격을 줄여요 (표 10줄 + 증명서 4장 + 고지 5줄이 A4 1쪽 — qa-summary 로 확인) */
+  .summary-sheet { border: 0; border-radius: 0; box-shadow: none; padding: 0; gap: 7px; font-size: 8.5pt; line-height: 1.3; }
+  .summary-sheet__head { padding-bottom: 4px; }
+  .summary-sheet__title { font-size: 13pt; }
+  .summary-sheet__date { font-size: 8pt; }
+  .summary-meta { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 2px 10px; }
+  .summary-meta dt { font-size: 7.5pt; }
+  .summary-stats { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+  .summary-stat { flex-direction: row; justify-content: space-between; align-items: baseline; gap: 6px; padding: 3px 8px; }
+  .summary-stat__label { font-size: 7.5pt; }
+  .summary-stat__value { font-size: 10.5pt; }
+  .summary-block { gap: 3px; }
+  .summary-block__title { font-size: 9.5pt; }
+  .summary-table th { padding: 2px 4px; font-size: 7.5pt; }
+  .summary-table td { padding: 2px 4px; }
+  .summary-table th:nth-child(1) { width: 16%; }
+  .summary-table th:nth-child(2) { width: 14%; }
+  .summary-table th:nth-child(4) { width: 16%; }
+  /* 아주 긴 과제 이름은 두 줄까지 (전체 이름은 앱의 활동 기록에 있어요) */
+  .summary-table__name { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+  .summary-table__award, .summary-table__company, .summary-more, .summary-sdg__count, .summary-cert__id, .summary-cert__meta, .summary-cert__code { font-size: 7.5pt; }
+  .summary-table .sdg-mini, .summary-sdg .sdg-mini { width: 14px; height: 14px; border-radius: 3px; font-size: 7pt; }
+  .summary-sdgs { gap: 2px 10px; }
+  .summary-certs { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 5px; }
+  .summary-cert { gap: 6px; padding: 4px 6px; }
+  .summary-cert__qr .qr svg { width: 48px; height: 48px; }
+  .summary-notes { padding-top: 4px; font-size: 7.5pt; }
+  .summary-notes__title { font-size: 8pt; }
+  .summary-stats, .summary-certs, .summary-meta, .summary-notes { break-inside: avoid; }
+  .summary-table tr, .summary-cert { break-inside: avoid; }
+  .summary-sheet *, .summary-sheet { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}

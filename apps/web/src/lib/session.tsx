@@ -7,7 +7,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, u
 import { createAppStore, loadApp, persistApp, resetEverything, type AppAction, type AppState, type AppStore, type Persistence } from "@sdgs-compass/data/app";
 import { browserStorage } from "@sdgs-compass/data/storage";
 import type { DemoState, Role } from "@sdgs-compass/core/domain";
-import { DEFAULT_LOCALE, type Locale } from "@sdgs-compass/core/i18n";
+import { DEFAULT_LOCALE, localeFromQuery, type Locale } from "@sdgs-compass/core/i18n";
 import { makeT, type TFunction } from "@sdgs-compass/core/messages";
 
 interface Session {
@@ -48,6 +48,10 @@ export function AppProvider({ children, initialApp }: AppProviderProps) {
       if (cancelled) return;
       const store = createAppStore(app);
       persistence = persistApp(store, kv);
+      // 주소에 ?lang=ja|ko 가 있으면 저장된 언어보다 우선하고 그 값을 저장해요(#20 — QR 로 열면 일본어로 바로 시작).
+      // 저장 구독(persistApp)을 켠 뒤에 바꿔야 저장돼요. 언어를 고른 것과 같아서 첫 방문이면 다음은 역할 선택이에요.
+      const fromUrl = localeFromQuery(window.location.search);
+      if (fromUrl && fromUrl !== app.locale) store.dispatch({ type: "setLocale", locale: fromUrl });
       setSession({ store, persistence });
     });
     return () => {

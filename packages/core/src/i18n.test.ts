@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_LOCALE, detectLocale, interpolate, isLocale, LOCALE_NAMES, LOCALES, pick, placeholdersOf } from "./i18n";
+import { DEFAULT_LOCALE, detectLocale, interpolate, isLocale, localeFromQuery, LOCALE_NAMES, LOCALES, pick, placeholdersOf } from "./i18n";
 
 describe("locale", () => {
   it("일본어와 한국어 두 가지예요", () => {
@@ -51,5 +51,32 @@ describe("interpolate / placeholdersOf", () => {
   it("자리표시자 이름 목록(중복 없이, 정렬)", () => {
     expect(placeholdersOf("{b} {a} {b}")).toEqual(["a", "b"]);
     expect(placeholdersOf("없음")).toEqual([]);
+  });
+});
+
+describe("localeFromQuery (#20 ?lang=)", () => {
+  it("lang 값이 ja·ko 면 그 언어 (대소문자·앞뒤 공백 무시)", () => {
+    expect(localeFromQuery("?lang=ja")).toBe("ja");
+    expect(localeFromQuery("lang=ko")).toBe("ko");
+    expect(localeFromQuery("?lang=KO")).toBe("ko");
+    expect(localeFromQuery("?lang=%20ja%20")).toBe("ja");
+    expect(localeFromQuery("?lang=%6Aa")).toBe("ja");
+  });
+  it("다른 쿼리와 섞여 있어도 lang 만 봐요 · 여러 번이면 첫 값", () => {
+    expect(localeFromQuery("?utm_source=qr&lang=ja")).toBe("ja");
+    expect(localeFromQuery("?lang=ja&lang=ko")).toBe("ja");
+    expect(localeFromQuery("?language=ko&lang=ja")).toBe("ja");
+  });
+  it("없거나 모르는 값·깨진 인코딩이면 null (예외 없이)", () => {
+    expect(localeFromQuery("")).toBeNull();
+    expect(localeFromQuery(null)).toBeNull();
+    expect(localeFromQuery(undefined)).toBeNull();
+    expect(localeFromQuery("?")).toBeNull();
+    expect(localeFromQuery("?lang=")).toBeNull();
+    expect(localeFromQuery("?lang")).toBeNull();
+    expect(localeFromQuery("?lang=en")).toBeNull();
+    expect(localeFromQuery("?lang=<script>")).toBeNull();
+    expect(localeFromQuery("?lang=%E0%A4%A")).toBeNull();
+    expect(localeFromQuery("?LANG=ja")).toBeNull();
   });
 });

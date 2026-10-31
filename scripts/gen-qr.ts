@@ -10,7 +10,8 @@ import { deflateSync } from "node:zlib";
 import { qrMatrix } from "../packages/core/src/qr";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const DEFAULT_URL = "https://atome9797.github.io/sdgs-compass/";
+/** 발표용 QR 은 ?lang=ja 를 붙여요 — 열면 일본어로 바로 시작해요(#20, 저장된 언어보다 우선). 주소만 필요하면 인자로 넘기세요. */
+const DEFAULT_URL = "https://atome9797.github.io/sdgs-compass/?lang=ja";
 /** QR 규격이 요구하는 바깥 여백(모듈 4칸). 이 여백이 있어야 어두운 배경 슬라이드 위에서도 읽혀요. */
 const QUIET = 4;
 /** PNG 한 변의 최소 크기(px). 한 칸을 정수 픽셀로 키워서 가장자리가 번지지 않게 해요. */

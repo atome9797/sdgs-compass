@@ -41,6 +41,33 @@ export function detectLocale(languages: readonly string[] | null | undefined): L
   return DEFAULT_LOCALE;
 }
 
+/**
+ * 주소의 쿼리(예: location.search 의 "?lang=ja")에서 언어를 읽어요(#20 — QR 로 열면 일본어로 바로 시작).
+ * 이름이 정확히 `lang` 인 첫 값만 보고, 값은 대소문자를 가리지 않아요. ja·ko 가 아니거나 읽을 수 없으면 null.
+ * URLSearchParams 에 기대지 않고 직접 나눠요(앱·서버 어디서든 같은 결과, 깨진 %인코딩도 예외 없이 null).
+ */
+export function localeFromQuery(search: string | null | undefined): Locale | null {
+  if (!search) return null;
+  const query = search.startsWith("?") ? search.slice(1) : search;
+  for (const part of query.split("&")) {
+    const eq = part.indexOf("=");
+    const rawName = eq === -1 ? part : part.slice(0, eq);
+    let name: string;
+    let value: string;
+    try {
+      name = decodeURIComponent(rawName.replace(/\+/g, " "));
+      value = eq === -1 ? "" : decodeURIComponent(part.slice(eq + 1).replace(/\+/g, " "));
+    } catch {
+      if (rawName === "lang") return null;
+      continue;
+    }
+    if (name !== "lang") continue;
+    const lower = value.trim().toLowerCase();
+    return isLocale(lower) ? lower : null;
+  }
+  return null;
+}
+
 export type MessageParams = Record<string, string | number>;
 
 /** "{name}" 자리를 값으로 바꿔요. 값이 없으면 자리표시자를 그대로 둬요. */

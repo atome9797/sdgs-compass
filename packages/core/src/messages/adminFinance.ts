@@ -133,6 +133,17 @@ export const adminFinance = {
   "admin.finance.funding.capex": { ja: "初期の備品などの支出（円）", ko: "초기 비품 등 지출(엔)" },
   "admin.finance.funding.repayment": { ja: "1期あたりの返済額（円）", ko: "기별 상환액(엔)" },
   "admin.finance.funding.repaymentHint": { ja: "月ごとに均等に返し、借入金を超えては返しません", ko: "월 균등으로 갚고, 차입금을 넘겨 갚지는 않아요" },
+  // 学生への還元 (선택 규칙)
+  "admin.finance.return.title": { ja: "学生への還元", ko: "학생 환원" },
+  "admin.finance.return.toggle": { ja: "黒字の期は、運転資金を残したうえで残りの利益を学生へ還元する", ko: "흑자인 기에는 운전자금을 남기고 나머지 이익을 학생에게 환원해요" },
+  "admin.finance.return.months": { ja: "残す運転資金（か月分）", ko: "남겨 둘 운전자금(개월분)" },
+  "admin.finance.return.hint": {
+    ja: "各期の末に、運転資金（その期の経費と売上原価の指定か月分）を残し、その期の経常利益の残りを学生へ還元したとみなして資金から差し引きます。経常利益・黒字転換の計算には含めません。",
+    ko: "각 기 말에 운전자금(그 기 경비와 매출원가의 지정 개월분)을 남기고, 그 기 경상이익의 나머지를 학생에게 환원했다고 보고 자금에서 빼요. 경상이익·흑자 전환 계산에는 넣지 않아요.",
+  },
+  "admin.finance.return.off": { ja: "オフのときは還元を計算しません。", ko: "끄면 환원을 계산하지 않아요." },
+  "admin.finance.return.reservePhrase": { ja: "運転資金{months}か月分を残し", ko: "운전자금 {months}개월분을 남기고" },
+  "admin.finance.return.reserveNone": { ja: "運転資金を残さず", ko: "운전자금을 남기지 않고" },
 
   // ───────── 결과 요약 ─────────
   "admin.finance.summary.title": { ja: "結果のまとめ", ko: "결과 요약" },
@@ -156,6 +167,18 @@ export const adminFinance = {
   "admin.finance.summary.breakEvenNone": { ja: "{label} なし", ko: "{label} 없음" },
   "admin.finance.summary.breakEvenSep": { ja: "・", ko: "·" },
   "admin.finance.summary.final": { ja: "最後の月の累計損益は{profit}、資金残高は{cash}です。", ko: "마지막 달의 누적 손익은 {profit}, 자금 잔액은 {cash}이에요." },
+  "admin.finance.summary.return": {
+    ja: "学生への還元は{period}から始まります（{reserve}、その期の利益の残りを還元）。表示した期間の還元は合計{total}です。",
+    ko: "학생 환원은 {period}부터 시작돼요({reserve} 그 기 이익의 나머지를 환원). 표시한 기간의 환원은 합계 {total}이에요.",
+  },
+  "admin.finance.summary.returnNoneLoss": {
+    ja: "表示した期間（{periods}期）の中では、学生への還元はありません。経常利益が出る期がないためです。",
+    ko: "표시한 기간({periods}기) 안에서는 학생 환원이 없어요. 경상이익이 나는 기가 없기 때문이에요.",
+  },
+  "admin.finance.summary.returnNoneReserve": {
+    ja: "表示した期間（{periods}期）の中では、学生への還元はありません。{label}末の資金{cash}が、残す運転資金{reserve}（{months}か月分）に届かないためです。",
+    ko: "표시한 기간({periods}기) 안에서는 학생 환원이 없어요. {label} 말 자금 {cash}이 남겨 둘 운전자금 {reserve}({months}개월분)에 못 미치기 때문이에요.",
+  },
   "admin.finance.when.month": { ja: "{period}の{n}か月目", ko: "{period} {n}개월째" },
   "admin.finance.when.start": { ja: "開始時点", ko: "시작 시점" },
   "admin.finance.kpi.turnaround": { ja: "黒字転換の時期", ko: "흑자 전환 시기" },
@@ -167,6 +190,12 @@ export const adminFinance = {
   "admin.finance.kpi.profit": { ja: "{label}の経常利益", ko: "{label} 경상이익" },
   "admin.finance.kpi.cash": { ja: "最後の月の資金残高", ko: "마지막 달 자금 잔액" },
   "admin.finance.kpi.lowestCash": { ja: "最低の資金残高", ko: "최저 자금 잔액" },
+  "admin.finance.kpi.returnTotal": { ja: "学生への還元（表示期間の合計）", ko: "학생 환원(표시 기간 합계)" },
+  "admin.finance.kpi.returnFirst": { ja: "学生への還元の開始", ko: "학생 환원 시작" },
+  "admin.finance.kpi.returnFrom": { ja: "{label}から", ko: "{label}부터" },
+  "admin.finance.kpi.returnNone": { ja: "期間内なし", ko: "기간 내 없음" },
+  "admin.finance.kpi.returnRule": { ja: "運転資金{months}か月分を残して還元", ko: "운전자금 {months}개월분을 남기고 환원" },
+  "admin.finance.kpi.returnRuleNone": { ja: "運転資金を残さずに還元", ko: "운전자금을 남기지 않고 환원" },
   "admin.finance.unit.companies": { ja: "{n}社", ko: "{n}곳" },
 
   // ───────── 前提(가정) ─────────
@@ -186,8 +215,8 @@ export const adminFinance = {
     ko: "월별 곡선은 가정이에요. 기업 수는 기와 기 사이를 직선으로 이어 그 기의 매출·매출원가를 월별 기업 수의 비율로 월에 나눠요(합계는 그대로). 경비는 12등분해요.",
   },
   "admin.finance.assume.5": {
-    ja: "資金残高＝自己資金＋借入金−初期の支出＋累計損益−返済額。税金・減価償却・運転資金・入金の遅れは考えず、経常利益をそのまま現金の増減とみなします。",
-    ko: "자금 잔액=자기자금+차입금−초기 지출+누적 손익−상환액. 세금·감가상각·운전자금·입금 지연은 고려하지 않고 경상이익을 그대로 현금 증감으로 봐요.",
+    ja: "資金残高＝自己資金＋借入金−初期の支出＋累計損益−返済額−学生への還元（オンのとき）。税金・減価償却・入金や支払いの時期のずれは考えず、経常利益をそのまま現金の増減とみなします。",
+    ko: "자금 잔액=자기자금+차입금−초기 지출+누적 손익−상환액−학생 환원(켰을 때). 세금·감가상각·입금과 지급 시기의 차이는 고려하지 않고 경상이익을 그대로 현금 증감으로 봐요.",
   },
   "admin.finance.assume.6": {
     ja: "損益分岐の企業数＝（経費＋売上原価）÷企業1社あたりの年間の貢献利益（成立率×プロジェクト数×手数料×（1−寄付に回す割合）＋広告の単価。件数の四捨五入はしません）。",
@@ -196,6 +225,10 @@ export const adminFinance = {
   "admin.finance.assume.7": {
     ja: "「黒字転換」は、月次の経常利益が0以上になり、その後も0以上が続く最初の月です。",
     ko: "‘흑자 전환’은 월 경상이익이 0 이상이 되어 그 뒤로도 0 이상이 이어지는 첫 달이에요.",
+  },
+  "admin.finance.assume.8": {
+    ja: "「学生への還元」（オンのとき）＝各期の末に、その期の経常利益と「期末の資金−運転資金」の小さいほう（マイナスなら0）。運転資金＝指定か月分×（その期の経費＋売上原価）÷12。前の期の利益や調達した資金は還元しません。実際の配分基準・税金はこの試算に含みません。",
+    ko: "‘학생 환원’(켰을 때)=각 기 말에 그 기 경상이익과 ‘기말 자금−운전자금’ 중 작은 쪽(마이너스면 0). 운전자금=지정 개월분×(그 기 경비+매출원가)÷12. 지난 기의 이익이나 조달한 자금은 환원하지 않아요. 실제 배분 기준·세금은 이 시산에 넣지 않아요.",
   },
 
   // ───────── 그래프 ─────────
@@ -207,6 +240,8 @@ export const adminFinance = {
   "admin.finance.series.cash": { ja: "資金残高", ko: "자금 잔액" },
   "admin.finance.series.monthlyProfit": { ja: "月次の経常利益", ko: "월 경상이익" },
   "admin.finance.series.companies": { ja: "参加企業数", ko: "참가 기업 수" },
+  "admin.finance.series.studentReturn": { ja: "学生への還元", ko: "학생 환원" },
+  "admin.finance.series.cumulativeReturn": { ja: "学生への還元（累計）", ko: "학생 환원(누적)" },
   "admin.finance.chart.period": { ja: "期", ko: "기" },
   "admin.finance.chart.month": { ja: "月", ko: "월" },
   "admin.finance.monthShort": { ja: "{n}か月", ko: "{n}개월" },
@@ -215,6 +250,14 @@ export const adminFinance = {
   "admin.finance.tip.total": { ja: "開始から{total}か月", ko: "시작 후 {total}개월" },
   "admin.finance.chart.periods.title": { ja: "期ごとの売上・費用・経常利益", ko: "기별 매출·비용·경상이익" },
   "admin.finance.chart.periods.hint": { ja: "単位：万円。費用は売上原価と経費の合計です。", ko: "단위: 만 엔. 비용은 매출원가와 경비의 합계예요." },
+  "admin.finance.chart.periods.hintReturn": {
+    ja: "単位：万円。費用は売上原価と経費の合計です。学生への還元は期末に、運転資金を残したうえで行います。",
+    ko: "단위: 만 엔. 비용은 매출원가와 경비의 합계예요. 학생 환원은 기 말에 운전자금을 남기고 해요.",
+  },
+  "admin.finance.chart.periods.summaryReturn": {
+    ja: "期ごとの売上・費用・経常利益・学生への還元の棒グラフ。最後の期は売上{sales}、経常利益{profit}、学生への還元{amount}です。",
+    ko: "기별 매출·비용·경상이익·학생 환원 막대그래프. 마지막 기는 매출 {sales}, 경상이익 {profit}, 학생 환원 {amount}이에요.",
+  },
   "admin.finance.chart.periods.summary": {
     ja: "期ごとの売上・費用・経常利益の棒グラフ。最後の期は売上{sales}、経常利益{profit}です。",
     ko: "기별 매출·비용·경상이익 막대그래프. 마지막 기는 매출 {sales}, 경상이익 {profit}이에요.",
@@ -223,6 +266,10 @@ export const adminFinance = {
   "admin.finance.chart.cumulative.hint": {
     ja: "単位：万円。横軸は開始からの月数です。月ごとの曲線は仮定にもとづきます（下の「前提」を参照）。",
     ko: "단위: 만 엔. 가로축은 시작 후 개월 수예요. 월별 곡선은 가정에 따른 거예요(아래 ‘가정’ 참고).",
+  },
+  "admin.finance.chart.cumulative.hintReturn": {
+    ja: "単位：万円。横軸は開始からの月数です。資金残高は、期末の学生への還元を差し引いた額です。月ごとの曲線は仮定にもとづきます（下の「前提」を参照）。",
+    ko: "단위: 만 엔. 가로축은 시작 후 개월 수예요. 자금 잔액은 기 말의 학생 환원을 뺀 금액이에요. 월별 곡선은 가정에 따른 거예요(아래 ‘가정’ 참고).",
   },
   "admin.finance.chart.cumulative.summary": {
     ja: "月ごとの累計損益と資金残高の折れ線グラフ。最後の月の累計損益は{profit}、資金残高は{cash}です。",
@@ -239,6 +286,7 @@ export const adminFinance = {
   },
   "admin.finance.marker.turnaround": { ja: "黒字転換", ko: "흑자 전환" },
   "admin.finance.marker.cashShort": { ja: "資金不足", ko: "자금 부족" },
+  "admin.finance.marker.return": { ja: "還元開始", ko: "환원 시작" },
   "admin.finance.chart.companies.title": { ja: "参加企業数の推移", ko: "참가 기업 수 추이" },
   "admin.finance.chart.companies.hint": { ja: "期末の企業数を入力し、期と期の間は直線でつないだ値です（仮定）。", ko: "기말 기업 수를 입력하고, 기와 기 사이는 직선으로 이은 값이에요(가정)." },
   "admin.finance.chart.companies.summary": {
@@ -261,6 +309,7 @@ export const adminFinance = {
   "admin.finance.sens.col.cash": { ja: "資金不足", ko: "자금 부족" },
   "admin.finance.sens.col.lastProfit": { ja: "最後の期の経常利益（万円）", ko: "마지막 기 경상이익(만 엔)" },
   "admin.finance.sens.col.finalCash": { ja: "最後の月の資金残高（万円）", ko: "마지막 달 자금 잔액(만 엔)" },
+  "admin.finance.sens.col.return": { ja: "学生への還元の合計（万円）", ko: "학생 환원 합계(만 엔)" },
   "admin.finance.sens.base": { ja: "現在の値", ko: "현재 값" },
   "admin.finance.sens.none": { ja: "期間内なし", ko: "기간 내 없음" },
   "admin.finance.sens.cashNever": { ja: "不足しない", ko: "모자라지 않음" },
@@ -282,6 +331,9 @@ export const adminFinance = {
   "admin.finance.annual.profit": { ja: "経常利益", ko: "경상이익" },
   "admin.finance.annual.donation": { ja: "（参考）寄付額", ko: "(참고) 기부액" },
   "admin.finance.annual.breakEven": { ja: "損益分岐の企業数（社）", ko: "손익분기 기업 수(곳)" },
+  "admin.finance.annual.cashBeforeReturn": { ja: "期末の資金（還元前）", ko: "기말 자금(환원 전)" },
+  "admin.finance.annual.returnReserve": { ja: "残す運転資金（{months}か月分）", ko: "남겨 둘 운전자금({months}개월분)" },
+  "admin.finance.annual.studentReturn": { ja: "学生への還元", ko: "학생 환원" },
   "admin.finance.annual.total": { ja: "全期間の合計", ko: "전체 기간 합계" },
   "admin.finance.monthly.toggle": { ja: "月ごとの表を見る", ko: "월별 표 보기" },
   "admin.finance.monthly.title": { ja: "月ごとの表（万円）", ko: "월별 표(만 엔)" },

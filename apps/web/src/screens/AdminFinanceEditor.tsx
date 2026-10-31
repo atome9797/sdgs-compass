@@ -1,10 +1,11 @@
 "use client";
 
-// 수지·자금 화면의 "가정 입력" 부분: 기마다 7개 칸 + 경비 행(+ 인건비 계산기) + 자금 + 기 추가·삭제.
+// 수지·자금 화면의 "가정 입력" 부분: 기마다 7개 칸 + 경비 행(+ 인건비 계산기) + 자금 + 학생 환원(켜기 + 운전자금 N개월분) + 기 추가·삭제.
 // 값은 칸마다 올바를 때만 시나리오에 반영하고(AdminNumberField), 시나리오를 바꾸는 일은 모두 onEdit(update) 로 위에 맡겨요 —
 // 위에서는 저장 직전에 다시 읽은 시나리오에 update 를 적용해서 저장해요(다른 탭에서 방금 한 변경을 덮어쓰지 않게).
 import {
   addPeriod,
+  DEFAULT_RESERVE_MONTHS,
   FINANCE_FIELD_SPEC,
   laborCostYen,
   MAX_COST_LABEL_LENGTH,
@@ -14,6 +15,7 @@ import {
   MIN_PERIODS,
   parseFieldNumber,
   removePeriod,
+  withStudentReturn,
   type FieldSpec,
   type FinanceCost,
   type FinanceFunding,
@@ -123,6 +125,11 @@ export function AdminFinanceEditor({ scenario, onEdit }: EditorProps) {
   const removeCost = (periodIndex: number, costIndex: number) =>
     restructure((s) => ({ ...s, periods: s.periods.map((p, i) => (i !== periodIndex ? p : { ...p, costs: p.costs.filter((_, j) => j !== costIndex) })) }));
   const editFunding = (patch: Partial<FinanceFunding>) => onEdit((s) => ({ ...s, funding: { ...s.funding, ...patch } }));
+  /** 학생 환원 켜기·끄기. 켤 때 이미 개월 수가 있으면(다른 탭) 그대로, 없으면 기본 3개월. 끄면 개월 칸이 사라지니 그 칸의 오류도 지워요 */
+  const toggleReturn = (on: boolean) => {
+    report("return.months")(null);
+    onEdit((s) => withStudentReturn(s, on ? (s.studentReturn?.reserveMonths ?? DEFAULT_RESERVE_MONTHS) : null));
+  };
 
   const spec = FINANCE_FIELD_SPEC;
   const periodsCount = scenario.periods.length;
@@ -299,6 +306,34 @@ export function AdminFinanceEditor({ scenario, onEdit }: EditorProps) {
                 onCommit={(value) => editFunding({ repaymentYenPerPeriod: value })}
               />
             </div>
+          </section>
+
+          <section className="card card--pad stack adm-period" aria-labelledby={`${uid}-return`}>
+            <h3 id={`${uid}-return`} className="adm-period__title">
+              {t("admin.finance.return.title")}
+            </h3>
+            <div>
+              <label className="check">
+                <input type="checkbox" checked={scenario.studentReturn !== undefined} aria-describedby={`${uid}-return-hint`} onChange={(event) => toggleReturn(event.target.checked)} />
+                {t("admin.finance.return.toggle")}
+              </label>
+              <p id={`${uid}-return-hint`} className="field__hint">
+                {t(scenario.studentReturn ? "admin.finance.return.hint" : "admin.finance.return.off")}
+              </p>
+            </div>
+            {scenario.studentReturn ? (
+              <div className="adm-form adm-form--fields">
+                <NumberField
+                  label={t("admin.finance.return.months")}
+                  value={scenario.studentReturn.reserveMonths}
+                  spec={spec.reserveMonths}
+                  inputMode="numeric"
+                  problemLabel={t("admin.finance.return.months")}
+                  onProblem={report("return.months")}
+                  onCommit={(value) => onEdit((s) => withStudentReturn(s, value))}
+                />
+              </div>
+            ) : null}
           </section>
         </div>
       </Section>

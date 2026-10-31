@@ -4,6 +4,7 @@ import {
   annualMatches,
   blankScenario,
   ceilCompanies,
+  DEFAULT_RESERVE_MONTHS,
   evaluatePeriod,
   FINANCE_FIELD_SPEC,
   laborCostYen,
@@ -15,8 +16,10 @@ import {
   parseFieldNumber,
   parseFieldPercent,
   parseScenarioJson,
+  periodReturnYen,
   ratioToPercentText,
   removePeriod,
+  returnReserveYen,
   roundHalfUp,
   sampleScenario,
   scaleScenario,
@@ -25,6 +28,7 @@ import {
   serializeScenarioJson,
   simulate,
   validateScenario,
+  withStudentReturn,
   type FinancePeriod,
   type FinanceScenario,
 } from "./adminFinance";
@@ -736,8 +740,17 @@ describe("샘플 시나리오 (가상)", () => {
     expect(result.milestones.cashShortMonth).toBeNull();
     expect(result.milestones.lowestCash.month).toBe(28);
     expect(result.start.cashYen).toBe(8_000_000);
-    expect(Math.round(result.finalCashYen)).toBe(5_220_000);
     expect(result.periods.map((p) => Math.round((p.breakEvenCompanies ?? 0) * 10) / 10)).toEqual([48, 66.4, 82.8]);
+    // 샘플은 학생 환원이 켜져 있어요(운전자금 3개월분): 3기 말 자금 522만 엔에서 운전자금 142.5만 엔을 남겨도
+    // 3기 이익 118만 엔 전부를 환원할 수 있어서, 마지막 자금은 522만 − 118만 = 404만 엔 (환원 전에는 522만 엔이었어요)
+    expect(result.studentReturn?.reserveMonths).toBe(3);
+    expect(result.studentReturn?.periods.map((p) => Math.round(p.returnYen))).toEqual([0, 0, 1_180_000]);
+    expect(Math.round(result.studentReturn?.periods[2]?.cashBeforeYen ?? 0)).toBe(5_220_000);
+    expect(Math.round(result.studentReturn?.periods[2]?.reserveYen ?? 0)).toBe(1_425_000);
+    expect(result.studentReturn?.firstPeriodIndex).toBe(2);
+    expect(Math.round(result.finalCashYen)).toBe(4_040_000);
+    // 환원을 끄면 예전 값 그대로
+    expect(Math.round(simulate({ ...sampleScenario("ja"), studentReturn: undefined }).finalCashYen)).toBe(5_220_000);
   });
 
   it("monthPosition", () => {
@@ -745,5 +758,135 @@ describe("샘플 시나리오 (가상)", () => {
     expect(monthPosition(12)).toEqual({ period: 1, month: 12 });
     expect(monthPosition(13)).toEqual({ period: 2, month: 1 });
     expect(monthPosition(60)).toEqual({ period: 5, month: 12 });
+  });
+});
+
+describe("학생 환원 (운전자금 N개월분을 남기고, 그 기 이익 중 남는 금액 전부)", () => {
+  // 손으로 계산할 수 있는 한 기짜리 가상 시나리오: 기업 10곳 × 프로젝트 10 × 성사율 10% = 10건 × 3만 엔 × (1 − 50%) = 15만 엔 매출,
+  // 경비 연 6만 엔 → 경상이익 9만 엔. 운전자금 3개월분 = 6만 × 3/12 = 1.5만 엔.
+  const one = (opening: number, reserveMonths: number | null): FinanceScenario => ({
+    schemaVersion: 1,
+    name: "return",
+    periods: [{ label: "第1期", companiesEnd: 10, projectsPerCompany: 10, matchRate: 0.1, feePerMatchYen: 30_000, donationRate: 0.5, adRevenuePerCompanyYen: 0, costOfRevenueYen: 0, costs: [{ label: "経費", yen: 60_000 }] }],
+    startCompanies: 10,
+    funding: { equityYen: opening, borrowingYen: 0, capexYen: 0, repaymentYenPerPeriod: 0 },
+    ...(reserveMonths === null ? {} : { studentReturn: { reserveMonths } }),
+  });
+
+  it("계산식: 적자·자금 부족이면 0, 아니면 min(이익, 자금 − 운전자금)", () => {
+    expect(periodReturnYen(-1, 1_000_000, 0)).toBe(0);
+    expect(periodReturnYen(0, 1_000_000, 0)).toBe(0);
+    expect(periodReturnYen(90_000, 50_000, 60_000)).toBe(0);
+    expect(periodReturnYen(90_000, 105_000, 15_000)).toBe(90_000);
+    expect(periodReturnYen(90_000, 90_000, 15_000)).toBe(75_000);
+    expect(returnReserveYen({ costsYen: 60_000, costOfRevenueYen: 0 }, 3)).toBe(15_000);
+    expect(returnReserveYen({ costsYen: 60_000, costOfRevenueYen: 12_000 }, 2)).toBe(12_000);
+    expect(returnReserveYen({ costsYen: 60_000, costOfRevenueYen: 0 }, 0)).toBe(0);
+  });
+
+  it("일부 환원: 자금 − 운전자금 이 이익보다 적으면 그만큼만 (기말 자금 = 운전자금)", () => {
+    const result = simulate(one(0, 3));
+    expect(Math.round(result.periods[0].profitYen)).toBe(90_000);
+    expect(result.studentReturn?.periods[0]?.reserveYen).toBe(15_000);
+    expect(Math.round(result.studentReturn?.periods[0]?.cashBeforeYen ?? 0)).toBe(90_000);
+    expect(Math.round(result.totals.studentReturnYen)).toBe(75_000);
+    expect(Math.round(result.finalCashYen)).toBe(15_000);
+    expect(result.studentReturn?.firstPeriodIndex).toBe(0);
+  });
+
+  it("전액 환원: 자금이 넉넉하면 그 기 이익 전부 (지난 자금은 환원하지 않아요)", () => {
+    const result = simulate(one(1_000_000, 3));
+    expect(Math.round(result.totals.studentReturnYen)).toBe(90_000);
+    expect(Math.round(result.finalCashYen)).toBe(1_000_000);
+  });
+
+  it("운전자금 0개월: 이익 전부(자금이 그보다 적으면 자금 전부)", () => {
+    expect(Math.round(simulate(one(0, 0)).totals.studentReturnYen)).toBe(90_000);
+    expect(Math.round(simulate(one(0, 0)).finalCashYen)).toBe(0);
+  });
+
+  it("환원은 기의 마지막 달에만, 누적 환원·자금 곡선에 반영 / 손익·흑자 전환·손익분기는 그대로", () => {
+    const off = simulate(one(0, null));
+    const on = simulate(one(0, 3));
+    expect(on.months.slice(0, 11).every((m) => m.studentReturnYen === 0 && m.cumulativeReturnYen === 0)).toBe(true);
+    expect(Math.round(on.months[11].studentReturnYen)).toBe(75_000);
+    expect(Math.round(on.months[11].cumulativeReturnYen)).toBe(75_000);
+    on.months.forEach((m, i) => expect(m.cashYen).toBeCloseTo(off.months[i].cashYen - m.cumulativeReturnYen, 6));
+    expect(on.milestones.profitTurnaroundMonth).toBe(off.milestones.profitTurnaroundMonth);
+    expect(on.milestones.cumulativeBreakEvenMonth).toBe(off.milestones.cumulativeBreakEvenMonth);
+    expect(on.finalCumulativeProfitYen).toBeCloseTo(off.finalCumulativeProfitYen, 6);
+    expect(on.periods).toEqual(off.periods);
+  });
+
+  it("규칙이 꺼져 있으면 null · 합계 0 · 모든 달 0", () => {
+    const off = simulate(one(0, null));
+    expect(off.studentReturn).toBeNull();
+    expect(off.totals.studentReturnYen).toBe(0);
+    expect(off.months.every((m) => m.studentReturnYen === 0 && m.cumulativeReturnYen === 0)).toBe(true);
+  });
+
+  it("적자 기 다음의 흑자 기: 자금이 운전자금에 못 미치면 환원 없음", () => {
+    const loss: FinancePeriod = { label: "第1期", companiesEnd: 0, projectsPerCompany: 0, matchRate: 0, feePerMatchYen: 0, donationRate: 0, adRevenuePerCompanyYen: 0, costOfRevenueYen: 0, costs: [{ label: "経費", yen: 200_000 }] };
+    const scenario: FinanceScenario = { ...one(0, 3), periods: [loss, { ...one(0, 3).periods[0], label: "第2期" }] };
+    const result = simulate(scenario);
+    expect(result.studentReturn?.periods.map((p) => p.returnYen)).toEqual([0, 0]);
+    expect(result.studentReturn?.firstPeriodIndex).toBeNull();
+    expect(Math.round(result.studentReturn?.periods[1]?.cashBeforeYen ?? 0)).toBe(-110_000);
+    expect(result.milestones.cashShortMonth).not.toBeNull();
+  });
+
+  it("민감도 줄에도 환원 합계가 들어가요 (0% 줄 = 원래 결과)", () => {
+    const scenario = sampleScenario("ja");
+    const base = simulate(scenario);
+    const zero = sensitivity(scenario, "matchRate")[SENSITIVITY_FACTORS.indexOf(0)];
+    expect(zero.totalReturnYen).toBeCloseTo(base.totals.studentReturnYen, 6);
+    expect(sensitivity(withStudentReturn(scenario, null), "matchRate").every((row) => row.totalReturnYen === 0)).toBe(true);
+  });
+
+  it("켜기·끄기: 끄면 항목이 없어지고(JSON 도 옛 모양), 켜면 지정한 개월", () => {
+    const off = withStudentReturn(sampleScenario("ja"), null);
+    expect("studentReturn" in off).toBe(false);
+    expect(serializeScenarioJson(off)).not.toContain("studentReturn");
+    expect(withStudentReturn(off, 6).studentReturn).toEqual({ reserveMonths: 6 });
+    expect(DEFAULT_RESERVE_MONTHS).toBe(3);
+    // 기 추가·삭제 뒤에도 규칙은 남아요
+    expect(addPeriod(sampleScenario("ja"), "ja").studentReturn).toEqual({ reserveMonths: 3 });
+    expect(removePeriod(sampleScenario("ja"), 0).studentReturn).toEqual({ reserveMonths: 3 });
+  });
+
+  it("JSON: 없거나 null 이면 꺼짐, {} 이면 기본 3개월, 범위·정수·모양 검사, 저장했다가 다시 읽으면 같아요", () => {
+    const base = JSON.parse(serializeScenarioJson(withStudentReturn(sampleScenario("ja"), null)));
+    const read = (studentReturn: unknown) => validateScenario({ ...base, studentReturn });
+    const none = validateScenario(base);
+    expect(none.ok && none.scenario.studentReturn === undefined).toBe(true);
+    const nul = read(null);
+    expect(nul.ok && nul.scenario.studentReturn === undefined).toBe(true);
+    const empty = read({});
+    expect(empty.ok && empty.scenario.studentReturn).toEqual({ reserveMonths: 3 });
+    const six = read({ reserveMonths: 6 });
+    expect(six.ok && six.scenario.studentReturn).toEqual({ reserveMonths: 6 });
+    expect(read({ reserveMonths: 25 })).toEqual({ ok: false, issues: [{ code: "out_of_range", path: "studentReturn.reserveMonths", min: 0, max: 24 }] });
+    expect(read({ reserveMonths: 2.5 })).toEqual({ ok: false, issues: [{ code: "not_integer", path: "studentReturn.reserveMonths" }] });
+    expect(read({ reserveMonths: "3" })).toEqual({ ok: false, issues: [{ code: "not_number", path: "studentReturn.reserveMonths" }] });
+    expect(read("on")).toEqual({ ok: false, issues: [{ code: "not_object", path: "studentReturn" }] });
+    const text = serializeScenarioJson(sampleScenario("ko"));
+    expect(text).toContain('"studentReturn": {\n    "reserveMonths": 3\n  }');
+    const back = parseScenarioJson(text);
+    expect(back.ok && JSON.stringify(back.scenario) === JSON.stringify(sampleScenario("ko"))).toBe(true);
+  });
+
+  it("옛 JSON(환원 항목 없음)은 그대로 읽고 그대로 써요", () => {
+    const old = serializeScenarioJson(structureScenario());
+    expect(old).not.toContain("studentReturn");
+    const back = parseScenarioJson(old);
+    expect(back.ok).toBe(true);
+    if (!back.ok) return;
+    expect(back.scenario.studentReturn).toBeUndefined();
+    expect(serializeScenarioJson(back.scenario)).toBe(old);
+    expect(simulate(back.scenario).studentReturn).toBeNull();
+  });
+
+  it("FINANCE_FIELD_SPEC.reserveMonths 는 0~24 정수", () => {
+    expect(FINANCE_FIELD_SPEC.reserveMonths).toEqual({ min: 0, max: 24, integer: true });
   });
 });

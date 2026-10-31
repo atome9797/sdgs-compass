@@ -1,7 +1,8 @@
 "use client";
 
 // 감도 분석: 한 항목(성사율 · 건당 수수료 · 광고 단가)을 모든 기에서 -30%~+30% 바꿨을 때 흑자 전환 시기 · 자금 부족 시기 ·
-// 마지막 기의 경상이익 · 마지막 달의 자금 잔액이 어떻게 달라지는지 표로 보여 줘요. 계산은 core 의 sensitivity() 예요.
+// 마지막 기의 경상이익 · 마지막 달의 자금 잔액(학생 환원을 켰으면 환원 뒤) · 학생 환원 합계(켰을 때만)가 어떻게 달라지는지 표로 보여 줘요.
+// 계산은 core 의 sensitivity() 예요.
 import { SENSITIVITY_PARAMS, sensitivity, type FinanceScenario, type SensitivityParam } from "@sdgs-compass/core/adminFinance";
 import { monthText } from "@sdgs-compass/core/adminFinanceText";
 import { formatMan, formatSignedPercent } from "@sdgs-compass/core/adminFormat";
@@ -14,6 +15,7 @@ export function AdminFinanceSensitivity({ scenario }: { scenario: FinanceScenari
   const { t, locale } = useAdmin();
   const [param, setParam] = useState<SensitivityParam>("matchRate");
   const rows = useMemo(() => sensitivity(scenario, param), [scenario, param]);
+  const returnOn = scenario.studentReturn !== undefined;
 
   return (
     <Section title={t("admin.finance.sens.title")} hint={t("admin.finance.sens.lead")}>
@@ -39,6 +41,11 @@ export function AdminFinanceSensitivity({ scenario }: { scenario: FinanceScenari
                 <th scope="col" className="num">
                   {t("admin.finance.sens.col.finalCash")}
                 </th>
+                {returnOn ? (
+                  <th scope="col" className="num">
+                    {t("admin.finance.sens.col.return")}
+                  </th>
+                ) : null}
               </tr>
             </thead>
             <tbody>
@@ -51,6 +58,7 @@ export function AdminFinanceSensitivity({ scenario }: { scenario: FinanceScenari
                     <td>{row.cashShortMonth === null ? t("admin.finance.sens.cashNever") : monthText(scenario, row.cashShortMonth, locale)}</td>
                     <td className="num">{formatMan(row.lastPeriodProfitYen)}</td>
                     <td className="num">{formatMan(row.finalCashYen)}</td>
+                    {returnOn ? <td className="num">{formatMan(row.totalReturnYen)}</td> : null}
                   </tr>
                 );
               })}

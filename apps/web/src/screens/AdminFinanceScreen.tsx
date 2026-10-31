@@ -36,7 +36,7 @@ const focusOnMount = (element: HTMLInputElement | null): void => {
   element?.focus();
 };
 
-const ASSUME_KEYS = ["admin.finance.assume.1", "admin.finance.assume.2", "admin.finance.assume.3", "admin.finance.assume.4", "admin.finance.assume.5", "admin.finance.assume.6", "admin.finance.assume.7"] as const satisfies readonly MessageKey[];
+const ASSUME_KEYS = ["admin.finance.assume.1", "admin.finance.assume.2", "admin.finance.assume.3", "admin.finance.assume.4", "admin.finance.assume.5", "admin.finance.assume.6", "admin.finance.assume.7", "admin.finance.assume.8"] as const satisfies readonly MessageKey[];
 
 export function AdminFinanceScreen() {
   const { t, locale, demo } = useAdmin();

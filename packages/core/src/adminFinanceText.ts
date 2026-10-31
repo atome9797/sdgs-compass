@@ -60,15 +60,54 @@ export function finalSentence(result: FinanceResult, locale: Locale): string {
   });
 }
 
-/** 결과 요약 다섯 줄: 흑자 전환 · 누적 플러스 · 자금 · 손익분기 기업 수 · 마지막 달의 값 */
+/** "運転資金3か月分を残し" / 0개월이면 "運転資金を残さず" */
+export function reservePhrase(reserveMonths: number, locale: Locale): string {
+  return reserveMonths > 0 ? translate("admin.finance.return.reservePhrase", locale, { months: reserveMonths }) : translate("admin.finance.return.reserveNone", locale);
+}
+
+/**
+ * 학생 환원: 규칙이 꺼져 있으면 null. 처음 환원하는 기와 합계, 표시한 기간에 없으면 그 이유
+ * (이익이 나는 기가 없음 / 이익이 난 마지막 기의 기말 자금이 남겨 둘 운전자금에 못 미침 — 그 금액을 그대로 보여 줘요)
+ */
+export function studentReturnSentence(scenario: FinanceScenario, result: FinanceResult, locale: Locale): string | null {
+  const info = result.studentReturn;
+  if (!info) return null;
+  const labelOf = (index: number) => scenario.periods[index]?.label ?? result.periods[index]?.label ?? defaultPeriodLabel(index + 1, locale);
+  if (info.firstPeriodIndex !== null) {
+    return translate("admin.finance.summary.return", locale, {
+      period: labelOf(info.firstPeriodIndex),
+      reserve: reservePhrase(info.reserveMonths, locale),
+      total: formatManYen(info.totalYen, locale),
+    });
+  }
+  let lastProfitable = -1;
+  result.periods.forEach((period, index) => {
+    if (period.profitYen > 0) lastProfitable = index;
+  });
+  const periods = scenario.periods.length;
+  const item = lastProfitable < 0 ? undefined : info.periods[lastProfitable];
+  if (!item) return translate("admin.finance.summary.returnNoneLoss", locale, { periods });
+  return translate("admin.finance.summary.returnNoneReserve", locale, {
+    periods,
+    label: labelOf(lastProfitable),
+    cash: formatManYen(item.cashBeforeYen, locale),
+    reserve: formatManYen(item.reserveYen, locale),
+    months: info.reserveMonths,
+  });
+}
+
+/** 결과 요약: 흑자 전환 · 누적 플러스 · 자금 · 손익분기 기업 수 · 마지막 달의 값 (다섯 줄) + 학생 환원(규칙이 켜져 있을 때 여섯째 줄) */
 export function financeSummary(scenario: FinanceScenario, result: FinanceResult, locale: Locale): string[] {
-  return [
+  const lines = [
     turnaroundSentence(scenario, result, locale),
     cumulativeSentence(scenario, result, locale),
     cashSentence(scenario, result, locale),
     breakEvenSentence(scenario, result, locale),
     finalSentence(result, locale),
   ];
+  const studentReturn = studentReturnSentence(scenario, result, locale);
+  if (studentReturn !== null) lines.push(studentReturn);
+  return lines;
 }
 
 /** 겹쳐 비교할 때 시나리오마다 한 줄로: 흑자 전환 + 자금 */

@@ -9,6 +9,7 @@ import {
   type FinanceResult,
   type FinanceScenario,
   type PeriodResult,
+  type PeriodReturn,
   type SensitivityParam,
 } from "@sdgs-compass/core/adminFinance";
 import { formatNumber } from "@sdgs-compass/core/format";
@@ -49,14 +50,15 @@ export function plainMonthAxis(periods: number, locale: Locale): MonthAxis {
 }
 
 // ───────── 월별 값 (그래프의 한 줄) ─────────
-export type FinanceMetric = "cumulativeProfit" | "cash" | "monthlyProfit" | "companies";
-export const FINANCE_METRICS: readonly FinanceMetric[] = ["cumulativeProfit", "cash", "monthlyProfit", "companies"];
+export type FinanceMetric = "cumulativeProfit" | "cash" | "monthlyProfit" | "companies" | "cumulativeReturn";
+export const FINANCE_METRICS: readonly FinanceMetric[] = ["cumulativeProfit", "cash", "monthlyProfit", "companies", "cumulativeReturn"];
 
 export const FINANCE_METRIC_LABEL: Record<FinanceMetric, MessageKey> = {
   cumulativeProfit: "admin.finance.series.cumulative",
   cash: "admin.finance.series.cash",
   monthlyProfit: "admin.finance.series.monthlyProfit",
   companies: "admin.finance.series.companies",
+  cumulativeReturn: "admin.finance.series.cumulativeReturn",
 };
 
 /** 돈이 아닌 값(기업 수)은 눈금·설명이 달라요 */
@@ -67,7 +69,7 @@ export const isMoneyMetric = (metric: FinanceMetric): boolean => metric !== "com
  * 월 경상이익은 "시작 시점"에는 값이 없어서 null (선이 그 자리에서 시작해요).
  */
 export function metricValues(result: FinanceResult, metric: FinanceMetric): (number | null)[] {
-  const first = metric === "cumulativeProfit" ? 0 : metric === "cash" ? result.start.cashYen : metric === "companies" ? result.start.companies : null;
+  const first = metric === "cumulativeProfit" || metric === "cumulativeReturn" ? 0 : metric === "cash" ? result.start.cashYen : metric === "companies" ? result.start.companies : null;
   const rest = result.months.map((month) => {
     switch (metric) {
       case "cumulativeProfit":
@@ -78,6 +80,8 @@ export function metricValues(result: FinanceResult, metric: FinanceMetric): (num
         return month.profitYen;
       case "companies":
         return month.companies;
+      case "cumulativeReturn":
+        return month.cumulativeReturnYen;
     }
   });
   return [first, ...rest];
@@ -94,18 +98,20 @@ export interface AxisMarker {
   label: string;
 }
 
-export type MarkerKind = "turnaround" | "cashShort";
+export type MarkerKind = "turnaround" | "cashShort" | "studentReturn";
 
 /**
- * 월 그래프의 세로 표시선: 흑자 전환(첫 달부터면 생략)과 자금 부족(시작 시점부터면 0번 위치).
+ * 월 그래프의 세로 표시선: 흑자 전환(첫 달부터면 생략)과 자금 부족(시작 시점부터면 0번 위치), 학생 환원의 시작(첫 환원 기의 마지막 달).
  * kinds 로 어느 것만 그릴지 고를 수 있어요 (월 경상이익 그래프에는 흑자 전환만)
  */
-export function financeMarkers(result: FinanceResult, locale: Locale, kinds: readonly MarkerKind[] = ["turnaround", "cashShort"]): AxisMarker[] {
+export function financeMarkers(result: FinanceResult, locale: Locale, kinds: readonly MarkerKind[] = ["turnaround", "cashShort", "studentReturn"]): AxisMarker[] {
   const markers: AxisMarker[] = [];
   const { profitTurnaroundMonth, cashShortMonth } = result.milestones;
   // 첫 달부터 흑자면 표시선이 축 맨 앞에 붙어서 읽기 어려워요 — 요약 문장이 알려 줘요
   if (kinds.includes("turnaround") && profitTurnaroundMonth !== null && profitTurnaroundMonth > 1) markers.push({ index: profitTurnaroundMonth, label: translate("admin.finance.marker.turnaround", locale) });
   if (kinds.includes("cashShort") && cashShortMonth !== null) markers.push({ index: cashShortMonth, label: translate("admin.finance.marker.cashShort", locale) });
+  const firstReturn = result.studentReturn?.firstPeriodIndex ?? null;
+  if (kinds.includes("studentReturn") && firstReturn !== null) markers.push({ index: (firstReturn + 1) * MONTHS_PER_PERIOD, label: translate("admin.finance.marker.return", locale) });
   return markers;
 }
 
@@ -116,6 +122,8 @@ export interface PeriodColumns {
   /** 비용 = 매출원가 + 경비 */
   cost: number[];
   profit: number[];
+  /** 기별 학생 환원액 (규칙이 꺼져 있으면 null — 막대를 그리지 않아요) */
+  studentReturn: number[] | null;
 }
 
 export function periodColumns(result: FinanceResult): PeriodColumns {
@@ -124,14 +132,17 @@ export function periodColumns(result: FinanceResult): PeriodColumns {
     sales: result.periods.map((period) => period.salesYen),
     cost: result.periods.map((period) => period.costOfRevenueYen + period.costsYen),
     profit: result.periods.map((period) => period.profitYen),
+    studentReturn: result.studentReturn ? result.studentReturn.periods.map((item) => item.returnYen) : null,
   };
 }
 
-export type AnnualRowId = "companies" | "matches" | "fee" | "ad" | "sales" | "cogs" | "costs" | "profit" | "donation" | "breakEven";
+export type AnnualRowId = "companies" | "matches" | "fee" | "ad" | "sales" | "cogs" | "costs" | "profit" | "cashBeforeReturn" | "returnReserve" | "studentReturn" | "donation" | "breakEven";
 
 export interface AnnualRow {
   id: AnnualRowId;
   label: MessageKey;
+  /** 이름표의 자리표시자 값 (예: 운전자금의 개월 수) */
+  labelParams?: Record<string, string | number>;
   /** count = 개수(곳·건), money = 엔 (화면에서는 만 엔) */
   kind: "count" | "money";
   /** 기마다의 값. 손익분기를 넘길 수 없는 기는 null */
@@ -142,7 +153,10 @@ export interface AnnualRow {
   strong: boolean;
 }
 
-/** 연간 요약 표의 행: 위에서 아래로 읽으면 기업 수 → 건수 → 매출 → 비용 → 이익 → 참고(기부액 · 손익분기) */
+/**
+ * 연간 요약 표의 행: 위에서 아래로 읽으면 기업 수 → 건수 → 매출 → 비용 → 이익 → (학생 환원: 기말 자금 · 남길 운전자금 · 환원액) → 참고(기부액 · 손익분기).
+ * 학생 환원 행은 규칙이 켜져 있을 때만 있어요.
+ */
 export function annualRows(result: FinanceResult): AnnualRow[] {
   const money = (id: AnnualRowId, label: MessageKey, pick: (period: PeriodResult) => number, strong = false): AnnualRow => ({
     id,
@@ -161,9 +175,22 @@ export function annualRows(result: FinanceResult): AnnualRow[] {
     money("cogs", "admin.finance.annual.cogs", (p) => p.costOfRevenueYen),
     money("costs", "admin.finance.annual.costs", (p) => p.costsYen),
     money("profit", "admin.finance.annual.profit", (p) => p.profitYen, true),
+    ...returnRows(result),
     money("donation", "admin.finance.annual.donation", (p) => p.donationYen),
     // 손익분기는 "몇 사 이상"으로 올려서 보여 줘요 (12.0000001 같은 꼬리는 ceilCompanies 가 무시)
     { id: "breakEven", label: "admin.finance.annual.breakEven", kind: "count", values: result.periods.map((p) => (p.breakEvenCompanies === null ? null : ceilCompanies(p.breakEvenCompanies))), total: null, strong: false },
+  ];
+}
+
+/** 학생 환원 세 줄: 기말 자금(환원 전) · 남길 운전자금(N개월분) · 환원액(합계 있음, 굵게). 규칙이 꺼져 있으면 빈 배열 */
+function returnRows(result: FinanceResult): AnnualRow[] {
+  const info = result.studentReturn;
+  if (!info) return [];
+  const values = (pick: (item: PeriodReturn) => number) => info.periods.map(pick);
+  return [
+    { id: "cashBeforeReturn", label: "admin.finance.annual.cashBeforeReturn", kind: "money", values: values((item) => item.cashBeforeYen), total: null, strong: false },
+    { id: "returnReserve", label: "admin.finance.annual.returnReserve", labelParams: { months: info.reserveMonths }, kind: "money", values: values((item) => item.reserveYen), total: null, strong: false },
+    { id: "studentReturn", label: "admin.finance.annual.studentReturn", kind: "money", values: values((item) => item.returnYen), total: info.totalYen, strong: true },
   ];
 }
 
@@ -218,6 +245,8 @@ export function cloneScenario(scenario: FinanceScenario): FinanceScenario {
     ...scenario,
     periods: scenario.periods.map((period) => ({ ...period, costs: period.costs.map((cost) => ({ ...cost })) })),
     funding: { ...scenario.funding },
+    // 학생 환원은 켜져 있을 때만 복사해요 (꺼진 시나리오에 빈 항목을 만들지 않게)
+    ...(scenario.studentReturn ? { studentReturn: { ...scenario.studentReturn } } : {}),
   };
 }
 

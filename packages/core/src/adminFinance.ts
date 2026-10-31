@@ -51,6 +51,16 @@ export interface FinanceFunding {
   repaymentYenPerPeriod: number;
 }
 
+/**
+ * 학생 환원 규칙(선택): 각 기 말에 운전자금(그 기 경비 + 매출원가의 reserveMonths 개월분)을 남기고,
+ * 그 기 경상이익 중 남는 금액 전부를 학생에게 환원했다고 보고 자금에서 빼요. 없으면(꺼짐) 환원하지 않아요.
+ * 실제 배분 기준·세금은 이 시산 밖이에요(docs/admin.md).
+ */
+export interface FinanceStudentReturn {
+  /** 남겨 둘 운전자금이 몇 개월분인지 (0~24 정수) */
+  reserveMonths: number;
+}
+
 export interface FinanceScenario {
   schemaVersion: 1;
   name: string;
@@ -58,7 +68,12 @@ export interface FinanceScenario {
   /** 첫 기가 시작될 때의 기업 수 */
   startCompanies: number;
   funding: FinanceFunding;
+  /** 학생 환원 규칙. 없으면 환원하지 않아요 (옛 JSON 은 이 항목이 없어요 — schemaVersion 은 1 그대로) */
+  studentReturn?: FinanceStudentReturn;
 }
+
+/** 학생 환원을 켤 때의 기본값: 운전자금 3개월분을 남겨요 */
+export const DEFAULT_RESERVE_MONTHS = 3;
 
 // ───────── 입력 범위 (JSON 검사와 입력 폼이 같은 표를 써요) ─────────
 export interface FieldSpec {
@@ -85,6 +100,7 @@ export const FINANCE_FIELD_SPEC = {
   borrowingYen: YEN,
   capexYen: YEN,
   repaymentYenPerPeriod: YEN,
+  reserveMonths: { min: 0, max: 24, integer: true } as FieldSpec,
 } as const satisfies Record<string, FieldSpec>;
 
 // ───────── 반올림 ─────────
@@ -141,8 +157,32 @@ export interface FinanceMonth {
   costsYen: number;
   profitYen: number;
   cumulativeProfitYen: number;
-  /** 월말 자금 잔액 = 자기자금 + 차입금 − 비품 + 누적 손익 − 누적 상환 */
+  /** 이 달에 학생에게 환원한 금액 (환원은 기의 마지막 달에만, 규칙이 꺼져 있으면 늘 0) */
+  studentReturnYen: number;
+  /** 이 달까지의 누적 환원액 */
+  cumulativeReturnYen: number;
+  /** 월말 자금 잔액 = 자기자금 + 차입금 − 비품 + 누적 손익 − 누적 상환 − 누적 환원 */
   cashYen: number;
+}
+
+/** 한 기의 학생 환원 계산 (기 말에 한 번) */
+export interface PeriodReturn {
+  /** 기말 자금(환원 전) */
+  cashBeforeYen: number;
+  /** 남겨 둘 운전자금 = reserveMonths × (경비 + 매출원가) ÷ 12 */
+  reserveYen: number;
+  /** 환원액 = max(0, min(그 기 경상이익, 기말 자금 − 운전자금)) */
+  returnYen: number;
+}
+
+export interface StudentReturnResult {
+  reserveMonths: number;
+  /** 기마다 (periods 와 같은 순서) */
+  periods: PeriodReturn[];
+  /** 표시한 기간의 환원 합계 */
+  totalYen: number;
+  /** 처음 환원하는 기 (0부터). 표시한 기간에 없으면 null */
+  firstPeriodIndex: number | null;
 }
 
 export interface FinanceMilestones {
@@ -162,8 +202,13 @@ export interface FinanceResult {
   /** 시작 시점 (month 0): 기업 수 · 자금 잔액 = 자기자금 + 차입금 − 비품 */
   start: { companies: number; cashYen: number };
   milestones: FinanceMilestones;
-  totals: { salesYen: number; profitYen: number };
+  /** studentReturnYen: 표시한 기간의 학생 환원 합계 (규칙이 꺼져 있으면 0) */
+  totals: { salesYen: number; profitYen: number; studentReturnYen: number };
+  /** 학생 환원 규칙의 계산. 규칙이 꺼져 있으면 null */
+  studentReturn: StudentReturnResult | null;
+  /** 마지막 달의 자금 잔액(환원 뒤) */
   finalCashYen: number;
+  /** 마지막 달의 누적 손익(환원과 무관 — 흑자 전환·손익분기도 환원 전 이익으로 계산해요) */
   finalCumulativeProfitYen: number;
 }
 
@@ -207,17 +252,36 @@ function firstSustained(values: readonly number[], ok: (value: number) => boolea
 }
 
 /**
+ * 학생 환원액(기 말): 운전자금(reserveMonths × (경비 + 매출원가) ÷ 12)을 남기고, 그 기 경상이익 중 남는 금액 전부.
+ * 적자인 기·자금이 운전자금에 못 미치는 기는 0. 지난 기의 이익·조달금은 환원하지 않아요(그 기 이익이 상한).
+ */
+export function periodReturnYen(profitYen: number, cashBeforeYen: number, reserveYen: number): number {
+  if (profitYen <= 0) return 0;
+  const amount = Math.min(profitYen, cashBeforeYen - reserveYen);
+  return amount > TOLERANCE_YEN ? amount : 0;
+}
+
+/** 남겨 둘 운전자금 = reserveMonths × (그 기 경비 + 매출원가) ÷ 12 */
+export function returnReserveYen(period: Pick<PeriodResult, "costsYen" | "costOfRevenueYen">, reserveMonths: number): number {
+  return (reserveMonths * (period.costsYen + period.costOfRevenueYen)) / MONTHS_PER_PERIOD;
+}
+
+/**
  * 월별 곡선(가정): 기업 수는 기 사이를 직선으로 이어 월말 값을 만들고, 그 기의 연 매출·매출원가를 월별 기업 수의 비율로 나눠요
  * (합계는 그대로, 기업이 늘면 매출도 점점 느는 모양). 경비는 12 등분이에요.
+ * 학생 환원 규칙이 있으면 기의 마지막 달에 환원액을 자금에서 빼요(손익·흑자 전환·손익분기에는 넣지 않아요).
  */
 export function simulate(scenario: FinanceScenario): FinanceResult {
   const { funding } = scenario;
   const periods = scenario.periods.map(evaluatePeriod);
   const openingCash = funding.equityYen + funding.borrowingYen - funding.capexYen;
+  const reserveMonths = scenario.studentReturn ? scenario.studentReturn.reserveMonths : null;
   const months: FinanceMonth[] = [];
+  const periodReturns: PeriodReturn[] = [];
   let previousEnd = scenario.startCompanies;
   let cumulativeProfit = 0;
   let cumulativeRepayment = 0;
+  let cumulativeReturn = 0;
   periods.forEach((period, periodIndex) => {
     const end = period.companiesEnd;
     const companies = Array.from({ length: MONTHS_PER_PERIOD }, (_, i) => (i === MONTHS_PER_PERIOD - 1 ? end : previousEnd + ((end - previousEnd) * (i + 1)) / MONTHS_PER_PERIOD));
@@ -231,6 +295,15 @@ export function simulate(scenario: FinanceScenario): FinanceResult {
       cumulativeProfit += profitYen;
       const repayment = Math.max(0, Math.min(funding.repaymentYenPerPeriod / MONTHS_PER_PERIOD, funding.borrowingYen - cumulativeRepayment));
       cumulativeRepayment += repayment;
+      const cashBefore = openingCash + cumulativeProfit - cumulativeRepayment - cumulativeReturn;
+      // 기의 마지막 달에 환원해요 (규칙이 꺼져 있으면 건너뛰어요)
+      let studentReturnYen = 0;
+      if (reserveMonths !== null && i === MONTHS_PER_PERIOD - 1) {
+        const reserveYen = returnReserveYen(period, reserveMonths);
+        studentReturnYen = periodReturnYen(period.profitYen, cashBefore, reserveYen);
+        periodReturns.push({ cashBeforeYen: cashBefore, reserveYen, returnYen: studentReturnYen });
+      }
+      cumulativeReturn += studentReturnYen;
       months.push({
         month: periodIndex * MONTHS_PER_PERIOD + i + 1,
         periodIndex,
@@ -241,7 +314,9 @@ export function simulate(scenario: FinanceScenario): FinanceResult {
         costsYen,
         profitYen,
         cumulativeProfitYen: cumulativeProfit,
-        cashYen: openingCash + cumulativeProfit - cumulativeRepayment,
+        studentReturnYen,
+        cumulativeReturnYen: cumulativeReturn,
+        cashYen: cashBefore - studentReturnYen,
       });
     }
     previousEnd = end;
@@ -256,12 +331,23 @@ export function simulate(scenario: FinanceScenario): FinanceResult {
   let lowestCash = { month: 0, yen: openingCash };
   for (const m of months) if (m.cashYen < lowestCash.yen) lowestCash = { month: m.month, yen: m.cashYen };
   const last = months[months.length - 1];
+  let studentReturn: StudentReturnResult | null = null;
+  if (reserveMonths !== null) {
+    const firstIndex = periodReturns.findIndex((item) => item.returnYen > 0);
+    studentReturn = {
+      reserveMonths,
+      periods: periodReturns,
+      totalYen: cumulativeReturn,
+      firstPeriodIndex: firstIndex < 0 ? null : firstIndex,
+    };
+  }
   return {
     periods,
     months,
     start: { companies: scenario.startCompanies, cashYen: openingCash },
     milestones: { profitTurnaroundMonth, cumulativeBreakEvenMonth, cashShortMonth, lowestCash },
-    totals: { salesYen: periods.reduce((sum, p) => sum + p.salesYen, 0), profitYen: periods.reduce((sum, p) => sum + p.profitYen, 0) },
+    totals: { salesYen: periods.reduce((sum, p) => sum + p.salesYen, 0), profitYen: periods.reduce((sum, p) => sum + p.profitYen, 0), studentReturnYen: cumulativeReturn },
+    studentReturn,
     finalCashYen: last ? last.cashYen : openingCash,
     finalCumulativeProfitYen: last ? last.cumulativeProfitYen : 0,
   };
@@ -289,6 +375,8 @@ export interface SensitivityRow {
   cashShortMonth: number | null;
   lastPeriodProfitYen: number;
   finalCashYen: number;
+  /** 표시한 기간의 학생 환원 합계 (규칙이 꺼져 있으면 0) */
+  totalReturnYen: number;
 }
 
 /** 한 항목을 모든 기에서 (1 + factor) 배로. 성사율은 100% 를 넘지 않게 잘라요 */
@@ -312,6 +400,7 @@ export function sensitivity(scenario: FinanceScenario, param: SensitivityParam):
       cashShortMonth: result.milestones.cashShortMonth,
       lastPeriodProfitYen: lastPeriod ? lastPeriod.profitYen : 0,
       finalCashYen: result.finalCashYen,
+      totalReturnYen: result.totals.studentReturnYen,
     };
   });
 }
@@ -529,8 +618,21 @@ export function validateScenario(value: unknown): ScenarioParseResult {
     }
   }
 
+  // 학생 환원(선택): 없거나 null 이면 꺼짐. 객체이면 reserveMonths(없으면 기본 3)를 읽어요
+  let studentReturn: FinanceStudentReturn | null = null;
+  const rawReturn = value.studentReturn;
+  if (rawReturn !== undefined && rawReturn !== null) {
+    if (!isObject(rawReturn)) issues.push({ code: "not_object", path: "studentReturn" });
+    else {
+      const reserveMonths = readNumber(rawReturn, "reserveMonths", "studentReturn", FINANCE_FIELD_SPEC.reserveMonths, issues, DEFAULT_RESERVE_MONTHS);
+      if (reserveMonths !== null) studentReturn = { reserveMonths };
+    }
+  }
+
   if (issues.length > 0 || name === null || startCompanies === null || funding === null) return { ok: false, issues };
-  return { ok: true, scenario: { schemaVersion: 1, name, periods, startCompanies, funding } };
+  const scenario: FinanceScenario = { schemaVersion: 1, name, periods, startCompanies, funding };
+  if (studentReturn) scenario.studentReturn = studentReturn;
+  return { ok: true, scenario };
 }
 
 /** JSON 글자를 읽어요 (UTF-8 BOM 허용). 읽을 수 없으면 not_json */
@@ -569,8 +671,17 @@ export function serializeScenarioJson(scenario: FinanceScenario): string {
       capexYen: scenario.funding.capexYen,
       repaymentYenPerPeriod: scenario.funding.repaymentYenPerPeriod,
     },
+    // 학생 환원은 켜져 있을 때만 적어요 (꺼진 시나리오의 JSON 은 옛 모양 그대로)
+    ...(scenario.studentReturn ? { studentReturn: { reserveMonths: scenario.studentReturn.reserveMonths } } : {}),
   };
   return `${JSON.stringify(body, null, 2)}\n`;
+}
+
+/** 학생 환원 규칙을 켜거나(운전자금 reserveMonths 개월분) 꺼요(null). 끄면 항목 자체를 없애요 */
+export function withStudentReturn(scenario: FinanceScenario, reserveMonths: number | null): FinanceScenario {
+  const next: FinanceScenario = { schemaVersion: 1, name: scenario.name, periods: scenario.periods, startCompanies: scenario.startCompanies, funding: scenario.funding };
+  if (reserveMonths !== null) next.studentReturn = { reserveMonths };
+  return next;
 }
 
 // ───────── 새 시나리오 · 편집 ─────────
@@ -673,5 +784,7 @@ export function sampleScenario(locale: Locale): FinanceScenario {
     ],
     startCompanies: 0,
     funding: { equityYen: 3000000, borrowingYen: 6000000, capexYen: 1000000, repaymentYenPerPeriod: 0 },
+    // 3기에 흑자가 되면, 운전자금 3개월분을 남기고 남는 이익을 학생에게 환원하는 모양을 보여 줘요
+    studentReturn: { reserveMonths: DEFAULT_RESERVE_MONTHS },
   };
 }

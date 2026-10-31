@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { parseScenarioJson, sampleScenario, simulate, validateScenario, FINANCE_FIELD_SPEC, type FinanceScenario } from "./adminFinance";
-import { breakEvenSentence, compareSentence, fieldErrorText, financeSummary, issueText, monthText } from "./adminFinanceText";
+import { breakEvenSentence, compareSentence, fieldErrorText, financeSummary, issueText, monthText, reservePhrase, studentReturnSentence } from "./adminFinanceText";
 import { translate } from "./messages";
 
 // 손으로 계산할 수 있게 작게 만든 가상의 시나리오들 (실제 계획의 숫자가 아니에요)
@@ -195,5 +195,55 @@ describe("오류 문구", () => {
 
   it("문구 사전에서 만든 문장이 사전과 같아요", () => {
     expect(translate("admin.finance.disclaimer", "ja")).toBe("計画検討用の試算です。投資判断や保証ではありません。");
+  });
+});
+
+describe("수지 요약: 학생 환원 문장 (규칙이 켜져 있을 때 여섯째 줄)", () => {
+  // PROFITABLE: 1기 경상이익 38만 엔, 자기자금 100만 엔, 경비 연 12만 엔 → 운전자금 3개월분 3만 엔 → 이익 38만 엔 전부 환원
+  const withReturn = (scenario: FinanceScenario, reserveMonths: number): FinanceScenario => ({ ...scenario, studentReturn: { reserveMonths } });
+
+  it("꺼져 있으면 문장 없음 · 다섯 줄 그대로", () => {
+    expect(studentReturnSentence(PROFITABLE, simulate(PROFITABLE), "ja")).toBeNull();
+    expect(financeSummary(PROFITABLE, simulate(PROFITABLE), "ja")).toHaveLength(5);
+  });
+
+  it("환원이 있으면: 시작하는 기 · 남기는 운전자금 · 합계 (ja/ko)", () => {
+    const scenario = withReturn(PROFITABLE, 3);
+    const result = simulate(scenario);
+    const ja = financeSummary(scenario, result, "ja");
+    expect(ja).toHaveLength(6);
+    expect(ja[5]).toBe("学生への還元は第1期から始まります（運転資金3か月分を残し、その期の利益の残りを還元）。表示した期間の還元は合計38万円です。");
+    expect(financeSummary(scenario, result, "ko")[5]).toBe("학생 환원은 第1期부터 시작돼요(운전자금 3개월분을 남기고 그 기 이익의 나머지를 환원). 표시한 기간의 환원은 합계 38만 엔이에요.");
+    // 마지막 달 자금은 환원 뒤 값 (138만 − 38만 = 100만)
+    expect(ja[4]).toBe("最後の月の累計損益は38万円、資金残高は100万円です。");
+  });
+
+  it("이익이 나는 기가 없으면 그 이유", () => {
+    const scenario = withReturn(STUCK, 3);
+    expect(studentReturnSentence(scenario, simulate(scenario), "ja")).toBe("表示した期間（1期）の中では、学生への還元はありません。経常利益が出る期がないためです。");
+    expect(studentReturnSentence(scenario, simulate(scenario), "ko")).toBe("표시한 기간(1기) 안에서는 학생 환원이 없어요. 경상이익이 나는 기가 없기 때문이에요.");
+  });
+
+  it("이익은 났지만 기말 자금이 운전자금에 못 미치면, 그 기의 자금과 운전자금을 그대로 보여 줘요", () => {
+    // 조달 0 · 비품 40만 엔 → 기말 자금 = −40만 + 이익 38만 = −2만 엔 < 운전자금 3만 엔 → 이익이 나도 환원 없음
+    const scenario: FinanceScenario = { ...withReturn(PROFITABLE, 3), funding: { equityYen: 0, borrowingYen: 0, capexYen: 400_000, repaymentYenPerPeriod: 0 } };
+    const result = simulate(scenario);
+    expect(result.studentReturn?.firstPeriodIndex).toBeNull();
+    expect(studentReturnSentence(scenario, result, "ja")).toBe("表示した期間（1期）の中では、学生への還元はありません。第1期末の資金-2万円が、残す運転資金3万円（3か月分）に届かないためです。");
+  });
+
+  it("운전자금 0개월이면 '運転資金を残さず'", () => {
+    expect(reservePhrase(0, "ja")).toBe("運転資金を残さず");
+    expect(reservePhrase(0, "ko")).toBe("운전자금을 남기지 않고");
+    expect(reservePhrase(6, "ja")).toBe("運転資金6か月分を残し");
+    const scenario = withReturn(PROFITABLE, 0);
+    expect(studentReturnSentence(scenario, simulate(scenario), "ja")).toContain("（運転資金を残さず、その期の利益の残りを還元）");
+  });
+
+  it("샘플(가상)은 환원이 켜져 있어서 여섯 줄", () => {
+    const sample = sampleScenario("ja");
+    const lines = financeSummary(sample, simulate(sample), "ja");
+    expect(lines).toHaveLength(6);
+    expect(lines[5]).toBe("学生への還元は第3期から始まります（運転資金3か月分を残し、その期の利益の残りを還元）。表示した期間の還元は合計118万円です。");
   });
 });

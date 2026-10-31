@@ -72,8 +72,7 @@ function CandidateCard({ candidate, composing, onCompose, onSent, onCancel }: { 
         <Tag tone="info">{candidate.levelLabel}</Tag>
       </div>
       <div className="row small muted">
-        <span className="strong">{candidate.pointsLabel}</span>
-        <span>· {candidate.awardsLabel}</span>
+        <span className="strong">{candidate.awardsLabel}</span>
         {candidate.isDemoStudent ? <Tag tone="warning">{t("web.talent.demoStudent")}</Tag> : null}
       </div>
       <SdgMiniRow ids={candidate.sdgIds} />

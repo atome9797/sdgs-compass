@@ -83,14 +83,15 @@ describe("신청 요약 한 장", () => {
       ["participations", "3件"],
       ["submissions", "1件"],
       ["awards", "1件"],
-      ["points", "680 pt"],
+      ["sdgs", "4目標"], // 14 · 12 · 4 · 13 — 포인트 숫자 대신 관련 SDGs 목표 수
     ]);
 
     const year = selectApplicationSummary(state, "ja", "year");
     expect(year.activities.map((a) => a.id)).toEqual(["a1", "s1", "p1", "p2"]);
     const half = selectApplicationSummary(state, "ja", "half");
     expect(half.activities.map((a) => a.id)).toEqual(["a1", "s1", "p1"]);
-    expect(half.stats.find((s) => s.key === "points")?.value).toBe("550 pt");
+    expect(half.stats.find((s) => s.key === "sdgs")?.value).toBe("2目標");
+    expect(half.stats.some((s) => s.value.includes("pt"))).toBe(false);
     expect(half.empty).toBe(false);
   });
 
@@ -144,7 +145,7 @@ describe("신청 요약 한 장", () => {
     expect(vm.activities).toEqual([]);
     expect(vm.sdgs).toEqual([]);
     expect(vm.certificates).toEqual([]);
-    expect(vm.stats.map((s) => s.value)).toEqual(["0件", "0件", "0件", "0 pt"]);
+    expect(vm.stats.map((s) => s.value)).toEqual(["0件", "0件", "0件", "0目標"]);
     expect(vm.notes).toEqual(SUMMARY_NOTE_KEYS.map((key) => translate(key, "ja")));
     expect(vm.shareText).toContain(translate("summary.activities.empty", "ja"));
   });
@@ -180,7 +181,8 @@ describe("신청 요약 한 장", () => {
     const vm = selectApplicationSummary(makeState(), "ja", "half");
     expect(vm.shareText.split("\n")[0]).toBe(vm.docTitle);
     expect(vm.shareText).toContain(vm.rangeLabel);
-    expect(vm.shareText).toContain("参加 1件・企画書の提出 1件・受賞 1件・ポイント 550 pt");
+    expect(vm.shareText).toContain("参加 1件・企画書の提出 1件・受賞 1件・関連するSDGs 2目標");
+    expect(vm.shareText).not.toContain(" pt");
     expect(vm.shareText).toContain("受賞（");
     for (const c of vm.certificates) expect(vm.shareText).toContain(c.id);
     expect(vm.shareText.trim().endsWith(translate("summary.note.sample", "ja"))).toBe(true);

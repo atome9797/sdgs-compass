@@ -55,7 +55,7 @@ export function ApplicationSummaryScreen() {
         </View>
         <KeyValue label={t("summary.holder.name")} value={vm.holder.name} />
         <KeyValue label={t("summary.holder.affiliation")} value={vm.holder.affiliation} />
-        <KeyValue label={t("summary.holder.level")} value={`${vm.holder.levelLabel} · ${vm.holder.totalLabel}`} />
+        <KeyValue label={t("summary.holder.level")} value={vm.holder.levelLabel} />
         <KeyValue label={t("summary.holder.period")} value={vm.rangeLabel} />
         <View style={styles.stats}>
           {vm.stats.map((stat) => (

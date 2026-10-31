@@ -8,7 +8,7 @@ import { ActivityRow } from "@/components/ActivityRow";
 import { RadarChart } from "@/components/RadarChart";
 import { Screen, ScreenTitle } from "@/components/Screen";
 import { SdgTile } from "@/components/SdgTile";
-import { Badge, Button, Card, Empty, Notice, ProgressBar, Section, Txt } from "@/components/ui";
+import { Button, Card, Empty, Notice, ProgressBar, Section, Txt } from "@/components/ui";
 import { useApp } from "@/lib/AppProvider";
 import { squareSizeFor } from "@/lib/geometry";
 import { certificateHref, ROUTES } from "@/lib/nav";
@@ -37,17 +37,20 @@ export function ImpactScreen() {
               {vm.university} · {vm.faculty}
             </Txt>
           </View>
-          <Badge tone="primary" label={vm.levelLabel} />
         </View>
+        {/* 실적은 포인트 숫자가 아니라 레벨 + 진행률로 보여요(돈과 무관한 지표) */}
         <Txt variant="small" tone="muted">
           {t("impact.total")}
         </Txt>
         <Txt variant="display" testID="impact-total">
-          {vm.totalLabel}
+          {vm.levelLabel}
         </Txt>
-        <ProgressBar ratio={vm.progressRatio} accessibilityLabel={t("impact.total")} valueText={vm.nextLevelLabel} />
+        <ProgressBar ratio={vm.progressPercent / 100} accessibilityLabel={t("impact.total")} valueText={vm.nextLevelLabel} />
         <Txt variant="small" tone="muted">
           {vm.nextLevelLabel}
+        </Txt>
+        <Txt variant="small" tone="muted">
+          {vm.levelHint}
         </Txt>
         {/* 스카우트 수신은 포인트와 관계없는 "설정"이라, 진행 막대 아래가 아니라 선으로 나눈 따로 된 줄에 상태 + 설명 + 설정 단추로 보여요 */}
         <View style={styles.scoutRow} testID="impact-scout">

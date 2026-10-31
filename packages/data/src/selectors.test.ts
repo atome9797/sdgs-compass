@@ -11,6 +11,7 @@ import type { ProposalDraft } from "@sdgs-compass/core/proposal";
 import { SCOUT_DAILY_LIMIT } from "@sdgs-compass/core/scout";
 import { SDG_IDS } from "@sdgs-compass/core/sdg";
 import {
+  certificateVM,
   selectApplicants,
   selectB2bDashboard,
   selectCertificates,
@@ -282,6 +283,33 @@ describe("챌린지 상세", () => {
 });
 
 describe("Impact·증명서·카드뉴스", () => {
+  it("실적은 포인트 숫자 없이 레벨·진행률로 보여요 (어느 화면 모델에도 「… pt」 글자가 없어요)", () => {
+    for (const [, state] of STATES) {
+      for (const locale of LOCALES) {
+        const text = JSON.stringify(allViews(state, locale));
+        expect(text).not.toMatch(/\d\s?pt\b/);
+        const impact = selectImpact(state, locale);
+        expect(Number.isInteger(impact.progressPercent)).toBe(true);
+        expect(impact.progressPercent).toBeGreaterThanOrEqual(0);
+        expect(impact.progressPercent).toBeLessThanOrEqual(100);
+        if (impact.level < 5) {
+          expect(impact.progressPercent).toBeLessThanOrEqual(99);
+          expect(impact.nextLevelLabel).toContain(`${impact.progressPercent}%`);
+        }
+        expect(impact.levelHint.length).toBeGreaterThan(0);
+      }
+    }
+  });
+
+  it("위조 테스트 사본은 눈에 보이는 수상 등급이 바뀌고, 확인에 실패해요", () => {
+    for (const vm of selectCertificates(busy, "ja")) {
+      const forged = certificateVM(tamperedCopy(vm.cert), "ja");
+      expect(forged.awardLabel).not.toBeNull();
+      expect(forged.awardLabel).not.toBe(vm.awardLabel);
+      expect(verifyCertificate(forged.cert)).toBe(false);
+    }
+  });
+
   it("Impact: SDG 17개 점수, 강점 최대 3개(높은 순), 진행률 0~1, 배지", () => {
     for (const locale of LOCALES) {
       const impact = selectImpact(initial, locale);
@@ -379,6 +407,15 @@ describe("메시지·인재", () => {
       const scoutable = talent.candidates.filter((c) => c.canScout);
       expect(talent.candidates.slice(0, scoutable.length).every((c) => c.canScout)).toBe(true);
     }
+  });
+
+  it("인재 검색: 같은 조건이면 레벨 → 수상 수 순서로 보여요(포인트 숫자는 보이지 않아요)", () => {
+    const list = selectTalent(initial, "ja", { query: "", sdgIds: [] }).candidates.filter((c) => c.canScout && !c.isDemoStudent);
+    for (let i = 1; i < list.length; i++) {
+      const [a, b] = [list[i - 1], list[i]];
+      expect(a.level > b.level || (a.level === b.level && a.awards >= b.awards)).toBe(true);
+    }
+    expect(list.every((c) => c.levelLabel.startsWith(`Lv.${c.level}`))).toBe(true);
   });
 
   it("인재 검색: SDG 필터와 스킬 낱말(일본어·한국어 모두)로 찾아요", () => {

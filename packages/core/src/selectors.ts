@@ -5,7 +5,7 @@ import { CERT_CRITERIA, criterionOf, evaluateCertification, type CertUnit, type 
 import { certificateFromActivity, certificateIdAt, qrPayload, verifyCode, type Certificate } from "./certificate";
 import type { Activity, ActivityKind, AwardKind, Candidate, Challenge, ChallengeStatus, CertCriterionId, Company, DemoState, OfficialChannel, PostKind, Proposal, ProposalStatus, Review, Role, ScoutKind, ScoutStatus, SkillId, SocialPost } from "./domain";
 import { summarizeMatches, splitMatchFee } from "./fees";
-import { dDayLabel, daysBetween, formatBytes, formatDate, formatDateShort, formatDateTime, formatNumber, formatPeople, formatPoints, formatYen } from "./format";
+import { dDayLabel, daysBetween, formatBytes, formatDate, formatDateShort, formatDateTime, formatPeople, formatYen } from "./format";
 import { computeBadges, computeImpactIndex, BADGE_EMOJI, levelProgress, levelOf, type BadgeCode } from "./impact";
 import { pick, type Locale } from "./i18n";
 import { awardLabel, challengeStatusLabel, participationLabel, proposalStatusLabel, rewardLabel, scoutKindLabel, sdgShort, skillLabel } from "./labels";
@@ -38,11 +38,11 @@ export interface ActivityVM {
   title: string;
   companyName: string;
   dateLabel: string;
-  pointsLabel: string;
   awardLabel: string | null;
   sdgIds: SdgId[];
 }
 
+/** 실적 한 줄 — 포인트 숫자는 보여 주지 않아요(실적은 레벨로만 보여요) */
 export function activityVM(activity: Activity, locale: Locale): ActivityVM {
   return {
     id: activity.id,
@@ -51,7 +51,6 @@ export function activityVM(activity: Activity, locale: Locale): ActivityVM {
     title: pick(activity.title, locale),
     companyName: pick(activity.companyName, locale),
     dateLabel: formatDate(activity.date, locale),
-    pointsLabel: translate("activity.points", locale, { points: formatNumber(activity.points) }),
     awardLabel: activity.award ? awardLabel(activity.award, locale) : null,
     sdgIds: activity.sdgIds,
   };
@@ -129,7 +128,8 @@ export function challengeCard(state: DemoState, challenge: Challenge, locale: Lo
     prizeLabel: challenge.prizeYen > 0 ? formatYen(challenge.prizeYen, locale) : null,
     rewardLabels: challenge.rewards.map((r) => rewardLabel(r, locale)),
     participationLabel: participationLabel(challenge.participation, locale),
-    impactLabel: `+${formatNumber(challenge.impactPoints)} pt`,
+    // 실적은 포인트 숫자로 보여 주지 않아요 — 참가·수상이 임팩트 레벨에 반영된다는 것만
+    impactLabel: translate("challenge.impactValue", locale),
     applicantsLabel: translate("challenge.applicants", locale, { count: formatPeople(challenge.applicants, locale) }),
     bookmarked: state.bookmarks.includes(challenge.id),
     submittedVersion: mine ? mine.versions.length : null,
@@ -301,11 +301,16 @@ export interface ImpactVM {
   faculty: string;
   level: number;
   levelLabel: string;
+  /** 내부 점수(레벨 계산·정렬용) — 화면에는 숫자로 보여 주지 않아요 */
   totalPoints: number;
-  totalLabel: string;
   /** 현재 레벨 안에서의 진행률 0~1 */
   progressRatio: number;
+  /** 진행률 0~100 (정수, 최고 레벨이면 100) */
+  progressPercent: number;
+  /** 「次のLv.4への進み具合 98%」 또는 최고 레벨 문구 */
   nextLevelLabel: string;
+  /** 「参加・提出・受賞の実績でレベルが上がります。」 */
+  levelHint: string;
   perSdg: { id: SdgId; score: number; color: string; short: string }[];
   topSdgs: { id: SdgId; name: string; score: number }[];
   badges: BadgeVM[];
@@ -339,6 +344,15 @@ export function badgeVM(code: BadgeCode, locale: Locale): BadgeVM {
   return { code, emoji: BADGE_EMOJI[code], name: translate(`badge.${code}.name`, locale), desc: translate(`badge.${code}.desc`, locale) };
 }
 
+/**
+ * 레벨 진행률(0~1)을 화면용 정수 % 로. 최고 레벨이면 100, 아직 다음 레벨이 아니면 99 를 넘지 않게 버림해요
+ * (반올림으로 100% 가 보이면 레벨이 이미 오른 것처럼 읽혀요).
+ */
+export function progressPercent(ratio: number, isMax: boolean): number {
+  if (isMax) return 100;
+  return Math.min(99, Math.max(0, Math.floor(ratio * 100)));
+}
+
 export function selectImpact(state: DemoState, locale: Locale): ImpactVM {
   const activities = deriveActivities(state);
   const index = computeImpactIndex(activities);
@@ -352,12 +366,13 @@ export function selectImpact(state: DemoState, locale: Locale): ImpactVM {
     level: index.level,
     levelLabel: t("level.label", { level: index.level, name: levelName(index.level) }),
     totalPoints: index.totalPoints,
-    totalLabel: formatPoints(index.totalPoints),
     progressRatio: progress.ratio,
+    progressPercent: progressPercent(progress.ratio, progress.next === null),
     nextLevelLabel:
       progress.next === null
         ? t("impact.maxLevel")
-        : t("impact.nextLevel", { level: progress.next, points: formatPoints(progress.remaining) }),
+        : t("impact.nextLevel", { level: progress.next, percent: progressPercent(progress.ratio, false) }),
+    levelHint: t("impact.levelHint"),
     perSdg: SDG_IDS.map((id) => ({ id, score: index.perSdg[id], color: getSdg(id).color, short: sdgShort(id, locale) })),
     topSdgs: index.topSdgs.map((id) => ({ id, name: getSdg(id).name[locale], score: index.perSdg[id] })),
     badges: computeBadges(activities).map((code) => badgeVM(code, locale)),
@@ -381,7 +396,6 @@ export interface CertificateVM {
   companyName: string;
   awardLabel: string | null;
   issuedOnLabel: string;
-  pointsLabel: string;
   sdgIds: SdgId[];
   code: string;
   /** QR 모듈 행렬 (true = 어두운 칸) */
@@ -397,7 +411,6 @@ export function certificateVM(cert: Certificate, locale: Locale): CertificateVM 
     companyName: pick(cert.companyName, locale),
     awardLabel: cert.award ? awardLabel(cert.award, locale) : null,
     issuedOnLabel: formatDate(cert.issuedOn, locale),
-    pointsLabel: formatPoints(cert.points),
     sdgIds: cert.sdgIds,
     code: verifyCode(cert.hash),
     qr: qrMatrix(qrPayload(cert)),
@@ -412,9 +425,12 @@ export function selectCertificates(state: DemoState, locale: Locale): Certificat
   });
 }
 
-/** 위·변조 테스트(데모)용: 내용을 한 군데 바꾼 사본 (해시는 그대로라서 verifyCertificate 가 false 를 돌려줘요) */
+/**
+ * 위·변조 테스트(데모)용: 눈에 보이는 내용(수상 등급)을 바꾼 사본 — 참가·우수상 증명서를 「最優秀賞」으로 꾸미는 위조를 흉내 내요
+ * (이미 최우수상이면 「優秀賞」으로). 해시는 그대로라서 verifyCertificate 가 false 를 돌려줘요.
+ */
 export function tamperedCopy(cert: Certificate): Certificate {
-  return { ...cert, points: cert.points + 100 };
+  return { ...cert, kind: "award", award: cert.award === "grand" ? "excellence" : "grand" };
 }
 
 // ───────── SNS 카드뉴스(SCR-05) ─────────
@@ -657,9 +673,12 @@ export interface CandidateVM {
   nickname: string;
   university: string;
   faculty: string;
+  /** 레벨(1~5) — 기업 화면에도 포인트 숫자 대신 레벨로 보여요 */
+  level: number;
   levelLabel: string;
+  /** 내부 점수(정렬의 마지막 기준) — 화면에는 숫자로 보여 주지 않아요 */
   points: number;
-  pointsLabel: string;
+  awards: number;
   awardsLabel: string;
   skills: string[];
   sdgIds: SdgId[];
@@ -682,15 +701,17 @@ export interface TalentVM {
 function candidateVM(state: DemoState, c: Candidate, isDemoStudent: boolean, locale: Locale): CandidateVM {
   const sent = alreadyScouted(state.scouts, state.myCompanyId, c.id);
   const topSdg = c.sdgInterests[0];
-  const levelName = translate(`level.${levelOf(c.points)}`, locale);
+  const level = levelOf(c.points);
+  const levelName = translate(`level.${level}`, locale);
   return {
     id: c.id,
     nickname: c.nickname,
     university: pick(c.university, locale),
     faculty: pick(c.faculty, locale),
-    levelLabel: translate("level.label", locale, { level: levelOf(c.points), name: levelName }),
+    level,
+    levelLabel: translate("level.label", locale, { level, name: levelName }),
     points: c.points,
-    pointsLabel: formatPoints(c.points),
+    awards: c.awards,
     awardsLabel: translate("talent.awards", locale, { count: c.awards }),
     skills: c.skills.map((s) => skillLabel(s, locale)),
     sdgIds: c.sdgInterests,
@@ -738,7 +759,16 @@ export function selectTalent(state: DemoState, locale: Locale, q: SearchQuery): 
       return hay.includes(needle);
     })
     .map(({ candidate, isDemoStudent }) => candidateVM(state, candidate, isDemoStudent, locale))
-    .sort((a, b) => Number(b.canScout) - Number(a.canScout) || Number(b.isDemoStudent) - Number(a.isDemoStudent) || b.points - a.points || a.nickname.localeCompare(b.nickname));
+    // 스카우트할 수 있는 사람 → 데모 학생(나) → 레벨 → 수상 수 → 내부 점수 → 이름 순
+    .sort(
+      (a, b) =>
+        Number(b.canScout) - Number(a.canScout) ||
+        Number(b.isDemoStudent) - Number(a.isDemoStudent) ||
+        b.level - a.level ||
+        b.awards - a.awards ||
+        b.points - a.points ||
+        a.nickname.localeCompare(b.nickname),
+    );
   const remaining = remainingScouts(state.scouts, state.myCompanyId, state.today);
   return {
     candidates,

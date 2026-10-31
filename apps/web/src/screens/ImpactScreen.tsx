@@ -1,12 +1,12 @@
 "use client";
 
-// SCR-04 마이 포트폴리오: 레벨·누적 포인트 · 스카우트 수신 설정(따로 된 줄) · 17개 SDGs 레이더 차트 · 강점 SDGs · 배지 · 참여 실적
+// SCR-04 마이 포트폴리오: 임팩트 레벨·진행률(포인트 숫자는 보이지 않아요) · 스카우트 수신 설정(따로 된 줄) · 17개 SDGs 레이더 차트 · 강점 SDGs · 배지 · 참여 실적
 import Link from "next/link";
 import { useMemo } from "react";
 import { sdgLabel } from "@sdgs-compass/core/labels";
 import { selectImpact } from "@sdgs-compass/core/selectors";
 import { RadarChart } from "@/components/RadarChart";
-import { ButtonLink, Empty, ScreenHead, Section, Tag } from "@/components/ui";
+import { ButtonLink, Empty, ScreenHead, Section } from "@/components/ui";
 import { buildHref, ROUTES } from "@/lib/routes";
 import { useSession } from "@/lib/session";
 import { ActivityItem } from "./HomeScreen";
@@ -28,20 +28,19 @@ export function ImpactScreen() {
             <p className="small muted">
               {vm.university} · {vm.faculty}
             </p>
-            <div style={{ marginTop: 6 }}>
-              <Tag tone="info">{vm.levelLabel}</Tag>
-            </div>
           </div>
         </div>
+        {/* 실적은 포인트 숫자가 아니라 레벨 + 진행률로 보여요(돈과 무관한 지표) */}
         <div>
           <p className="small muted">{t("impact.total")}</p>
-          <p className="profile__total">{vm.totalLabel}</p>
+          <p className="profile__total">{vm.levelLabel}</p>
         </div>
         <div className="stack stack--sm">
-          <div className="progress" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(vm.progressRatio * 100)} aria-label={vm.nextLevelLabel}>
-            <div className="progress__bar" style={{ width: `${Math.round(vm.progressRatio * 100)}%` }} />
+          <div className="progress" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={vm.progressPercent} aria-label={vm.nextLevelLabel}>
+            <div className="progress__bar" style={{ width: `${vm.progressPercent}%` }} />
           </div>
           <p className="small muted">{vm.nextLevelLabel}</p>
+          <p className="small muted">{vm.levelHint}</p>
         </div>
         {/* 스카우트 수신은 포인트와 관계없는 "설정"이라, 진행 막대 아래가 아니라 선으로 나눈 따로 된 줄에 상태 + 설명 + 설정 링크로 보여요 */}
         <div className="profile__scout">

@@ -4,6 +4,7 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useMemo, useState } from "react";
 import { Share, StyleSheet, View, useWindowDimensions } from "react-native";
+import { MAX_SHARE_ACTIVITIES } from "@sdgs-compass/core/impact";
 import { selectShare } from "@sdgs-compass/core/selectors";
 import { CARD_TEMPLATES, type CardTemplate } from "@sdgs-compass/core/shareCard";
 import { OptionRow } from "@/components/OptionRow";
@@ -46,9 +47,10 @@ export function ShareScreen() {
   };
 
   const save = () => {
-    const points = savePoints(demo.shares);
+    // 발신 실적은 정해진 횟수까지만 쌓여요 — 숫자(포인트)는 보여 주지 않아요
+    const recorded = savePoints(demo.shares) > 0;
     dispatch({ type: "recordShare" });
-    setNotice({ tone: "success", text: t("share.saved", { points }) });
+    setNotice({ tone: "success", text: recorded ? t("share.saved") : t("share.savedMax", { max: MAX_SHARE_ACTIVITIES }) });
   };
 
   return (

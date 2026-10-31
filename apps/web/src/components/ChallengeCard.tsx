@@ -38,7 +38,6 @@ export function ChallengeCard({ vm, showReasons = false }: { vm: ChallengeCardVM
             </Tag>
           ))}
           <Tag>{vm.participationLabel}</Tag>
-          <Tag tone="info">{vm.impactLabel}</Tag>
         </div>
         {showReasons && vm.reasons.length > 0 ? (
           <ul className="ccard__reasons">

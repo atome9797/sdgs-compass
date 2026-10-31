@@ -105,11 +105,13 @@ describe("샘플 데이터", () => {
     for (const p of state.proposals) for (const v of p.versions) expect(v.sha256).toMatch(/^[0-9a-f]{64}$/);
   });
 
-  it("주인공 학생(Mina)은 1,476pt·Lv.3 이고 Lv.4 까지 24pt 남았어요", () => {
+  it("주인공 학생(Mina)은 내부 점수 1,476·Lv.3 이고, 화면에는 Lv.4 까지의 진행률 97% 로 보여요", () => {
     const impact = selectImpact(state, "ja");
     expect(impact.totalPoints).toBe(1476);
     expect(impact.level).toBe(3);
-    expect(impact.nextLevelLabel).toContain("24");
+    expect(impact.progressPercent).toBe(97);
+    expect(impact.nextLevelLabel).toBe("次のLv.4への進み具合 97%");
+    expect(impact.nextLevelLabel).not.toContain("pt");
     expect(impact.topSdgs[0].id).toBe(14);
     const badgeCodes = impact.badges.map((b) => b.code);
     for (const code of ["firstStep", "challenger", "winner", "multiSdg", "ocean"]) expect(badgeCodes).toContain(code);

@@ -94,7 +94,7 @@ export const common = {
   "badge.multiSdg.name": { ja: "SDGsマルチ", ko: "SDGs 멀티" },
   "badge.multiSdg.desc": { ja: "5つ以上の目標に挑戦した", ko: "5개 이상의 목표에 도전했어요" },
   "badge.ocean.name": { ja: "海の守り人", ko: "바다 지킴이" },
-  "badge.ocean.desc": { ja: "目標14の実績が200pt以上", ko: "목표 14 실적이 200pt 이상이에요" },
+  "badge.ocean.desc": { ja: "目標14の実績が一定の水準に達した", ko: "목표 14 실적이 일정 수준에 도달했어요" },
   "badge.sharer.name": { ja: "発信リーダー", ko: "발신 리더" },
   "badge.sharer.desc": { ja: "カードニュースを3回以上共有した", ko: "카드뉴스를 3회 이상 공유했어요" },
 

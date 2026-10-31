@@ -78,10 +78,7 @@ function CandidateCard({
       </View>
       <View style={styles.badges}>
         <Txt variant="small" bold>
-          {candidate.pointsLabel}
-        </Txt>
-        <Txt variant="small" tone="muted">
-          · {candidate.awardsLabel}
+          {candidate.awardsLabel}
         </Txt>
         {candidate.isDemoStudent ? <Badge tone="warning" label={t("mobile.talentDemoStudent")} /> : null}
       </View>

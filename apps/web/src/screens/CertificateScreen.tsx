@@ -90,8 +90,6 @@ function CertificateView({ initialId, preset }: { initialId: string | null; pres
           <dd>{shown.companyName}</dd>
           <dt>{t("cert.issuedOn")}</dt>
           <dd>{shown.issuedOnLabel}</dd>
-          <dt>{t("challenge.impact")}</dt>
-          <dd>{shown.pointsLabel}</dd>
           <dt>{t("cert.id")}</dt>
           <dd className="mono">{shown.cert.id}</dd>
         </dl>

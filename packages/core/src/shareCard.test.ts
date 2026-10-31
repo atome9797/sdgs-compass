@@ -44,7 +44,7 @@ describe("1-Click 카드뉴스", () => {
   it("통계 3가지(포인트·참가·수상)", () => {
     const card = buildShareCard({ ...input, activity: submission, template: "instagram", locale: "ja" });
     expect(card.stats).toHaveLength(3);
-    expect(card.stats[0].value).toBe("515 pt");
+    expect(card.stats[0].value).toBe("Lv.2"); // 실적은 포인트 숫자가 아니라 레벨로 (515 → Lv.2)
     expect(card.stats[1].value).toBe("5");
     expect(card.stats[2].value).toBe("2");
   });

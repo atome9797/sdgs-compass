@@ -5,7 +5,7 @@
 import { deriveActivities, showableActivities } from "./activities";
 import { certificateFromActivity } from "./certificate";
 import type { Activity, DemoState } from "./domain";
-import { formatDate, formatNumber, formatPoints } from "./format";
+import { formatDate, formatNumber } from "./format";
 import type { Locale } from "./i18n";
 import { sdgLabel } from "./labels";
 import { makeT, type MessageKey } from "./messages";
@@ -64,7 +64,8 @@ export const SUMMARY_MAX_CERTIFICATES = 4;
 /** 늘 함께 보이는 고지 문장 (순서대로) */
 export const SUMMARY_NOTE_KEYS = ["summary.note.record", "summary.note.check", "summary.note.partner", "summary.note.qr", "summary.note.sample"] as const satisfies readonly MessageKey[];
 
-export type SummaryStatKey = "participations" | "submissions" | "awards" | "points";
+/** 실적은 포인트 숫자로 보여 주지 않아요 — 4번째 칸은 "관련 SDGs 목표 수" */
+export type SummaryStatKey = "participations" | "submissions" | "awards" | "sdgs";
 
 export interface SummaryStatVM {
   key: SummaryStatKey;
@@ -100,7 +101,7 @@ export interface ApplicationSummaryVM {
   docTitle: string;
   createdOnLabel: string;
   rangeLabel: string;
-  holder: { name: string; affiliation: string; levelLabel: string; totalLabel: string };
+  holder: { name: string; affiliation: string; levelLabel: string };
   stats: SummaryStatVM[];
   /** 표에 보이는 활동 (최근 것부터, 최대 SUMMARY_MAX_ACTIVITIES) */
   activities: ActivityVM[];
@@ -130,19 +131,19 @@ export function selectApplicationSummary(state: DemoState, locale: Locale, perio
 
   const listed = deriveActivities(state).filter(isListed).filter((a) => inPeriod(a.date));
   const count = (kind: ListedActivity["kind"]) => listed.filter((a) => a.kind === kind).length;
-  const points = listed.reduce((sum, a) => sum + a.points, 0);
   const countLabel = (n: number) => t("summary.count", { n: formatNumber(n) });
 
   const stats: SummaryStatVM[] = [
     { key: "participations", label: t("summary.stat.participations"), value: countLabel(count("participation")) },
     { key: "submissions", label: t("summary.stat.submissions"), value: countLabel(count("submission")) },
     { key: "awards", label: t("summary.stat.awards"), value: countLabel(count("award")) },
-    { key: "points", label: t("summary.stat.points"), value: formatPoints(points) },
   ];
 
   // SDG 별: 그 SDG 가 붙은 활동 수(많은 순 → 번호 순)
   const perSdg = new Map<SdgId, number>();
   for (const activity of listed) for (const id of activity.sdgIds) perSdg.set(id, (perSdg.get(id) ?? 0) + 1);
+  const goalsLabel = t("summary.goals", { n: formatNumber(perSdg.size) });
+  stats.push({ key: "sdgs", label: t("summary.stat.sdgs"), value: goalsLabel });
   const sdgs: SummarySdgVM[] = [...perSdg.entries()]
     .sort((a, b) => b[1] - a[1] || a[0] - b[0])
     .map(([id, n]) => ({ id, label: sdgLabel(id, locale), count: n, countLabel: countLabel(n) }));
@@ -175,7 +176,7 @@ export function selectApplicationSummary(state: DemoState, locale: Locale, perio
   const shownActivities = activities.slice(0, SUMMARY_MAX_ACTIVITIES);
   const shownCertificates = certificates.slice(0, SUMMARY_MAX_CERTIFICATES);
   const notes = SUMMARY_NOTE_KEYS.map((key) => t(key));
-  const holder = { name: impact.nickname, affiliation: `${impact.university} · ${impact.faculty}`, levelLabel: impact.levelLabel, totalLabel: impact.totalLabel };
+  const holder = { name: impact.nickname, affiliation: `${impact.university} · ${impact.faculty}`, levelLabel: impact.levelLabel };
   const docTitle = t("summary.docTitle");
 
   const vm: Omit<ApplicationSummaryVM, "shareText"> = {
@@ -197,14 +198,14 @@ export function selectApplicationSummary(state: DemoState, locale: Locale, perio
     notes,
     empty: listed.length === 0,
   };
-  const counts = { participations: count("participation"), submissions: count("submission"), awards: count("award"), points };
+  const counts = { participations: count("participation"), submissions: count("submission"), awards: count("award"), goalsLabel };
   return { ...vm, shareText: summaryShareText(vm, counts, activities, certificates, locale) };
 }
 
 /** 모바일 공유용 글: 표의 줄 수 제한 없이 기간 안의 활동·증명서를 모두 적고, 고지 문장으로 끝내요 */
 function summaryShareText(
   vm: Omit<ApplicationSummaryVM, "shareText">,
-  counts: { participations: number; submissions: number; awards: number; points: number },
+  counts: { participations: number; submissions: number; awards: number; goalsLabel: string },
   activities: readonly ActivityVM[],
   certificates: readonly SummaryCertificateVM[],
   locale: Locale,
@@ -220,7 +221,7 @@ function summaryShareText(
       participations: formatNumber(counts.participations),
       submissions: formatNumber(counts.submissions),
       awards: formatNumber(counts.awards),
-      points: formatPoints(counts.points),
+      goals: counts.goalsLabel,
     }),
   ];
   if (activities.length > 0) {

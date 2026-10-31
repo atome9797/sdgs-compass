@@ -69,7 +69,6 @@ function CertificateView({ id }: { id: string }) {
         ) : null}
         <KeyValue label={t("cert.holder")} value={shown.holder} />
         <KeyValue label={t("cert.issuedOn")} value={shown.issuedOnLabel} />
-        <KeyValue label={t("challenge.impact")} value={shown.pointsLabel} />
         <KeyValue label={t("cert.id")} value={shown.cert.id} />
         <SdgMiniRow ids={shown.sdgIds} />
         <View style={styles.qr}>
@@ -116,7 +115,7 @@ function CertificateView({ id }: { id: string }) {
               key={c.cert.id}
               testID={`cert-${c.cert.id}`}
               title={`${c.kindLabel} · ${c.challengeTitle}`}
-              subtitle={`${c.issuedOnLabel} · ${c.pointsLabel}`}
+              subtitle={c.issuedOnLabel}
               selected={c.cert.id === base.cert.id}
               onPress={() => select(c.cert.id)}
             />

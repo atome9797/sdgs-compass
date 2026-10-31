@@ -38,7 +38,7 @@ INSERT INTO badges (code, emoji, name_ja, name_ko, desc_ja, desc_ko) VALUES
   ('challenger', '👑', 'チャレンジキング', '챌린지 킹', '企画書を3件以上提出した', '기획서를 3건 이상 제출했어요'),
   ('winner', '🏆', '受賞者', '수상자', '課題で受賞した', '챌린지에서 수상했어요'),
   ('multiSdg', '🧭', 'SDGsマルチ', 'SDGs 멀티', '5つ以上の目標に挑戦した', '5개 이상의 목표에 도전했어요'),
-  ('ocean', '🌊', '海の守り人', '바다 지킴이', '目標14の実績が200pt以上', '목표 14 실적이 200pt 이상이에요'),
+  ('ocean', '🌊', '海の守り人', '바다 지킴이', '目標14の実績が一定の水準に達した', '목표 14 실적이 일정 수준에 도달했어요'),
   ('sharer', '📣', '発信リーダー', '발신 리더', 'カードニュースを3回以上共有した', '카드뉴스를 3회 이상 공유했어요');
 
 INSERT INTO cert_criteria (code, category, unit, target, weight, max_value) VALUES

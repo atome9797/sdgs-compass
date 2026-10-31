@@ -72,7 +72,7 @@ export function ApplicationSummaryScreen() {
           <div>
             <dt>{t("summary.holder.level")}</dt>
             <dd>
-              {vm.holder.levelLabel} · {vm.holder.totalLabel}
+              {vm.holder.levelLabel}
             </dd>
           </div>
           <div>

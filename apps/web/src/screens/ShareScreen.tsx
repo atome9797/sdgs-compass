@@ -3,7 +3,7 @@
 // SCR-05 SNS 카드뉴스: 성과 한 건을 Instagram(1:1)·LinkedIn(1.91:1) 카드로 → 복사·공유·앱 내 저장
 import { useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
-import { MAX_SHARE_ACTIVITIES, SHARE_POINTS } from "@sdgs-compass/core/impact";
+import { MAX_SHARE_ACTIVITIES } from "@sdgs-compass/core/impact";
 import type { CardTemplate } from "@sdgs-compass/core/shareCard";
 import { selectShare } from "@sdgs-compass/core/selectors";
 import { ShareCardPreview } from "@/components/ShareCardPreview";
@@ -49,10 +49,10 @@ export function ShareScreen({ preset }: { preset?: SharePreset }) {
     else setNotice(null);
   };
   const save = () => {
-    // 공유 포인트는 5회까지만 쌓여요 (core/impact.ts)
-    const points = demo.shares < MAX_SHARE_ACTIVITIES ? SHARE_POINTS : 0;
+    // 발신 실적은 MAX_SHARE_ACTIVITIES 회까지만 쌓여요 (core/impact.ts) — 숫자(포인트)는 보여 주지 않아요
+    const recorded = demo.shares < MAX_SHARE_ACTIVITIES;
     dispatch({ type: "recordShare" });
-    setNotice({ tone: "success", text: t("share.saved", { points }) });
+    setNotice({ tone: "success", text: recorded ? t("share.saved") : t("share.savedMax", { max: MAX_SHARE_ACTIVITIES }) });
   };
 
   return (

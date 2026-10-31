@@ -27,7 +27,6 @@ export function ActivityItem({ activity }: { activity: ActivityVM }) {
         </p>
         {activity.sdgIds.length > 0 ? <SdgMiniRow ids={activity.sdgIds} /> : null}
       </div>
-      <span className="activity__points">{activity.pointsLabel}</span>
     </li>
   );
 }

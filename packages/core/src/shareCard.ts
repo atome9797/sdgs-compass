@@ -1,7 +1,6 @@
 // F-501 1-Click 카드뉴스: 성과 한 건을 Instagram(1:1)·LinkedIn(1.91:1) 규격의 카드 내용으로 만들어요.
 // F-502 개인정보 보호: 카드와 공유 문구에는 닉네임과 성과만 넣고, 학교·이메일 등은 넣지 않아요.
 import type { Activity } from "./domain";
-import { formatPoints } from "./format";
 import type { ImpactIndex } from "./impact";
 import { pick, type Locale } from "./i18n";
 import { awardLabel } from "./labels";
@@ -54,7 +53,8 @@ export function buildShareCard(input: ShareCardInput): ShareCard {
     title,
     subtitle: awardText ? `${company} · ${awardText}` : company,
     stats: [
-      { label: translate("share.statPoints", locale), value: formatPoints(index.totalPoints) },
+      // 실적은 포인트 숫자가 아니라 레벨로 보여요
+      { label: translate("share.statPoints", locale), value: `Lv.${index.level}` },
       { label: translate("share.statChallenges", locale), value: String(input.participationCount) },
       { label: translate("share.statAwards", locale), value: String(input.awardCount) },
     ],

@@ -12,7 +12,11 @@ import { BADGE_CODES, BADGE_EMOJI, levelOf, SDG_SATURATION } from "../packages/c
 import { CERT_CRITERIA, evaluateCertification } from "../packages/core/src/certification";
 import { splitMatchFee } from "../packages/core/src/fees";
 import { issueCertificate, qrPayload, verifyCode } from "../packages/core/src/certificate";
-import type { ActivityKind, AwardKind, CertAnswers, CertCriterionId, ChallengeStatus, OfficialChannel, OfficialShare, Participation, PostKind, ProposalStatus, RewardKind, Role, ScoutKind, ScoutStatus, SocialPost } from "../packages/core/src/domain";
+import type {
+  ActivityKind, AwardKind, CertAnswers, CertCriterionId, ChallengeStatus, OfficialChannel, OfficialShare, Participation, PostKind, PrizeDepositStatus, ProposalStatus, RewardKind, Role, ScoutKind,
+  ScoutStatus, SocialPost, Wallet, WalletEntryKind,
+} from "../packages/core/src/domain";
+import { PRIZE_AWARD, RETURN_RESERVE_MONTHS, returnPoolYen, WITHDRAWAL_MAX_YEN, WITHDRAWAL_MIN_YEN } from "../packages/core/src/wallet";
 import {
   containsContact, DEFAULT_OFFICIAL_CHANNEL, isOfficialChannel, nextOfficialDate, OFFICIAL_CHANNELS, OFFICIAL_SHARE_FEE_YEN, POST_LIMITS, validatePostDraft,
 } from "../packages/core/src/post";
@@ -196,6 +200,10 @@ const ENUMS: Array<{ name: string; labels: string[]; exact: boolean }> = [
   { name: "locale_code", labels: [...LOCALES], exact: true },
   { name: "esg_category", labels: ["E", "S", "G"], exact: true },
   { name: "cert_unit", labels: [...new Set(CERT_CRITERIA.map((c) => c.unit))].sort(), exact: true },
+  // #25 リワード残高: 원장 종류·상금 예치 상태는 정확히 같고, 본인 확인은 DB 에 심사 중(pending)이 더 있어요
+  { name: "wallet_entry_kind", labels: keysOf<WalletEntryKind>({ prize: true, return: true, withdrawal: true }), exact: true },
+  { name: "prize_deposit_status", labels: keysOf<PrizeDepositStatus>({ deposited: true, paid: true, refunded: true }), exact: true },
+  { name: "wallet_kyc_status", labels: keysOf<Wallet["kyc"]>({ none: true, verified: true }), exact: false },
 ];
 
 function blankAnswers(): CertAnswers {
@@ -493,6 +501,47 @@ function buildFeedGolden(): string[] {
         const sdgCount = s.kind === "pr" ? String(s.sdgCount ?? 1) : "NULL";
         const challenge = s.kind === "pr" ? q(s.challenge ?? "none") : "NULL";
         return `(${i + 1}, ${q(s.label)}, ${q(s.kind)}, ${title}, ${sqlText(s.body)}, ${activity}, ${sdgCount}, ${challenge}, ${q(errors)})`;
+      }),
+    )}\n`,
+  );
+  out.push(...buildWalletGolden());
+  return out;
+}
+
+/** #25 リワード残高: 출금 1회 상한·하한, 상금을 받는 상, 운전자금 개월 수, 운영 환원 계산 (wallet.ts) */
+function buildWalletGolden(): string[] {
+  const out: string[] = [];
+  out.push(`CREATE TEMP TABLE golden_wallet_constants (name text PRIMARY KEY, value text NOT NULL);`);
+  const constants: Array<[string, string]> = [
+    ["withdrawal_max_yen", num(WITHDRAWAL_MAX_YEN)],
+    ["withdrawal_min_yen", num(WITHDRAWAL_MIN_YEN)],
+    ["prize_award", PRIZE_AWARD],
+    ["return_reserve_months", num(RETURN_RESERVE_MONTHS)],
+  ];
+  out.push(`INSERT INTO golden_wallet_constants VALUES\n${rows(constants.map(([name, value]) => `(${q(name)}, ${q(value)})`))}\n`);
+  // 환원 총액 = max(0, min(경상이익, 기말 자금 − 운전자금 N개월분)) — 적자 · 자금 부족 · 부분 · 전액 · 개월 수 0/12/24 · 엔 미만 버림 (모두 가상의 숫자)
+  const cases: Array<[number, number, number, number]> = [
+    [800_000, 6_000_000, 1_200_000, 3],
+    [-200_000, 6_000_000, 9_000_000, 3],
+    [900_000, 6_000_000, 1_800_000, 3],
+    [900_000, 6_000_000, 5_000_000, 3],
+    [900_000, 6_000_000, 500_000, 0],
+    [10, 7, 100, 3],
+    [1_000_000, 11, 10_000_000, 1],
+    [2_000_000, 4_000_000, 2_500_000, 3],
+    [5_000_000, 12_000_000, 30_000_000, 12],
+    [5_000_000, 12_000_000, 30_000_000, 24],
+    [0, 0, 0, 3],
+    [300_000, 1_200_000, -50_000, 3],
+  ];
+  out.push(
+    `CREATE TEMP TABLE golden_return_pools (case_no integer PRIMARY KEY, ordinary_profit_yen bigint NOT NULL, period_costs_yen bigint NOT NULL, period_end_cash_yen bigint NOT NULL, reserve_months smallint NOT NULL, reserve_yen bigint NOT NULL, pool_yen bigint NOT NULL);`,
+  );
+  out.push(
+    `INSERT INTO golden_return_pools VALUES\n${rows(
+      cases.map(([profit, costs, cash, months], i) => {
+        const r = returnPoolYen({ ordinaryProfitYen: profit, periodCostsYen: costs, periodEndCashYen: cash, reserveMonths: months });
+        return `(${i + 1}, ${profit}, ${costs}, ${cash}, ${months}, ${r.reserveYen}, ${r.poolYen})`;
       }),
     )}\n`,
   );

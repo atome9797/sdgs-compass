@@ -1,0 +1,89 @@
+erDiagram
+  wallet_accounts {
+    uuid user_id PK, FK
+    wallet_kyc_status kyc_status
+    timestamptz kyc_verified_at
+    timestamptz created_at
+    timestamptz updated_at
+  }
+  prize_deposits {
+    uuid id PK
+    uuid challenge_id FK, UK
+    uuid company_id FK
+    reward_kind reward_kind FK "자동 계산"
+    int amount_yen FK
+    prize_deposit_status status
+    timestamptz deposited_at
+    uuid award_id FK
+    award_kind award_kind FK "자동 계산"
+    timestamptz settled_at
+  }
+  withdrawal_requests {
+    uuid id PK
+    uuid user_id FK
+    int amount_yen
+    withdrawal_status status
+    timestamptz requested_at
+    timestamptz completed_at
+  }
+  reward_return_rounds {
+    uuid id PK
+    text period_label UK
+    date period_start
+    date period_end
+    bigint ordinary_profit_yen
+    bigint period_costs_yen
+    smallint reserve_months
+    bigint period_end_cash_yen
+    bigint reserve_yen "자동 계산"
+    bigint total_yen "자동 계산"
+    text criteria
+    date criteria_published_on
+    date decided_on
+    uuid decided_by FK
+    timestamptz created_at
+  }
+  reward_return_allocations {
+    uuid round_id PK, FK
+    uuid user_id PK, FK
+    int amount_yen
+    text basis
+  }
+  wallet_entries {
+    uuid id PK
+    uuid user_id FK
+    wallet_entry_kind kind
+    int amount_yen FK
+    uuid prize_deposit_id FK, UK
+    uuid return_round_id FK
+    uuid withdrawal_id FK, UK
+    timestamptz created_at
+  }
+  awards {
+    uuid id PK
+  }
+  challenge_rewards {
+    uuid challenge_id PK, FK
+    reward_kind kind PK
+  }
+  challenges {
+    uuid id PK
+  }
+  student_profiles {
+    uuid user_id PK, FK
+  }
+  users {
+    uuid id PK
+  }
+  student_profiles ||--o| wallet_accounts : "user_id"
+  awards |o..o{ prize_deposits : "award_id, challenge_id, award_kind"
+  challenges ||..o{ prize_deposits : "challenge_id, company_id"
+  challenge_rewards |o..o{ prize_deposits : "challenge_id, reward_kind, amount_yen"
+  wallet_accounts ||..o{ withdrawal_requests : "user_id"
+  users ||..o{ reward_return_rounds : "decided_by"
+  reward_return_rounds ||--o{ reward_return_allocations : "round_id"
+  wallet_accounts ||--o{ reward_return_allocations : "user_id"
+  prize_deposits |o..o{ wallet_entries : "prize_deposit_id, amount_yen"
+  reward_return_allocations |o..o{ wallet_entries : "return_round_id, user_id, amount_yen"
+  wallet_accounts ||..o{ wallet_entries : "user_id"
+  withdrawal_requests |o..o{ wallet_entries : "withdrawal_id, user_id, amount_yen"

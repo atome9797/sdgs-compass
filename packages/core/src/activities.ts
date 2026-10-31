@@ -5,6 +5,9 @@ import { pick } from "./i18n";
 
 type ActivitySource = Pick<DemoState, "history" | "proposals" | "challenges" | "companies" | "shares" | "today">;
 
+/** 내 기획서가 상을 받았을 때 생기는 수상 실적의 id (リワード残高의 상금 내역이 이 id 로 실적과 이어져요) */
+export const awardActivityId = (proposalId: string): string => `act-${proposalId}-award`;
+
 export function deriveActivities(state: ActivitySource): Activity[] {
   const list: Activity[] = [...state.history];
   for (const proposal of state.proposals) {
@@ -27,7 +30,7 @@ export function deriveActivities(state: ActivitySource): Activity[] {
     });
     if (proposal.award) {
       list.push({
-        id: `act-${proposal.id}-award`,
+        id: awardActivityId(proposal.id),
         kind: "award",
         title: challenge.title,
         companyName,

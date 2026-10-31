@@ -57,6 +57,11 @@ const GROUPS = [
     summary: "학생의 실적 자랑 글(200자)과 기업의 홍보 글(제목 40자·본문 400자)을 한 피드에 모아요. 글마다 SDGs 태그 1~3개, 좋아요(사람마다 한 번·내 글 제외), 공식 SNS(X·Instagram·Facebook) 게시 신청(채널마다 하루에 한 회사)이 붙어요.",
     tables: ["social_posts", "social_post_sdgs", "social_post_likes", "official_share_slots"],
   },
+  {
+    id: "rewards", no: "⑨", title: "リワード残高 · 상금 예치 · 운영 환원", features: "#25 (第二種資金移動業 등록 후)",
+    summary: "기업이 과제를 낼 때 맡긴 상금(과제당 1건)을 최우수상 팀에 송금하고, 각 기 말에 운전자금 3개월분을 남긴 이익을 미리 공개한 기준으로 학생에게 환원해요. 원장은 입금(상금·환원)과 출금만 기록하고(고칠 수 없음), 출금은 본인 확인 뒤 1회 100만 엔·잔액 이하예요. 설계는 docs/rewards.md.",
+    tables: ["wallet_accounts", "prize_deposits", "withdrawal_requests", "reward_return_rounds", "reward_return_allocations", "wallet_entries"],
+  },
 ];
 
 // "한눈에 보기" 에 넣을 핵심 표 (열은 생략하고 관계만 그려요)

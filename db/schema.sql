@@ -79,6 +79,10 @@ CREATE TYPE verify_result      AS ENUM ('valid', 'revoked', 'tampered', 'unknown
 CREATE TYPE post_kind          AS ENUM ('brag', 'pr');                          -- F-503 학생 자랑 글 / F-504 기업 홍보 글
 CREATE TYPE official_status    AS ENUM ('scheduled', 'posted', 'cancelled');    -- 공식 SNS 게시 신청 (데모 앱은 scheduled 만 써요)
 CREATE TYPE official_channel   AS ENUM ('instagram', 'x', 'facebook');          -- 공식 SNS 게시 신청의 채널 (YouTube 는 영상 채널이라 신청 대상이 아니에요)
+CREATE TYPE wallet_kyc_status    AS ENUM ('none', 'pending', 'verified');   -- #25 リワード残高의 본인 확인(eKYC). 데모 앱은 none·verified 만 써요
+CREATE TYPE wallet_entry_kind    AS ENUM ('prize', 'return', 'withdrawal'); -- #25 원장: 기업 상금 · 운영 환원 · 출금
+CREATE TYPE prize_deposit_status AS ENUM ('deposited', 'paid', 'refunded'); -- #25 상금 예치: 예치 중 · 최우수상 팀에 송금 · 기업에 반환
+CREATE TYPE withdrawal_status    AS ENUM ('requested', 'completed');        -- #25 출금 신청 · 은행 송금 완료
 
 -- ============================================================================
 -- 1. 참조 데이터 (앱의 상수와 같은 값: db/seed.sql 이 packages/core 에서 만들어져요)
@@ -318,6 +322,7 @@ CREATE TABLE challenge_rewards (
   amount_yen   integer     CHECK (amount_yen > 0),
   note         text,
   PRIMARY KEY (challenge_id, kind),
+  UNIQUE (challenge_id, kind, amount_yen),                       -- 상금 예치(prize_deposits)가 "그 과제의 상금과 같은 금액"임을 복합 FK 로 보장
   CONSTRAINT rewards_prize_has_amount CHECK ((kind = 'prize') = (amount_yen IS NOT NULL))
 );
 
@@ -748,6 +753,7 @@ CREATE TABLE awards (
   awarded_by   uuid        NOT NULL REFERENCES users (id),
   awarded_at   timestamptz NOT NULL DEFAULT now(),
   UNIQUE (id, points),
+  UNIQUE (id, challenge_id, kind),                               -- 상금 송금(prize_deposits)이 "같은 과제의 최우수상"에만 가도록 복합 FK 로 보장
   FOREIGN KEY (proposal_id, challenge_id) REFERENCES proposals (id, challenge_id)
 );
 CREATE UNIQUE INDEX awards_one_grand_per_challenge ON awards (challenge_id) WHERE kind = 'grand';
@@ -1597,6 +1603,308 @@ CREATE TABLE content_translations (
 );
 
 -- ============================================================================
+-- 8-2. リワード残高 (#25) — 기업 상금 예치·송금 · 운영 환원 · 출금 신청
+--      운영사(株式会社)가 第二種資金移動業 등록을 받은 뒤에 쓸 설계예요. 등록 전에는 이 표들을 쓰지 않고, 상금은 기업이 수상자에게 직접 지급해요.
+--      설계·법적 근거는 docs/rewards.md, 앱의 규칙은 packages/core/src/wallet.ts (출금 상한·환원 계산은 db/tests/04_parity.sql 이 맞춰 봐요).
+--      잔액은 살 수(충전) 없고 남에게 넘길 수 없어요 — 그런 표·함수가 없어요. 원장(wallet_entries)은 입금(상금·환원)과 출금만 기록하고, 한 번 쓰면 고칠 수 없어요.
+-- ============================================================================
+
+-- 학생의 지갑 계정 (학생 1명에 1개). 본인 확인(eKYC)을 마쳐야 출금할 수 있어요. 상금·환원이 처음 들어올 때 자동으로 만들어져요.
+CREATE TABLE wallet_accounts (
+  user_id         uuid              PRIMARY KEY REFERENCES student_profiles (user_id),
+  kyc_status      wallet_kyc_status NOT NULL DEFAULT 'none',
+  kyc_verified_at timestamptz,
+  created_at      timestamptz       NOT NULL DEFAULT now(),
+  updated_at      timestamptz       NOT NULL DEFAULT now(),
+  CONSTRAINT wallet_accounts_kyc_verified_at CHECK ((kyc_status = 'verified') = (kyc_verified_at IS NOT NULL))
+);
+CREATE TRIGGER wallet_accounts_touch BEFORE UPDATE ON wallet_accounts FOR EACH ROW EXECUTE FUNCTION touch_updated_at();
+
+-- 기업이 과제를 낼 때 운영사에 맡기는 상금 (과제당 1건). 금액은 그 과제의 상금(challenge_rewards 의 prize)과 같아야 하고(복합 FK),
+-- 최우수상이 정해지면 그 팀에 송금(paid), 최우수상 없이 과제가 끝나면 기업에 반환(refunded)해요. 상금은 최우수상에만 가요(core PRIZE_AWARD).
+CREATE TABLE prize_deposits (
+  id           uuid                 PRIMARY KEY DEFAULT gen_random_uuid(),
+  challenge_id uuid                 NOT NULL UNIQUE,
+  company_id   uuid                 NOT NULL,
+  reward_kind  reward_kind          GENERATED ALWAYS AS ('prize'::reward_kind) STORED,
+  amount_yen   integer              NOT NULL CHECK (amount_yen > 0),
+  status       prize_deposit_status NOT NULL DEFAULT 'deposited',
+  deposited_at timestamptz          NOT NULL DEFAULT now(),
+  award_id     uuid,                                               -- 송금받은 최우수상 (paid 일 때만)
+  award_kind   award_kind           GENERATED ALWAYS AS ('grand'::award_kind) STORED,
+  settled_at   timestamptz,                                        -- 송금·반환한 시각
+  UNIQUE (id, amount_yen),
+  FOREIGN KEY (challenge_id, company_id)              REFERENCES challenges (id, company_id),
+  FOREIGN KEY (challenge_id, reward_kind, amount_yen) REFERENCES challenge_rewards (challenge_id, kind, amount_yen),
+  FOREIGN KEY (award_id, challenge_id, award_kind)    REFERENCES awards (id, challenge_id, kind),
+  CONSTRAINT prize_deposits_settled_at CHECK ((status = 'deposited') = (settled_at IS NULL)),
+  CONSTRAINT prize_deposits_paid_award CHECK ((status = 'paid') = (award_id IS NOT NULL))
+);
+CREATE INDEX prize_deposits_company_idx ON prize_deposits (company_id, status);
+
+-- 예치는 공개(승인 요청) 단계에서만 새로 만들고, 상태는 deposited → paid(최우수상) · deposited → refunded(최우수상 없이 마감) 로만 바뀌어요.
+-- 금액·과제·기업은 바꿀 수 없고(반환 후 다시 예치), 지울 수도 없어요.
+CREATE FUNCTION prize_deposits_guard() RETURNS trigger
+  LANGUAGE plpgsql AS $$
+DECLARE
+  c_status challenge_status;
+BEGIN
+  IF TG_OP = 'DELETE' THEN
+    RAISE EXCEPTION '상금 예치 기록은 지울 수 없어요 (반환은 status = refunded)' USING ERRCODE = 'restrict_violation';
+  END IF;
+  SELECT status INTO c_status FROM challenges WHERE id = NEW.challenge_id;
+  IF TG_OP = 'INSERT' THEN
+    IF NEW.status <> 'deposited' OR NEW.award_id IS NOT NULL OR NEW.settled_at IS NOT NULL THEN
+      RAISE EXCEPTION '상금은 예치(deposited) 상태로만 새로 맡길 수 있어요' USING ERRCODE = 'check_violation';
+    END IF;
+    IF c_status NOT IN ('pending_review', 'open', 'judging') THEN
+      RAISE EXCEPTION '공개(승인 요청)했고 끝나지 않은 과제에만 상금을 맡길 수 있어요 (%)', c_status USING ERRCODE = 'check_violation';
+    END IF;
+    RETURN NEW;
+  END IF;
+  IF (NEW.challenge_id, NEW.company_id, NEW.amount_yen, NEW.deposited_at) IS DISTINCT FROM (OLD.challenge_id, OLD.company_id, OLD.amount_yen, OLD.deposited_at) THEN
+    RAISE EXCEPTION '맡긴 상금의 과제·기업·금액·예치 시각은 바꿀 수 없어요' USING ERRCODE = 'check_violation';
+  END IF;
+  IF OLD.status = NEW.status THEN
+    IF (NEW.award_id, NEW.settled_at) IS DISTINCT FROM (OLD.award_id, OLD.settled_at) THEN
+      RAISE EXCEPTION '송금·반환 기록은 바꿀 수 없어요' USING ERRCODE = 'check_violation';
+    END IF;
+    RETURN NEW;
+  END IF;
+  IF OLD.status <> 'deposited' THEN
+    RAISE EXCEPTION '한 번 송금·반환한 상금은 되돌릴 수 없어요 (% → %)', OLD.status, NEW.status USING ERRCODE = 'check_violation';
+  END IF;
+  IF NEW.status = 'refunded' THEN
+    IF c_status <> 'closed' OR EXISTS (SELECT 1 FROM awards WHERE challenge_id = NEW.challenge_id AND kind = 'grand') THEN
+      RAISE EXCEPTION '최우수상 없이 끝난(closed) 과제의 상금만 기업에 돌려줄 수 있어요' USING ERRCODE = 'check_violation';
+    END IF;
+  END IF;
+  NEW.settled_at := COALESCE(NEW.settled_at, now());
+  RETURN NEW;
+END $$;
+CREATE TRIGGER prize_deposits_guard_ins BEFORE INSERT OR UPDATE OR DELETE ON prize_deposits FOR EACH ROW EXECUTE FUNCTION prize_deposits_guard();
+
+-- 출금 신청: 1회 1엔 ~ 100만 엔 (第二種資金移動業의 1회 상한, core WITHDRAWAL_MAX_YEN). 본인 확인을 마쳐야 하고, 잔액보다 많이 낼 수 없어요(아래 가드).
+-- 계좌 정보는 이 설계에 두지 않아요 (실서비스에서 eKYC·은행 연동과 함께 따로 설계해요).
+CREATE TABLE withdrawal_requests (
+  id           uuid              PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id      uuid              NOT NULL REFERENCES wallet_accounts (user_id),
+  amount_yen   integer           NOT NULL CONSTRAINT withdrawal_requests_amount_range CHECK (amount_yen BETWEEN 1 AND 1000000),
+  status       withdrawal_status NOT NULL DEFAULT 'requested',
+  requested_at timestamptz       NOT NULL DEFAULT now(),
+  completed_at timestamptz,
+  UNIQUE (id, user_id, amount_yen),
+  CONSTRAINT withdrawal_requests_completed_at CHECK ((status = 'completed') = (completed_at IS NOT NULL))
+);
+CREATE INDEX withdrawal_requests_user_idx ON withdrawal_requests (user_id, requested_at DESC);
+
+-- 운영 환원 회차: 각 기 말에 운전자금 N개월분(그 기 경비 + 매출원가의 N/12, 기본 3)을 남기고, 그 기 경상이익 중 남는 금액 전부를 학생에게 나눠요.
+-- 환원 총액 = max(0, min(경상이익, 기말 자금 − 운전자금 적립액)) — 생성 열이라 손으로 다른 값을 넣을 수 없어요 (core returnPoolYen 과 같은 계산).
+-- 배분 기준(수상·제출 등 실적 — 작업 시간·양에 비례하지 않게)은 그 기가 시작하기 전에 공개해야 해요.
+CREATE TABLE reward_return_rounds (
+  id                    uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
+  period_label          text        NOT NULL UNIQUE CHECK (char_length(btrim(period_label)) BETWEEN 1 AND 40),  -- 예: 第4期
+  period_start          date        NOT NULL,
+  period_end            date        NOT NULL,
+  ordinary_profit_yen   bigint      NOT NULL,                                     -- 그 기 경상이익 (적자면 음수)
+  period_costs_yen      bigint      NOT NULL CHECK (period_costs_yen >= 0),       -- 그 기 경비 + 매출원가
+  reserve_months        smallint    NOT NULL DEFAULT 3 CHECK (reserve_months BETWEEN 0 AND 24),
+  period_end_cash_yen   bigint      NOT NULL,                                     -- 환원 전 기말 자금
+  reserve_yen           bigint      GENERATED ALWAYS AS (period_costs_yen * reserve_months / 12) STORED,
+  total_yen             bigint      GENERATED ALWAYS AS (GREATEST(0, LEAST(ordinary_profit_yen, period_end_cash_yen - period_costs_yen * reserve_months / 12))) STORED,
+  criteria              text        NOT NULL CHECK (char_length(btrim(criteria)) BETWEEN 1 AND 2000),
+  criteria_published_on date        NOT NULL,
+  decided_on            date        NOT NULL,
+  decided_by            uuid        NOT NULL REFERENCES users (id),
+  created_at            timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT reward_return_rounds_period         CHECK (period_end > period_start),
+  CONSTRAINT reward_return_rounds_criteria_first CHECK (criteria_published_on <= period_start),
+  CONSTRAINT reward_return_rounds_decided_after  CHECK (decided_on > period_end)
+);
+CREATE TRIGGER reward_return_rounds_readonly BEFORE UPDATE OR DELETE ON reward_return_rounds FOR EACH ROW EXECUTE FUNCTION forbid_mutation();
+
+-- 환원 배분: 회차 × 학생. 배분 합계는 그 회차의 환원 총액과 같아야 해요 (트랜잭션 끝에서 검사). 넣으면 원장에 입금이 자동으로 생겨요.
+CREATE TABLE reward_return_allocations (
+  round_id   uuid    NOT NULL REFERENCES reward_return_rounds (id),
+  user_id    uuid    NOT NULL REFERENCES wallet_accounts (user_id),
+  amount_yen integer NOT NULL CHECK (amount_yen > 0),
+  basis      text    NOT NULL CHECK (char_length(btrim(basis)) BETWEEN 1 AND 200),   -- 공개 기준의 어느 실적으로 나눴는지
+  PRIMARY KEY (round_id, user_id),
+  UNIQUE (round_id, user_id, amount_yen)
+);
+CREATE INDEX reward_return_allocations_user_idx ON reward_return_allocations (user_id);
+CREATE TRIGGER reward_return_allocations_readonly BEFORE UPDATE OR DELETE ON reward_return_allocations FOR EACH ROW EXECUTE FUNCTION forbid_mutation();
+
+-- 배분 합계 = 회차 환원 총액 (배분이 없으면 0 이어야 해요). 회차를 만들 때와 배분을 넣을 때 트랜잭션 끝에서 확인해요.
+CREATE FUNCTION reward_return_balanced() RETURNS trigger
+  LANGUAGE plpgsql AS $$
+DECLARE
+  r_id     uuid;
+  expected bigint;
+  actual   bigint;
+BEGIN
+  IF TG_TABLE_NAME = 'reward_return_rounds' THEN
+    r_id := NEW.id;
+  ELSE
+    r_id := NEW.round_id;
+  END IF;
+  SELECT total_yen INTO expected FROM reward_return_rounds WHERE id = r_id;
+  SELECT COALESCE(sum(amount_yen), 0) INTO actual FROM reward_return_allocations WHERE round_id = r_id;
+  IF actual <> expected THEN
+    RAISE EXCEPTION '환원 배분 합계(%엔)가 회차의 환원 총액(%엔)과 달라요', actual, expected USING ERRCODE = 'check_violation';
+  END IF;
+  RETURN NULL;
+END $$;
+CREATE CONSTRAINT TRIGGER reward_return_rounds_balanced AFTER INSERT ON reward_return_rounds
+  DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION reward_return_balanced();
+CREATE CONSTRAINT TRIGGER reward_return_allocations_balanced AFTER INSERT ON reward_return_allocations
+  DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION reward_return_balanced();
+
+-- 원장: 입금(상금·환원)과 출금. 금액은 언제나 양수이고, 출처 하나에만 이어져요(상금 예치 · 환원 배분 · 출금 신청 — 금액·학생까지 복합 FK 로 같아야 해요).
+-- 잔액 = 입금 − 출금 (wallet_balances). 행은 아래 트리거들이 만들고, 한 번 쓰면 고치거나 지울 수 없어요.
+CREATE TABLE wallet_entries (
+  id               uuid              PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id          uuid              NOT NULL REFERENCES wallet_accounts (user_id),
+  kind             wallet_entry_kind NOT NULL,
+  amount_yen       integer           NOT NULL CHECK (amount_yen > 0),
+  prize_deposit_id uuid              UNIQUE,
+  return_round_id  uuid,
+  withdrawal_id    uuid              UNIQUE,
+  created_at       timestamptz       NOT NULL DEFAULT now(),
+  UNIQUE (return_round_id, user_id),
+  FOREIGN KEY (prize_deposit_id, amount_yen)         REFERENCES prize_deposits (id, amount_yen),
+  FOREIGN KEY (return_round_id, user_id, amount_yen) REFERENCES reward_return_allocations (round_id, user_id, amount_yen),
+  FOREIGN KEY (withdrawal_id, user_id, amount_yen)   REFERENCES withdrawal_requests (id, user_id, amount_yen),
+  CONSTRAINT wallet_entries_one_source CHECK (
+    (kind = 'prize') = (prize_deposit_id IS NOT NULL) AND (kind = 'return') = (return_round_id IS NOT NULL) AND (kind = 'withdrawal') = (withdrawal_id IS NOT NULL)
+  )
+);
+CREATE INDEX wallet_entries_user_idx ON wallet_entries (user_id, created_at DESC);
+CREATE TRIGGER wallet_entries_readonly BEFORE UPDATE OR DELETE ON wallet_entries FOR EACH ROW EXECUTE FUNCTION forbid_mutation();
+
+-- 상금 입금은 그 예치를 받은 최우수상 팀의 제출자에게만 (송금된(paid) 예치만)
+CREATE FUNCTION wallet_entries_guard() RETURNS trigger
+  LANGUAGE plpgsql AS $$
+DECLARE
+  winner uuid;
+BEGIN
+  IF NEW.kind = 'prize' THEN
+    SELECT p.submitter_id INTO winner
+      FROM prize_deposits d JOIN awards a ON a.id = d.award_id JOIN proposals p ON p.id = a.proposal_id
+     WHERE d.id = NEW.prize_deposit_id AND d.status = 'paid';
+    IF winner IS DISTINCT FROM NEW.user_id THEN
+      RAISE EXCEPTION '상금은 송금된 예치의 최우수상 제출자에게만 입금할 수 있어요' USING ERRCODE = 'check_violation';
+    END IF;
+  END IF;
+  RETURN NEW;
+END $$;
+CREATE TRIGGER wallet_entries_guard_ins BEFORE INSERT ON wallet_entries FOR EACH ROW EXECUTE FUNCTION wallet_entries_guard();
+
+-- 최우수상이 정해지면 맡긴 상금을 그 팀에 보내요 (deposited → paid). 앱의 settlePrize 와 같아요.
+CREATE FUNCTION awards_pay_prize() RETURNS trigger
+  LANGUAGE plpgsql AS $$
+BEGIN
+  IF NEW.kind = 'grand' THEN
+    UPDATE prize_deposits SET status = 'paid', award_id = NEW.id WHERE challenge_id = NEW.challenge_id AND status = 'deposited';
+  END IF;
+  RETURN NULL;
+END $$;
+CREATE TRIGGER awards_pay_prize_ins AFTER INSERT ON awards FOR EACH ROW EXECUTE FUNCTION awards_pay_prize();
+
+-- 송금된 상금을 수상 팀 제출자의 원장에 입금해요 (지갑 계정이 없으면 만들어요)
+CREATE FUNCTION prize_deposits_credit() RETURNS trigger
+  LANGUAGE plpgsql AS $$
+DECLARE
+  winner uuid;
+BEGIN
+  SELECT p.submitter_id INTO winner FROM awards a JOIN proposals p ON p.id = a.proposal_id WHERE a.id = NEW.award_id;
+  INSERT INTO wallet_accounts (user_id) VALUES (winner) ON CONFLICT (user_id) DO NOTHING;
+  INSERT INTO wallet_entries (user_id, kind, amount_yen, prize_deposit_id) VALUES (winner, 'prize', NEW.amount_yen, NEW.id);
+  RETURN NULL;
+END $$;
+CREATE TRIGGER prize_deposits_credit_upd AFTER UPDATE OF status ON prize_deposits
+  FOR EACH ROW WHEN (OLD.status = 'deposited' AND NEW.status = 'paid') EXECUTE FUNCTION prize_deposits_credit();
+
+-- 환원 배분: 지갑 계정이 없으면 만들고(학생만 — 계정은 student_profiles 를 가리켜요), 넣은 뒤 원장에 입금해요
+CREATE FUNCTION reward_return_allocations_account() RETURNS trigger
+  LANGUAGE plpgsql AS $$
+BEGIN
+  INSERT INTO wallet_accounts (user_id) VALUES (NEW.user_id) ON CONFLICT (user_id) DO NOTHING;
+  RETURN NEW;
+END $$;
+CREATE TRIGGER reward_return_allocations_account_ins BEFORE INSERT ON reward_return_allocations FOR EACH ROW EXECUTE FUNCTION reward_return_allocations_account();
+
+CREATE FUNCTION reward_return_allocations_credit() RETURNS trigger
+  LANGUAGE plpgsql AS $$
+BEGIN
+  INSERT INTO wallet_entries (user_id, kind, amount_yen, return_round_id) VALUES (NEW.user_id, 'return', NEW.amount_yen, NEW.round_id);
+  RETURN NULL;
+END $$;
+CREATE TRIGGER reward_return_allocations_credit_ins AFTER INSERT ON reward_return_allocations FOR EACH ROW EXECUTE FUNCTION reward_return_allocations_credit();
+
+-- 출금 신청 가드: 본인 확인 완료 · 잔액 이하 (같은 학생의 신청이 동시에 와도 계정 행을 잠가서 차례로 확인해요). 상태는 requested → completed 만.
+CREATE FUNCTION withdrawal_requests_guard() RETURNS trigger
+  LANGUAGE plpgsql AS $$
+DECLARE
+  kyc     wallet_kyc_status;
+  balance bigint;
+BEGIN
+  IF TG_OP = 'DELETE' THEN
+    RAISE EXCEPTION '출금 신청 기록은 지울 수 없어요' USING ERRCODE = 'restrict_violation';
+  END IF;
+  IF TG_OP = 'UPDATE' THEN
+    IF (NEW.user_id, NEW.amount_yen, NEW.requested_at) IS DISTINCT FROM (OLD.user_id, OLD.amount_yen, OLD.requested_at) THEN
+      RAISE EXCEPTION '출금 신청의 학생·금액·신청 시각은 바꿀 수 없어요' USING ERRCODE = 'check_violation';
+    END IF;
+    IF OLD.status = 'completed' AND NEW.status <> 'completed' THEN
+      RAISE EXCEPTION '송금을 마친 출금은 되돌릴 수 없어요' USING ERRCODE = 'check_violation';
+    END IF;
+    RETURN NEW;
+  END IF;
+  IF NEW.status <> 'requested' THEN
+    RAISE EXCEPTION '출금은 신청(requested) 상태로만 새로 만들 수 있어요' USING ERRCODE = 'check_violation';
+  END IF;
+  SELECT kyc_status INTO kyc FROM wallet_accounts WHERE user_id = NEW.user_id FOR UPDATE;
+  IF kyc IS DISTINCT FROM 'verified' THEN
+    RAISE EXCEPTION '본인 확인(eKYC)을 마친 뒤에 출금할 수 있어요' USING ERRCODE = 'check_violation';
+  END IF;
+  SELECT COALESCE(sum(CASE kind WHEN 'withdrawal' THEN -amount_yen ELSE amount_yen END), 0) INTO balance FROM wallet_entries WHERE user_id = NEW.user_id;
+  IF NEW.amount_yen > balance THEN
+    RAISE EXCEPTION '잔액(%엔)보다 많이 출금할 수 없어요 (신청 %엔)', balance, NEW.amount_yen USING ERRCODE = 'check_violation';
+  END IF;
+  RETURN NEW;
+END $$;
+CREATE TRIGGER withdrawal_requests_guard_ins BEFORE INSERT OR UPDATE OR DELETE ON withdrawal_requests FOR EACH ROW EXECUTE FUNCTION withdrawal_requests_guard();
+
+CREATE FUNCTION withdrawal_requests_debit() RETURNS trigger
+  LANGUAGE plpgsql AS $$
+BEGIN
+  INSERT INTO wallet_entries (user_id, kind, amount_yen, withdrawal_id) VALUES (NEW.user_id, 'withdrawal', NEW.amount_yen, NEW.id);
+  RETURN NULL;
+END $$;
+CREATE TRIGGER withdrawal_requests_debit_ins AFTER INSERT ON withdrawal_requests FOR EACH ROW EXECUTE FUNCTION withdrawal_requests_debit();
+
+-- 학생별 リワード残高: 잔액 = 입금(상금·환원) − 출금 (앱의 walletTotals 와 같아요)
+CREATE VIEW wallet_balances AS
+  SELECT a.user_id, a.kyc_status,
+         COALESCE(sum(e.amount_yen) FILTER (WHERE e.kind = 'prize'), 0)::bigint      AS prize_yen,
+         COALESCE(sum(e.amount_yen) FILTER (WHERE e.kind = 'return'), 0)::bigint     AS return_yen,
+         COALESCE(sum(e.amount_yen) FILTER (WHERE e.kind = 'withdrawal'), 0)::bigint AS withdrawn_yen,
+         COALESCE(sum(CASE e.kind WHEN 'withdrawal' THEN -e.amount_yen ELSE e.amount_yen END), 0)::bigint AS balance_yen
+    FROM wallet_accounts a
+    LEFT JOIN wallet_entries e ON e.user_id = a.user_id
+   GROUP BY a.user_id, a.kyc_status;
+
+-- 기업별 상금 예치 요약 (앱의 selectPrizeDeposits): 예치 중 · 송금 · 반환
+CREATE VIEW company_prize_summary AS
+  SELECT company_id,
+         COALESCE(sum(amount_yen) FILTER (WHERE status = 'deposited'), 0)::bigint AS deposited_yen,
+         COALESCE(sum(amount_yen) FILTER (WHERE status = 'paid'), 0)::bigint      AS paid_yen,
+         COALESCE(sum(amount_yen) FILTER (WHERE status = 'refunded'), 0)::bigint  AS refunded_yen
+    FROM prize_deposits
+   GROUP BY company_id;
+
+-- ============================================================================
 -- 9. 집계용 뷰
 -- ============================================================================
 
@@ -1719,11 +2027,19 @@ COMMENT ON TABLE blacklist_entries          IS '블랙리스트 (사용자 또�
 COMMENT ON TABLE admin_actions              IS '관리자 작업 기록 (수정·삭제 불가) — 감사 로그';
 COMMENT ON TABLE analytics_daily            IS '일별 통계 (SDG 별 트렌드 포함) — F-703';
 COMMENT ON TABLE content_translations       IS '일본어↔한국어 번역 캐시 — 다국어';
+COMMENT ON TABLE wallet_accounts            IS 'リワード残高 지갑 계정 (학생 1명에 1개, 본인 확인 상태) — #25 리워드';
+COMMENT ON TABLE prize_deposits             IS '기업이 과제에 맡긴 상금 (과제당 1건, 최우수상에 송금·마감 후 반환) — #25 리워드';
+COMMENT ON TABLE withdrawal_requests        IS '출금 신청 (1회 1~1,000,000엔, 본인 확인·잔액 이하) — #25 리워드';
+COMMENT ON TABLE reward_return_rounds       IS '운영 환원 회차 (운전자금 3개월분을 남긴 이익 전부, 기준은 미리 공개) — #25 리워드';
+COMMENT ON TABLE reward_return_allocations  IS '운영 환원 배분 (합계 = 회차 환원 총액) — #25 리워드';
+COMMENT ON TABLE wallet_entries             IS 'リワード残高 원장 (상금·환원 입금, 출금 — 수정·삭제 불가) — #25 리워드';
 
 COMMENT ON VIEW proposal_current            IS '제출 건 + 가장 최신 버전 (심사 화면용) — F-302';
 COMMENT ON VIEW impact_totals               IS '학생별 누적 포인트와 레벨 — F-401';
 COMMENT ON VIEW talent_directory            IS '인재 검색에 보이는 학생 (비공개·정지 계정 제외) — F-601';
 COMMENT ON VIEW challenge_stats             IS '챌린지별 응모자 수·관심 수·평균 점수·남은 일수 — F-402';
 COMMENT ON VIEW company_fee_summary         IS '기업별 수수료·기부·운영 수익 요약 — 수익 모델';
+COMMENT ON VIEW wallet_balances             IS '학생별 リワード残高 (잔액 = 입금 − 출금) — #25 리워드';
+COMMENT ON VIEW company_prize_summary       IS '기업별 상금 예치·송금·반환 합계 — #25 리워드';
 COMMENT ON VIEW feed_posts                  IS '피드에 보이는 글 (닉네임·레벨 또는 기업 정보만, 블라인드 제외) — F-503, F-504';
 COMMENT ON COLUMN feed_posts.author_level   IS '자랑 글 글쓴이의 지금 레벨 (앱은 글을 올린 때의 레벨을 스냅샷으로 저장해요)';

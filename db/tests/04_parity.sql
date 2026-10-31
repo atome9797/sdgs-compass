@@ -244,5 +244,32 @@ SELECT pg_temp.none($q$SELECT g.case_no, g.label, g.errors AS core_error, r.erro
                                 ELSE 'UNKNOWN-APP-ERROR' END$q$,
                     '앱의 오류 하나하나가 DB 의 같은 규칙(제약)에 대응한다 — 같은 이유로 거절한다');
 
+-- 9) #25 リワード残高: 출금 1회 상한·하한(CHECK), 상금을 받는 상, 운전자금 개월 수(기본값), 운영 환원 총액(생성 열) — core 의 wallet.ts 와 같다
+--    (CHECK 와 생성 열만 보려고 이 트랜잭션 안에서만 트리거·외래 키 검사를 끄고, 곧바로 되돌려요)
+SET LOCAL session_replication_role = replica;
+INSERT INTO withdrawal_requests (user_id, amount_yen)
+  SELECT 'c0000000-0000-0000-0000-000000000001', value::integer FROM golden_wallet_constants WHERE name IN ('withdrawal_max_yen', 'withdrawal_min_yen');
+SELECT pg_temp.eq((SELECT count(*) FROM withdrawal_requests)::int, 2, '출금 1회 상한(core WITHDRAWAL_MAX_YEN)과 하한(WITHDRAWAL_MIN_YEN)은 DB 도 받는다');
+SELECT pg_temp.fails(format($f$INSERT INTO withdrawal_requests (user_id, amount_yen) VALUES ('c0000000-0000-0000-0000-000000000001', %s)$f$,
+                            (SELECT value::integer + 1 FROM golden_wallet_constants WHERE name = 'withdrawal_max_yen')),
+                     '23514', '상한 + 1엔은 DB 의 CHECK 가 거절한다');
+SELECT pg_temp.fails(format($f$INSERT INTO withdrawal_requests (user_id, amount_yen) VALUES ('c0000000-0000-0000-0000-000000000001', %s)$f$,
+                            (SELECT value::integer - 1 FROM golden_wallet_constants WHERE name = 'withdrawal_min_yen')),
+                     '23514', '하한 − 1엔은 DB 의 CHECK 가 거절한다');
+DELETE FROM withdrawal_requests;
+INSERT INTO reward_return_rounds (period_label, period_start, period_end, ordinary_profit_yen, period_costs_yen, reserve_months, period_end_cash_yen, criteria, criteria_published_on, decided_on, decided_by)
+  SELECT 'G' || case_no, '2030-04-01', '2031-03-31', ordinary_profit_yen, period_costs_yen, reserve_months, period_end_cash_yen, 'golden', '2030-03-01', '2031-05-31', gen_random_uuid()
+    FROM golden_return_pools;
+SELECT pg_temp.none($q$SELECT g.case_no, g.reserve_yen AS core_reserve, r.reserve_yen AS db_reserve, g.pool_yen AS core_pool, r.total_yen AS db_total
+                         FROM golden_return_pools g JOIN reward_return_rounds r ON r.period_label = 'G' || g.case_no
+                        WHERE r.reserve_yen <> g.reserve_yen OR r.total_yen <> g.pool_yen$q$,
+                    '운영 환원: 운전자금 적립액·환원 총액(생성 열)이 core 의 returnPoolYen 과 모두 같다');
+DELETE FROM reward_return_rounds;
+SET LOCAL session_replication_role = origin;
+SELECT pg_temp.eq((SELECT column_default::text FROM information_schema.columns WHERE table_name = 'reward_return_rounds' AND column_name = 'reserve_months'),
+                  (SELECT value FROM golden_wallet_constants WHERE name = 'return_reserve_months'), '운전자금 개월 수의 기본값이 core 의 RETURN_RESERVE_MONTHS 와 같다');
+SELECT pg_temp.eq((SELECT generation_expression::text FROM information_schema.columns WHERE table_name = 'prize_deposits' AND column_name = 'award_kind'),
+                  format('%L::award_kind', (SELECT value FROM golden_wallet_constants WHERE name = 'prize_award')), '상금을 받는 상이 core 의 PRIZE_AWARD(최우수상)와 같다');
+
 ROLLBACK;
 \echo '04_parity: 통과'

@@ -151,6 +151,38 @@ function isSocialPost(value: unknown): boolean {
   return false;
 }
 
+const isYen = (value: unknown): value is number => typeof value === "number" && Number.isSafeInteger(value) && value > 0;
+
+/** #25 リワード残高 원장 한 줄 (rebase 와 화면이 깨지지 않을 만큼만 확인해요) */
+function isWalletEntry(value: unknown): boolean {
+  if (!isObject(value) || typeof value.id !== "string" || typeof value.studentId !== "string" || !isYen(value.amountYen) || !isDay(value.date)) return false;
+  if (!(value.status === "completed" || value.status === "requested")) return false;
+  const s = value.source;
+  if (value.kind === "withdrawal") return s === null;
+  if (value.kind === "return") return isObject(s) && s.kind === "return" && isText(s.round);
+  if (value.kind === "prize") {
+    return (
+      isObject(s) && s.kind === "prize" && (s.challengeId === null || typeof s.challengeId === "string") && (s.activityId === null || typeof s.activityId === "string") &&
+      typeof s.companyId === "string" && isText(s.title) && (s.award === "grand" || s.award === "excellence" || s.award === "special")
+    );
+  }
+  return false;
+}
+
+function isWallet(value: unknown): boolean {
+  if (!isObject(value) || !(value.kyc === "none" || value.kyc === "verified")) return false;
+  if (!(value.kycVerifiedOn === null || isDay(value.kycVerifiedOn))) return false;
+  return Array.isArray(value.entries) && value.entries.every(isWalletEntry);
+}
+
+function isPrizeDeposit(value: unknown): boolean {
+  return (
+    isObject(value) && typeof value.challengeId === "string" && typeof value.companyId === "string" && isYen(value.amountYen) &&
+    (value.status === "deposited" || value.status === "paid" || value.status === "refunded") && isDay(value.depositedOn) &&
+    (value.settledOn === null || isDay(value.settledOn)) && (value.proposalId === null || typeof value.proposalId === "string")
+  );
+}
+
 /** 저장돼 있던 값이 지금 앱이 이해하는 모양인지 확인해요 (다르면 샘플 데이터로 새로 시작해요) */
 export function isDemoState(value: unknown): value is DemoState {
   if (!isObject(value) || value.version !== 1) return false;
@@ -161,6 +193,7 @@ export function isDemoState(value: unknown): value is DemoState {
   const lists = ["companies", "challenges", "teamPosts", "bookmarks", "proposals", "history", "talent", "scouts", "matches", "posts"] as const;
   for (const key of lists) if (!Array.isArray(value[key])) return false;
   if (!(value.posts as unknown[]).every(isSocialPost)) return false;
+  if (!isWallet(value.wallet) || !Array.isArray(value.prizeDeposits) || !value.prizeDeposits.every(isPrizeDeposit)) return false;
   if (!(value.challenges as unknown[]).every((c) => isObject(c) && typeof c.id === "string" && isDay(c.opensOn) && isDay(c.closesOn))) return false;
   if (!(value.proposals as unknown[]).every((p) => isObject(p) && typeof p.id === "string" && Array.isArray(p.versions) && typeof p.submittedAt === "string")) return false;
   if (!isObject(value.cert)) return false;
@@ -188,12 +221,21 @@ function withOfficialChannel(post: unknown): unknown {
  * 예전 버전에서 저장된 상태를 지금 모양으로 이어 줘요(버리지 않고 이어서 쓸 수 있게):
  * - SNS 피드(posts)가 생기기 전의 상태에는 posts 가 없어요 → 저장했을 때의 "오늘" 기준 샘플 글을 채워 넣어요(날짜는 불러올 때 rebase 가 옮겨요).
  * - 공식 SNS 게시 채널이 생기기 전의 글에는 official.channel 이 없어요 → instagram 으로 읽어요.
+ * - #25 リワード残高가 생기기 전의 상태에는 wallet·prizeDeposits 가 없어요 → 저장했을 때의 "오늘" 기준 샘플(잔액·상금 예치)을 채워 넣어요.
+ *   데모에서 새로 낸 과제(샘플에 없는 과제)는 예치 기록 없이 열려요.
  */
 function upgradeSaved(data: unknown): unknown {
   if (!isObject(data) || data.version !== 1) return data;
-  if (data.posts === undefined && isDay(data.today)) return { ...data, posts: createInitialState(data.today).posts };
-  if (Array.isArray(data.posts)) return { ...data, posts: data.posts.map(withOfficialChannel) };
-  return data;
+  let next: Record<string, unknown> = data;
+  const sample = () => createInitialState(String(data.today));
+  if (next.posts === undefined && isDay(data.today)) next = { ...next, posts: sample().posts };
+  else if (Array.isArray(next.posts)) next = { ...next, posts: next.posts.map(withOfficialChannel) };
+  if (next.wallet === undefined && isDay(data.today)) next = { ...next, wallet: sample().wallet };
+  if (next.prizeDeposits === undefined && isDay(data.today)) {
+    const ids = new Set(Array.isArray(next.challenges) ? next.challenges.map((c) => (isObject(c) ? c.id : null)) : []);
+    next = { ...next, prizeDeposits: sample().prizeDeposits.filter((d) => ids.has(d.challengeId)) };
+  }
+  return next;
 }
 
 export function parseState(raw: string | null): DemoState | null {

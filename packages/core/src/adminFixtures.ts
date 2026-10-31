@@ -180,6 +180,8 @@ export function makeUsageState(overrides: Partial<DemoState> = {}): DemoState {
     ],
     cert: CERT,
     esgGeneratedOn: null,
+    wallet: { kyc: "none", kycVerifiedOn: null, entries: [] },
+    prizeDeposits: [],
     ...overrides,
   };
 }

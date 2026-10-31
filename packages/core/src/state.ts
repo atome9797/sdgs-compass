@@ -11,6 +11,7 @@ import { authorRole, DEFAULT_OFFICIAL_CHANNEL, nextOfficialDate, OFFICIAL_SHARE_
 import { fileFingerprint, makeReceiptNo, validateProposalDraft, type ProposalDraft } from "./proposal";
 import { canSendScout } from "./scout";
 import { isOpenFor } from "./recommend";
+import { depositFor, requestWithdrawal, settlePrize, verifyKyc } from "./wallet";
 
 /** 기업이 채택해서 매칭이 성립했을 때 수수료의 50%를 기부하는 곳(샘플) */
 export const DONATION_RECIPIENT = { ja: "海の環境保全団体（サンプル）", ko: "해양 환경 보전 단체(샘플)" } as const;
@@ -39,7 +40,11 @@ export type Action =
   /** 내 글만 지울 수 있어요 (자랑 글은 학생 계정, 홍보 글은 기업 계정에서) */
   | { type: "deletePost"; postId: string; role: Role }
   | { type: "setCertAnswer"; id: CertCriterionId; value?: number; evidence?: boolean }
-  | { type: "generateEsg"; at: string };
+  | { type: "generateEsg"; at: string }
+  /** #25 リワード残高(데모): 본인 확인 완료 버튼 (실제 eKYC 는 하지 않아요) */
+  | { type: "verifyKyc"; at: string }
+  /** #25 출금 신청: 본인 확인 완료 · 1엔 이상 · 1회 100만 엔 이하 · 잔액 이하가 아니면 아무것도 바뀌지 않아요 (실제 송금은 하지 않아요) */
+  | { type: "requestWithdrawal"; amountYen: number; at: string };
 
 const clampScore = (n: number) => Math.min(5, Math.max(1, Math.round(n)));
 
@@ -137,7 +142,9 @@ export function reducer(state: DemoState, action: Action): DemoState {
     case "createChallenge": {
       if (validateChallengeDraft(action.draft).length > 0) return state;
       const challenge = buildChallenge(action.draft, { id: `ch${state.seq}`, companyId: state.myCompanyId, today: state.today, hue: (state.seq * 47) % 360 });
-      return { ...state, seq: state.seq + 1, challenges: [challenge, ...state.challenges] };
+      // #25 상금은 과제를 낼 때 운영사에 예치해요 (데모)
+      const deposit = depositFor(challenge, state.today);
+      return { ...state, seq: state.seq + 1, challenges: [challenge, ...state.challenges], prizeDeposits: deposit ? [...state.prizeDeposits, deposit] : state.prizeDeposits };
     }
 
     case "reviewProposal": {
@@ -157,7 +164,9 @@ export function reducer(state: DemoState, action: Action): DemoState {
     case "awardProposal": {
       const proposal = state.proposals.find((p) => p.id === action.proposalId);
       if (!proposal || proposal.status === "adopted") return state;
-      return { ...state, proposals: state.proposals.map((p) => (p.id === proposal.id ? { ...p, award: action.award, status: "awarded" } : p)) };
+      const awarded = { ...state, proposals: state.proposals.map((p) => (p.id === proposal.id ? { ...p, award: action.award, status: "awarded" as const } : p)) };
+      // #25 최우수상이면 맡긴 상금을 수상 팀의 リワード残高로 보내요 (데모)
+      return settlePrize(awarded, proposal, action.award);
     }
 
     case "adoptProposal": {
@@ -287,6 +296,12 @@ export function reducer(state: DemoState, action: Action): DemoState {
 
     case "generateEsg":
       return { ...state, esgGeneratedOn: action.at.slice(0, 10) };
+
+    case "verifyKyc":
+      return verifyKyc(state, action.at);
+
+    case "requestWithdrawal":
+      return requestWithdrawal(state, action.amountYen, action.at);
   }
 }
 
@@ -323,5 +338,11 @@ export function rebaseState(state: DemoState, today: string): DemoState {
       return p.kind === "pr" && p.official ? { ...p, createdAt, official: { ...p.official, on: shift(p.official.on, delta) } } : { ...p, createdAt };
     }),
     esgGeneratedOn: state.esgGeneratedOn ? shift(state.esgGeneratedOn, delta) : null,
+    wallet: {
+      ...state.wallet,
+      kycVerifiedOn: state.wallet.kycVerifiedOn ? shift(state.wallet.kycVerifiedOn, delta) : null,
+      entries: state.wallet.entries.map((e) => ({ ...e, date: shift(e.date, delta) })),
+    },
+    prizeDeposits: state.prizeDeposits.map((d) => ({ ...d, depositedOn: shift(d.depositedOn, delta), settledOn: d.settledOn ? shift(d.settledOn, delta) : null })),
   };
 }

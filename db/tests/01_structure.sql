@@ -43,6 +43,14 @@ SELECT pg_temp.none($q$SELECT t.name AS table_without_guard
                         WHERE NOT EXISTS (SELECT 1 FROM pg_trigger g WHERE g.tgrelid = t.name::regclass AND NOT g.tgisinternal)$q$,
                     '기록용 표(제출 버전·활동·증명서·확인 기록·감사 로그)에는 보호 트리거가 있다');
 
+-- #25 リワード残高: 원장·환원 회차·배분은 한 번 쓰면 고칠 수 없고, 상금 예치·출금 신청에는 가드 트리거가 있다
+SELECT pg_temp.none($q$SELECT t.name AS table_without_guard
+                         FROM (VALUES ('wallet_entries'), ('reward_return_rounds'), ('reward_return_allocations'), ('prize_deposits'), ('withdrawal_requests')) t(name)
+                        WHERE NOT EXISTS (SELECT 1 FROM pg_trigger g WHERE g.tgrelid = t.name::regclass AND NOT g.tgisinternal AND NOT g.tgdeferrable)$q$,
+                    'リワード残高의 원장·환원·예치·출금 표에는 보호(가드) 트리거가 있다');
+SELECT pg_temp.eq((SELECT count(*) FROM pg_trigger WHERE tgconstraint <> 0 AND tgdeferrable AND tgrelid IN ('reward_return_rounds'::regclass, 'reward_return_allocations'::regclass))::int, 2,
+                  '환원 배분 합계 = 환원 총액은 트랜잭션 끝에서 검사한다 (지연 제약 트리거 2개)');
+
 -- 설계에 쓰는 PostgreSQL 기능이 실제로 들어 있다 (README 의 설명과 어긋나지 않게)
 SELECT pg_temp.eq((SELECT count(*) FROM pg_constraint WHERE contype = 'x')::int, 1, '겹침 방지(EXCLUDE) 제약이 하나 있다 (면접 일정)');
 SELECT pg_temp.ok((SELECT count(*) FROM pg_attribute WHERE attgenerated = 's' AND attnum > 0 AND NOT attisdropped) >= 8, '생성 열(GENERATED)로 계산 규칙을 DB 가 직접 지킨다');

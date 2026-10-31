@@ -2,7 +2,7 @@
 // 실서비스에서는 이 모양의 데이터를 서버(PostgreSQL, db/schema.sql)가 돌려줘요.
 import { emptyCertAnswers } from "@sdgs-compass/core/certification";
 import type {
-  Activity, Candidate, Challenge, Company, DemoState, Match, OfficialChannel, Proposal, Scout, SocialPost, StudentProfile, TeamPost,
+  Activity, Candidate, Challenge, Company, DemoState, Match, OfficialChannel, PrizeDeposit, Proposal, Scout, SocialPost, StudentProfile, TeamPost, Wallet,
 } from "@sdgs-compass/core/domain";
 import { splitMatchFee } from "@sdgs-compass/core/fees";
 import { addDays } from "@sdgs-compass/core/format";
@@ -661,6 +661,39 @@ function buildPosts(today: string): SocialPost[] {
   ];
 }
 
+/**
+ * #25 リワード残高(데모): Mina 의 잔액 — 수상 실적(h-5b 優秀賞)에 이어진 기업 상금 1건 + 운영 환원(샘플) 1건, 출금 0건. 본인 확인은 아직.
+ * 모두 가상의 금액이에요. 운영 환원은 실제로는 기 말에 이익이 남을 때만 생겨요(docs/rewards.md).
+ */
+function buildWallet(today: string): Wallet {
+  const d = (n: number) => addDays(today, n);
+  return {
+    kyc: "none",
+    kycVerifiedOn: null,
+    entries: [
+      {
+        id: "w-1", studentId: DEMO_STUDENT_ID, kind: "prize", amountYen: 30_000, date: d(-27), status: "completed",
+        source: { kind: "prize", challengeId: null, activityId: "h-5b", companyId: "co-minato", title: { ja: "プラスチックごみ削減ハッカソン", ko: "플라스틱 쓰레기 감축 해커톤" }, award: "excellence" },
+      },
+      { id: "w-2", studentId: DEMO_STUDENT_ID, kind: "return", amountYen: 1_500, date: d(-10), status: "completed", source: { kind: "return", round: { ja: "運営からの還元（サンプル）", ko: "운영 환원(샘플)" } } },
+    ],
+  };
+}
+
+/** #25 상금이 걸린 샘플 과제는 예치 상태(과제를 연 날 예치). 끝난 과제 2건은 송금(ch-old1)·기업에 반환(ch-old2)으로 — 모두 가상 */
+function buildPrizeDeposits(challenges: readonly Challenge[], today: string): PrizeDeposit[] {
+  const settled: Record<string, Pick<PrizeDeposit, "status" | "settledOn" | "proposalId">> = {
+    "ch-old1": { status: "paid", settledOn: addDays(today, -58), proposalId: "pp-old-1" },
+    "ch-old2": { status: "refunded", settledOn: addDays(today, -85), proposalId: null },
+  };
+  return challenges
+    .filter((c) => c.prizeYen > 0)
+    .map((c): PrizeDeposit => {
+      const open: Pick<PrizeDeposit, "status" | "settledOn" | "proposalId"> = { status: "deposited", settledOn: null, proposalId: null };
+      return { challengeId: c.id, companyId: c.companyId, amountYen: c.prizeYen, depositedOn: c.opensOn, ...(settled[c.id] ?? open) };
+    });
+}
+
 /** 처음 상태 (today = "YYYY-MM-DD") */
 export function createInitialState(today: string): DemoState {
   const cert = emptyCertAnswers();
@@ -670,6 +703,7 @@ export function createInitialState(today: string): DemoState {
   cert.womenManagers = { value: 18, evidence: false };
   cert.volunteer = { value: 4, evidence: true };
   cert.disclosure = { value: 1, evidence: true };
+  const challenges = buildChallenges(today);
   return {
     version: 1,
     today,
@@ -677,7 +711,7 @@ export function createInitialState(today: string): DemoState {
     me,
     myCompanyId: DEMO_COMPANY_ID,
     companies,
-    challenges: buildChallenges(today),
+    challenges,
     teamPosts: buildTeamPosts(today),
     bookmarks: ["ch-foodloss"],
     proposals: buildProposals(today),
@@ -689,5 +723,7 @@ export function createInitialState(today: string): DemoState {
     posts: buildPosts(today),
     cert,
     esgGeneratedOn: null,
+    wallet: buildWallet(today),
+    prizeDeposits: buildPrizeDeposits(challenges, today),
   };
 }

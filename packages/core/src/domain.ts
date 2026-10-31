@@ -253,6 +253,64 @@ export interface CertAnswer {
 }
 export type CertAnswers = Record<CertCriterionId, CertAnswer>;
 
+/**
+ * #25 リワード残高(데모)의 원장 항목 종류: prize = 기업 상금 입금, return = 운영 환원 입금, withdrawal = 은행 계좌로 출금.
+ * 운영사가 第二種資金移動業 등록을 받은 뒤에 제공할 기능이에요(설계는 docs/rewards.md, 규칙은 wallet.ts, DB 는 wallet_entries).
+ */
+export type WalletEntryKind = "prize" | "return" | "withdrawal";
+/** 입금(prize·return)은 바로 completed. 출금은 신청하면 requested — 데모는 실제로 보내지 않아서 그대로 머물러요 */
+export type WalletEntryStatus = "completed" | "requested";
+
+/** 돈이 어디서 왔는지: 상금은 과제·기업·상(賞), 환원은 회차 이름. 출금에는 없어요(null) */
+export type WalletSource =
+  | {
+      kind: "prize";
+      /** 상금을 건 과제. 앱을 쓰기 전의 샘플 실적(history)에서 받은 상금은 null */
+      challengeId: string | null;
+      /** 연결된 수상 실적(Activity)의 id */
+      activityId: string | null;
+      companyId: string;
+      /** 내역에 보여 줄 과제 이름 (실적과 같은 사본) */
+      title: Text;
+      award: AwardKind;
+    }
+  | { kind: "return"; round: Text };
+
+/** 원장 한 줄. 금액은 언제나 양수(엔)이고, 잔액 = 입금(prize·return) − 출금(withdrawal) */
+export interface WalletEntry {
+  id: string;
+  studentId: string;
+  kind: WalletEntryKind;
+  amountYen: number;
+  /** YYYY-MM-DD */
+  date: string;
+  source: WalletSource | null;
+  status: WalletEntryStatus;
+}
+
+/** 학생 한 명의 リワード残高. 본인 확인(eKYC)은 데모에서 버튼 하나로 완료돼요(실제 확인은 하지 않아요) */
+export interface Wallet {
+  kyc: "none" | "verified";
+  /** 본인 확인을 마친 날 (YYYY-MM-DD) */
+  kycVerifiedOn: string | null;
+  /** 최신순이 아니어도 돼요 — 화면이 날짜순으로 정렬해요 */
+  entries: WalletEntry[];
+}
+
+/** 과제를 낼 때 기업이 운영사에 맡긴 상금 (과제당 1건). 최우수상이 정해지면 그 팀에 송금(paid), 수상 없이 끝나면 기업에 반환(refunded) */
+export type PrizeDepositStatus = "deposited" | "paid" | "refunded";
+export interface PrizeDeposit {
+  challengeId: string;
+  companyId: string;
+  amountYen: number;
+  status: PrizeDepositStatus;
+  depositedOn: string;
+  /** 송금하거나 반환한 날 (deposited 이면 null) */
+  settledOn: string | null;
+  /** 상금을 받은 기획서 (paid 일 때만) */
+  proposalId: string | null;
+}
+
 /** 앱 하나가 들고 있는 데모 상태 전체 (state.ts 의 reducer 가 바꿔요) */
 export interface DemoState {
   version: 1;
@@ -278,6 +336,10 @@ export interface DemoState {
   posts: SocialPost[];
   cert: CertAnswers;
   esgGeneratedOn: string | null;
+  /** #25 이 데모의 학생(me)의 リワード残高 (데모) */
+  wallet: Wallet;
+  /** #25 과제마다 기업이 맡긴 상금 (데모) */
+  prizeDeposits: PrizeDeposit[];
 }
 
 export type { LocalizedText };

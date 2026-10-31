@@ -4614,7 +4614,15 @@ INSERT INTO golden_enums VALUES
   ('cert_unit', 'flag', true),
   ('cert_unit', 'hours', true),
   ('cert_unit', 'percent', true),
-  ('cert_unit', 'yen', true);
+  ('cert_unit', 'yen', true),
+  ('wallet_entry_kind', 'prize', true),
+  ('wallet_entry_kind', 'return', true),
+  ('wallet_entry_kind', 'withdrawal', true),
+  ('prize_deposit_status', 'deposited', true),
+  ('prize_deposit_status', 'paid', true),
+  ('prize_deposit_status', 'refunded', true),
+  ('wallet_kyc_status', 'none', false),
+  ('wallet_kyc_status', 'verified', false);
 
 CREATE TEMP TABLE golden_certificates (serial_no text PRIMARY KEY, kind text, holder_name text, challenge_title text, company_name text, award_kind text, sdg_ids smallint[], points integer, issued_on date, content_hash text, verify_code text, qr_payload text);
 INSERT INTO golden_certificates VALUES
@@ -4840,3 +4848,25 @@ INSERT INTO golden_post_cases VALUES
   (41, '홍보: 태그 4개', 'pr', '漁港の朝市で容器を減らしました', '学生のアイデアを実際に試しました。', NULL, 4, 'none', 'sdgs_too_many'),
   (42, '홍보: 태그 5개', 'pr', '漁港の朝市で容器を減らしました', '学生のアイデアを実際に試しました。', NULL, 5, 'none', 'sdgs_too_many'),
   (43, '홍보: 모두 틀렸다(빈 제목·빈 본문·태그 0개·다른 회사 챌린지)', 'pr', '', '', NULL, 0, 'other', 'title_required,body_required,sdgs_required,challenge_not_found');
+
+CREATE TEMP TABLE golden_wallet_constants (name text PRIMARY KEY, value text NOT NULL);
+INSERT INTO golden_wallet_constants VALUES
+  ('withdrawal_max_yen', '1000000'),
+  ('withdrawal_min_yen', '1'),
+  ('prize_award', 'grand'),
+  ('return_reserve_months', '3');
+
+CREATE TEMP TABLE golden_return_pools (case_no integer PRIMARY KEY, ordinary_profit_yen bigint NOT NULL, period_costs_yen bigint NOT NULL, period_end_cash_yen bigint NOT NULL, reserve_months smallint NOT NULL, reserve_yen bigint NOT NULL, pool_yen bigint NOT NULL);
+INSERT INTO golden_return_pools VALUES
+  (1, 800000, 6000000, 1200000, 3, 1500000, 0),
+  (2, -200000, 6000000, 9000000, 3, 1500000, 0),
+  (3, 900000, 6000000, 1800000, 3, 1500000, 300000),
+  (4, 900000, 6000000, 5000000, 3, 1500000, 900000),
+  (5, 900000, 6000000, 500000, 0, 0, 500000),
+  (6, 10, 7, 100, 3, 1, 10),
+  (7, 1000000, 11, 10000000, 1, 0, 1000000),
+  (8, 2000000, 4000000, 2500000, 3, 1000000, 1500000),
+  (9, 5000000, 12000000, 30000000, 12, 12000000, 5000000),
+  (10, 5000000, 12000000, 30000000, 24, 24000000, 5000000),
+  (11, 0, 0, 0, 3, 0, 0),
+  (12, 300000, 1200000, -50000, 3, 300000, 0);

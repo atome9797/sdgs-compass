@@ -486,7 +486,7 @@ PC 폭에서는 왼쪽 메뉴, 좁은 화면에서는 하단 탭으로 바뀌어
 - 아래 그림과 표 설명은 **실제 DB 에서 읽어 자동으로 만든 것**이에요(`npm run erd`). 스키마를 바꾸고 README 를 안 고치면 CI 가 실패해요.
 
 <!-- erd:begin — 자동 생성: node scripts/erd.mjs --write (db/schema.sql 에서 읽어요. 직접 고치지 마세요) -->
-표 62개 · 뷰 6개 · 외래 키 112개. 아래 그림과 표 설명은 `db/schema.sql` 을 실제 PostgreSQL 에 올려서 읽어 만든 거라, 스키마가 바뀌면 CI 가 README 를 다시 만들라고 알려 줘요.
+표 68개 · 뷰 8개 · 외래 키 124개. 아래 그림과 표 설명은 `db/schema.sql` 을 실제 PostgreSQL 에 올려서 읽어 만든 거라, 스키마가 바뀌면 CI 가 README 를 다시 만들라고 알려 줘요.
 
 #### 한눈에 보기 (핵심 표만, 열 생략)
 
@@ -1466,16 +1466,123 @@ erDiagram
 | `social_post_likes` | 피드 글 좋아요 (사람마다 한 번, 내 글 제외) | F-503, F-504 |
 | `official_share_slots` | 공식 SNS(X·Instagram·Facebook) 게시 신청 (채널마다 하루 한 회사, 게시료 ¥3,000 샘플) | F-504 |
 
+#### ⑨ リワード残高 · 상금 예치 · 운영 환원 — #25 (第二種資金移動業 등록 후)
+
+기업이 과제를 낼 때 맡긴 상금(과제당 1건)을 최우수상 팀에 송금하고, 각 기 말에 운전자금 3개월분을 남긴 이익을 미리 공개한 기준으로 학생에게 환원해요. 원장은 입금(상금·환원)과 출금만 기록하고(고칠 수 없음), 출금은 본인 확인 뒤 1회 100만 엔·잔액 이하예요. 설계는 docs/rewards.md.
+
+```mermaid
+erDiagram
+  wallet_accounts {
+    uuid user_id PK, FK
+    wallet_kyc_status kyc_status
+    timestamptz kyc_verified_at
+    timestamptz created_at
+    timestamptz updated_at
+  }
+  prize_deposits {
+    uuid id PK
+    uuid challenge_id FK, UK
+    uuid company_id FK
+    reward_kind reward_kind FK "자동 계산"
+    int amount_yen FK
+    prize_deposit_status status
+    timestamptz deposited_at
+    uuid award_id FK
+    award_kind award_kind FK "자동 계산"
+    timestamptz settled_at
+  }
+  withdrawal_requests {
+    uuid id PK
+    uuid user_id FK
+    int amount_yen
+    withdrawal_status status
+    timestamptz requested_at
+    timestamptz completed_at
+  }
+  reward_return_rounds {
+    uuid id PK
+    text period_label UK
+    date period_start
+    date period_end
+    bigint ordinary_profit_yen
+    bigint period_costs_yen
+    smallint reserve_months
+    bigint period_end_cash_yen
+    bigint reserve_yen "자동 계산"
+    bigint total_yen "자동 계산"
+    text criteria
+    date criteria_published_on
+    date decided_on
+    uuid decided_by FK
+    timestamptz created_at
+  }
+  reward_return_allocations {
+    uuid round_id PK, FK
+    uuid user_id PK, FK
+    int amount_yen
+    text basis
+  }
+  wallet_entries {
+    uuid id PK
+    uuid user_id FK
+    wallet_entry_kind kind
+    int amount_yen FK
+    uuid prize_deposit_id FK, UK
+    uuid return_round_id FK
+    uuid withdrawal_id FK, UK
+    timestamptz created_at
+  }
+  awards {
+    uuid id PK
+  }
+  challenge_rewards {
+    uuid challenge_id PK, FK
+    reward_kind kind PK
+  }
+  challenges {
+    uuid id PK
+  }
+  student_profiles {
+    uuid user_id PK, FK
+  }
+  users {
+    uuid id PK
+  }
+  student_profiles ||--o| wallet_accounts : "user_id"
+  awards |o..o{ prize_deposits : "award_id, challenge_id, award_kind"
+  challenges ||..o{ prize_deposits : "challenge_id, company_id"
+  challenge_rewards |o..o{ prize_deposits : "challenge_id, reward_kind, amount_yen"
+  wallet_accounts ||..o{ withdrawal_requests : "user_id"
+  users ||..o{ reward_return_rounds : "decided_by"
+  reward_return_rounds ||--o{ reward_return_allocations : "round_id"
+  wallet_accounts ||--o{ reward_return_allocations : "user_id"
+  prize_deposits |o..o{ wallet_entries : "prize_deposit_id, amount_yen"
+  reward_return_allocations |o..o{ wallet_entries : "return_round_id, user_id, amount_yen"
+  wallet_accounts ||..o{ wallet_entries : "user_id"
+  withdrawal_requests |o..o{ wallet_entries : "withdrawal_id, user_id, amount_yen"
+```
+
+| 표 | 설명 | 기능 |
+| --- | --- | --- |
+| `wallet_accounts` | リワード残高 지갑 계정 (학생 1명에 1개, 본인 확인 상태) | #25 리워드 |
+| `prize_deposits` | 기업이 과제에 맡긴 상금 (과제당 1건, 최우수상에 송금·마감 후 반환) | #25 리워드 |
+| `withdrawal_requests` | 출금 신청 (1회 1~1,000,000엔, 본인 확인·잔액 이하) | #25 리워드 |
+| `reward_return_rounds` | 운영 환원 회차 (운전자금 3개월분을 남긴 이익 전부, 기준은 미리 공개) | #25 리워드 |
+| `reward_return_allocations` | 운영 환원 배분 (합계 = 회차 환원 총액) | #25 리워드 |
+| `wallet_entries` | リワード残高 원장 (상금·환원 입금, 출금 — 수정·삭제 불가) | #25 리워드 |
+
 #### 뷰 (집계·화면용)
 
 | 뷰 | 설명 | 기능 |
 | --- | --- | --- |
 | `challenge_stats` | 챌린지별 응모자 수·관심 수·평균 점수·남은 일수 | F-402 |
 | `company_fee_summary` | 기업별 수수료·기부·운영 수익 요약 | 수익 모델 |
+| `company_prize_summary` | 기업별 상금 예치·송금·반환 합계 | #25 리워드 |
 | `feed_posts` | 피드에 보이는 글 (닉네임·레벨 또는 기업 정보만, 블라인드 제외) | F-503, F-504 |
 | `impact_totals` | 학생별 누적 포인트와 레벨 | F-401 |
 | `proposal_current` | 제출 건 + 가장 최신 버전 (심사 화면용) | F-302 |
 | `talent_directory` | 인재 검색에 보이는 학생 (비공개·정지 계정 제외) | F-601 |
+| `wallet_balances` | 학생별 リワード残高 (잔액 = 입금 − 출금) | #25 리워드 |
 <!-- erd:end -->
 
 ### DB 가 지키는 규칙

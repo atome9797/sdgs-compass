@@ -18,7 +18,7 @@ export const B2C_TABS: readonly NavItem[] = [
   { id: "home", path: ROUTES.home, icon: "🏠", labelKey: "nav.home", match: [ROUTES.home, ROUTES.challenge, ROUTES.submit] },
   { id: "feed", path: ROUTES.feed, icon: "💬", labelKey: "nav.feed", match: [ROUTES.feed, ROUTES.feedNew] },
   { id: "search", path: ROUTES.search, icon: "🔎", labelKey: "nav.search", match: [ROUTES.search] },
-  { id: "impact", path: ROUTES.impact, icon: "📊", labelKey: "nav.impact", match: [ROUTES.impact, ROUTES.impactSummary, ROUTES.certificate, ROUTES.share] },
+  { id: "impact", path: ROUTES.impact, icon: "📊", labelKey: "nav.impact", match: [ROUTES.impact, ROUTES.impactSummary, ROUTES.wallet, ROUTES.certificate, ROUTES.share] },
   { id: "messages", path: ROUTES.messages, icon: "✉️", labelKey: "nav.messages", match: [ROUTES.messages] },
   { id: "settings", path: ROUTES.settings, icon: "⚙️", labelKey: "nav.settings", match: [ROUTES.settings] },
 ];

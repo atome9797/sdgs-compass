@@ -1,14 +1,15 @@
-// SCR-04 마이 포트폴리오: 레벨·누적 지수 · 스카우트 수신 설정(따로 된 줄) · SDGs Impact 레이더 차트(17목표) · 강점 SDGs · 배지 · 참여 실적 · 증명서/카드뉴스 단추.
+// SCR-04 마이 포트폴리오: 레벨·누적 지수 · 스카우트 수신 설정(따로 된 줄) · リワード残高 카드(#25 데모) · SDGs Impact 레이더 차트(17목표) · 강점 SDGs · 배지 · 참여 실적 · 증명서/카드뉴스 단추.
 // 레이더는 SVG 없이 View 로 그려요(components/RadarChart). 값은 모두 core 의 selectImpact 에서 와요.
 import { useRouter } from "expo-router";
 import { useMemo } from "react";
 import { StyleSheet, View, useWindowDimensions } from "react-native";
 import { selectCertificates, selectImpact } from "@sdgs-compass/core/selectors";
+import { selectWallet } from "@sdgs-compass/core/walletView";
 import { ActivityRow } from "@/components/ActivityRow";
 import { RadarChart } from "@/components/RadarChart";
 import { Screen, ScreenTitle } from "@/components/Screen";
 import { SdgTile } from "@/components/SdgTile";
-import { Button, Card, Empty, Notice, ProgressBar, Section, Txt } from "@/components/ui";
+import { Badge, Button, Card, Empty, Notice, ProgressBar, Section, Txt } from "@/components/ui";
 import { useApp } from "@/lib/AppProvider";
 import { squareSizeFor } from "@/lib/geometry";
 import { certificateHref, ROUTES } from "@/lib/nav";
@@ -20,6 +21,7 @@ export function ImpactScreen() {
   const { width } = useWindowDimensions();
   const vm = useMemo(() => selectImpact(demo, locale), [demo, locale]);
   const certs = useMemo(() => selectCertificates(demo, locale), [demo, locale]);
+  const wallet = useMemo(() => selectWallet(demo, locale), [demo, locale]);
   const radarSize = squareSizeFor(width);
   const firstCert = certs[0];
 
@@ -67,6 +69,26 @@ export function ImpactScreen() {
           </View>
           <Button testID="impact-scout-settings" variant="ghost" small label={t("impact.scoutChange")} onPress={() => router.push(ROUTES.settings)} />
         </View>
+      </Card>
+
+      {/* #25 リワード残高(데모): 돈은 레벨과 따로 — 레벨은 바꿀 수 없다는 고지 ④ 를 카드에 함께 보여요 */}
+      <Card>
+        <View style={styles.rowBetween} testID="impact-wallet">
+          <View style={styles.walletTitle}>
+            <Txt bold>💴 {t("wallet.title")}</Txt>
+            <Badge label={t("wallet.demo")} tone="warning" />
+          </View>
+          <Txt variant="title" bold>
+            {wallet.balanceLabel}
+          </Txt>
+        </View>
+        <Txt variant="small" tone="muted">
+          {t("wallet.cardNote")}
+        </Txt>
+        <Txt variant="small" tone="muted">
+          {wallet.notices.level}
+        </Txt>
+        <Button testID="open-wallet" variant="secondary" small label={t("wallet.more")} onPress={() => router.push(ROUTES.wallet)} />
       </Card>
 
       <Section title={t("impact.radarTitle")} hint={t("impact.radarHint")}>
@@ -154,6 +176,7 @@ export function ImpactScreen() {
 const styles = StyleSheet.create({
   rowBetween: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: SPACE.sm },
   shrink: { flexShrink: 1 },
+  walletTitle: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: SPACE.xs + 2, flexShrink: 1 },
   scoutRow: { flexDirection: "row", alignItems: "center", gap: SPACE.sm, paddingTop: SPACE.md, borderTopWidth: 1, borderTopColor: COLORS.border },
   scoutText: { flex: 1, minWidth: 0 },
   center: { alignItems: "center" },

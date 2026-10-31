@@ -93,6 +93,10 @@ function ChallengeForm({ onCreated }: { onCreated: () => void }) {
         hint={formatYen(prize, locale)}
         error={errorText("prize_invalid")}
       />
+      {/* #25 상금은 운영사에 예치 → 수상자의 リワード残高로 송금 (자금이동업 등록 후, 데모) */}
+      <Txt variant="small" tone="muted" testID="new-prize-note">
+        💴 {t("prize.newNote")}
+      </Txt>
 
       <View style={styles.days}>
         <Stepper

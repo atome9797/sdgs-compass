@@ -1,11 +1,13 @@
 "use client";
 
 // 응모자·심사(F-303): 챌린지 선택 → 점수순 응모자 → 심사(3항목 1~5점 + 코멘트) → 시상 → 채택(매칭 성립: 수수료 ¥30,000 중 50% 기부)
+// #25 최우수상을 정하면 맡긴 상금이 수상자의 リワード残高로 송금돼요(데모) — 과제를 고르면 상금 상태를 안내해요
 import { useRouter, useSearchParams } from "next/navigation";
 import { useId, useMemo, useState } from "react";
 import type { AwardKind } from "@sdgs-compass/core/domain";
 import { awardLabel } from "@sdgs-compass/core/labels";
 import { selectApplicants, type ApplicantVM } from "@sdgs-compass/core/selectors";
+import { prizeNotice } from "@sdgs-compass/core/walletView";
 import { Banner, Button, ButtonLink, Empty, Field, ScreenHead, Tag } from "@/components/ui";
 import { applicantsHref, postNewHref } from "@/lib/routes";
 import { useSession } from "@/lib/session";
@@ -178,6 +180,8 @@ function ApplicantsView({ requestedId }: { requestedId: string | null }) {
   const { demo, locale, t } = useSession();
   const router = useRouter();
   const vm = useMemo(() => selectApplicants(demo, locale, requestedId), [demo, locale, requestedId]);
+  // #25 고른 과제의 상금: 예치 중이면 "최우수상을 정하면 송금", 보냈으면 "송금했어요" (데모)
+  const prize = useMemo(() => prizeNotice(demo, vm.selectedId, locale), [demo, vm.selectedId, locale]);
   return (
     <>
       <ScreenHead title={t("applicants.title")} />
@@ -204,6 +208,13 @@ function ApplicantsView({ requestedId }: { requestedId: string | null }) {
               <span>{vm.selected.dDay}</span>
               <span>{vm.selected.applicantsLabel}</span>
             </p>
+          ) : null}
+          {prize ? (
+            <div className="live" aria-live="polite">
+              <Banner tone={prize.status === "paid" ? "success" : "info"} icon="💴">
+                {prize.text}
+              </Banner>
+            </div>
           ) : null}
           {vm.applicants.length === 0 ? (
             <Empty>{t("applicants.empty")}</Empty>

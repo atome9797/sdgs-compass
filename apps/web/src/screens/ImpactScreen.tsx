@@ -1,12 +1,13 @@
 "use client";
 
-// SCR-04 마이 포트폴리오: 임팩트 레벨·진행률(포인트 숫자는 보이지 않아요) · 스카우트 수신 설정(따로 된 줄) · 17개 SDGs 레이더 차트 · 강점 SDGs · 배지 · 참여 실적
+// SCR-04 마이 포트폴리오: 임팩트 레벨·진행률(포인트 숫자는 보이지 않아요) · 스카우트 수신 설정(따로 된 줄) · リワード残高 카드(#25 데모) · 17개 SDGs 레이더 차트 · 강점 SDGs · 배지 · 참여 실적
 import Link from "next/link";
 import { useMemo } from "react";
 import { sdgLabel } from "@sdgs-compass/core/labels";
 import { selectImpact } from "@sdgs-compass/core/selectors";
+import { selectWallet } from "@sdgs-compass/core/walletView";
 import { RadarChart } from "@/components/RadarChart";
-import { ButtonLink, Empty, ScreenHead, Section } from "@/components/ui";
+import { ButtonLink, Empty, ScreenHead, Section, Tag } from "@/components/ui";
 import { buildHref, ROUTES } from "@/lib/routes";
 import { useSession } from "@/lib/session";
 import { ActivityItem } from "./HomeScreen";
@@ -14,6 +15,7 @@ import { ActivityItem } from "./HomeScreen";
 export function ImpactScreen() {
   const { demo, locale, t } = useSession();
   const vm = useMemo(() => selectImpact(demo, locale), [demo, locale]);
+  const wallet = useMemo(() => selectWallet(demo, locale), [demo, locale]);
   return (
     <div className="screen">
       <ScreenHead title={t("impact.title")} />
@@ -55,6 +57,21 @@ export function ImpactScreen() {
             {t("impact.scoutChange")}
           </Link>
         </div>
+      </section>
+
+      {/* #25 リワード残高(데모): 돈은 레벨과 따로 — 레벨은 바꿀 수 없다는 고지 ④ 를 카드에 함께 보여요 */}
+      <section className="card card--pad wallet-card" aria-label={t("wallet.title")}>
+        <div className="wallet-card__row">
+          <p className="strong">
+            <span aria-hidden="true">💴</span> {t("wallet.title")} <Tag tone="warning">{t("wallet.demo")}</Tag>
+          </p>
+          <span className="wallet-card__balance">{wallet.balanceLabel}</span>
+        </div>
+        <p className="small muted">{t("wallet.cardNote")}</p>
+        <p className="small muted">{wallet.notices.level}</p>
+        <Link className="link-more" href={buildHref(ROUTES.wallet)}>
+          {t("wallet.more")} →
+        </Link>
       </section>
 
       <Section title={t("impact.radarTitle")} hint={t("impact.radarHint")}>

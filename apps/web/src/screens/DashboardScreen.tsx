@@ -1,10 +1,11 @@
 "use client";
 
-// B2B 관리자(SCR-06) 대시보드: 환영 · KPI 5개 · 챌린지 관리 · 중개 수수료와 기부 내역(¥30,000 → 50% 기부)
+// B2B 관리자(SCR-06) 대시보드: 환영 · KPI 5개 · 챌린지 관리 · 상금 예치(#25 데모) · 중개 수수료와 기부 내역(¥30,000 → 50% 기부)
 import Link from "next/link";
 import { useMemo } from "react";
 import { coverColors } from "@sdgs-compass/core/theme";
 import { selectB2bDashboard, type ChallengeCardVM, type FeeVM } from "@sdgs-compass/core/selectors";
+import { selectPrizeDeposits, type PrizeDepositsVM } from "@sdgs-compass/core/walletView";
 import { Banner, ButtonLink, Empty, Section, Tag } from "@/components/ui";
 import { applicantsHref, buildHref, ROUTES } from "@/lib/routes";
 import { useSession } from "@/lib/session";
@@ -114,9 +115,68 @@ export function FeeSection({ fee }: { fee: FeeVM }) {
   );
 }
 
+/** #25 상금 예치(데모): 預け入れ中 · 送金済み · 返金 합계와 과제별 상태 */
+function PrizeSection({ prize }: { prize: PrizeDepositsVM }) {
+  const { t } = useSession();
+  return (
+    <Section title={t("prize.section")} hint={prize.note}>
+      <div className="card card--pad stack">
+        <dl className="prize-kpis">
+          <div className="fee-split__cell">
+            <dt className="fee-split__label">{t("prize.kpiDeposited")}</dt>
+            <dd className="fee-split__value">{prize.depositedLabel}</dd>
+          </div>
+          <div className="fee-split__cell">
+            <dt className="fee-split__label">{t("prize.kpiPaid")}</dt>
+            <dd className="fee-split__value">{prize.paidLabel}</dd>
+          </div>
+          <div className="fee-split__cell">
+            <dt className="fee-split__label">{t("prize.kpiRefunded")}</dt>
+            <dd className="fee-split__value">{prize.refundedLabel}</dd>
+          </div>
+        </dl>
+        {prize.rows.length > 0 ? (
+          <div className="table-wrap">
+            <table className="table table--stack">
+              <thead>
+                <tr>
+                  <th scope="col">{t("prize.col.challenge")}</th>
+                  <th scope="col" className="num">
+                    {t("prize.col.amount")}
+                  </th>
+                  <th scope="col">{t("prize.col.status")}</th>
+                  <th scope="col">{t("prize.col.date")}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {prize.rows.map((row) => (
+                  <tr key={row.challengeId}>
+                    <td data-label={t("prize.col.challenge")}>{row.title}</td>
+                    <td className="num" data-label={t("prize.col.amount")}>
+                      {row.amountLabel}
+                    </td>
+                    <td data-label={t("prize.col.status")}>
+                      <Tag tone={row.status === "paid" ? "success" : row.status === "deposited" ? "info" : undefined}>{row.statusLabel}</Tag>
+                    </td>
+                    <td className="nowrap" data-label={t("prize.col.date")}>
+                      {row.dateLabel}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : null}
+        <p className="small muted">{prize.refundNote}</p>
+      </div>
+    </Section>
+  );
+}
+
 export function DashboardScreen() {
   const { demo, locale, t } = useSession();
   const vm = useMemo(() => selectB2bDashboard(demo, locale), [demo, locale]);
+  const prize = useMemo(() => selectPrizeDeposits(demo, locale), [demo, locale]);
   return (
     <>
       <div className="row row--between">
@@ -151,6 +211,8 @@ export function DashboardScreen() {
           </ul>
         )}
       </Section>
+
+      <PrizeSection prize={prize} />
 
       <FeeSection fee={vm.fee} />
     </>

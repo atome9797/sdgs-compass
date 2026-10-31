@@ -13,6 +13,8 @@ export const ROUTES = {
   certificate: "/certificate",
   /** 학생용 신청 요약(#22): 기간을 골라 활동·증명서를 A4 한 장으로 (인쇄·PDF) */
   impactSummary: "/impact/summary",
+  /** #25 リワード残高(데모): 잔액·내역·본인 확인·출금 신청 */
+  wallet: "/wallet",
   share: "/share",
   messages: "/messages",
   /** SNS 피드(F-503·F-504): 학생용 목록과 자랑 글 쓰기 */
@@ -119,7 +121,7 @@ export function parseSdgParam(raw: string | null | undefined): SdgId[] {
 
 export type Area = "b2c" | "b2b" | "admin" | "neutral";
 
-const B2C_PATHS: readonly string[] = [ROUTES.home, ROUTES.search, ROUTES.challenge, ROUTES.submit, ROUTES.impact, ROUTES.impactSummary, ROUTES.certificate, ROUTES.share, ROUTES.messages, ROUTES.feed, ROUTES.feedNew, ROUTES.settings];
+const B2C_PATHS: readonly string[] = [ROUTES.home, ROUTES.search, ROUTES.challenge, ROUTES.submit, ROUTES.impact, ROUTES.impactSummary, ROUTES.wallet, ROUTES.certificate, ROUTES.share, ROUTES.messages, ROUTES.feed, ROUTES.feedNew, ROUTES.settings];
 
 /** 운영자 화면의 주소들. /admin/* 전체가 아니라 실제로 있는 화면만 — 없는 주소(/admin/nope/)가 게이트를 비껴가지 않게 정확히 같을 때만 운영자 화면이에요 */
 export const ADMIN_PATHS: readonly string[] = [ROUTES.admin, ROUTES.adminSns, ROUTES.adminFinance];

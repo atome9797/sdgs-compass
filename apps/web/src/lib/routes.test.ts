@@ -25,6 +25,18 @@ describe("신청 요약 (#22)", () => {
   });
 });
 
+describe("リワード残高 (#25)", () => {
+  it("학생 화면 /wallet/: 기업은 기업 홈으로 돌려보내고, 하단 탭은 Impact 가 켜져요", () => {
+    expect(ROUTES.wallet).toBe("/wallet");
+    expect(buildHref(ROUTES.wallet)).toBe("/wallet/");
+    expect(areaOf("/wallet/")).toBe("b2c");
+    expect(guardRedirect("/wallet/", "b2c")).toBeNull();
+    expect(guardRedirect("/wallet/", "b2b")).toBe("/b2b/");
+    expect(guardRedirect("/sdgs-compass/wallet/", "b2b", "/sdgs-compass")).toBe("/b2b/");
+    expect(activeTabId(B2C_TABS, "/wallet/")).toBe("impact");
+  });
+});
+
 describe("buildHref", () => {
   it("항상 슬래시로 끝나는 앱 안 주소를 만들어요", () => {
     expect(buildHref(ROUTES.root)).toBe("/");

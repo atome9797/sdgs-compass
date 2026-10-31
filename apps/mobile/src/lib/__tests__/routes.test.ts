@@ -86,3 +86,10 @@ test("신청 요약(#22)은 학생 화면이에요: 기업 계정이면 기업 �
   expect(redirectForPath("b2c", `${ROUTES.summary}?period=half`)).toBeNull();
   expect(redirectForPath("b2b", ROUTES.summary)).toBe("/b2b");
 });
+
+test("リワード残高(#25)은 학생 화면이에요: 기업 계정이면 기업 첫 화면으로", () => {
+  expect(ROUTES.wallet).toBe("/wallet");
+  expect(areaOfPath(ROUTES.wallet)).toBe("b2c");
+  expect(redirectForPath("b2c", ROUTES.wallet)).toBeNull();
+  expect(redirectForPath("b2b", ROUTES.wallet)).toBe("/b2b");
+});

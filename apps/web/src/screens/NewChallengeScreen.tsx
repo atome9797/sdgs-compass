@@ -57,7 +57,7 @@ function NewChallengeForm({ onCreated }: { onCreated: () => void }) {
       </div>
       <div className="row" style={{ alignItems: "flex-start" }}>
         <div className="grow" style={{ minWidth: 200 }}>
-          <Field label={t("new.prize")} error={errorText("prize_invalid")}>
+          <Field label={t("new.prize")} hint={t("prize.newNote")} error={errorText("prize_invalid")}>
             {(props) => <input {...props} className="input" type="number" inputMode="numeric" min={0} step={10000} value={prize} onChange={(event) => setPrize(event.target.value)} />}
           </Field>
         </div>

@@ -30,6 +30,7 @@ function Routes() {
           <Stack.Screen name="certificate/[id]" />
           <Stack.Screen name="share" />
           <Stack.Screen name="impact-summary" />
+          <Stack.Screen name="wallet" />
           <Stack.Screen name="feed/new" />
         </Stack.Protected>
         <Stack.Protected guard={gate === "b2b"}>

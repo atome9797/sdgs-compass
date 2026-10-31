@@ -1,13 +1,14 @@
-// SCR-06 기업 대시보드: 환영 · KPI 5개 · 챌린지 관리 · 중개 수수료와 기부 내역(1건 ¥30,000 → 50% 기부).
+// SCR-06 기업 대시보드: 환영 · KPI 5개 · 챌린지 관리 · 상금 예치(#25 데모) · 중개 수수료와 기부 내역(1건 ¥30,000 → 50% 기부).
 // 숫자는 모두 core 의 selectB2bDashboard 에서 와요. 챌린지 카드의 "응모자 보기"는 그 챌린지를 고른 채로 응모자 탭을 열어요.
 import { useRouter } from "expo-router";
 import { useMemo } from "react";
 import { StyleSheet, View } from "react-native";
 import { selectB2bDashboard, type FeeVM, type KpiVM } from "@sdgs-compass/core/selectors";
+import { selectPrizeDeposits, type PrizeDepositsVM } from "@sdgs-compass/core/walletView";
 import { ChallengeCard } from "@/components/ChallengeCard";
 import { CompanyAvatar } from "@/components/CompanyAvatar";
 import { Screen } from "@/components/Screen";
-import { Button, Card, Divider, Empty, KeyValue, Notice, Section, Txt } from "@/components/ui";
+import { Badge, Button, Card, Divider, Empty, KeyValue, Notice, Section, Txt } from "@/components/ui";
 import { useApp } from "@/lib/AppProvider";
 import { applicantsHref, ROUTES } from "@/lib/nav";
 import { COLORS, RADIUS, SPACE } from "@/theme";
@@ -87,10 +88,47 @@ export function FeeSection({ fee }: { fee: FeeVM }) {
   );
 }
 
+/** #25 상금 예치(데모): 預け入れ中 · 送金済み · 返金 합계와 과제별 상태 */
+function PrizeSection({ prize }: { prize: PrizeDepositsVM }) {
+  const { t } = useApp();
+  return (
+    <Section title={t("prize.section")} hint={prize.note}>
+      <Card>
+        <View style={styles.feeSplit} testID="prize-totals">
+          <FeeCell label={t("prize.kpiDeposited")} value={prize.depositedLabel} />
+          <FeeCell label={t("prize.kpiPaid")} value={prize.paidLabel} />
+          <FeeCell label={t("prize.kpiRefunded")} value={prize.refundedLabel} />
+        </View>
+        {prize.rows.map((row) => (
+          <View key={row.challengeId} accessible accessibilityLabel={`${row.title}, ${row.amountLabel}, ${row.statusLabel}, ${row.dateLabel}`} style={styles.feeRow}>
+            <Divider />
+            <Txt bold numberOfLines={2}>
+              {row.title}
+            </Txt>
+            <View style={styles.prizeMeta}>
+              <Badge label={row.statusLabel} tone={row.status === "paid" ? "success" : row.status === "deposited" ? "primary" : "neutral"} />
+              <Txt variant="small" tone="muted">
+                {row.dateLabel}
+              </Txt>
+              <Txt bold style={styles.prizeAmount}>
+                {row.amountLabel}
+              </Txt>
+            </View>
+          </View>
+        ))}
+        <Txt variant="small" tone="muted">
+          {prize.refundNote}
+        </Txt>
+      </Card>
+    </Section>
+  );
+}
+
 export function DashboardScreen() {
   const { demo, locale, t } = useApp();
   const router = useRouter();
   const vm = useMemo(() => selectB2bDashboard(demo, locale), [demo, locale]);
+  const prize = useMemo(() => selectPrizeDeposits(demo, locale), [demo, locale]);
 
   return (
     <Screen tabbed testID="screen-dashboard">
@@ -125,6 +163,8 @@ export function DashboardScreen() {
         )}
       </Section>
 
+      <PrizeSection prize={prize} />
+
       <FeeSection fee={vm.fee} />
     </Screen>
   );
@@ -149,4 +189,6 @@ const styles = StyleSheet.create({
   feeCell: { flex: 1, gap: 2, padding: SPACE.sm, borderRadius: RADIUS.md, backgroundColor: COLORS.bg },
   feeCellDonation: { borderWidth: 1, borderColor: COLORS.donation },
   feeRow: { gap: SPACE.xs + 2 },
+  prizeMeta: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: SPACE.xs + 2 },
+  prizeAmount: { marginLeft: "auto" },
 });

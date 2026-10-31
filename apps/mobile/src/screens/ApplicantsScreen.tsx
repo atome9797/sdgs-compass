@@ -7,6 +7,7 @@ import { Linking, StyleSheet, View } from "react-native";
 import type { AwardKind, ProposalStatus } from "@sdgs-compass/core/domain";
 import { awardLabel } from "@sdgs-compass/core/labels";
 import { selectApplicants, type ApplicantVM } from "@sdgs-compass/core/selectors";
+import { prizeNotice } from "@sdgs-compass/core/walletView";
 import { OptionRow } from "@/components/OptionRow";
 import { Screen, ScreenTitle } from "@/components/Screen";
 import { Badge, Button, Card, Empty, Field, KeyValue, Notice, Section, Segmented, Stepper, Txt, type BadgeTone } from "@/components/ui";
@@ -177,6 +178,8 @@ export function ApplicantsScreen() {
     if (requestedId !== "") setPicked(requestedId);
   }
   const vm = useMemo(() => selectApplicants(demo, locale, picked), [demo, locale, picked]);
+  // #25 고른 과제의 상금: 예치 중이면 "최우수상을 정하면 송금", 보냈으면 "송금했어요" (데모)
+  const prize = useMemo(() => prizeNotice(demo, vm.selectedId, locale), [demo, vm.selectedId, locale]);
 
   return (
     <Screen tabbed testID="screen-applicants">
@@ -208,6 +211,8 @@ export function ApplicantsScreen() {
               <Badge label={vm.selected.applicantsLabel} />
             </View>
           ) : null}
+
+          {prize ? <Notice testID="applicants-prize" tone={prize.status === "paid" ? "success" : "info"} message={`💴 ${prize.text}`} /> : null}
 
           {vm.applicants.length === 0 ? (
             <Empty testID="no-applicants">{t("applicants.empty")}</Empty>

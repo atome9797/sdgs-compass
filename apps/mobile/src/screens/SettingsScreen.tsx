@@ -102,6 +102,9 @@ export function SettingsScreen() {
         <Txt variant="small" tone="muted" testID="settings-disclaimer">
           {pick(CERT_DISCLAIMER, locale)}
         </Txt>
+        <Txt variant="small" tone="muted" testID="settings-un-notice">
+          {t("app.unNotice")}
+        </Txt>
       </Section>
     </Screen>
   );

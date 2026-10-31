@@ -45,7 +45,7 @@ export const admin = {
   "admin.usage.kpi.title": { ja: "いまの数字", ko: "현재 숫자" },
   "admin.usage.kpi.students": { ja: "学生（デモ）", ko: "학생(데모)" },
   "admin.usage.kpi.companies": { ja: "企業", ko: "기업" },
-  "admin.usage.kpi.challenges": { ja: "チャレンジ", ko: "챌린지" },
+  "admin.usage.kpi.challenges": { ja: "課題", ko: "챌린지" },
   "admin.usage.kpi.applicants": { ja: "応募者（合計）", ko: "응모자(합계)" },
   "admin.usage.kpi.proposals": { ja: "企画書の提出", ko: "기획서 제출" },
   "admin.usage.kpi.awards": { ja: "受賞", ko: "수상" },
@@ -56,7 +56,7 @@ export const admin = {
   "admin.usage.kpi.likes": { ja: "いいね（合計）", ko: "좋아요(합계)" },
   "admin.usage.kpi.official": { ja: "公式SNS掲載の申請", ko: "공식 SNS 게시 신청" },
   "admin.usage.sub.students": { ja: "うちスカウト可 {n}名", ko: "그중 스카우트 가능 {n}명" },
-  "admin.usage.sub.companies": { ja: "うち認証済み {n}社", ko: "그중 인증 완료 {n}곳" },
+  "admin.usage.sub.companies": { ja: "うち確認済み {n}社", ko: "그중 확인 완료 {n}곳" },
   "admin.usage.sub.challenges": { ja: "募集中 {open}・審査中 {judging}・締切 {closed}", ko: "모집 중 {open}·심사 중 {judging}·마감 {closed}" },
   "admin.usage.sub.proposals": { ja: "審査済み {reviewed}・採用 {adopted}", ko: "심사 완료 {reviewed}·채택 {adopted}" },
   "admin.usage.sub.certificates": { ja: "デモ学生の分", ko: "데모 학생 기준" },
@@ -67,7 +67,7 @@ export const admin = {
 
   "admin.usage.insight.title": { ja: "ひとこと読み取り", ko: "한 줄 읽기" },
   "admin.usage.insight.topSdg": { ja: "応募者がいちばん多いSDGsは「{name}」で、{n}名です。", ko: "응모자가 가장 많은 SDGs는 “{name}”이고, {n}명이에요." },
-  "admin.usage.insight.challenges": { ja: "募集中のチャレンジは{open}件で、応募者は合計{applicants}名です。", ko: "모집 중인 챌린지는 {open}건이고, 응모자는 합계 {applicants}명이에요." },
+  "admin.usage.insight.challenges": { ja: "募集中の課題は{open}件で、応募者は合計{applicants}名です。", ko: "모집 중인 챌린지는 {open}건이고, 응모자는 합계 {applicants}명이에요." },
   "admin.usage.insight.feed": {
     ja: "フィードには{posts}件の投稿があり（学生の実績{brag}件・企業PR{pr}件）、いいねは合計{likes}です。",
     ko: "피드에는 글이 {posts}건 있고(학생 자랑 {brag}건·기업 홍보 {pr}건), 좋아요는 합계 {likes}개예요.",
@@ -94,21 +94,21 @@ export const admin = {
 
   "admin.usage.sdg.title": { ja: "応募者が多いSDGs", ko: "응모자가 많은 SDGs" },
   "admin.usage.sdg.hint": {
-    ja: "チャレンジに付いたSDGsごとに応募者を合計しています（複数のSDGsが付いたチャレンジは、それぞれに数えます）。",
+    ja: "課題に付いたSDGsごとに応募者を合計しています（複数のSDGsが付いた課題は、それぞれに数えます）。",
     ko: "챌린지에 붙은 SDGs별로 응모자를 합했어요(SDGs가 여러 개 붙은 챌린지는 각각에 세요).",
   },
   "admin.usage.sdg.summary": { ja: "応募者が多いSDGsの順位。1位は「{name}」で{n}名です。", ko: "응모자가 많은 SDGs 순위. 1위는 “{name}”이고 {n}명이에요." },
   "admin.usage.sdg.applicants": { ja: "応募者", ko: "응모자" },
-  "admin.usage.sdg.challenges": { ja: "チャレンジ数", ko: "챌린지 수" },
+  "admin.usage.sdg.challenges": { ja: "課題数", ko: "챌린지 수" },
   "admin.usage.sdg.interests": { ja: "関心のある学生", ko: "관심 있는 학생" },
-  "admin.usage.sdg.empty": { ja: "応募者のいるチャレンジがまだありません", ko: "응모자가 있는 챌린지가 아직 없어요" },
+  "admin.usage.sdg.empty": { ja: "応募者のいる課題がまだありません", ko: "응모자가 있는 챌린지가 아직 없어요" },
 
   "admin.usage.status.title": { ja: "企画書の状態", ko: "기획서 상태" },
   "admin.usage.status.summary": { ja: "企画書の状態の内訳。提出{submitted}・審査済み{reviewed}・受賞{awarded}・採用{adopted}。", ko: "기획서 상태 내역. 제출 {submitted}·심사 완료 {reviewed}·수상 {awarded}·채택 {adopted}." },
   "admin.usage.status.empty": { ja: "提出された企画書がまだありません", ko: "제출된 기획서가 아직 없어요" },
 
-  "admin.usage.table.title": { ja: "チャレンジ別の状況", ko: "챌린지별 현황" },
-  "admin.usage.col.challenge": { ja: "チャレンジ", ko: "챌린지" },
+  "admin.usage.table.title": { ja: "課題別の状況", ko: "챌린지별 현황" },
+  "admin.usage.col.challenge": { ja: "課題", ko: "챌린지" },
   "admin.usage.col.company": { ja: "企業", ko: "기업" },
   "admin.usage.col.status": { ja: "状態", ko: "상태" },
   "admin.usage.col.applicants": { ja: "応募者", ko: "응모자" },

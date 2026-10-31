@@ -42,7 +42,12 @@ export function B2bShell({ children }: { children: ReactNode }) {
           <Brand />
         </div>
         <SideNav items={B2B_TABS} />
-        <p className="sidebar__foot">{t("app.demoNote")}</p>
+        {/* 시제품 안내와 "UN 승인 아님" 고지(#19)를 사이드바 맨 아래에 작게 항상 보여요 */}
+        <p className="sidebar__foot">
+          {t("app.demoNote")}
+          <br />
+          {t("app.unNotice")}
+        </p>
       </aside>
       <div className="b2b-main">
         <TopBar />

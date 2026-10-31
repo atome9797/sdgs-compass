@@ -69,6 +69,11 @@ function LanguageGate() {
           <span lang="ja">{LANGUAGE_PICKER.note.ja}</span>
           <span lang="ko">{LANGUAGE_PICKER.note.ko}</span>
         </p>
+        {/* "UN 승인 아님" 고지(#19) — 언어를 고르기 전이라 두 언어로 */}
+        <p className="gate__note">
+          <span lang="ja">{translate("app.unNotice", "ja")}</span>
+          <span lang="ko">{translate("app.unNotice", "ko")}</span>
+        </p>
       </div>
     </main>
   );
@@ -109,6 +114,7 @@ function RoleGate({ locale }: { locale: Locale }) {
         </div>
         <LangToggle />
         <p className="gate__note">{t("app.demoNote")}</p>
+        <p className="gate__note">{t("app.unNotice")}</p>
         {/* 운영자 화면 입구는 여기 한 곳뿐이에요 (학생·기업 화면의 탭·사이드바·설정에는 두지 않아요) */}
         <Link href={buildHref(ROUTES.admin)} className="link-more">
           {t("admin.entry")}

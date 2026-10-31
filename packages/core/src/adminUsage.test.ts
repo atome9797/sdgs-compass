@@ -227,7 +227,7 @@ describe("이용 현황: 한 번에 · 한 줄 읽기", () => {
     const lines = usageInsights(summarizeUsage(makeUsageState()), "ja");
     expect(lines).toEqual([
       "応募者がいちばん多いSDGsは「海の豊かさを守ろう」で、15名です。",
-      "募集中のチャレンジは2件で、応募者は合計25名です。",
+      "募集中の課題は2件で、応募者は合計25名です。",
       "フィードには4件の投稿があり（学生の実績2件・企業PR2件）、いいねは合計20です。",
       "マッチングは2件で、手数料¥60,000のうち¥30,000を寄付に充てています。",
       "スカウト3件のうち、承諾は1件、既読は1件です。",
@@ -262,6 +262,6 @@ describe("이용 현황: 한 번에 · 한 줄 읽기", () => {
   it("값이 0 인 항목은 말하지 않아요 (지어내지 않기)", () => {
     const empty = makeUsageState({ challenges: [], proposals: [], history: [], scouts: [], matches: [], teamPosts: [], posts: [] });
     const lines = usageInsights(summarizeUsage(empty), "ja");
-    expect(lines).toEqual(["募集中のチャレンジは0件で、応募者は合計0名です。"]);
+    expect(lines).toEqual(["募集中の課題は0件で、応募者は合計0名です。"]);
   });
 });

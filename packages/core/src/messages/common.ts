@@ -7,6 +7,8 @@ export const common = {
   "app.tagline": { ja: "企業と学生をつなぐSDGs特化型マッチング", ko: "기업과 학생을 잇는 SDGs 특화 매칭" },
   "app.demoBadge": { ja: "デモ版", ko: "데모 버전" },
   "app.demoNote": { ja: "サンプルデータで動作する試作版です", ko: "샘플 데이터로 동작하는 시제품입니다" },
+  // 앱 전체 고지(#19): 웹 사이드바 아래·첫 화면·설정, 모바일 설정에 작게 항상 보여요
+  "app.unNotice": { ja: "本アプリは国連の承認を受けたものではありません。", ko: "이 앱은 유엔의 승인을 받은 것이 아니에요." },
 
   "common.back": { ja: "戻る", ko: "뒤로" },
   "common.close": { ja: "閉じる", ko: "닫기" },
@@ -34,13 +36,13 @@ export const common = {
   "nav.dashboard": { ja: "ダッシュボード", ko: "대시보드" },
   "nav.applicants": { ja: "応募者", ko: "응모자" },
   "nav.talent": { ja: "人材", ko: "인재" },
-  "nav.esg": { ja: "ESG・認証", ko: "ESG·인증" },
+  "nav.esg": { ja: "ESG・マーク", ko: "ESG·마크" },
   "nav.settings": { ja: "設定", ko: "설정" },
 
   "role.title": { ja: "利用タイプを選んでください", ko: "이용 유형을 선택하세요" },
   "role.subtitle": { ja: "デモ用のアカウントで始めます。あとから設定で切り替えられます。", ko: "데모용 계정으로 시작해요. 나중에 설정에서 바꿀 수 있어요." },
   "role.b2c": { ja: "学生・個人", ko: "학생·개인" },
-  "role.b2cDesc": { ja: "チャレンジに参加して、実績とキャリアをつくる", ko: "챌린지에 참여해 실적과 커리어를 만들어요" },
+  "role.b2cDesc": { ja: "課題に挑戦して、実績とキャリアをつくる", ko: "챌린지에 참여해 실적과 커리어를 만들어요" },
   "role.b2b": { ja: "企業・団体", ko: "기업·단체" },
   "role.b2bDesc": { ja: "SDGs課題を出題して、若い発想と人材に出会う", ko: "SDGs 과제를 출제하고 젊은 아이디어와 인재를 만나요" },
   "role.persona": { ja: "デモ用アカウント：{name}", ko: "데모 계정: {name}" },
@@ -84,11 +86,11 @@ export const common = {
   "level.5": { ja: "レジェンド", ko: "레전드" },
 
   "badge.firstStep.name": { ja: "はじめの一歩", ko: "첫걸음" },
-  "badge.firstStep.desc": { ja: "最初のチャレンジに参加した", ko: "첫 챌린지에 참여했어요" },
+  "badge.firstStep.desc": { ja: "最初の課題に応募した", ko: "첫 챌린지에 참여했어요" },
   "badge.challenger.name": { ja: "チャレンジキング", ko: "챌린지 킹" },
   "badge.challenger.desc": { ja: "企画書を3件以上提出した", ko: "기획서를 3건 이상 제출했어요" },
   "badge.winner.name": { ja: "受賞者", ko: "수상자" },
-  "badge.winner.desc": { ja: "チャレンジで受賞した", ko: "챌린지에서 수상했어요" },
+  "badge.winner.desc": { ja: "課題で受賞した", ko: "챌린지에서 수상했어요" },
   "badge.multiSdg.name": { ja: "SDGsマルチ", ko: "SDGs 멀티" },
   "badge.multiSdg.desc": { ja: "5つ以上の目標に挑戦した", ko: "5개 이상의 목표에 도전했어요" },
   "badge.ocean.name": { ja: "海の守り人", ko: "바다 지킴이" },

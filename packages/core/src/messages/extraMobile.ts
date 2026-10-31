@@ -56,7 +56,7 @@ export const extraMobile = {
   "mobile.esgFlagOn": { ja: "公開している", ko: "공개하고 있어요" },
   "mobile.esgFlagOff": { ja: "公開していない", ko: "공개하지 않아요" },
   "mobile.esgCategories": { ja: "領域別の達成度", ko: "영역별 달성도" },
-  "mobile.esgCriteria": { ja: "認証の設問", ko: "인증 문항" },
+  "mobile.esgCriteria": { ja: "マークの設問", ko: "마크 문항" },
   "mobile.esgReportHint": {
     ja: "「レポートを生成」を押すと、現在の入力内容でレポートが表示されます。",
     ko: "\"리포트 생성\"을 누르면 지금 입력한 내용으로 리포트가 표시돼요.",

@@ -100,8 +100,15 @@ describe("SDGs 인증마크 심사", () => {
     expect(clampCertValue("donation", 5_000_000)).toBe(5_000_000);
   });
 
-  it("면책 문구는 두 언어 모두 'UN 공식 인증이 아님'을 밝혀요", () => {
-    expect(CERT_DISCLAIMER.ja).toContain("国連の公式認証を代理・保証するものではありません");
-    expect(CERT_DISCLAIMER.ko).toContain("유엔의 공식 인증");
+  it("면책 문구는 두 언어 모두 '독자 기준이고 국가·자치체·UN 의 인증이 아님'을 밝혀요 (#19)", () => {
+    expect(CERT_DISCLAIMER.ja).toContain("独自の目安");
+    expect(CERT_DISCLAIMER.ja).toContain("国・自治体・国連の認証ではありません");
+    expect(CERT_DISCLAIMER.ko).toContain("자체 기준");
+    expect(CERT_DISCLAIMER.ko).toContain("국가·지자체·유엔의 인증이 아니에요");
+    // 화면 표기는 「取組みマーク」「실천 마크」 — 옛 이름 「認証マーク」「인증마크」로 돌아가지 않게
+    expect(CERT_DISCLAIMER.ja).toContain("取組みマーク");
+    expect(CERT_DISCLAIMER.ja).not.toContain("認証マーク");
+    expect(CERT_DISCLAIMER.ko).toContain("실천 마크");
+    expect(CERT_DISCLAIMER.ko).not.toContain("인증마크");
   });
 });

@@ -12,7 +12,7 @@ export const extraWeb = {
   "web.role.switchTo": { ja: "{role}の画面に切り替える", ko: "{role} 화면으로 전환" },
 
   // 챌린지 상세
-  "web.challenge.detail": { ja: "チャレンジ詳細", ko: "챌린지 상세" },
+  "web.challenge.detail": { ja: "課題の詳細", ko: "챌린지 상세" },
 
   // 기획서 제출·응모자 화면
   "web.submit.step": { ja: "{total}ステップ中 {current}ステップ目", ko: "{total}단계 중 {current}단계" },
@@ -41,7 +41,7 @@ export const extraWeb = {
   "web.esg.flagOn": { ja: "公開している", ko: "공개하고 있어요" },
   "web.esg.flagOff": { ja: "公開していない", ko: "공개하지 않아요" },
   "web.esg.categories": { ja: "領域別の達成度", ko: "영역별 달성도" },
-  "web.esg.criteria": { ja: "認証の設問", ko: "인증 문항" },
+  "web.esg.criteria": { ja: "マークの設問", ko: "마크 문항" },
   "web.esg.print": { ja: "PDFで保存・印刷", ko: "PDF로 저장·인쇄" },
   "web.esg.reportHint": { ja: "「レポートを生成」を押すと、現在の入力内容でレポートが表示されます。", ko: "\"리포트 생성\"을 누르면 지금 입력한 내용으로 리포트가 표시돼요." },
 } as const satisfies Record<string, LocalizedText>;

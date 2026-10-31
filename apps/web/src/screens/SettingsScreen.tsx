@@ -92,6 +92,7 @@ export function SettingsScreen() {
 
       <Section title={t("settings.disclaimerTitle")}>
         <p className="disclaimer">{pick(CERT_DISCLAIMER, locale)}</p>
+        <p className="disclaimer">{t("app.unNotice")}</p>
       </Section>
     </div>
   );

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { COLORS, coverColors, PHONE_WIDTH, RADIUS, SPACE } from "./theme";
+import { CHART_COLORS, COLORS, coverColors, ESG_COLORS, PHONE_WIDTH, RADIUS, SPACE, tint } from "./theme";
 import { pointsAttr, radarPolygon, radarRing, radarVertex, segmentsOf } from "./radar";
 
 function luminance(hex: string): number {
@@ -38,11 +38,37 @@ describe("디자인 토큰", () => {
     expect(PHONE_WIDTH).toBe(430);
   });
 
-  it("표지 색: hue 하나로 두 색이 나오고 범위를 벗어나도 안전해요", () => {
-    expect(coverColors(200)).toEqual({ from: "hsl(200, 72%, 52%)", to: "hsl(232, 68%, 38%)" });
-    expect(coverColors(345).to).toBe("hsl(17, 68%, 38%)");
-    expect(coverColors(-10).from).toBe("hsl(350, 72%, 52%)");
-    expect(coverColors(725).from).toBe("hsl(5, 72%, 52%)");
+  it("표지 색: hue 하나로 두 색이 나오고 범위를 벗어나도 안전해요 (채도는 차분하게 30% 안팎)", () => {
+    expect(coverColors(200)).toEqual({ from: "hsl(200, 30%, 47%)", to: "hsl(224, 28%, 33%)" });
+    expect(coverColors(345).to).toBe("hsl(9, 28%, 33%)");
+    expect(coverColors(-10).from).toBe("hsl(350, 30%, 47%)");
+    expect(coverColors(725).from).toBe("hsl(5, 30%, 47%)");
+  });
+
+  it("tint: 흰색과 섞은 옅은 색(#RRGGBB)을 만들고, 이상한 값에도 안전해요", () => {
+    expect(tint("#2F5E50", 1)).toBe("#2F5E50");
+    expect(tint("#2F5E50", 0)).toBe("#FFFFFF");
+    expect(tint("#000000", 0.5)).toBe("#808080");
+    expect(tint("#0a97d9", 0.16)).toBe("#D8EEF9");
+    expect(tint("#2F5E50", 2)).toBe("#2F5E50");
+    expect(tint("#2F5E50", -1)).toBe("#FFFFFF");
+    expect(tint("#2F5E50", Number.NaN)).toBe("#FFFFFF");
+    expect(tint("hsl(200, 30%, 47%)", 0.5)).toBe("hsl(200, 30%, 47%)");
+    // SDG 타일 바탕(16%) 위의 본문 글자는 어느 목표 색이든 4.5:1 이상
+    for (const hex of ["#FCC30B", "#E5243B", "#19486A", "#56C02B"]) expect(contrast(COLORS.text, tint(hex, 0.16))).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it("그래프 색: 차분한 4색이 서로 다르고, ESG 막대는 그중에서 골라 흰 카드와 3:1 이상이에요", () => {
+    expect(CHART_COLORS).toHaveLength(4);
+    for (const hex of CHART_COLORS) expect(hex).toMatch(/^#[0-9A-F]{6}$/);
+    expect(new Set(CHART_COLORS).size).toBe(4);
+    expect(Object.keys(ESG_COLORS)).toEqual(["E", "S", "G"]);
+    for (const hex of Object.values(ESG_COLORS)) {
+      expect(CHART_COLORS).toContain(hex);
+      expect(contrast(hex, COLORS.card)).toBeGreaterThanOrEqual(3);
+    }
+    // 메인 색(초록)과 사회(S) 막대가 헷갈리지 않게 — 예전엔 S 가 메인 색이었어요
+    expect(ESG_COLORS.S).not.toBe(COLORS.primary);
   });
 });
 

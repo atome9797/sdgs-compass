@@ -3,7 +3,7 @@
 // B2B 관리자(SCR-06) 대시보드: 환영 · KPI 5개 · 챌린지 관리 · 상금 예치(#25 데모) · 중개 수수료와 기부 내역(¥30,000 → 50% 기부)
 import Link from "next/link";
 import { useMemo } from "react";
-import { coverColors } from "@sdgs-compass/core/theme";
+import { coverColors, tint } from "@sdgs-compass/core/theme";
 import { selectB2bDashboard, type ChallengeCardVM, type FeeVM } from "@sdgs-compass/core/selectors";
 import { selectPrizeDeposits, type PrizeDepositsVM } from "@sdgs-compass/core/walletView";
 import { Banner, ButtonLink, Empty, Section, Tag } from "@/components/ui";
@@ -181,7 +181,7 @@ export function DashboardScreen() {
     <>
       <div className="row row--between">
         <div className="welcome">
-          <span className="welcome__logo" style={{ background: vm.companyAccent }} aria-hidden="true">
+          <span className="welcome__logo" style={{ background: tint(vm.companyAccent, 0.18), borderColor: tint(vm.companyAccent, 0.5) }} aria-hidden="true">
             {vm.companyEmoji}
           </span>
           <h1 className="welcome__title">{vm.welcome}</h1>

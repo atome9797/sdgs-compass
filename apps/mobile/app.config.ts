@@ -6,8 +6,8 @@ import type { ExpoConfig } from "expo/config";
 
 const BUNDLE_ID = "com.sdgscompass.app";
 /** 디자인 토큰 COLORS.primary / COLORS.bg 와 같은 값 (설정 파일은 앱 코드를 불러오지 않아서 글자로 적어요) */
-const PRIMARY = "#1D6FB8";
-const BACKGROUND = "#F3F6FA";
+const PRIMARY = "#2F5E50";
+const BACKGROUND = "#F4F6F4";
 
 const config: ExpoConfig = {
   name: "SDGsコンパス",

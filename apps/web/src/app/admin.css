@@ -1,21 +1,22 @@
 /* 운영자 화면(/admin/*) 전용 스타일. 학생·기업 화면과 이름이 섞이지 않게 클래스는 모두 adm- 로 시작해요.
    공통 토큰(--primary, --card, --border, --text …)은 globals.css 의 것을 그대로 써요. 이 파일은 app/admin/layout.tsx 에서만 불러와요.
-   그래프 색(dataviz 검증): 구분이 필요한 계열은 --adm-c1~c4 를 이 순서대로, 순서가 있는 항목은 파란 단계색 --adm-o1~o4 를 써요.
-   색만으로 알리지 않도록 범례 · 끝 값 · 표(표로 보기)를 항상 함께 둬요. */
+   그래프 색(dataviz 검증): 구분이 필요한 계열은 --adm-c1~c4 를 이 순서대로(core theme.ts 의 CHART_COLORS 와 같은 값 — 채도를 낮춘 파랑·적갈·청록·황토,
+   색맹 시뮬레이션에서 이웃끼리 ΔE 8 이상), 순서가 있는 항목은 소나무 초록 단계색 --adm-o1~o4(가장 옅은 칸도 흰 바탕과 2:1 이상)를 써요.
+   색만으로 알리지 않도록 범례 · 끝 값 · 표(표로 보기)를 항상 함께 둬요(황토 --adm-c4 는 흰 바탕과 3:1 미만이라 특히). */
 .adm {
-  --adm-c1: #2a78d6;
-  --adm-c2: #eb6834;
-  --adm-c3: #1baf7a;
-  --adm-c4: #eda100;
-  --adm-o1: #9cc2ee;
-  --adm-o2: #6aa3e4;
-  --adm-o3: #2a78d6;
-  --adm-o4: #1b4f9b;
-  --adm-grid: #e4e9f0;
-  --adm-axis: #b6c1cf;
-  --adm-zero: #6b7788;
-  --adm-wash: #eef3f9;
-  --adm-muted-bar: #8497b0;
+  --adm-c1: #3770A3;
+  --adm-c2: #AC6549;
+  --adm-c3: #2FA094;
+  --adm-c4: #C19652;
+  --adm-o1: #7FBDA9;
+  --adm-o2: #599B87;
+  --adm-o3: #327B66;
+  --adm-o4: #115A48;
+  --adm-grid: #E4EAE7;
+  --adm-axis: #B7C3BC;
+  --adm-zero: #6B7A71;
+  --adm-wash: #EFF4F1;
+  --adm-muted-bar: #849A8D;
   min-height: 100dvh;
   display: flex;
   flex-direction: column;
@@ -32,6 +33,7 @@
 .adm-tab { display: inline-flex; align-items: center; gap: 6px; min-height: 48px; padding: 0 14px; font-weight: 700; font-size: var(--fs-md); color: var(--text-muted); border-bottom: 3px solid transparent; white-space: nowrap; }
 .adm-tab:hover { text-decoration: none; color: var(--text); }
 .adm-tab[aria-current="page"] { color: var(--primary); border-bottom-color: var(--primary); }
+.adm-tab:not([aria-current="page"]) > [aria-hidden="true"] { filter: grayscale(1); opacity: 0.6; } /* 학생·기업 화면의 탭과 같게: 지금 화면이 아닌 아이콘은 회색·흐리게 */
 .adm-main { width: 100%; max-width: 1120px; margin: 0 auto; padding: 16px 16px 48px; display: flex; flex-direction: column; gap: 24px; flex: 1; }
 .adm-intro { display: flex; flex-direction: column; gap: 8px; }
 .adm-intro__title { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; }

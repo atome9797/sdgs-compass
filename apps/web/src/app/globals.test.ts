@@ -1,14 +1,14 @@
 import { readFileSync, existsSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { COLORS, FONT_SIZE, PHONE_WIDTH, RADIUS, SPACE } from "@sdgs-compass/core/theme";
+import { CHART_COLORS, COLORS, FONT_SIZE, PHONE_WIDTH, RADIUS, SPACE } from "@sdgs-compass/core/theme";
 
 // globals.css 의 :root 값이 core 의 theme.ts(웹·모바일 공용 디자인 토큰)와 같은지 확인해요.
-function readCss(): string {
-  for (const candidate of [path.join(process.cwd(), "src/app/globals.css"), path.join(process.cwd(), "apps/web/src/app/globals.css")]) {
+function readCss(file = "globals.css"): string {
+  for (const candidate of [path.join(process.cwd(), "src/app", file), path.join(process.cwd(), "apps/web/src/app", file)]) {
     if (existsSync(candidate)) return readFileSync(candidate, "utf8");
   }
-  throw new Error("globals.css 를 찾을 수 없어요");
+  throw new Error(`${file} 를 찾을 수 없어요`);
 }
 
 /** ":root { ... }" 블록의 "--이름: 값;" 들 (주석 제외) */
@@ -53,5 +53,20 @@ describe("globals.css 와 theme.ts 의 토큰", () => {
 
   it("Tailwind 같은 외부 CSS 를 끌어오지 않아요", () => {
     expect(css).not.toMatch(/@import|@tailwind|@apply/);
+  });
+
+  it("운영자 화면 그래프 색(--adm-c1~c4)이 core 의 CHART_COLORS 와 같은 순서·값이에요", () => {
+    const admin = readCss("admin.css").replace(/\/\*[\s\S]*?\*\//g, "");
+    CHART_COLORS.forEach((hex, i) => {
+      const m = new RegExp(`--adm-c${i + 1}:\\s*([^;]+);`).exec(admin);
+      expect(norm(m?.[1] ?? "")).toBe(norm(hex));
+    });
+  });
+
+  it("예전 색(쨍한 파랑·분홍)이 남아 있지 않아요", () => {
+    for (const file of ["globals.css", "admin.css"]) {
+      const text = readCss(file).toLowerCase();
+      for (const old of ["#1d6fb8", "#154e84", "#d9468a", "29, 111, 184", "#0f3f6c", "#a62c69", "#fce7f1"]) expect(text.includes(old), `${file}: ${old}`).toBe(false);
+    }
   });
 });

@@ -39,7 +39,23 @@ describe("SDGs 17목표", () => {
     expect(sdgTextColor(1)).toBe("#FFFFFF");
     expect(sdgTextColor(14)).toBe("#FFFFFF");
     expect(sdgTextColor(17)).toBe("#FFFFFF");
-    expect(sdgTextColor(7)).toBe("#10161F");
-    expect(sdgTextColor(2)).toBe("#10161F");
+    expect(sdgTextColor(7)).toBe("#1E2925");
+    expect(sdgTextColor(2)).toBe("#1E2925");
+  });
+
+  it("타일 글자색: 어두운 글자를 쓰는 밝은 타일과도 4.5:1 이상이에요", () => {
+    const lum = (hex: string) => {
+      const ch = (i: number) => {
+        const v = parseInt(hex.slice(i, i + 2), 16) / 255;
+        return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+      };
+      return 0.2126 * ch(1) + 0.7152 * ch(3) + 0.0722 * ch(5);
+    };
+    const dark = SDGS.filter((sdg) => sdgTextColor(sdg.id) !== "#FFFFFF");
+    expect(dark.map((sdg) => sdg.id)).toEqual([2, 6, 7, 9, 11, 15]);
+    for (const sdg of dark) {
+      const [hi, lo] = [lum(sdg.color), lum(sdgTextColor(sdg.id))].sort((a, b) => b - a);
+      expect((hi + 0.05) / (lo + 0.05), `SDG ${sdg.id}`).toBeGreaterThanOrEqual(4.5);
+    }
   });
 });

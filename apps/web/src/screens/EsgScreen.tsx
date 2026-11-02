@@ -6,6 +6,7 @@ import { useId, useMemo, useState } from "react";
 import { clampCertValue } from "@sdgs-compass/core/certification";
 import { formatYen } from "@sdgs-compass/core/format";
 import { selectB2bDashboard, selectEsg, type CertItemVM, type EsgVM } from "@sdgs-compass/core/selectors";
+import { ESG_COLORS } from "@sdgs-compass/core/theme";
 import { Banner, Button, Empty, ScreenHead, Section, Tag } from "@/components/ui";
 import { useSession } from "@/lib/session";
 import { nowIso } from "@/lib/time";
@@ -70,7 +71,7 @@ function CategoryBars({ vm }: { vm: EsgVM }) {
         <div key={category.key} className="bar">
           <span>{category.label}</span>
           <span className="bar__track" role="progressbar" aria-label={category.label} aria-valuemin={0} aria-valuemax={100} aria-valuenow={category.score}>
-            <span className={`bar__fill bar__fill--${category.key.toLowerCase()}`} style={{ display: "block", width: `${category.score}%` }} />
+            <span className="bar__fill" style={{ display: "block", width: `${category.score}%`, background: ESG_COLORS[category.key] }} />
           </span>
           <span className="bar__num">{category.score}</span>
         </div>

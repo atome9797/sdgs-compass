@@ -1,12 +1,13 @@
 // SDGs 17목표: 번호가 들어간 색 타일. 공식 로고·아이콘 이미지는 쓰지 않고(UN 공식 서비스가 아니에요), 공개된 색상값과 번호만 써요.
 // SdgTile(타일 하나) · SdgMiniRow(카드 안의 작은 타일들) · SdgGrid(홈의 17개 타일) · SdgPicker(여럿 고르는 칩 목록)
+// 색감: 작은 표시(작은 타일·칩의 점)는 공식 색 그대로, 넓게 까는 홈 타일은 옅은 바탕 + 왼쪽 색 띠 + 본문 글자색(웹 .sdg-tile 과 같아요).
 import { Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import type { Locale } from "@sdgs-compass/core/i18n";
 import { sdgLabel } from "@sdgs-compass/core/labels";
 import { getSdg, sdgTextColor, type SdgId } from "@sdgs-compass/core/sdg";
 import type { SdgTileVM } from "@sdgs-compass/core/selectors";
 import { Chip } from "@/components/ui";
-import { COLORS, PHONE_WIDTH, RADIUS, SPACE } from "@/theme";
+import { COLORS, PHONE_WIDTH, RADIUS, SPACE, tint } from "@/theme";
 
 export interface SdgTileProps {
   id: SdgId;
@@ -20,21 +21,26 @@ export interface SdgTileProps {
   /** 스크린 리더용 이름 (예: "目標14 海の豊かさを守ろう") */
   accessibilityLabel?: string;
   testID?: string;
+  /** "soft" = 옅은 바탕 + 왼쪽 색 띠 + 본문 글자색(홈처럼 넓게 깔 때). 기본 "solid" = 공식 색을 그대로 칠한 작은 표시 */
+  variant?: "solid" | "soft";
 }
 
-export function SdgTile({ id, size = 44, short, selected = false, onPress, accessibilityLabel, testID }: SdgTileProps) {
+export function SdgTile({ id, size = 44, short, selected = false, onPress, accessibilityLabel, testID, variant = "solid" }: SdgTileProps) {
   const color = getSdg(id).color;
-  const textColor = sdgTextColor(id);
+  const soft = variant === "soft";
+  const textColor = soft ? COLORS.text : sdgTextColor(id);
   const showShort = short !== undefined && size >= 44;
   const tile = (
     <View
       style={[
         styles.tile,
-        { width: size, height: size, backgroundColor: color, borderRadius: size >= 40 ? RADIUS.md : 6 },
+        soft ? styles.tileSoft : null,
+        { width: size, height: size, backgroundColor: soft ? tint(color, 0.16) : color, borderRadius: size >= 40 ? RADIUS.md : 6 },
         selected ? styles.tileSelected : null,
       ]}
     >
-      <Text style={[styles.number, { color: textColor, fontSize: Math.round(size * (showShort ? 0.4 : 0.5)) }]}>{id}</Text>
+      {soft ? <View style={[styles.softBar, { backgroundColor: color }]} /> : null}
+      <Text style={[styles.number, { color: textColor, fontSize: Math.round(size * (showShort ? (soft ? 0.38 : 0.4) : 0.5)) }]}>{id}</Text>
       {showShort ? (
         <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={[styles.short, { color: textColor }]}>
           {short}
@@ -91,7 +97,7 @@ export function SdgGrid({ tiles, locale, onPress }: { tiles: readonly SdgTileVM[
   return (
     <View style={styles.grid}>
       {tiles.map((tile) => (
-        <SdgTile key={tile.id} id={tile.id} size={size} short={tile.short} accessibilityLabel={sdgLabel(tile.id, locale)} onPress={() => onPress(tile.id)} />
+        <SdgTile key={tile.id} id={tile.id} size={size} short={tile.short} variant="soft" accessibilityLabel={sdgLabel(tile.id, locale)} onPress={() => onPress(tile.id)} />
       ))}
     </View>
   );
@@ -106,7 +112,7 @@ export interface SdgPickerProps {
   max?: number;
 }
 
-/** SDGs 를 여럿 고르는 칩 목록 (검색·인재 필터·출제 화면) */
+/** SDGs 를 여럿 고르는 칩 목록 (검색·인재 필터·출제 화면). 칩에는 공식 색 점 + "번호 짧은 이름"(웹 칩과 같아요) */
 export function SdgPicker({ tiles, locale, selected, onToggle, max }: SdgPickerProps) {
   const full = max !== undefined && selected.length >= max;
   return (
@@ -117,11 +123,11 @@ export function SdgPicker({ tiles, locale, selected, onToggle, max }: SdgPickerP
           <Chip
             key={tile.id}
             kind="checkbox"
-            label={tile.short}
+            label={`${tile.id} ${tile.short}`}
             accessibilityLabel={sdgLabel(tile.id, locale)}
             selected={isSelected}
             disabled={full && !isSelected}
-            leading={<SdgTile id={tile.id} size={24} />}
+            leading={<View style={[styles.chipDot, { backgroundColor: tile.color }]} />}
             onPress={() => onToggle(tile.id)}
           />
         );
@@ -132,6 +138,9 @@ export function SdgPicker({ tiles, locale, selected, onToggle, max }: SdgPickerP
 
 const styles = StyleSheet.create({
   tile: { alignItems: "center", justifyContent: "center", paddingHorizontal: 2 },
+  // 넓은 타일: 번호는 위, 이름은 아래(왼쪽 정렬). 색 띠는 글자 폭을 줄이지 않게 겹쳐 그려요
+  tileSoft: { alignItems: "flex-start", justifyContent: "space-between", paddingLeft: 7, paddingRight: 2, paddingTop: 5, paddingBottom: 6, overflow: "hidden" },
+  softBar: { position: "absolute", left: 0, top: 0, bottom: 0, width: 3 },
   tileSelected: { borderWidth: 3, borderColor: COLORS.text },
   number: { fontWeight: "800" },
   short: { fontSize: 10, fontWeight: "700", maxWidth: "100%" },
@@ -150,4 +159,5 @@ const styles = StyleSheet.create({
   miniRow: { flexDirection: "row", flexWrap: "wrap", gap: 4 },
   grid: { flexDirection: "row", flexWrap: "wrap", gap: GRID_GAP },
   pickerWrap: { flexDirection: "row", flexWrap: "wrap", gap: SPACE.sm },
+  chipDot: { width: 12, height: 12, borderRadius: 4 },
 });

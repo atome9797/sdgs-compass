@@ -14,7 +14,7 @@ export interface QrViewProps {
 export function QrView({ matrix, size, accessibilityLabel }: QrViewProps) {
   const layout = qrLayout(matrix, size);
   return (
-    <View accessible accessibilityRole="image" accessibilityLabel={accessibilityLabel} style={{ width: layout.size, height: layout.size, backgroundColor: "#FFFFFF" }}>
+    <View accessible accessibilityRole="image" accessibilityLabel={accessibilityLabel} style={{ width: layout.size, height: layout.size, backgroundColor: COLORS.card }}>
       {layout.rects.map((rect) => (
         <View
           key={`${rect.x}-${rect.y}`}

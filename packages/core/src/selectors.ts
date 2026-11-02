@@ -16,6 +16,7 @@ import { isOpenFor, recommendChallenges, scoreChallenge, type Reason, type Recom
 import { remainingScouts, SCOUT_DAILY_LIMIT, alreadyScouted, canSendScout } from "./scout";
 import { buildShareCard, type CardTemplate, type ShareCard } from "./shareCard";
 import { getSdg, sdgTextColor, SDG_IDS, SDGS, type SdgId } from "./sdg";
+import { COLORS } from "./theme";
 
 // ───────── 공통 조각 ─────────
 
@@ -116,7 +117,7 @@ export function challengeCard(state: DemoState, challenge: Challenge, locale: Lo
     summary: pick(challenge.summary, locale),
     companyName: company ? pick(company.name, locale) : "",
     companyEmoji: company?.emoji ?? "🏢",
-    companyAccent: company?.accent ?? "#1D6FB8",
+    companyAccent: company?.accent ?? COLORS.primary,
     sdgIds: challenge.sdgIds,
     hue: challenge.hue,
     daysLeft,
@@ -239,7 +240,7 @@ export function selectChallengeDetail(state: DemoState, id: string, locale: Loca
       about: company ? pick(company.about, locale) : "",
       verified: company?.verified ?? false,
       emoji: company?.emoji ?? "🏢",
-      accent: company?.accent ?? "#1D6FB8",
+      accent: company?.accent ?? COLORS.primary,
     },
     skills: challenge.skills.map((s) => skillLabel(s, locale)),
     background: pick(challenge.background, locale),
@@ -493,7 +494,7 @@ export function selectInbox(state: DemoState, locale: Locale): InboxVM {
         title: translate("inbox.scoutFrom", locale, { company: name }),
         companyName: name,
         companyEmoji: company?.emoji ?? "🏢",
-        companyAccent: company?.accent ?? "#1D6FB8",
+        companyAccent: company?.accent ?? COLORS.primary,
         kindLabel: scoutKindLabel(s.kind as ScoutKind, locale),
         message: pick(s.message, locale),
         dateLabel: formatDate(s.sentAt, locale),
@@ -568,7 +569,7 @@ export function selectB2bDashboard(state: DemoState, locale: Locale): B2bDashboa
   return {
     companyName: name,
     companyEmoji: company?.emoji ?? "🏢",
-    companyAccent: company?.accent ?? "#1D6FB8",
+    companyAccent: company?.accent ?? COLORS.primary,
     welcome: t("b2b.welcome", { company: name }),
     kpis: [
       { id: "open", label: t("b2b.kpiOpen"), value: String(mine.filter((c) => isOpenFor(c, state.today)).length) },

@@ -1,9 +1,11 @@
 "use client";
 
 import Link from "next/link";
+import type { CSSProperties } from "react";
 import { sdgLabel } from "@sdgs-compass/core/labels";
 import { getSdg, sdgTextColor, type SdgId } from "@sdgs-compass/core/sdg";
 import type { SdgTileVM } from "@sdgs-compass/core/selectors";
+import { tint } from "@sdgs-compass/core/theme";
 import { searchHref } from "@/lib/routes";
 import { useSession } from "@/lib/session";
 
@@ -33,7 +35,7 @@ export function SdgTileGrid({ tiles }: { tiles: readonly SdgTileVM[] }) {
   return (
     <div className="sdg-grid">
       {tiles.map((tile) => (
-        <Link key={tile.id} href={searchHref({ sdgIds: [tile.id] })} className="sdg-tile" style={{ background: tile.color, color: tile.textColor }} title={sdgLabel(tile.id, locale)}>
+        <Link key={tile.id} href={searchHref({ sdgIds: [tile.id] })} className="sdg-tile" style={{ "--sdg": tile.color, background: tint(tile.color, 0.16) } as CSSProperties} title={sdgLabel(tile.id, locale)}>
           <span className="sdg-tile__no">{tile.id}</span>
           <span className="sdg-tile__name">{tile.short}</span>
         </Link>

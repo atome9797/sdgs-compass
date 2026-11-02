@@ -10,10 +10,10 @@ import { useApp } from "@/lib/AppProvider";
 import { categoryRatio, isFlagItem, targetParams } from "@/lib/esg";
 import { digitsOnly } from "@/lib/forms";
 import { nowIso } from "@/lib/time";
-import { COLORS, SPACE } from "@/theme";
+import { ESG_COLORS, SPACE } from "@/theme";
 
-/** 영역별 막대 색 (글자색이 아니라 장식이라 대비 규칙과 상관없지만, 값은 항상 숫자로도 보여 줘요) */
-const CATEGORY_COLOR: Record<EsgCategory, string> = { E: COLORS.success, S: COLORS.primary, G: COLORS.warning };
+/** 영역별 막대 색 = core 의 ESG_COLORS(웹과 같아요 — 메인 색 초록과 겹치지 않게 그래프 색에서 골랐어요). 값은 항상 숫자로도 보여 줘요 */
+const CATEGORY_COLOR: Record<EsgCategory, string> = ESG_COLORS;
 
 function CategoryBars({ vm }: { vm: EsgVM }) {
   return (

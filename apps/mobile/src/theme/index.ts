@@ -2,15 +2,17 @@
 // 대비는 core/theme.test.ts 가 지켜 줘요: 글자는 text·textMuted(흰 카드 위 4.5:1 이상), 버튼은 onPrimary-on-primary 만 써요.
 // textSubtle·donation 은 흰 바탕에서 4.5:1 에 못 미쳐서, 큰 글자(18pt 이상 굵게)나 장식에만 써요.
 import { Platform, type ViewStyle } from "react-native";
+import { COLORS } from "@sdgs-compass/core/theme";
 
-export { COLORS, FONT_SIZE, PHONE_WIDTH, RADIUS, SPACE, coverColors } from "@sdgs-compass/core/theme";
+export { CHART_COLORS, COLORS, ESG_COLORS, FONT_SIZE, PHONE_WIDTH, RADIUS, SPACE, coverColors, tint } from "@sdgs-compass/core/theme";
+// tint(hex, 0~1) 는 흰색과 섞은 불투명한 옅은 색이에요(웹과 같은 함수). lib/color.ts 의 tint 는 투명도(#RRGGBBAA)를 붙이는 다른 도우미예요.
 
 /** 누를 수 있는 곳의 최소 높이·너비(dp) */
 export const HIT = 44;
 
 /** 카드의 부드러운 그림자 (iOS 는 shadow*, Android 는 elevation) */
 export const CARD_SHADOW: ViewStyle = {
-  shadowColor: "#10161F",
+  shadowColor: COLORS.text,
   shadowOpacity: 0.07,
   shadowRadius: 10,
   shadowOffset: { width: 0, height: 3 },

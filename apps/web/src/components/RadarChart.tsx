@@ -1,5 +1,6 @@
 import { pointsAttr, radarPolygon, radarRing, radarVertex } from "@sdgs-compass/core/radar";
-import { sdgTextColor, type SdgId } from "@sdgs-compass/core/sdg";
+import { type SdgId } from "@sdgs-compass/core/sdg";
+import { COLORS, tint } from "@sdgs-compass/core/theme";
 
 export interface RadarDatum {
   id: SdgId;
@@ -21,26 +22,26 @@ export function RadarChart({ data, label }: { data: readonly RadarDatum[]; label
     <figure>
       <svg viewBox={`0 0 ${SIZE} ${SIZE}`} role="img" aria-label={label}>
         {RINGS.map((fraction) => (
-          <polygon key={fraction} points={pointsAttr(radarRing(count, fraction, R, C, C))} fill={fraction === 1 ? "#F6F9FC" : "none"} stroke="#CBD5E1" strokeWidth={fraction === 1 ? 1.5 : 1} />
+          <polygon key={fraction} points={pointsAttr(radarRing(count, fraction, R, C, C))} fill={fraction === 1 ? COLORS.bg : "none"} stroke={COLORS.border} strokeWidth={fraction === 1 ? 1.5 : 1} />
         ))}
         {data.map((d, i) => {
           const end = radarVertex(i, count, R, C, C);
-          return <line key={d.id} x1={C} y1={C} x2={end.x} y2={end.y} stroke="#DDE4EC" strokeWidth={1} />;
+          return <line key={d.id} x1={C} y1={C} x2={end.x} y2={end.y} stroke={COLORS.border} strokeWidth={1} />;
         })}
-        <text x={C + 4} y={C - R * 0.5 - 3} fontSize="9" fill="#4F5B6B">
+        <text x={C + 4} y={C - R * 0.5 - 3} fontSize="9" fill={COLORS.textMuted}>
           50
         </text>
-        <text x={C + 4} y={C - R - 3} fontSize="9" fill="#4F5B6B">
+        <text x={C + 4} y={C - R - 3} fontSize="9" fill={COLORS.textMuted}>
           100
         </text>
-        <polygon points={pointsAttr(polygon)} fill="rgba(29, 111, 184, 0.28)" stroke="#1D6FB8" strokeWidth={2.5} strokeLinejoin="round" />
+        <polygon points={pointsAttr(polygon)} fill={tint(COLORS.primary, 0.3)} fillOpacity={0.85} stroke={COLORS.primary} strokeWidth={2.5} strokeLinejoin="round" />
         {polygon.map((p, i) => (data[i].score > 0 ? <circle key={data[i].id} cx={p.x} cy={p.y} r={4} fill={data[i].color} stroke="#fff" strokeWidth={1.5} /> : null))}
         {data.map((d, i) => {
           const p = radarVertex(i, count, LABEL_R, C, C);
           return (
             <g key={d.id}>
-              <circle cx={p.x} cy={p.y} r={11.5} fill={d.color} />
-              <text x={p.x} y={p.y} textAnchor="middle" dominantBaseline="central" fontSize="11.5" fontWeight="800" fill={sdgTextColor(d.id)}>
+              <circle cx={p.x} cy={p.y} r={11} fill={tint(d.color, 0.16)} stroke={d.color} strokeWidth={2} />
+              <text x={p.x} y={p.y} textAnchor="middle" dominantBaseline="central" fontSize="11.5" fontWeight="800" fill={COLORS.text}>
                 {d.id}
               </text>
             </g>

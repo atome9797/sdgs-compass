@@ -171,7 +171,7 @@ describe("SDGs 타일·홈", () => {
       expect(tiles.map((t) => t.id)).toEqual([...SDG_IDS]);
       for (const tile of tiles) {
         expect(tile.color).toMatch(/^#[0-9A-F]{6}$/);
-        expect(["#FFFFFF", "#10161F"]).toContain(tile.textColor);
+        expect(["#FFFFFF", "#1E2925"]).toContain(tile.textColor);
         expect(tile.short.length).toBeGreaterThan(0);
         expect(tile.name.length).toBeGreaterThan(0);
       }

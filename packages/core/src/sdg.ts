@@ -1,6 +1,7 @@
 // UN SDGs 17목표: 번호·색(공개된 공식 색상값)·일본어/한국어 이름. 공식 로고·아이콘 이미지는 쓰지 않고, 번호를 넣은 색 타일로만 보여 줘요.
 // (UN 공식 인증과 무관한 독자 서비스예요 — 앱 안에도 그렇게 밝혀요: certification.ts 의 CERT_DISCLAIMER)
 import type { LocalizedText } from "./i18n";
+import { COLORS } from "./theme";
 
 export type SdgId = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 | 16 | 17;
 
@@ -55,9 +56,9 @@ function luminanceOf(hex: string): number {
 
 /**
  * 색 타일 위 글자색. 타일의 번호는 크고 굵은 글자라서 흰 글자와의 대비가 3:1 이상이면 흰색(공식 타일 모양),
- * 그보다 밝은 타일(노랑·주황 계열)에는 어두운 글자를 써요.
+ * 그보다 밝은 타일(노랑·주황 계열)에는 본문 글자색(COLORS.text)을 써요 — 그 타일들과는 5:1 이상이에요.
  */
-export function sdgTextColor(id: SdgId): "#FFFFFF" | "#10161F" {
+export function sdgTextColor(id: SdgId): "#FFFFFF" | typeof COLORS.text {
   const luminance = luminanceOf(getSdg(id).color);
-  return 1.05 / (luminance + 0.05) >= 3 ? "#FFFFFF" : "#10161F";
+  return 1.05 / (luminance + 0.05) >= 3 ? "#FFFFFF" : COLORS.text;
 }

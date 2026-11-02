@@ -53,8 +53,9 @@ export function AppTabs({ tabs, badges = {} }: AppTabsProps) {
               ),
               tabBarBadge: count > 0 ? (count > 9 ? "9+" : count) : undefined,
               tabBarAccessibilityLabel: count > 0 ? t("mobile.tabsUnread", { label, count }) : label,
+              // 지금 탭이 아닌 아이콘은 흐리게(웹은 회색+흐리게 — RN 에는 grayscale 이 없어서 투명도만): 색 이모지가 여섯 개 나란히 쨍하지 않게
               tabBarIcon: ({ focused }) => (
-                <Text accessible={false} style={{ fontSize: 22, opacity: focused ? 1 : 0.7 }}>
+                <Text accessible={false} style={{ fontSize: 22, opacity: focused ? 1 : 0.45 }}>
                   {tab.emoji}
                 </Text>
               ),

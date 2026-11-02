@@ -3,6 +3,7 @@
 // 메시지(스카우트 수신): 열면 읽음 처리, 수락/보류로 답해요. 1:1 채팅은 Phase 2.
 import { useMemo, useState } from "react";
 import { selectInbox, type InboxItemVM } from "@sdgs-compass/core/selectors";
+import { tint } from "@sdgs-compass/core/theme";
 import { Banner, Button, Empty, ScreenHead, Tag } from "@/components/ui";
 import { useSession } from "@/lib/session";
 
@@ -11,7 +12,7 @@ function InboxItem({ item, open, onToggle }: { item: InboxItemVM; open: boolean;
   return (
     <li className="card inbox-item">
       <button type="button" className="inbox-item__head" aria-expanded={open} aria-controls={`msg-${item.id}`} onClick={onToggle}>
-        <span className="inbox-item__logo" style={{ background: item.companyAccent }} aria-hidden="true">
+        <span className="inbox-item__logo" style={{ background: tint(item.companyAccent, 0.18), borderColor: tint(item.companyAccent, 0.5) }} aria-hidden="true">
           {item.companyEmoji}
         </span>
         <span className="grow">

@@ -3,10 +3,10 @@
 // 카드뉴스 화면의 "피드에도 올리기"는 ?activity=실적, 응모자 화면의 "홍보하기"는 ?challenge=챌린지 를 붙여서 이 화면을 열고, 그 값을 미리 골라요.
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useMemo, useRef, useState } from "react";
-import { StyleSheet, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import type { PostKind } from "@sdgs-compass/core/domain";
 import { authorRole, postContext, postErrorText, validatePostDraft } from "@sdgs-compass/core/post";
-import { selectComposer, selectSdgTiles } from "@sdgs-compass/core/selectors";
+import { officialDateNav, selectComposer, selectSdgTiles, type OfficialDateNav } from "@sdgs-compass/core/selectors";
 import { OptionRow } from "@/components/OptionRow";
 import { PostCard } from "@/components/PostCard";
 import { Screen } from "@/components/Screen";
@@ -21,14 +21,57 @@ import {
   pickChallenge,
   pickOfficialChannel,
   previewPost,
+  resetOfficialDate,
   selectedOfficialOption,
+  stepOfficialDate,
   toPostDraft,
   toggleFormSdg,
   type PostField,
   type PostFormState,
 } from "@/lib/postForm";
 import { nowIso } from "@/lib/time";
-import { SPACE } from "@/theme";
+import { COLORS, FONT_SIZE, HIT, RADIUS, SPACE } from "@/theme";
+
+/** 게시 날짜 고르기: ◀ 날짜(+ 그 달의 남은 횟수) ▶ · 「最短の日に戻す」 — 고를 수 있는 날만 밟아요 (한도를 다 쓴 달은 건너뛰어요) */
+function OfficialDatePicker({ nav, onStep, onReset }: { nav: OfficialDateNav; onStep: (direction: -1 | 1) => void; onReset: () => void }) {
+  const { t } = useApp();
+  const step = (direction: -1 | 1) => {
+    const enabled = (direction < 0 ? nav.prev : nav.next) !== null;
+    return (
+      <Pressable
+        testID={direction < 0 ? "post-official-date-prev" : "post-official-date-next"}
+        accessibilityRole="button"
+        accessibilityLabel={t(direction < 0 ? "post.officialDatePrev" : "post.officialDateNext")}
+        accessibilityState={{ disabled: !enabled }}
+        disabled={!enabled}
+        onPress={() => onStep(direction)}
+        style={({ pressed }) => [styles.dateStep, { opacity: enabled ? (pressed ? 0.7 : 1) : 0.4 }]}
+      >
+        <Text style={styles.dateGlyph}>{direction < 0 ? "◀" : "▶"}</Text>
+      </Pressable>
+    );
+  };
+  const value = nav.option ? `${nav.option.label}, ${nav.option.remainingLabel}` : "—";
+  return (
+    <View style={styles.stack}>
+      <View style={styles.dateRow}>
+        {step(-1)}
+        <View testID="post-official-date" style={styles.dateValue} accessible accessibilityLabel={`${t("post.officialDateLabel")}: ${value}`} accessibilityLiveRegion="polite">
+          <Txt bold center>
+            {nav.option?.label ?? "—"}
+          </Txt>
+          {nav.option ? (
+            <Txt variant="small" tone="primary" bold center>
+              {nav.option.remainingLabel}
+            </Txt>
+          ) : null}
+        </View>
+        {step(1)}
+      </View>
+      <Button testID="post-official-date-reset" small variant="ghost" label={t("post.officialDateReset")} disabled={nav.atEarliest} onPress={onReset} style={styles.dateReset} />
+    </View>
+  );
+}
 
 export function PostComposerScreen({ kind }: { kind: PostKind }) {
   const { demo, locale, t, dispatch } = useApp();
@@ -58,6 +101,7 @@ export function PostComposerScreen({ kind }: { kind: PostKind }) {
   const body = counterOf(form.body, vm.bodyLimit);
   const title = counterOf(form.title, vm.titleLimit);
   const activity = vm.activities.find((a) => a.id === form.activityId) ?? null;
+  const dateNav = officialDateNav(vm.official, form.officialOn);
 
   const submit = () => {
     // 같은 단추를 연달아 눌러도 한 번만 올라가요 (화면이 넘어가는 동안 다시 눌릴 수 있어서)
@@ -66,10 +110,10 @@ export function PostComposerScreen({ kind }: { kind: PostKind }) {
     if (errors.length > 0) return;
     sending.current = true;
     setSubmitted(true);
-    // 화면에 보여 준 채널·예정일을 피드의 안내로 넘겨요 (reducer 도 같은 규칙으로 같은 날짜를 배정해요)
+    // 고른 채널·날짜를 피드의 안내로 넘겨요 (검사를 통과했으니 reducer 도 같은 날짜로 신청해요)
     const option = kind === "pr" && form.requestOfficial ? selectedOfficialOption(vm, form) : null;
     dispatch({ type: "createPost", draft, at: nowIso() });
-    router.navigate(postedHref(authorRole(kind), option ? { on: option.nextDate, channel: option.id } : null));
+    router.navigate(postedHref(authorRole(kind), option && form.officialOn ? { on: form.officialOn, channel: option.id } : null));
   };
 
   // 올릴 실적이 하나도 없으면 글을 쓸 수 없어요 — 챌린지에 먼저 응모하도록 안내해요
@@ -176,28 +220,57 @@ export function PostComposerScreen({ kind }: { kind: PostKind }) {
           </Section>
 
           <View style={styles.stack}>
-            <LabeledSwitch testID="post-official" label={t("post.officialLabel")} hint={vm.official.hint} value={form.requestOfficial} onValueChange={(requestOfficial) => update({ requestOfficial })} />
+            <LabeledSwitch
+              testID="post-official"
+              label={t("post.officialLabel")}
+              hint={vm.official.hint}
+              disabled={vm.official.defaultDate === null}
+              value={form.requestOfficial}
+              onValueChange={(requestOfficial) => update({ requestOfficial })}
+            />
+            {vm.official.unavailableReason ? (
+              <Txt testID="post-official-unavailable" variant="small" tone="warning" bold>
+                {vm.official.unavailableReason}
+              </Txt>
+            ) : null}
             {form.requestOfficial ? (
-              <Section title={t("post.officialChannelLabel")}>
-                <View accessibilityRole="radiogroup" accessibilityLabel={t("post.officialChannelLabel")} style={styles.stack}>
-                  {vm.official.channels.map((option) => (
-                    <OptionRow
-                      key={option.id}
-                      testID={`post-official-channel-${option.id}`}
-                      title={option.label}
-                      subtitle={option.nextDateLabel}
-                      subtitleLines={2}
-                      selected={option.id === form.officialChannel}
-                      onPress={() => setForm((current) => pickOfficialChannel(current, option.id, vm))}
-                    />
+              <>
+                <Section title={t("post.officialChannelLabel")}>
+                  <View accessibilityRole="radiogroup" accessibilityLabel={t("post.officialChannelLabel")} style={styles.stack}>
+                    {vm.official.channels.map((option) => (
+                      <OptionRow
+                        key={option.id}
+                        testID={`post-official-channel-${option.id}`}
+                        title={option.label}
+                        selected={option.id === form.officialChannel}
+                        onPress={() => setForm((current) => pickOfficialChannel(current, option.id, vm))}
+                      />
+                    ))}
+                  </View>
+                  {errorText("official") ? (
+                    <Txt variant="small" tone="danger" accessibilityLiveRegion="polite">
+                      {errorText("official")}
+                    </Txt>
+                  ) : null}
+                </Section>
+                <Section title={t("post.officialDateLabel")}>
+                  <OfficialDatePicker
+                    nav={dateNav}
+                    onStep={(direction) => setForm((current) => stepOfficialDate(current, vm, direction))}
+                    onReset={() => setForm((current) => resetOfficialDate(current, vm))}
+                  />
+                  {vm.official.fullMonthNotes.map((note) => (
+                    <Txt key={note} variant="small" tone="muted">
+                      {note}
+                    </Txt>
                   ))}
-                </View>
-                {errorText("official") ? (
-                  <Txt variant="small" tone="danger" accessibilityLiveRegion="polite">
-                    {errorText("official")}
-                  </Txt>
-                ) : null}
-              </Section>
+                  {errorText("officialDate") ? (
+                    <Txt variant="small" tone="danger" accessibilityLiveRegion="polite">
+                      {errorText("officialDate")}
+                    </Txt>
+                  ) : null}
+                </Section>
+              </>
             ) : null}
           </View>
         </>
@@ -229,4 +302,30 @@ export function PostComposerScreen({ kind }: { kind: PostKind }) {
 const styles = StyleSheet.create({
   author: { gap: 2 },
   stack: { gap: SPACE.md },
+  dateRow: { flexDirection: "row", alignItems: "stretch", gap: SPACE.sm },
+  dateStep: {
+    width: HIT + 4,
+    minHeight: HIT + 4,
+    borderRadius: RADIUS.md,
+    borderWidth: 1.5,
+    borderColor: COLORS.border,
+    backgroundColor: COLORS.card,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  dateGlyph: { fontSize: FONT_SIZE.md, color: COLORS.primaryDark },
+  dateValue: {
+    flex: 1,
+    minWidth: 0,
+    gap: 2,
+    paddingVertical: SPACE.sm,
+    paddingHorizontal: SPACE.sm,
+    borderRadius: RADIUS.md,
+    borderWidth: 1.5,
+    borderColor: COLORS.primary,
+    backgroundColor: COLORS.primarySoft,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  dateReset: { alignSelf: "flex-start" },
 });

@@ -1,8 +1,8 @@
-// F-503 학생 자랑 글 · F-504 기업 홍보 글 (설계: docs/sns-feed.md): 입력 검사, 연락처 검출, 공식 SNS 게시 날짜 배정.
+// F-503 학생 자랑 글 · F-504 기업 홍보 글 (설계: docs/sns-feed.md): 입력 검사, 연락처 검출, 공식 SNS 게시 날짜(회사당 월 4회, 날짜는 기업이 골라요).
 // 화면은 이 규칙을 그대로 쓰고(validatePostDraft), reducer(state.ts)도 같은 검사를 한 번 더 해요.
 import { showableActivities } from "./activities";
 import type { DemoState, OfficialChannel, PostKind, Role, SocialPost } from "./domain";
-import { addDays } from "./format";
+import { addDays, daysBetween } from "./format";
 import type { Locale } from "./i18n";
 import { translate } from "./messages";
 import { charCount } from "./proposal";
@@ -19,6 +19,16 @@ export const POST_LIMITS = {
 
 /** 공식 SNS 게시 신청의 게시료 — 어느 채널이든 같은 샘플 값이에요(정산은 하지 않아요) */
 export const OFFICIAL_SHARE_FEE_YEN = 3000;
+
+/**
+ * 한 회사가 한 달에 신청할 수 있는 공식 SNS 게시 횟수. 게시일이 속한 달(일본 시간 달력 월)로 세고, 채널(X·Instagram·Facebook)을 모두 합쳐요.
+ * 예정·게시 완료만 세고 취소·삭제한 신청은 세지 않아요. 하루 제한은 없어요(같은 날·같은 채널에 여러 회사가 올라가도 돼요).
+ * 바꾸려면 이 값 하나만 고치면 돼요 — DB 의 official_share_monthly_limit() 는 db/tests/04_parity.sql 이 이 값과 대조해요.
+ */
+export const OFFICIAL_SHARE_MONTHLY_LIMIT = 4;
+
+/** 게시 날짜를 고를 수 있는 기간: 내일부터 이 날수 뒤까지 (오늘은 고를 수 없어요). DB 의 official_share_window_days() 와 같아요 */
+export const OFFICIAL_SHARE_WINDOW_DAYS = 30;
 
 /**
  * 공식 SNS 게시 신청에서 고를 수 있는 채널 — 화면에 보이는 순서예요(X · Instagram · Facebook).
@@ -73,6 +83,8 @@ export interface PostDraft {
   requestOfficial?: boolean;
   /** 홍보 글만, 게시 신청을 켰을 때만 뜻이 있어요: 게시할 채널 (비우면 Instagram) */
   officialChannel?: OfficialChannel;
+  /** 홍보 글만, 게시 신청을 켰을 때만 뜻이 있어요: 기업이 고른 게시 날짜 YYYY-MM-DD (비우면 고를 수 있는 가장 빠른 날 — earliestOfficialDate) */
+  officialOn?: string;
 }
 
 export type PostError =
@@ -86,6 +98,10 @@ export type PostError =
   | "sdgs_too_many"
   | "challenge_not_found"
   | "official_channel_invalid"
+  /** 고른 게시 날짜가 내일 ~ 30일 뒤 밖이에요 (오늘·지난 날·31일 뒤 이후·날짜가 아닌 값) */
+  | "official_date_out_of_range"
+  /** 고른 날짜가 속한 달에 우리 회사의 한도(월 4회)를 다 썼어요 — 날짜를 비웠는데 고를 날이 하나도 없을 때도 */
+  | "official_month_full"
   | "contact_info";
 
 /** 검사에 필요한 "지금 고를 수 있는 것" (상태에서 postContext 로 만들어요) */
@@ -94,14 +110,20 @@ export interface PostContext {
   activityIds: readonly string[];
   /** 홍보 글에 연결할 수 있는 우리 회사 챌린지의 id */
   challengeIds: readonly string[];
+  /** 오늘 (YYYY-MM-DD) — 공식 게시 날짜는 내일부터 고를 수 있어요 */
+  today: string;
+  /** 우리 회사가 달마다 이미 쓴 공식 게시 횟수 { "2026-11": 1 } (officialUsageByMonth) */
+  officialUsage: OfficialUsage;
 }
 
-type PostContextSource = Pick<DemoState, "history" | "proposals" | "challenges" | "companies" | "shares" | "today" | "myCompanyId">;
+type PostContextSource = Pick<DemoState, "history" | "proposals" | "challenges" | "companies" | "shares" | "today" | "myCompanyId" | "posts">;
 
 export function postContext(state: PostContextSource): PostContext {
   return {
     activityIds: showableActivities(state).map((a) => a.id),
     challengeIds: state.challenges.filter((c) => c.companyId === state.myCompanyId).map((c) => c.id),
+    today: state.today,
+    officialUsage: officialUsageByMonth(state.posts, state.myCompanyId),
   };
 }
 
@@ -135,8 +157,19 @@ export function validatePostDraft(draft: PostDraft, context: PostContext): PostE
     if (sdgs.length === 0) errors.push("sdgs_required");
     else if (sdgs.length > POST_LIMITS.maxSdgs) errors.push("sdgs_too_many");
     if (draft.challengeId && !context.challengeIds.includes(draft.challengeId)) errors.push("challenge_not_found");
-    // 공식 SNS 게시 채널: 신청을 켰을 때만 봐요. 비워 두면 기본 채널, 목록에 없는 값은 거절해요(화면은 목록에 있는 것만 고르게 해요)
-    if (draft.requestOfficial && draft.officialChannel !== undefined && !isOfficialChannel(draft.officialChannel)) errors.push("official_channel_invalid");
+    if (draft.requestOfficial) {
+      // 공식 SNS 게시 채널: 신청을 켰을 때만 봐요. 비워 두면 기본 채널, 목록에 없는 값은 거절해요(화면은 목록에 있는 것만 고르게 해요)
+      if (draft.officialChannel !== undefined && !isOfficialChannel(draft.officialChannel)) errors.push("official_channel_invalid");
+      // 게시 날짜: 고른 날은 내일 ~ 30일 뒤 + 그 달에 한도가 남아 있어야 해요. 비워 두면 가장 빠른 날을 쓰는데, 그런 날이 없으면 한도 오류예요
+      const problem =
+        draft.officialOn === undefined
+          ? earliestDateIn(context.officialUsage, context.today) === null
+            ? "month_full"
+            : null
+          : officialDateProblem(context.officialUsage, context.today, draft.officialOn);
+      if (problem === "out_of_range") errors.push("official_date_out_of_range");
+      else if (problem === "month_full") errors.push("official_month_full");
+    }
   }
 
   if (containsContact(draft.body) || (draft.kind === "pr" && containsContact(title))) errors.push("contact_info");
@@ -146,22 +179,94 @@ export function validatePostDraft(draft: PostDraft, context: PostContext): PostE
 /** 입력 오류를 지금 언어의 문장으로 */
 export function postErrorText(error: PostError, kind: PostKind, locale: Locale): string {
   const max = error === "title_too_long" ? POST_LIMITS.prTitle : error === "sdgs_too_many" ? POST_LIMITS.maxSdgs : bodyLimit(kind);
-  return translate(`post.error.${error}`, locale, { max });
+  return translate(`post.error.${error}`, locale, { max, days: OFFICIAL_SHARE_WINDOW_DAYS, limit: OFFICIAL_SHARE_MONTHLY_LIMIT });
 }
 
-// ───────── 공식 SNS 게시 날짜 ─────────
+// ───────── 공식 SNS 게시 날짜: 회사당 월 4회, 날짜는 기업이 골라요 ─────────
+
+/** 달마다 이미 쓴 공식 게시 횟수 { "YYYY-MM": n } */
+export type OfficialUsage = Readonly<Record<string, number>>;
+
+const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
+
+/** 정말 있는 날짜(YYYY-MM-DD)인지 — 2026-02-30 같은 값은 아니에요 */
+function isIsoDay(value: unknown): value is string {
+  return typeof value === "string" && ISO_DAY.test(value) && addDays(value, 0) === value;
+}
+
+/** 게시 날짜가 속한 달 "YYYY-MM". 데모의 날짜는 모두 일본 시간 달력의 날짜라 앞 7글자가 곧 달이에요 (DB: date_trunc('month', scheduled_on)) */
+export function officialMonthOf(day: string): string {
+  return day.slice(0, 7);
+}
 
 /**
- * 공식 SNS 게시를 신청했을 때 배정할 날짜: 내일부터 가장 빠른 빈 날짜.
- * 같은 채널에서 이미 어느 기업이 받은 날짜는 건너뛰어요(채널마다 하루에 한 회사만 — 다른 채널이 받은 날짜는 상관없어요).
- * DB 의 next_official_share_date(today, channel) 와 같은 답을 내요.
+ * 한 회사가 달마다 쓴 공식 게시 횟수 — 채널을 모두 합치고, 예정·게시 완료를 다 세요.
+ * 데모에는 취소 상태가 없고 지운 글은 목록에서 빠지니, 남아 있는 신청은 모두 세요. 다른 회사의 신청은 세지 않아요.
  */
-export function nextOfficialDate(posts: readonly SocialPost[], today: string, channel: OfficialChannel = DEFAULT_OFFICIAL_CHANNEL): string {
-  const taken = new Set<string>();
-  for (const post of posts) if (post.kind === "pr" && post.official && post.official.channel === channel) taken.add(post.official.on);
-  let day = addDays(today, 1);
-  while (taken.has(day)) day = addDays(day, 1);
-  return day;
+export function officialUsageByMonth(posts: readonly SocialPost[], companyId: string): Record<string, number> {
+  const usage: Record<string, number> = {};
+  for (const post of posts) {
+    if (post.kind !== "pr" || post.companyId !== companyId || !post.official) continue;
+    const month = officialMonthOf(post.official.on);
+    usage[month] = (usage[month] ?? 0) + 1;
+  }
+  return usage;
+}
+
+/** 그 달(YYYY-MM)에 남은 횟수. 0 아래로는 내려가지 않아요 (DB: official_share_month_remaining) */
+export function officialMonthRemaining(usage: OfficialUsage, month: string): number {
+  return Math.max(0, OFFICIAL_SHARE_MONTHLY_LIMIT - (usage[month] ?? 0));
+}
+
+/** 게시 날짜 선택지 하루치 */
+export interface OfficialDateChoice {
+  /** YYYY-MM-DD */
+  date: string;
+  /** 그 날이 속한 달 YYYY-MM */
+  month: string;
+  /** 그 달에 남은 횟수 (이번 신청 전) */
+  remaining: number;
+  /** 고를 수 있는지 — 그 달의 한도를 다 썼으면 false */
+  available: boolean;
+}
+
+/** 고를 수 있는 기간(내일 ~ 30일 뒤)의 날짜를 하루씩. 한도를 다 쓴 달의 날짜는 available = false 로 남겨서 이유를 보여 줄 수 있게 해요 */
+export function officialDateChoices(usage: OfficialUsage, today: string): OfficialDateChoice[] {
+  const choices: OfficialDateChoice[] = [];
+  for (let n = 1; n <= OFFICIAL_SHARE_WINDOW_DAYS; n++) {
+    const date = addDays(today, n);
+    const month = officialMonthOf(date);
+    const remaining = officialMonthRemaining(usage, month);
+    choices.push({ date, month, remaining, available: remaining > 0 });
+  }
+  return choices;
+}
+
+function earliestDateIn(usage: OfficialUsage, today: string): string | null {
+  return officialDateChoices(usage, today).find((choice) => choice.available)?.date ?? null;
+}
+
+/**
+ * 처음 골라 두는 게시 날짜 = 그 회사가 고를 수 있는 가장 빠른 날: 내일부터 30일 뒤까지 중, 그 날이 속한 달에 아직 한도가 남은 첫날.
+ * 기간 안의 모든 달이 찼으면 null (그때는 신청할 수 없어요). DB 의 earliest_official_share_date(company, today) 와 같은 답을 내요.
+ */
+export function earliestOfficialDate(posts: readonly SocialPost[], companyId: string, today: string): string | null {
+  return earliestDateIn(officialUsageByMonth(posts, companyId), today);
+}
+
+export type OfficialDateProblem = "out_of_range" | "month_full";
+
+/** 고른 날짜를 쓸 수 있는지: 쓸 수 있으면 null, 기간 밖(오늘·지난 날·31일 뒤 이후·날짜가 아닌 값)이면 out_of_range, 그 달의 한도를 다 썼으면 month_full */
+export function officialDateProblem(usage: OfficialUsage, today: string, date: unknown): OfficialDateProblem | null {
+  if (!isIsoDay(date)) return "out_of_range";
+  const ahead = daysBetween(today, date);
+  if (ahead < 1 || ahead > OFFICIAL_SHARE_WINDOW_DAYS) return "out_of_range";
+  return officialMonthRemaining(usage, officialMonthOf(date)) > 0 ? null : "month_full";
+}
+
+/** 신청에 쓸 날짜: 고른 날짜, 비웠으면 가장 빠른 날 (검사는 validatePostDraft 가 먼저 해요) */
+export function resolveOfficialDate(draft: Pick<PostDraft, "officialOn">, context: Pick<PostContext, "today" | "officialUsage">): string | null {
+  return draft.officialOn ?? earliestDateIn(context.officialUsage, context.today);
 }
 
 /** 채널 이름 (브랜드 이름이라 일본어는 그대로, 한국어는 익숙한 표기): X / Instagram / Facebook */

@@ -5,12 +5,15 @@ import { CERT_CRITERIA, criterionOf, evaluateCertification, type CertUnit, type 
 import { certificateFromActivity, certificateIdAt, qrPayload, verifyCode, type Certificate } from "./certificate";
 import type { Activity, ActivityKind, AwardKind, Candidate, Challenge, ChallengeStatus, CertCriterionId, Company, DemoState, OfficialChannel, PostKind, Proposal, ProposalStatus, Review, Role, ScoutKind, ScoutStatus, SkillId, SocialPost } from "./domain";
 import { summarizeMatches, splitMatchFee } from "./fees";
-import { dDayLabel, daysBetween, formatBytes, formatDate, formatDateShort, formatDateTime, formatPeople, formatYen } from "./format";
+import { dDayLabel, daysBetween, formatBytes, formatDate, formatDateShort, formatDateTime, formatMonthDayWeekday, formatPeople, formatYen } from "./format";
 import { computeBadges, computeImpactIndex, BADGE_EMOJI, levelProgress, levelOf, REVIEW_SCORE_MAX, reviewBonus, type BadgeCode } from "./impact";
 import { pick, type Locale } from "./i18n";
 import { awardLabel, challengeStatusLabel, participationLabel, proposalStatusLabel, rewardLabel, scoutKindLabel, sdgLabel, sdgShort, skillLabel } from "./labels";
 import { makeT, translate, type TFunction } from "./messages";
-import { authorRole, bodyLimit, DEFAULT_OFFICIAL_CHANNEL, defaultPrSdgs, nextOfficialDate, OFFICIAL_CHANNELS, OFFICIAL_SHARE_FEE_YEN, officialChannelFormat, officialChannelLabel, officialChannelName, POST_LIMITS } from "./post";
+import {
+  authorRole, bodyLimit, DEFAULT_OFFICIAL_CHANNEL, defaultPrSdgs, OFFICIAL_CHANNELS, OFFICIAL_SHARE_FEE_YEN, OFFICIAL_SHARE_MONTHLY_LIMIT, OFFICIAL_SHARE_WINDOW_DAYS,
+  officialChannelFormat, officialChannelLabel, officialChannelName, officialDateChoices, officialUsageByMonth, POST_LIMITS,
+} from "./post";
 import { qrMatrix } from "./qr";
 import { isOpenFor, recommendChallenges, scoreChallenge, type Reason, type Recommendation } from "./recommend";
 import { remainingScouts, SCOUT_DAILY_LIMIT, alreadyScouted, canSendScout } from "./scout";
@@ -1355,19 +1358,30 @@ export interface ComposerVM {
   defaultSdgIds: SdgId[];
   /** 챌린지를 연결하지 않았을 때의 기본 SDGs (기업의 SDGs, 최대 3개) */
   companySdgIds: SdgId[];
-  /** 홍보 글의 공식 SNS 게시 신청 안내: 고를 수 있는 채널과, 지금 신청하면 채널마다 배정될 날짜 */
+  /** 홍보 글의 공식 SNS 게시 신청: 고를 수 있는 채널과 날짜(회사당 월 4회 · 내일 ~ 30일 뒤) */
   official: {
     feeYen: number;
     feeLabel: string;
+    /** "1社につき月4回まで（すべてのSNSの合計）。掲載日は明日から30日後までの中から選べます（掲載料 ¥3,000・サンプル）" */
     hint: string;
     /** 채널 선택지 (화면 순서: X · Instagram · Facebook) */
     channels: OfficialChannelOptionVM[];
     /** 처음 골라 두는 채널 */
     defaultChannel: OfficialChannel;
+    /** 한 회사가 한 달에 신청할 수 있는 횟수 (OFFICIAL_SHARE_MONTHLY_LIMIT) */
+    limit: number;
+    /** 게시 날짜 선택지: 내일부터 30일 뒤까지 하루씩 (한도를 다 쓴 달의 날짜도 available = false 로 들어 있어요) */
+    dates: OfficialDateOptionVM[];
+    /** 처음 골라 두는 날짜 = 고를 수 있는 가장 빠른 날. 고를 날이 없으면 null */
+    defaultDate: string | null;
+    /** 고를 날이 하나도 없을 때의 이유 (그때는 신청 스위치를 꺼 둬요). 고를 날이 있으면 null */
+    unavailableReason: string | null;
+    /** 기간 안에서 한도를 다 쓴 달마다 한 줄: "12月は掲載枠（月4回）を使い切ったため選べません" */
+    fullMonthNotes: string[];
   };
 }
 
-/** 글쓰기의 채널 선택지 한 줄: 이름 · 올라가는 모양 · 지금 신청하면 이 채널에서 배정될 날짜 */
+/** 글쓰기의 채널 선택지 한 줄: 이름 · 올라가는 모양 */
 export interface OfficialChannelOptionVM {
   id: OfficialChannel;
   /** "X" / "Instagram" / "Facebook" */
@@ -1376,10 +1390,48 @@ export interface OfficialChannelOptionVM {
   format: string;
   /** 이름 + 모양: "Instagram ストーリー" (읽어 주는 글·미리보기에 써요) */
   label: string;
-  /** 이 채널에서 내일부터 가장 빠른 빈 날짜 (YYYY-MM-DD) */
-  nextDate: string;
-  /** "게시 예정일: 2026年11月2日" */
-  nextDateLabel: string;
+}
+
+/** 게시 날짜 선택지 하루치 */
+export interface OfficialDateOptionVM {
+  /** YYYY-MM-DD */
+  date: string;
+  /** "10月31日（土）" / "10월 31일(토)" */
+  label: string;
+  /** 고를 수 있는지 — 그 달의 한도를 다 썼으면 false */
+  available: boolean;
+  /** 그 날이 속한 달 YYYY-MM */
+  month: string;
+  /** 그 달에 남은 횟수 (이번 신청 전) */
+  remaining: number;
+  /** "10月の残り 3/4回" — 고른 날짜가 속한 달의 남은 횟수 */
+  remainingLabel: string;
+}
+
+/** "2026-11" → 11 */
+const monthNumber = (month: string) => Number(month.slice(5, 7));
+
+/** 날짜 고르기(◀ 날짜 ▶)의 지금 상태: 고른 날의 선택지와, 이전·다음으로 갈 수 있는 날 (고를 수 있는 날만 — 한도를 다 쓴 달은 건너뛰어요) */
+export interface OfficialDateNav {
+  /** 지금 고른 날의 선택지 (고른 날이 없거나 목록에 없으면 null) */
+  option: OfficialDateOptionVM | null;
+  prev: string | null;
+  next: string | null;
+  /** 지금 고른 날이 가장 빠른 날(처음 골라 두는 날)인지 — 그러면 「最短の日に戻す」는 할 일이 없어요 */
+  atEarliest: boolean;
+}
+
+/** 웹·앱 글쓰기의 날짜 고르기가 함께 써요 */
+export function officialDateNav(official: Pick<ComposerVM["official"], "dates" | "defaultDate">, date: string | null): OfficialDateNav {
+  const available = official.dates.filter((d) => d.available);
+  const option = official.dates.find((d) => d.date === date) ?? null;
+  const before = date === null ? [] : available.filter((d) => d.date < date);
+  return {
+    option,
+    prev: before.length > 0 ? before[before.length - 1].date : null,
+    next: date === null ? null : (available.find((d) => d.date > date)?.date ?? null),
+    atEarliest: date === official.defaultDate,
+  };
 }
 
 export function selectComposer(state: DemoState, locale: Locale, kind: PostKind, preset: PostPreset = {}): ComposerVM {
@@ -1399,17 +1451,24 @@ export function selectComposer(state: DemoState, locale: Locale, kind: PostKind,
   const challenges = [...open, ...others].map((c) => ({ id: c.id, title: pick(c.title, locale), sdgIds: c.sdgIds.slice(0, POST_LIMITS.maxSdgs) }));
   const selectedChallenge = challenges.find((c) => c.id === preset.challengeId) ?? null;
   const companySdgIds = defaultPrSdgs(company?.sdgIds ?? [], null);
-  const channels: OfficialChannelOptionVM[] = OFFICIAL_CHANNELS.map((id) => {
-    const nextDate = nextOfficialDate(state.posts, state.today, id);
-    return {
-      id,
-      name: officialChannelName(id, locale),
-      format: officialChannelFormat(id, locale),
-      label: officialChannelLabel(id, locale),
-      nextDate,
-      nextDateLabel: t("post.officialDate", { date: formatDate(nextDate, locale) }),
-    };
-  });
+  const channels: OfficialChannelOptionVM[] = OFFICIAL_CHANNELS.map((id) => ({
+    id,
+    name: officialChannelName(id, locale),
+    format: officialChannelFormat(id, locale),
+    label: officialChannelLabel(id, locale),
+  }));
+  // 게시 날짜: 우리 회사가 달마다 쓴 횟수로 30일치 선택지를 만들어요 (다른 회사의 신청은 상관없어요 — 하루 제한이 없어요)
+  const limit = OFFICIAL_SHARE_MONTHLY_LIMIT;
+  const dates: OfficialDateOptionVM[] = officialDateChoices(officialUsageByMonth(state.posts, state.myCompanyId), state.today).map((choice) => ({
+    date: choice.date,
+    label: formatMonthDayWeekday(choice.date, locale),
+    available: choice.available,
+    month: choice.month,
+    remaining: choice.remaining,
+    remainingLabel: t("post.officialRemaining", { month: monthNumber(choice.month), remaining: choice.remaining, limit }),
+  }));
+  const defaultDate = dates.find((d) => d.available)?.date ?? null;
+  const fullMonths = [...new Set(dates.filter((d) => !d.available).map((d) => d.month))];
 
   return {
     kind,
@@ -1432,9 +1491,14 @@ export function selectComposer(state: DemoState, locale: Locale, kind: PostKind,
     official: {
       feeYen: OFFICIAL_SHARE_FEE_YEN,
       feeLabel: formatYen(OFFICIAL_SHARE_FEE_YEN, locale),
-      hint: t("post.officialHint", { fee: formatYen(OFFICIAL_SHARE_FEE_YEN, locale) }),
+      hint: t("post.officialHint", { fee: formatYen(OFFICIAL_SHARE_FEE_YEN, locale), limit, days: OFFICIAL_SHARE_WINDOW_DAYS }),
       channels,
       defaultChannel: DEFAULT_OFFICIAL_CHANNEL,
+      limit,
+      dates,
+      defaultDate,
+      unavailableReason: defaultDate === null ? t("post.officialNoDate", { days: OFFICIAL_SHARE_WINDOW_DAYS, limit }) : null,
+      fullMonthNotes: fullMonths.map((month) => t("post.officialMonthFull", { month: monthNumber(month), limit })),
     },
   };
 }

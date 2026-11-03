@@ -176,7 +176,7 @@ SELECT pg_temp.eq((SELECT (SELECT count(*) FROM social_post_sdgs WHERE post_id =
                         + (SELECT count(*) FROM social_post_likes WHERE post_id = '90000000-0000-0000-0000-000000000022')
                         + (SELECT count(*) FROM official_share_slots WHERE post_id = '90000000-0000-0000-0000-000000000022'))::int, 0,
                   '글을 지우면 태그·좋아요·공식 게시 신청이 함께 사라진다');
-SELECT pg_temp.eq(next_official_share_date(jst_date(now()) + 19), jst_date(now()) + 20, '지운 글이 잡고 있던 날짜는 다시 빈다');
+SELECT pg_temp.eq(official_share_month_used('d0000000-0000-0000-0000-000000000001', jst_date(now()) + 20), 0, '지운 글의 신청은 그 달의 횟수에서도 빠진다');
 
 -- ───────── 좋아요 ─────────
 INSERT INTO social_post_likes (post_id, user_id) VALUES
@@ -198,123 +198,119 @@ SELECT pg_temp.eq((SELECT like_count FROM feed_posts WHERE id = '90000000-0000-0
 DELETE FROM social_post_likes WHERE post_id = '90000000-0000-0000-0000-000000000010' AND user_id = 'c0000000-0000-0000-0000-000000000002';
 SELECT pg_temp.eq((SELECT like_count FROM feed_posts WHERE id = '90000000-0000-0000-0000-000000000010'), 2, '좋아요를 취소하면 수가 줄어든다');
 
--- ───────── 공식 SNS 게시 신청 (하루에 한 회사 — 이 절은 채널을 말하지 않으니 모두 instagram) ─────────
+-- ───────── 공식 SNS 게시 신청 (F-504): 날짜는 기업이 고르고(신청한 날의 내일 ~ 30일 뒤), 하루 제한 없이 회사당 월 4회 ─────────
+-- 신청 시각을 2026-10-30 10:00(일본 시간)으로 정해 두어 언제 돌려도 같은 달력으로 확인해요: 고를 수 있는 날은 10/31(10월은 하루뿐) ~ 11/29.
+CREATE FUNCTION pg_temp.req(p_post uuid, p_on date, p_channel official_channel DEFAULT 'instagram') RETURNS void LANGUAGE sql AS $$
+  INSERT INTO official_share_slots (post_id, scheduled_on, channel, requested_at) VALUES (p_post, p_on, p_channel, timestamptz '2026-10-30 10:00+09')
+$$;
 SELECT pg_temp.mk_brag('90000000-0000-0000-0000-000000000030', 'c0000000-0000-0000-0000-000000000001', 'ac100000-0000-0000-0000-000000000001');
-SELECT pg_temp.mk_pr('90000000-0000-0000-0000-000000000031', 'b0000000-0000-0000-0000-000000000001', 'd0000000-0000-0000-0000-000000000001');   -- 기업 1
-SELECT pg_temp.mk_pr('90000000-0000-0000-0000-000000000032', 'b0000000-0000-0000-0000-00000000000a', 'd0000000-0000-0000-0000-000000000003');   -- 기업 3
-SELECT pg_temp.mk_pr('90000000-0000-0000-0000-000000000033', 'b0000000-0000-0000-0000-000000000001', 'd0000000-0000-0000-0000-000000000001');   -- 기업 1 두 번째 글
+SELECT pg_temp.mk_pr(('90000000-0000-0000-0000-0000000000' || n)::uuid, 'b0000000-0000-0000-0000-000000000001', 'd0000000-0000-0000-0000-000000000001')
+  FROM unnest(ARRAY['31', '33', '34', '35', '36', '37', '39', '3a', '3b']) AS n;                                                            -- 기업 1 (みなと海洋フーズ)의 글 9개
+SELECT pg_temp.mk_pr(('90000000-0000-0000-0000-0000000000' || n)::uuid, 'b0000000-0000-0000-0000-00000000000a', 'd0000000-0000-0000-0000-000000000003')
+  FROM unnest(ARRAY['32', '38']) AS n;                                                                                                       -- 기업 3 (まちづくりラボ)의 글 2개
 
-SELECT pg_temp.eq(next_official_share_date(), jst_date(now()) + 1, '신청이 하나도 없으면 내일부터 배정한다');
-SELECT pg_temp.fails($s$INSERT INTO official_share_slots (post_id, scheduled_on) VALUES ('90000000-0000-0000-0000-000000000030', jst_date(now()) + 1)$s$,
-                     '23514', '자랑 글에는 공식 SNS 게시를 신청할 수 없다 (기업 홍보 글만)');
-SELECT pg_temp.fails($s$INSERT INTO official_share_slots (post_id, scheduled_on) VALUES ('90000000-0000-0000-0000-000000000031', jst_date(now()))$s$,
-                     '23514', '오늘로는 신청할 수 없다 (내일부터)');
-SELECT pg_temp.fails($s$INSERT INTO official_share_slots (post_id, scheduled_on) VALUES ('90000000-0000-0000-0000-000000000031', jst_date(now()) - 3)$s$,
-                     '23514', '지난 날짜로는 신청할 수 없다');
-SELECT pg_temp.fails($s$INSERT INTO official_share_slots (post_id, scheduled_on, status, posted_at) VALUES ('90000000-0000-0000-0000-000000000031', jst_date(now()) + 1, 'posted', now())$s$,
+SELECT pg_temp.eq(earliest_official_share_date('d0000000-0000-0000-0000-000000000001', DATE '2026-10-30'), DATE '2026-10-31', '신청이 하나도 없으면 내일부터 고를 수 있다');
+SELECT pg_temp.eq(earliest_official_share_date(gen_random_uuid()), jst_date(now()) + 1, '기준일을 생략하면 오늘(일본 시간) 기준이다 — 신청이 없는 회사는 내일');
+SELECT pg_temp.fails($s$SELECT pg_temp.req('90000000-0000-0000-0000-000000000030', '2026-10-31')$s$, '23514', '자랑 글에는 공식 SNS 게시를 신청할 수 없다 (기업 홍보 글만)');
+SELECT pg_temp.fails($s$SELECT pg_temp.req('90000000-0000-0000-0000-000000000031', '2026-10-30')$s$, '23514', '신청한 날(오늘)은 고를 수 없다 — 내일부터');
+SELECT pg_temp.fails($s$SELECT pg_temp.req('90000000-0000-0000-0000-000000000031', '2026-10-27')$s$, '23514', '지난 날짜는 고를 수 없다');
+SELECT pg_temp.fails($s$SELECT pg_temp.req('90000000-0000-0000-0000-000000000031', '2026-11-30')$s$, '23514', '31일 뒤는 고를 수 없다 (30일 뒤까지 — OFFICIAL_SHARE_WINDOW_DAYS)');
+SELECT pg_temp.fails($s$INSERT INTO official_share_slots (post_id, scheduled_on, status, posted_at, requested_at)
+                        VALUES ('90000000-0000-0000-0000-000000000031', '2026-10-31', 'posted', now(), '2026-10-30 10:00+09')$s$,
                      '23514', '새 신청을 처음부터 게시 완료로 만들 수는 없다');
-
-INSERT INTO official_share_slots (post_id, scheduled_on) VALUES ('90000000-0000-0000-0000-000000000031', jst_date(now()) + 1);
-SELECT pg_temp.eq((SELECT fee_yen || '/' || status FROM official_share_slots WHERE post_id = '90000000-0000-0000-0000-000000000031'), '3000/scheduled', '신청하면 게시료 ¥3,000 · 예정 상태가 된다 (OFFICIAL_SHARE_FEE_YEN)');
-SELECT pg_temp.eq(next_official_share_date(), jst_date(now()) + 2, '내일을 누가 받았으면 다음은 모레다');
-SELECT pg_temp.fails($s$INSERT INTO official_share_slots (post_id, scheduled_on) VALUES ('90000000-0000-0000-0000-000000000032', jst_date(now()) + 1)$s$,
-                     '23505', '같은 날짜를 다른 기업이 또 신청할 수 없다 (하루에 한 회사)');
-SELECT pg_temp.fails($s$INSERT INTO official_share_slots (post_id, scheduled_on) VALUES ('90000000-0000-0000-0000-000000000031', jst_date(now()) + 5)$s$,
-                     '23505', '한 글에 신청은 한 번뿐이다');
-SELECT pg_temp.fails($s$INSERT INTO official_share_slots (post_id, scheduled_on, fee_yen) VALUES ('90000000-0000-0000-0000-000000000032', jst_date(now()) + 2, -1)$s$,
+SELECT pg_temp.req('90000000-0000-0000-0000-000000000031', '2026-11-29');
+SELECT pg_temp.eq((SELECT fee_yen || '/' || status FROM official_share_slots WHERE post_id = '90000000-0000-0000-0000-000000000031'), '3000/scheduled',
+                  '30일 뒤(11/29)는 고를 수 있고, 신청하면 게시료 ¥3,000 · 예정 상태가 된다 (OFFICIAL_SHARE_FEE_YEN)');
+SELECT pg_temp.fails($s$SELECT pg_temp.req('90000000-0000-0000-0000-000000000031', '2026-11-05')$s$, '23505', '한 글에 신청은 한 번뿐이다');
+SELECT pg_temp.fails($s$INSERT INTO official_share_slots (post_id, scheduled_on, fee_yen, requested_at) VALUES ('90000000-0000-0000-0000-000000000032', '2026-10-31', -1, '2026-10-30 10:00+09')$s$,
                      '23514', '게시료는 음수가 될 수 없다');
-INSERT INTO official_share_slots (post_id, scheduled_on) VALUES ('90000000-0000-0000-0000-000000000032', jst_date(now()) + 3);   -- 모레(+2)를 비워 둔다
-SELECT pg_temp.eq(next_official_share_date(), jst_date(now()) + 2, '중간에 빈 날짜가 있으면 가장 빠른 빈 날짜를 배정한다');
-INSERT INTO official_share_slots (post_id, scheduled_on) VALUES ('90000000-0000-0000-0000-000000000033', jst_date(now()) + 2);
-SELECT pg_temp.eq(next_official_share_date(), jst_date(now()) + 4, '빈 날짜를 채우면 그다음 날로 넘어간다');
-SELECT pg_temp.eq(next_official_share_date(jst_date(now()) + 10), jst_date(now()) + 11, '기준일이 뒤면 그 다음 날부터 본다 (지난 신청은 상관없다)');
 
--- 상태: 예정 → 게시 완료 / 취소만, 끝난 신청은 되돌릴 수 없다
-UPDATE official_share_slots SET status = 'cancelled' WHERE post_id = '90000000-0000-0000-0000-000000000032';
-SELECT pg_temp.eq(next_official_share_date(), jst_date(now()) + 3, '취소하면 그 날짜(+3)가 다시 빈다');
-SELECT pg_temp.fails($s$UPDATE official_share_slots SET status = 'scheduled' WHERE post_id = '90000000-0000-0000-0000-000000000032'$s$,
-                     '23514', '취소한 신청을 다시 예정으로 되돌릴 수 없다');
-UPDATE official_share_slots SET status = 'posted' WHERE post_id = '90000000-0000-0000-0000-000000000033';
-SELECT pg_temp.ok((SELECT posted_at IS NOT NULL FROM official_share_slots WHERE post_id = '90000000-0000-0000-0000-000000000033'), '게시 완료가 되면 게시 시각이 자동으로 기록된다');
-SELECT pg_temp.eq(next_official_share_date(), jst_date(now()) + 3, '게시 완료된 날짜(+2)도 계속 잡혀 있다');
-SELECT pg_temp.fails($s$UPDATE official_share_slots SET status = 'cancelled' WHERE post_id = '90000000-0000-0000-0000-000000000033'$s$,
-                     '23514', '게시를 마친 신청은 취소할 수 없다');
-SELECT pg_temp.fails($s$UPDATE official_share_slots SET scheduled_on = jst_date(now()) + 9 WHERE post_id = '90000000-0000-0000-0000-000000000033'$s$,
-                     '23514', '게시를 마친 신청의 날짜는 바꿀 수 없다');
-SELECT pg_temp.fails($s$UPDATE official_share_slots SET posted_at = now() WHERE post_id = '90000000-0000-0000-0000-000000000031'$s$,
-                     '23514', '예정 상태에는 게시 시각이 있을 수 없다');
-SELECT pg_temp.fails($s$UPDATE official_share_slots SET scheduled_on = jst_date(now()) WHERE post_id = '90000000-0000-0000-0000-000000000031'$s$,
-                     '23514', '예정일을 오늘 이전으로 옮길 수 없다');
-UPDATE official_share_slots SET scheduled_on = jst_date(now()) + 8 WHERE post_id = '90000000-0000-0000-0000-000000000031';
-SELECT pg_temp.eq(next_official_share_date(), jst_date(now()) + 1, '예정 상태의 신청은 날짜를 옮길 수 있고, 비운 날짜(+1)는 다시 빈다');
-DELETE FROM social_posts WHERE id = '90000000-0000-0000-0000-000000000031';
-SELECT pg_temp.eq((SELECT count(*) FROM official_share_slots WHERE scheduled_on = jst_date(now()) + 8)::int, 0, '글을 지우면 신청도 사라지고 날짜가 비워진다');
+-- ① 하루 제한이 없다: 같은 날(10/31)·같은 채널(Instagram)에 두 회사
+SELECT pg_temp.req('90000000-0000-0000-0000-000000000032', '2026-10-31');   -- 기업 3
+SELECT pg_temp.req('90000000-0000-0000-0000-000000000033', '2026-10-31');   -- 기업 1
+SELECT pg_temp.eq((SELECT count(DISTINCT p.company_id) FROM official_share_slots s JOIN social_posts p ON p.id = s.post_id
+                    WHERE s.scheduled_on = '2026-10-31' AND s.channel = 'instagram')::int, 2,
+                  '같은 날·같은 채널에 두 회사가 함께 신청할 수 있다 (하루 제한 없음)');
+SELECT pg_temp.eq((SELECT channel::text FROM official_share_slots WHERE post_id = '90000000-0000-0000-0000-000000000032'), 'instagram', '채널을 말하지 않은 신청은 instagram 이다 (기본값 — 채널이 없던 때의 신청과 같다)');
 
--- ───────── 공식 SNS 게시 신청: 채널마다 하루에 한 회사 (X · Instagram · Facebook) ─────────
--- 위에서는 채널을 말하지 않았으니 모두 instagram 이에요. 그 결과 Instagram 에 남은 날짜는 모레(+2, 게시 완료) 하나뿐이고 +3 은 취소로 비어 있어요.
-SELECT pg_temp.eq((SELECT channel::text FROM official_share_slots WHERE post_id = '90000000-0000-0000-0000-000000000033'), 'instagram', '채널을 말하지 않은 신청은 instagram 이다 (기본값 — 채널이 없던 때의 신청과 같다)');
-SELECT pg_temp.mk_pr('90000000-0000-0000-0000-000000000060', 'b0000000-0000-0000-0000-000000000001', 'd0000000-0000-0000-0000-000000000001');   -- 기업 1
-SELECT pg_temp.mk_pr('90000000-0000-0000-0000-000000000061', 'b0000000-0000-0000-0000-00000000000a', 'd0000000-0000-0000-0000-000000000003');   -- 기업 3
-SELECT pg_temp.mk_pr('90000000-0000-0000-0000-000000000062', 'b0000000-0000-0000-0000-000000000001', 'd0000000-0000-0000-0000-000000000001');   -- 기업 1 두 번째 글
-SELECT pg_temp.mk_pr('90000000-0000-0000-0000-000000000063', 'b0000000-0000-0000-0000-00000000000a', 'd0000000-0000-0000-0000-000000000003');   -- 기업 3 두 번째 글
-SELECT pg_temp.mk_pr('90000000-0000-0000-0000-000000000064', 'b0000000-0000-0000-0000-000000000001', 'd0000000-0000-0000-0000-000000000001');   -- 기업 1 세 번째 글
+-- ② 회사당 월 4회 — 채널을 모두 합쳐 센다 (기업 1 의 10월 = 10/31 하루에 4번)
+SELECT pg_temp.req('90000000-0000-0000-0000-000000000034', '2026-10-31', 'x');
+SELECT pg_temp.req('90000000-0000-0000-0000-000000000035', '2026-10-31', 'facebook');
+SELECT pg_temp.req('90000000-0000-0000-0000-000000000036', '2026-10-31', 'instagram');
+SELECT pg_temp.eq(official_share_month_used('d0000000-0000-0000-0000-000000000001', '2026-10-31'), 4, '기업 1 은 10월에 4번 신청했다 (Instagram 2 · X 1 · Facebook 1 을 합쳐 센다)');
+SELECT pg_temp.fails($s$SELECT pg_temp.req('90000000-0000-0000-0000-000000000037', '2026-10-31', 'x')$s$, '23514', '같은 달 5번째 신청은 거절한다 (채널이 달라도 — 회사당 월 4회)');
+SELECT pg_temp.eq(official_share_month_remaining('d0000000-0000-0000-0000-000000000001', '2026-10-15'), 0, '그 달의 남은 횟수는 0 이다 (달 안의 어느 날로 물어도 같다)');
+SELECT pg_temp.eq(official_share_month_remaining('d0000000-0000-0000-0000-000000000003', '2026-10-31'), 3, '다른 회사의 횟수와는 따로다 (기업 3 의 10월 남은 횟수 3)');
+SELECT pg_temp.req('90000000-0000-0000-0000-000000000038', '2026-10-31', 'x');
+SELECT pg_temp.ok(true, '기업 1 이 10월을 다 써도 다른 회사(기업 3)는 같은 날에 또 신청할 수 있다');
+SELECT pg_temp.ok(EXISTS (SELECT 1 FROM pg_locks WHERE locktype = 'advisory' AND pid = pg_backend_pid() AND granted AND objsubid = 2
+                           AND classid = hashtext('official_share_slots')::oid AND objid = official_share_lock_key('d0000000-0000-0000-0000-000000000001')::oid),
+                  '신청한 트랜잭션은 그 회사의 자물쇠(pg_advisory_xact_lock)를 끝날 때까지 쥔다 — 같은 회사의 다른 신청은 기다렸다가 다시 센다');
 
--- ① 같은 날 다른 채널은 허용한다 / ② 같은 날 같은 채널은 거절한다
-INSERT INTO official_share_slots (post_id, scheduled_on, channel) VALUES ('90000000-0000-0000-0000-000000000060', jst_date(now()) + 1, 'x');
-SELECT pg_temp.fails($s$INSERT INTO official_share_slots (post_id, scheduled_on, channel) VALUES ('90000000-0000-0000-0000-000000000061', jst_date(now()) + 1, 'x')$s$,
-                     '23505', '같은 날 같은 채널(X)에는 다른 기업도 신청할 수 없다 (채널마다 하루에 한 회사)');
-INSERT INTO official_share_slots (post_id, scheduled_on, channel) VALUES ('90000000-0000-0000-0000-000000000061', jst_date(now()) + 2, 'x');
-INSERT INTO official_share_slots (post_id, scheduled_on, channel) VALUES ('90000000-0000-0000-0000-000000000062', jst_date(now()) + 1, 'facebook');
-SELECT pg_temp.ok(true, '같은 날(+1)에 X 와 Facebook 이 함께 들어간다 — 채널이 다르면 같은 회사도, 다른 회사도 같은 날에 신청할 수 있다');
+-- ③ 다음 달은 따로 센다
+SELECT pg_temp.eq(earliest_official_share_date('d0000000-0000-0000-0000-000000000001', DATE '2026-10-30'), DATE '2026-11-01', '이번 달(10월)을 다 쓰면 가장 빠른 날은 다음 달 1일이다');
+SELECT pg_temp.req('90000000-0000-0000-0000-000000000037', '2026-11-01', 'x');
+SELECT pg_temp.eq(official_share_month_used('d0000000-0000-0000-0000-000000000001', '2026-11-01'), 2, '11월은 따로 센다 (11/1 · 11/29 두 번)');
 
--- ④ 함수가 채널마다 다른 답을 낸다 (X: +1·+2 가 찼다 → +3 / Facebook: +1 이 찼다 → +2 / Instagram: +2 만 찼다 → +1 / 말하지 않으면 instagram)
-SELECT pg_temp.eq(next_official_share_date(jst_date(now()), 'x'),         jst_date(now()) + 3, 'X 는 내일·모레가 찼으니 3일 뒤다');
-SELECT pg_temp.eq(next_official_share_date(jst_date(now()), 'facebook'),  jst_date(now()) + 2, 'Facebook 은 내일이 찼으니 모레다');
-SELECT pg_temp.eq(next_official_share_date(jst_date(now()), 'instagram'), jst_date(now()) + 1, 'Instagram 은 모레만 차 있으니 내일이 비어 있다 (다른 채널의 날짜는 상관없다)');
-SELECT pg_temp.eq(next_official_share_date(jst_date(now())),              jst_date(now()) + 1, '채널을 말하지 않으면 instagram 으로 센다 (⑤ 기본값)');
-SELECT pg_temp.eq(next_official_share_date(),                             jst_date(now()) + 1, '기준일도 채널도 생략하면 오늘(일본 시간)·instagram 이다');
-SELECT pg_temp.eq(next_official_share_date(p_channel => 'x'),             jst_date(now()) + 3, '채널만 이름으로 넘길 수도 있다');
-SELECT pg_temp.eq(next_official_share_date(jst_date(now()) + 10, 'x'),    jst_date(now()) + 11, '기준일이 뒤면 채널에 상관없이 그 다음 날부터 본다');
+-- ④ 취소하면 한 자리 돌아오고, 게시 완료는 계속 센다. 상태는 예정 → 게시 완료 / 취소만, 끝난 신청은 되돌릴 수 없다
+UPDATE official_share_slots SET status = 'cancelled' WHERE post_id = '90000000-0000-0000-0000-000000000034';
+SELECT pg_temp.eq(official_share_month_remaining('d0000000-0000-0000-0000-000000000001', '2026-10-31'), 1, '취소하면 그 달의 횟수가 하나 돌아온다 (취소한 신청은 세지 않는다)');
+SELECT pg_temp.eq(earliest_official_share_date('d0000000-0000-0000-0000-000000000001', DATE '2026-10-30'), DATE '2026-10-31', '자리가 돌아오면 10/31 을 다시 고를 수 있다');
+SELECT pg_temp.fails($s$UPDATE official_share_slots SET status = 'scheduled' WHERE post_id = '90000000-0000-0000-0000-000000000034'$s$,
+                     '23514', '취소한 신청을 다시 예정으로 되돌릴 수 없다 (자리를 다시 쓰려면 새로 신청한다)');
+SELECT pg_temp.req('90000000-0000-0000-0000-000000000039', '2026-10-31');
+SELECT pg_temp.ok(true, '돌아온 자리에 새로 신청할 수 있다 (10월 4번째)');
+UPDATE official_share_slots SET status = 'posted' WHERE post_id = '90000000-0000-0000-0000-000000000035';
+SELECT pg_temp.ok((SELECT posted_at IS NOT NULL FROM official_share_slots WHERE post_id = '90000000-0000-0000-0000-000000000035'), '게시 완료가 되면 게시 시각이 자동으로 기록된다');
+SELECT pg_temp.eq(official_share_month_used('d0000000-0000-0000-0000-000000000001', '2026-10-31'), 4, '게시 완료한 신청도 계속 센다 (예정 3 + 게시 완료 1)');
+SELECT pg_temp.fails($s$UPDATE official_share_slots SET status = 'cancelled' WHERE post_id = '90000000-0000-0000-0000-000000000035'$s$, '23514', '게시를 마친 신청은 취소할 수 없다');
+SELECT pg_temp.fails($s$UPDATE official_share_slots SET scheduled_on = jst_date(now()) + 9 WHERE post_id = '90000000-0000-0000-0000-000000000035'$s$, '23514', '게시를 마친 신청의 날짜는 바꿀 수 없다');
+SELECT pg_temp.fails($s$UPDATE official_share_slots SET channel = 'x' WHERE post_id = '90000000-0000-0000-0000-000000000035'$s$, '23514', '게시를 마친 신청의 채널은 바꿀 수 없다');
+SELECT pg_temp.fails($s$UPDATE official_share_slots SET channel = 'facebook' WHERE post_id = '90000000-0000-0000-0000-000000000034'$s$, '23514', '취소한 신청의 채널은 바꿀 수 없다');
+SELECT pg_temp.fails($s$UPDATE official_share_slots SET posted_at = now() WHERE post_id = '90000000-0000-0000-0000-000000000033'$s$, '23514', '예정 상태에는 게시 시각이 있을 수 없다');
+UPDATE official_share_slots SET channel = 'x' WHERE post_id = '90000000-0000-0000-0000-000000000033';
+SELECT pg_temp.eq(official_share_month_used('d0000000-0000-0000-0000-000000000001', '2026-10-31'), 4, '예정 상태의 신청은 채널을 옮길 수 있다 — 한 달 횟수는 채널과 상관없어서 그대로다');
 
--- 내일(+1)을 세 채널이 모두 받은 날: 기업 3 이 Instagram 에 신청해도 된다
-INSERT INTO official_share_slots (post_id, scheduled_on, channel) VALUES ('90000000-0000-0000-0000-000000000063', jst_date(now()) + 1, 'instagram');
-SELECT pg_temp.eq((SELECT count(DISTINCT channel) FROM official_share_slots WHERE scheduled_on = jst_date(now()) + 1 AND status = 'scheduled')::int, 3, '같은 날(+1)에 세 채널이 모두 한 건씩 있다');
-SELECT pg_temp.eq(next_official_share_date(jst_date(now()), 'instagram'), jst_date(now()) + 3, 'Instagram 도 내일·모레가 찼으니 3일 뒤가 된다');
-SELECT pg_temp.eq(next_official_share_date(jst_date(now()), 'facebook'),  jst_date(now()) + 2, 'Facebook 은 그대로다 (다른 채널의 신청은 세지 않는다)');
-SELECT pg_temp.fails($s$INSERT INTO official_share_slots (post_id, scheduled_on, channel) VALUES ('90000000-0000-0000-0000-000000000064', jst_date(now()) + 1, 'facebook')$s$,
-                     '23505', '같은 날 같은 채널(Facebook)은 거절한다');
-SELECT pg_temp.fails($s$INSERT INTO official_share_slots (post_id, scheduled_on) VALUES ('90000000-0000-0000-0000-000000000064', jst_date(now()) + 1)$s$,
-                     '23505', '채널을 말하지 않으면 instagram 이라서, Instagram 이 받은 날짜(+1)는 거절한다');
+-- ⑤ 기간 안의 모든 달을 다 쓰면 고를 날이 없다
+SELECT pg_temp.req('90000000-0000-0000-0000-00000000003a', '2026-11-15', 'facebook');
+SELECT pg_temp.req('90000000-0000-0000-0000-00000000003b', '2026-11-15');
+SELECT pg_temp.eq(earliest_official_share_date('d0000000-0000-0000-0000-000000000001', DATE '2026-10-30'), NULL::date, '기간(10/31 ~ 11/29) 안의 10월·11월을 모두 다 쓰면 고를 날이 없다 (NULL)');
+SELECT pg_temp.eq(earliest_official_share_date('d0000000-0000-0000-0000-000000000001', DATE '2026-11-15'), DATE '2026-12-01', '기준일이 뒤로 가 12월이 기간에 들어오면 12/1 이다');
+SELECT pg_temp.eq(earliest_official_share_date('d0000000-0000-0000-0000-000000000003', DATE '2026-10-30'), DATE '2026-10-31', '다른 회사(기업 3)는 그대로 내일이다');
+-- 글을 지우면 신청도 사라져 그 달의 횟수가 돌아온다
+DELETE FROM social_posts WHERE id = '90000000-0000-0000-0000-000000000039';
+SELECT pg_temp.eq(official_share_month_remaining('d0000000-0000-0000-0000-000000000001', '2026-10-31'), 1, '글을 지우면 신청도 사라져서 그 달의 횟수가 하나 돌아온다');
 
--- ③ 취소하면 그 채널의 그 날짜가 비고, 다른 채널은 그대로다
-UPDATE official_share_slots SET status = 'cancelled' WHERE post_id = '90000000-0000-0000-0000-000000000062';
-SELECT pg_temp.eq(next_official_share_date(jst_date(now()), 'facebook'), jst_date(now()) + 1, '취소하면 Facebook 의 그 날짜(+1)가 다시 빈다');
-SELECT pg_temp.eq(next_official_share_date(jst_date(now()), 'x'),        jst_date(now()) + 3, 'X 는 영향이 없다');
-SELECT pg_temp.eq(next_official_share_date(jst_date(now()), 'instagram'), jst_date(now()) + 3, 'Instagram 도 영향이 없다');
-INSERT INTO official_share_slots (post_id, scheduled_on, channel) VALUES ('90000000-0000-0000-0000-000000000064', jst_date(now()) + 1, 'facebook');
-SELECT pg_temp.ok(true, '비워진 날짜(Facebook +1)에 다른 글이 새로 신청할 수 있다');
--- 글을 지우면 신청도 사라져 그 채널의 날짜가 비는 것도 채널마다 같다
-DELETE FROM social_posts WHERE id = '90000000-0000-0000-0000-000000000060';
-SELECT pg_temp.eq(next_official_share_date(jst_date(now()), 'x'), jst_date(now()) + 1, '글을 지우면 X 의 그 날짜(+1)가 다시 빈다 (+2 는 아직 찼다)');
+-- ⑥ 예정 신청의 날짜 옮기기: 다시 고르는 것과 같아서 내일 ~ 30일 뒤(오늘 기준)이고, 다른 달로 옮기면 옮겨 간 달로 다시 센다.
+--    신청 시각을 2030-01-30 으로 두어 언제 돌려도 같은 달력이에요(그 날이 오늘보다 뒤라 기준일이 그 날이 돼요): 고를 수 있는 날은 1/31 · 2월 · 3/1.
+CREATE FUNCTION pg_temp.req2030(p_post uuid, p_on date) RETURNS void LANGUAGE sql AS $$
+  INSERT INTO official_share_slots (post_id, scheduled_on, requested_at) VALUES (p_post, p_on, timestamptz '2030-01-30 10:00+09')
+$$;
+SELECT pg_temp.mk_pr(('90000000-0000-0000-0000-0000000000' || n)::uuid, 'b0000000-0000-0000-0000-00000000000a', 'd0000000-0000-0000-0000-000000000003')
+  FROM unnest(ARRAY['3c', '3d', '3e', '3f', '4a']) AS n;                                                                                    -- 기업 3 의 글 5개
+SELECT pg_temp.req2030(('90000000-0000-0000-0000-0000000000' || n)::uuid, d::date)
+  FROM (VALUES ('3c', '2030-02-10'), ('3d', '2030-02-10'), ('3e', '2030-02-11'), ('3f', '2030-02-12'), ('4a', '2030-01-31')) AS t(n, d);
+SELECT pg_temp.eq(official_share_month_remaining('d0000000-0000-0000-0000-000000000003', '2030-02-01'), 0, '기업 3 은 2030년 2월에 4번을 다 썼다');
+SELECT pg_temp.fails($s$UPDATE official_share_slots SET scheduled_on = '2030-02-20' WHERE post_id = '90000000-0000-0000-0000-00000000004a'$s$,
+                     '23514', '예정 신청을 한도가 찬 달(2월)로 옮기면 거절한다 — 옮겨 간 달로 다시 센다');
+UPDATE official_share_slots SET scheduled_on = '2030-03-01' WHERE post_id = '90000000-0000-0000-0000-00000000004a';
+SELECT pg_temp.ok(true, '빈 달(3월)로는 옮길 수 있다 (30일 뒤인 3/1 까지)');
+UPDATE official_share_slots SET scheduled_on = '2030-02-25' WHERE post_id = '90000000-0000-0000-0000-00000000003c';
+SELECT pg_temp.eq(official_share_month_used('d0000000-0000-0000-0000-000000000003', '2030-02-01'), 4, '같은 달 안에서 옮길 때는 자기 자신을 두 번 세지 않는다 (2월 4번 그대로)');
+SELECT pg_temp.fails($s$UPDATE official_share_slots SET scheduled_on = '2030-03-02' WHERE post_id = '90000000-0000-0000-0000-00000000003d'$s$, '23514', '옮길 때도 30일 뒤까지만이다');
+SELECT pg_temp.fails($s$UPDATE official_share_slots SET scheduled_on = '2030-01-30' WHERE post_id = '90000000-0000-0000-0000-00000000003d'$s$, '23514', '옮길 때도 기준일 당일이나 그 전으로는 갈 수 없다');
+SELECT pg_temp.fails($s$UPDATE official_share_slots SET scheduled_on = jst_date(now()) WHERE post_id = '90000000-0000-0000-0000-000000000033'$s$,
+                     '23514', '오래전에 한 신청도 오늘로 옮길 수는 없다 (옮길 때는 오늘 기준 내일부터)');
+SELECT pg_temp.fails($s$UPDATE official_share_slots SET requested_at = now() WHERE post_id = '90000000-0000-0000-0000-00000000003d'$s$, '23514', '신청 시각은 바꿀 수 없다 (기간의 기준이라서)');
 
--- 잘못된 채널 · 채널 바꾸기 (신청이 아직 없는 글 0x65 로 확인해요)
-SELECT pg_temp.mk_pr('90000000-0000-0000-0000-000000000065', 'b0000000-0000-0000-0000-000000000001', 'd0000000-0000-0000-0000-000000000001');   -- 기업 1 네 번째 글
+-- 잘못된 채널 (신청이 아직 없는 글 0x65 로 확인해요 — 기업 1 은 2030년에 신청이 없어서 한 달 횟수에 걸리지 않아요)
+SELECT pg_temp.mk_pr('90000000-0000-0000-0000-000000000065', 'b0000000-0000-0000-0000-000000000001', 'd0000000-0000-0000-0000-000000000001');
 SELECT pg_temp.fails($s$INSERT INTO official_share_slots (post_id, scheduled_on, channel) VALUES ('90000000-0000-0000-0000-000000000065', jst_date(now()) + 9, 'youtube')$s$,
                      '22P02', 'YouTube 는 신청 대상이 아니라서 열거형이 받아들이지 않는다');
 SELECT pg_temp.fails($s$INSERT INTO official_share_slots (post_id, scheduled_on, channel) VALUES ('90000000-0000-0000-0000-000000000065', jst_date(now()) + 9, 'Instagram')$s$,
                      '22P02', '채널 값은 소문자로 정확히 써야 한다');
-SELECT pg_temp.fails($s$INSERT INTO official_share_slots (post_id, scheduled_on, channel) VALUES ('90000000-0000-0000-0000-000000000065', jst_date(now()) + 9, NULL)$s$,
+SELECT pg_temp.fails($s$INSERT INTO official_share_slots (post_id, scheduled_on, channel, requested_at) VALUES ('90000000-0000-0000-0000-000000000065', '2030-02-05', NULL, '2030-01-30 10:00+09')$s$,
                      '23502', '채널을 NULL 로 둘 수 없다');
--- 지금 Facebook +1 은 0x64 가 갖고 있고, X 는 +2 만 0x61 이 갖고 있다 (+1 은 위에서 글을 지워 비었다)
-SELECT pg_temp.fails($s$UPDATE official_share_slots SET channel = 'x', scheduled_on = jst_date(now()) + 2 WHERE post_id = '90000000-0000-0000-0000-000000000064'$s$,
-                     '23505', '예정 상태의 신청을 다른 채널로 옮길 때도, 옮겨 갈 채널의 그 날짜가 이미 찼으면 거절한다 (X +2)');
-UPDATE official_share_slots SET channel = 'x' WHERE post_id = '90000000-0000-0000-0000-000000000064';
-SELECT pg_temp.eq(next_official_share_date(jst_date(now()), 'facebook'), jst_date(now()) + 1, '예정 상태의 신청은 채널을 옮길 수 있다 — 떠난 채널(Facebook +1)은 다시 빈다');
-SELECT pg_temp.eq(next_official_share_date(jst_date(now()), 'x'),        jst_date(now()) + 3, '옮겨 간 채널(X)은 +1 과 +2 가 찼으니 3일 뒤다');
-SELECT pg_temp.fails($s$UPDATE official_share_slots SET channel = 'facebook' WHERE post_id = '90000000-0000-0000-0000-000000000033'$s$,
-                     '23514', '게시를 마친 신청의 채널은 바꿀 수 없다');
-SELECT pg_temp.fails($s$UPDATE official_share_slots SET channel = 'facebook' WHERE post_id = '90000000-0000-0000-0000-000000000032'$s$,
-                     '23514', '취소한 신청의 채널은 바꿀 수 없다');
 
 -- ───────── 고칠 때의 규칙 ─────────
 UPDATE social_posts SET body = '内容を少し直しました。' WHERE id = '90000000-0000-0000-0000-000000000001';
@@ -353,11 +349,12 @@ SELECT pg_temp.eq((SELECT author_name || '/' || company_industry || '/' || compa
                      FROM feed_posts WHERE id = '90000000-0000-0000-0000-000000000010'),
                   'みなと海洋フーズ/食品/true/-/-', '홍보 글: 기업 이름 · 업종 · 인증 ✓ (레벨·실적은 없다)');
 SELECT pg_temp.eq((SELECT challenge_id FROM feed_posts WHERE id = '90000000-0000-0000-0000-000000000010'), 'e1000000-0000-0000-0000-000000000001'::uuid, '홍보 글에 연결한 챌린지가 보인다');
-SELECT pg_temp.eq((SELECT official_on FROM feed_posts WHERE id = '90000000-0000-0000-0000-000000000033'), jst_date(now()) + 2, '공식 SNS 게시 날짜가 보인다');
-SELECT pg_temp.eq((SELECT official_channel::text || '/' || official_on FROM feed_posts WHERE id = '90000000-0000-0000-0000-000000000061'), 'x/' || (jst_date(now()) + 2), '공식 SNS 게시 채널이 날짜와 함께 보인다 (X)');
-SELECT pg_temp.eq((SELECT official_channel::text FROM feed_posts WHERE id = '90000000-0000-0000-0000-000000000033'), 'instagram', '채널을 말하지 않은 신청은 Instagram 으로 보인다');
-SELECT pg_temp.eq((SELECT count(*) FROM feed_posts WHERE id = '90000000-0000-0000-0000-000000000032' AND official_on IS NULL AND official_channel IS NULL)::int, 1, '취소한 신청의 날짜와 채널은 보이지 않는다');
-SELECT pg_temp.eq((SELECT count(*) FROM feed_posts WHERE id = '90000000-0000-0000-0000-000000000062' AND official_on IS NULL AND official_channel IS NULL)::int, 1, '다른 채널의 취소도 마찬가지다 (Facebook)');
+SELECT pg_temp.eq((SELECT official_channel::text || '/' || official_on || '/' || official_status FROM feed_posts WHERE id = '90000000-0000-0000-0000-000000000032'),
+                  'instagram/2026-10-31/scheduled', '공식 SNS 게시 채널 · 날짜 · 상태가 보인다');
+SELECT pg_temp.eq((SELECT official_channel::text || '/' || official_status FROM feed_posts WHERE id = '90000000-0000-0000-0000-000000000035'), 'facebook/posted', '게시 완료한 신청은 상태가 posted 로 보인다');
+SELECT pg_temp.eq((SELECT official_channel::text FROM feed_posts WHERE id = '90000000-0000-0000-0000-000000000033'), 'x', '채널을 옮긴 신청은 옮긴 채널로 보인다');
+SELECT pg_temp.eq((SELECT count(*) FROM feed_posts WHERE id = '90000000-0000-0000-0000-000000000034' AND official_on IS NULL AND official_channel IS NULL AND official_status IS NULL)::int, 1,
+                  '취소한 신청은 보이지 않는다');
 SELECT pg_temp.eq((SELECT count(*) FROM feed_posts WHERE id = '90000000-0000-0000-0000-000000000030' AND official_channel IS NULL)::int, 1, '신청하지 않은 글에는 채널이 없다');
 SELECT pg_temp.none($q$SELECT column_name FROM information_schema.columns WHERE table_name = 'feed_posts' AND column_name ~* '(mail|phone|tel|contact|password)'$q$,
                     '피드 뷰에는 이메일·전화번호 같은 연락처 열이 없다');

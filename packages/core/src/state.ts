@@ -7,7 +7,7 @@ import type { AwardKind, BragPost, CertCriterionId, DemoState, Match, PrPost, Pr
 import { addDays, daysBetween } from "./format";
 import { levelOf } from "./impact";
 import { splitMatchFee } from "./fees";
-import { authorRole, DEFAULT_OFFICIAL_CHANNEL, nextOfficialDate, OFFICIAL_SHARE_FEE_YEN, POST_LIMITS, postContext, uniqueSdgs, validatePostDraft, type PostDraft } from "./post";
+import { authorRole, DEFAULT_OFFICIAL_CHANNEL, OFFICIAL_SHARE_FEE_YEN, POST_LIMITS, postContext, resolveOfficialDate, uniqueSdgs, validatePostDraft, type PostDraft } from "./post";
 import { fileFingerprint, makeReceiptNo, validateProposalDraft, type ProposalDraft } from "./proposal";
 import { canSendScout } from "./scout";
 import { isOpenFor } from "./recommend";
@@ -230,7 +230,8 @@ export function reducer(state: DemoState, action: Action): DemoState {
 
     case "createPost": {
       const draft = action.draft;
-      if (validatePostDraft(draft, postContext(state)).length > 0) return state;
+      const context = postContext(state);
+      if (validatePostDraft(draft, context).length > 0) return state;
       const id = `po${state.seq}`;
       if (draft.kind === "brag") {
         const activity = showableActivities(state).find((a) => a.id === draft.activityId);
@@ -252,6 +253,8 @@ export function reducer(state: DemoState, action: Action): DemoState {
         return { ...state, seq: state.seq + 1, posts: [post, ...state.posts] };
       }
       const channel = draft.officialChannel ?? DEFAULT_OFFICIAL_CHANNEL;
+      // 공식 SNS 게시 신청: 기업이 고른 날짜(비웠으면 고를 수 있는 가장 빠른 날). 회사당 월 4회는 위의 검사가 지켜요
+      const officialOn = draft.requestOfficial ? resolveOfficialDate(draft, context) : null;
       const post: PrPost = {
         id,
         kind: "pr",
@@ -260,8 +263,7 @@ export function reducer(state: DemoState, action: Action): DemoState {
         body: draft.body.trim(),
         sdgIds: uniqueSdgs(draft.sdgIds),
         challengeId: draft.challengeId || null,
-        // 공식 SNS 게시 신청: 고른 채널에서 내일부터 가장 빠른 빈 날짜 (채널마다 하루에 한 회사만)
-        official: draft.requestOfficial ? { on: nextOfficialDate(state.posts, state.today, channel), channel, feeYen: OFFICIAL_SHARE_FEE_YEN, status: "scheduled" } : null,
+        official: officialOn ? { on: officialOn, channel, feeYen: OFFICIAL_SHARE_FEE_YEN, status: "scheduled" } : null,
         createdAt: action.at,
         likes: 0,
         likedBy: [],

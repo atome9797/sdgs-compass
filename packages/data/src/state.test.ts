@@ -371,44 +371,46 @@ describe("SNS 피드: 글 올리기·좋아요·삭제 (F-503 · F-504)", () => 
     }
   });
 
-  it("공식 SNS 게시: 채널을 말하지 않으면 Instagram 이고, 내일부터 가장 빠른 빈 날짜가 배정돼요 (다른 기업이 내일을 받아서 모레)", () => {
+  it("공식 SNS 게시: 채널을 말하지 않으면 Instagram, 날짜를 비우면 고를 수 있는 가장 빠른 날(내일)이에요 — 다른 회사가 같은 날·같은 채널에 있어도 돼요", () => {
     const first = create(initial, pr({ requestOfficial: true }));
-    expect(first.posts[0]).toMatchObject({ official: { on: "2026-11-01", channel: "instagram", feeYen: 3000, status: "scheduled" } });
+    expect(first.posts[0]).toMatchObject({ official: { on: "2026-10-31", channel: "instagram", feeYen: 3000, status: "scheduled" } });
+    // 하루 제한이 없어서 같은 날·같은 채널에 또 신청해도 그 날이에요 (10월은 아직 한도가 남았어요)
     const second = create(first, pr({ title: "もう一件", requestOfficial: true }));
-    expect(second.posts[0]).toMatchObject({ official: { on: "2026-11-02", channel: "instagram" } });
-    // 신청하지 않으면 날짜도 채널도 없고, 다른 날짜도 차지하지 않아요 (채널만 적어도 신청이 아니면 무시)
-    const plain = create(second, pr({ title: "申込なし", officialChannel: "x" }));
+    expect(second.posts[0]).toMatchObject({ official: { on: "2026-10-31", channel: "instagram" } });
+    // 신청하지 않으면 날짜도 채널도 없고, 횟수도 쓰지 않아요 (채널·날짜만 적어도 신청이 아니면 무시)
+    const plain = create(second, pr({ title: "申込なし", officialChannel: "x", officialOn: "2026-10-31" }));
     expect(plain.posts[0]).toMatchObject({ official: null });
-    // 첫 글을 지우면 그 날짜가 다시 비어요 (같은 채널에서 하루에 한 회사만)
-    const deleted = run(second, { type: "deletePost", postId: first.posts[0].id, role: "b2b" });
-    expect(deleted.posts.find((p) => p.id === first.posts[0].id)).toBeUndefined();
-    const again = create(deleted, pr({ title: "다시", requestOfficial: true }));
-    expect(again.posts[0]).toMatchObject({ official: { on: "2026-11-01", channel: "instagram" } });
   });
 
-  it("공식 SNS 게시: 채널마다 따로 센다 — X 는 내일, Instagram·Facebook 은 모레 (같은 날 다른 채널은 함께 받아요)", () => {
-    const x = create(initial, pr({ requestOfficial: true, officialChannel: "x" }));
-    expect(x.posts[0]).toMatchObject({ official: { on: "2026-10-31", channel: "x", feeYen: 3000, status: "scheduled" } });
-    const instagram = create(x, pr({ title: "Instagram 用", requestOfficial: true, officialChannel: "instagram" }));
-    expect(instagram.posts[0]).toMatchObject({ official: { on: "2026-11-01", channel: "instagram" } });
-    const facebook = create(instagram, pr({ title: "Facebook 用", requestOfficial: true, officialChannel: "facebook" }));
-    expect(facebook.posts[0]).toMatchObject({ official: { on: "2026-11-01", channel: "facebook" } });
-    // 같은 채널은 한 칸씩 밀려요 (X 는 모레가 이미 다른 기업 몫이라 3일 뒤)
-    const xAgain = create(facebook, pr({ title: "X 2件目", requestOfficial: true, officialChannel: "x" }));
-    expect(xAgain.posts[0]).toMatchObject({ official: { on: "2026-11-02", channel: "x" } });
-    // 한 회사가 같은 날 다른 채널에 신청하는 것도 돼요: 내 글(Instagram 11/1)과 내 글(Facebook 11/1)이 함께 있어요
-    const mine = xAgain.posts.filter((p) => p.mine && p.kind === "pr" && p.official).map((p) => p.kind === "pr" && p.official && `${p.official.channel}|${p.official.on}`);
-    expect(mine).toContain("instagram|2026-11-01");
-    expect(mine).toContain("facebook|2026-11-01");
+  it("공식 SNS 게시: 기업이 고른 날짜로 신청되고, 채널은 날짜와 상관없어요", () => {
+    for (const channel of OFFICIAL_CHANNELS) {
+      expect(create(initial, pr({ requestOfficial: true, officialChannel: channel, officialOn: "2026-11-14" })).posts[0]).toMatchObject({
+        official: { on: "2026-11-14", channel, feeYen: 3000, status: "scheduled" },
+      });
+    }
+    // 내일 ~ 30일 뒤 밖이면 아무것도 바뀌지 않아요
+    for (const officialOn of ["2026-10-30", "2026-10-29", "2026-11-30", "2026-11-31", "11/14"]) expect(create(initial, pr({ requestOfficial: true, officialOn })), officialOn).toBe(initial);
   });
 
-  it("공식 SNS 게시: 글을 지우면 그 채널의 그 날짜만 비어요", () => {
-    const x = create(initial, pr({ requestOfficial: true, officialChannel: "x" }));
-    const facebook = create(x, pr({ title: "Facebook 用", requestOfficial: true, officialChannel: "facebook" }));
-    const deletedX = run(facebook, { type: "deletePost", postId: x.posts[0].id, role: "b2b" });
-    // X 의 내일은 다시 비었고, Facebook 은 영향이 없어요
-    expect(create(deletedX, pr({ title: "X 再申込", requestOfficial: true, officialChannel: "x" })).posts[0]).toMatchObject({ official: { on: "2026-10-31", channel: "x" } });
-    expect(create(deletedX, pr({ title: "FB 再申込", requestOfficial: true, officialChannel: "facebook" })).posts[0]).toMatchObject({ official: { on: "2026-11-02", channel: "facebook" } });
+  it("공식 SNS 게시: 한 회사는 한 달에 4번까지 (채널 합계) — 5번째는 거절, 다음 달은 따로 세요", () => {
+    // 우리 회사는 10/31 에 이미 1건(샘플). 10월은 10/31 하루뿐이라 3건을 더 넣으면 10월이 차요 (채널을 섞어도 합쳐서 세요)
+    let state = initial;
+    for (const channel of ["x", "facebook", "instagram"] as const) state = create(state, pr({ title: channel, requestOfficial: true, officialChannel: channel, officialOn: "2026-10-31" }));
+    const october = state.posts.filter((p) => p.kind === "pr" && p.companyId === initial.myCompanyId && p.official?.on.startsWith("2026-10"));
+    expect(october).toHaveLength(4);
+    expect(create(state, pr({ title: "5件目", requestOfficial: true, officialOn: "2026-10-31" }))).toBe(state);
+    // 날짜를 비우면 다음 달 1일이 배정돼요 (11월은 따로 세요)
+    expect(create(state, pr({ title: "11月", requestOfficial: true })).posts[0]).toMatchObject({ official: { on: "2026-11-01" } });
+    // 다른 회사의 신청은 우리 회사의 횟수에 들어가지 않아요 (po-1·po-3 이 10/31 에 있어도 위 4건이 우리 몫)
+    expect(initial.posts.filter((p) => p.kind === "pr" && p.official?.on === "2026-10-31").length).toBeGreaterThanOrEqual(3);
+  });
+
+  it("공식 SNS 게시: 글을 지우면 그 달의 횟수가 하나 돌아와요", () => {
+    let state = initial;
+    for (let i = 0; i < 3; i++) state = create(state, pr({ title: `申込${i}`, requestOfficial: true, officialOn: "2026-10-31" }));
+    expect(create(state, pr({ title: "満杯", requestOfficial: true, officialOn: "2026-10-31" }))).toBe(state);
+    const deleted = run(state, { type: "deletePost", postId: state.posts[0].id, role: "b2b" });
+    expect(create(deleted, pr({ title: "再申込", requestOfficial: true, officialOn: "2026-10-31" })).posts[0]).toMatchObject({ official: { on: "2026-10-31" } });
   });
 
   it("공식 SNS 게시: 모르는 채널이면 아무것도 바뀌지 않아요 (신청하지 않으면 채널은 보지 않아요)", () => {
@@ -418,13 +420,15 @@ describe("SNS 피드: 글 올리기·좋아요·삭제 (F-503 · F-504)", () => 
     expect(create(initial, pr({ requestOfficial: false, officialChannel: "youtube" as never })).posts[0]).toMatchObject({ official: null });
   });
 
-  it("공식 게시 날짜는 같은 채널에서 어떤 글도 겹치지 않아요", () => {
+  it("공식 게시 신청을 계속하면 어느 회사도 한 달 4번을 넘지 않고, 날짜는 모두 내일 ~ 30일 뒤예요", () => {
     let state = initial;
-    for (let i = 0; i < 9; i++) state = create(state, pr({ title: `申込${i}`, requestOfficial: true, officialChannel: OFFICIAL_CHANNELS[i % OFFICIAL_CHANNELS.length] }));
-    const keys = state.posts.flatMap((p) => (p.kind === "pr" && p.official ? [`${p.official.channel}|${p.official.on}`] : []));
-    expect(keys).toHaveLength(3 + 9); // 샘플 3건 + 새로 9건
-    expect(new Set(keys).size).toBe(keys.length);
-    expect(state.posts.every((p) => p.kind !== "pr" || !p.official || daysBetween(TODAY, p.official.on) >= 1)).toBe(true);
+    for (let i = 0; i < 12; i++) state = create(state, pr({ title: `申込${i}`, requestOfficial: true, officialChannel: OFFICIAL_CHANNELS[i % OFFICIAL_CHANNELS.length] }));
+    const mine = state.posts.flatMap((p) => (p.kind === "pr" && p.companyId === initial.myCompanyId && p.official ? [p.official.on] : []));
+    // 10월(10/31) 4건 + 11월 4건 = 8건까지만 들어가고(샘플 1건 포함), 그 뒤로는 고를 날이 없어서 신청이 거절돼요
+    expect(mine).toHaveLength(8);
+    expect(mine.filter((on) => on.startsWith("2026-10"))).toHaveLength(4);
+    expect(mine.filter((on) => on.startsWith("2026-11"))).toHaveLength(4);
+    expect(state.posts.every((p) => p.kind !== "pr" || !p.official || (daysBetween(TODAY, p.official.on) >= 1 && daysBetween(TODAY, p.official.on) <= 30))).toBe(true);
   });
 
   it("좋아요: 학생·기업 계정이 따로 누르고, 다시 누르면 취소돼요", () => {
@@ -475,9 +479,9 @@ describe("SNS 피드: 글 올리기·좋아요·삭제 (F-503 · F-504)", () => 
         expect(moved.kind === "pr" && moved.official && moved.official.channel).toBe(p.official.channel);
       }
     });
-    // 샘플(Instagram · X · Facebook)과 방금 신청한 X·Instagram 이 모두 채널을 지키고 있어요
+    // 샘플(Instagram 3 · X 1)과 방금 신청한 Instagram·X 가 모두 채널을 지키고 있어요
     expect(later.posts.flatMap((p) => (p.kind === "pr" && p.official ? [p.official.channel] : [])).sort())
-      .toEqual(["facebook", "instagram", "instagram", "x", "x"]);
+      .toEqual(["instagram", "instagram", "instagram", "instagram", "x", "x"]);
     // 새로 시작한 상태와 같은 모양이에요
     expect(rebaseState(initial, "2026-11-10").posts).toEqual(createInitialState("2026-11-10").posts);
   });

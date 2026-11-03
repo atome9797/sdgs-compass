@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { evaluateCertification } from "@sdgs-compass/core/certification";
-import { daysBetween } from "@sdgs-compass/core/format";
+import { addDays, daysBetween } from "@sdgs-compass/core/format";
 import { pick } from "@sdgs-compass/core/i18n";
 import { levelOf } from "@sdgs-compass/core/impact";
-import { containsContact, isOfficialChannel, nextOfficialDate, OFFICIAL_CHANNELS, POST_LIMITS } from "@sdgs-compass/core/post";
+import {
+  containsContact, earliestOfficialDate, isOfficialChannel, OFFICIAL_SHARE_MONTHLY_LIMIT, OFFICIAL_SHARE_WINDOW_DAYS, officialMonthOf, officialUsageByMonth, POST_LIMITS,
+} from "@sdgs-compass/core/post";
 import { charCount } from "@sdgs-compass/core/proposal";
 import { selectEsg, selectHome, selectImpact } from "@sdgs-compass/core/selectors";
 import { createInitialState, DEMO_COMPANY_ID, DEMO_STUDENT_ID } from "./seed";
@@ -173,32 +175,29 @@ describe("SNS 피드 샘플 글 (F-503 · F-504)", () => {
     expect(state.posts.some((p) => p.id.startsWith("po-") && p.likedBy.length > 0)).toBe(false);
   });
 
-  it("공식 SNS 게시 신청은 3건이고, 날짜는 모두 내일 이후이며 같은 채널에서는 겹치지 않아요 (하루에 한 회사 · 채널별)", () => {
-    const shares = prs.flatMap((p) => (p.official ? [p.official] : []));
-    expect(shares).toHaveLength(3);
-    for (const share of shares) {
-      expect(isOfficialChannel(share.channel)).toBe(true);
-      expect(daysBetween(TODAY, share.on)).toBeGreaterThanOrEqual(1);
+  it("공식 SNS 게시 신청은 4건이고, 날짜는 모두 내일 ~ 30일 뒤이며 회사마다 한 달 4번을 넘지 않아요", () => {
+    const requests = prs.flatMap((p) => (p.official ? [{ companyId: p.companyId, ...p.official }] : []));
+    expect(requests).toHaveLength(4);
+    for (const r of requests) {
+      expect(isOfficialChannel(r.channel)).toBe(true);
+      expect(daysBetween(TODAY, r.on)).toBeGreaterThanOrEqual(1);
+      expect(daysBetween(TODAY, r.on)).toBeLessThanOrEqual(OFFICIAL_SHARE_WINDOW_DAYS);
     }
-    const keys = shares.map((s) => `${s.channel}|${s.on}`);
-    expect(new Set(keys).size).toBe(keys.length);
-    expect(prs.find((p) => p.companyId === DEMO_COMPANY_ID)?.official).toBeNull();
+    for (const companyId of new Set(requests.map((r) => r.companyId))) {
+      for (const count of Object.values(officialUsageByMonth(state.posts, companyId))) expect(count, companyId).toBeLessThanOrEqual(OFFICIAL_SHARE_MONTHLY_LIMIT);
+    }
   });
 
-  it("공식 SNS 게시 신청은 채널별로 흩어져 있고(X · Instagram · Facebook 하나씩), 같은 날 다른 채널이 함께 있어요", () => {
-    const shares = prs.flatMap((p) => (p.official ? [p.official] : []));
-    expect(shares.map((s) => s.channel).sort()).toEqual([...OFFICIAL_CHANNELS].sort());
-    const byDay = new Map<string, string[]>();
-    for (const s of shares) byDay.set(s.on, [...(byDay.get(s.on) ?? []), s.channel]);
-    expect([...byDay.values()].some((channels) => channels.length >= 2)).toBe(true);
+  it("하루 제한이 없다는 것이 보여요: 같은 날·같은 채널(내일 Instagram)에 우리 회사를 포함한 여러 회사가 있어요", () => {
+    const sameSlot = prs.filter((p) => p.official?.channel === "instagram" && p.official.on === addDays(TODAY, 1)).map((p) => p.companyId);
+    expect(new Set(sameSlot).size).toBeGreaterThanOrEqual(2);
+    expect(sameSlot).toContain(DEMO_COMPANY_ID);
   });
 
-  it("우리 회사가 지금 신청하면 채널마다 배정되는 날짜가 달라요 (X 는 내일, Instagram·Facebook 은 모레)", () => {
-    expect(OFFICIAL_CHANNELS.map((channel) => [channel, daysBetween(TODAY, nextOfficialDate(state.posts, TODAY, channel))])).toEqual([
-      ["x", 1], ["instagram", 2], ["facebook", 2],
-    ]);
-    // 채널을 말하지 않으면 Instagram (옛 호출 그대로)
-    expect(nextOfficialDate(state.posts, TODAY)).toBe(nextOfficialDate(state.posts, TODAY, "instagram"));
+  it("우리 회사는 내일 1건을 신청해 두었어요 — 지금 쓰면 기본 날짜는 내일이고, 그 달의 남은 횟수는 3/4 예요", () => {
+    const tomorrow = addDays(TODAY, 1);
+    expect(earliestOfficialDate(state.posts, DEMO_COMPANY_ID, TODAY)).toBe(tomorrow);
+    expect(officialUsageByMonth(state.posts, DEMO_COMPANY_ID)).toEqual({ [officialMonthOf(tomorrow)]: 1 });
   });
 
   it("자랑 글: 닉네임·레벨·실적만 있고, 샘플 학생과 레벨이 맞아요 (이메일·학교 이름 없음)", () => {

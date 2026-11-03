@@ -1365,24 +1365,57 @@ BEGIN
 END $$;
 CREATE TRIGGER social_post_likes_guard_ins BEFORE INSERT ON social_post_likes FOR EACH ROW EXECUTE FUNCTION social_post_likes_guard();
 
--- F-504 공식 SNS(X · Instagram · Facebook) 게시 신청: 기업 홍보 글 하나에 한 번(채널은 하나만 골라요), 하루에 한 회사만 — 채널마다 따로 센다.
--- 같은 채널의 예정·게시 완료 상태의 같은 날짜는 한 건뿐이지만, 채널이 다르면 같은 날에도 신청할 수 있어요(같은 날 X 에는 A사, Instagram 에는 B사).
--- 취소하거나 글을 지우면 그 채널의 그 날짜는 다시 비어요. 게시료 ¥3,000 은 샘플 값이고 모든 채널이 같으며 정산은 하지 않아요(OFFICIAL_SHARE_FEE_YEN).
+-- F-504 공식 SNS(X · Instagram · Facebook) 게시 신청: 기업 홍보 글 하나에 한 번(채널은 하나만 골라요). 하루 제한은 없어요 — 같은 날·같은 채널에 여러 회사가 올라가도 돼요.
+-- 한 회사는 게시일이 속한 달(일본 시간 달력 월)에 4번까지예요(채널 합계 · 예정·게시 완료만 세고 취소·삭제는 세지 않아요 — OFFICIAL_SHARE_MONTHLY_LIMIT).
+-- 날짜는 기업이 신청한 날의 내일부터 30일 뒤까지에서 골라요(OFFICIAL_SHARE_WINDOW_DAYS). 게시료 ¥3,000 은 샘플 값이고 모든 채널이 같으며 정산은 하지 않아요(OFFICIAL_SHARE_FEE_YEN).
 -- 데모 앱에는 관리자 화면이 없어서 scheduled 까지만 써요. posted·cancelled 는 서버의 운영 도구가 바꿔요. (실제로 올리는 일은 이 표 밖의 운영 일이에요 — OAuth·자동 게시는 하지 않아요.)
 CREATE TABLE official_share_slots (
   post_id      uuid PRIMARY KEY REFERENCES social_posts (id) ON DELETE CASCADE,
   channel      official_channel NOT NULL DEFAULT 'instagram',              -- 올릴 공식 SNS (채널이 없던 때의 신청은 모두 Instagram 스토리였어요)
-  scheduled_on date            NOT NULL,                                   -- 그 채널의 게시 예정일 (신청한 날의 다음 날 이후)
+  scheduled_on date            NOT NULL,                                   -- 기업이 고른 게시 날짜 (신청한 날의 내일 ~ 30일 뒤)
   fee_yen      integer         NOT NULL DEFAULT 3000 CHECK (fee_yen >= 0),
   status       official_status NOT NULL DEFAULT 'scheduled',
   requested_at timestamptz     NOT NULL DEFAULT now(),
   posted_at    timestamptz,
   CONSTRAINT official_share_posted CHECK ((status = 'posted') = (posted_at IS NOT NULL))
 );
-CREATE UNIQUE INDEX official_share_slots_one_per_channel_day ON official_share_slots (channel, scheduled_on) WHERE status IN ('scheduled', 'posted');
+-- 회사·달별 횟수를 셀 때 날짜 범위로 찾아요 (취소한 신청은 세지 않아서 빼요)
+CREATE INDEX official_share_slots_on_idx ON official_share_slots (scheduled_on) WHERE status <> 'cancelled';
+
+-- 규칙의 두 숫자. 앱의 OFFICIAL_SHARE_MONTHLY_LIMIT · OFFICIAL_SHARE_WINDOW_DAYS 와 같아야 해요(db/tests/04_parity.sql 이 golden_post_limits 로 대조해요)
+CREATE FUNCTION official_share_monthly_limit() RETURNS integer LANGUAGE sql IMMUTABLE PARALLEL SAFE AS $$ SELECT 4 $$;
+CREATE FUNCTION official_share_window_days() RETURNS integer LANGUAGE sql IMMUTABLE PARALLEL SAFE AS $$ SELECT 30 $$;
+
+-- 회사가 그 날이 속한 달에 쓴 공식 게시 횟수 (채널 합계, 예정·게시 완료만). p_except_post 는 빼고 세요(그 신청을 고칠 때 자기 자신은 세지 않으려고요).
+CREATE FUNCTION official_share_month_used(p_company_id uuid, p_day date, p_except_post uuid DEFAULT NULL) RETURNS integer
+  LANGUAGE sql STABLE
+  AS $$
+    SELECT count(*)::integer
+      FROM official_share_slots s
+      JOIN social_posts p ON p.id = s.post_id
+     WHERE p.company_id = p_company_id
+       AND s.status IN ('scheduled', 'posted')
+       AND s.scheduled_on >= date_trunc('month', p_day)::date
+       AND s.scheduled_on <  (date_trunc('month', p_day) + interval '1 month')::date
+       AND s.post_id IS DISTINCT FROM p_except_post
+  $$;
+
+-- 그 달에 남은 횟수 (0 아래로는 내려가지 않아요). 앱의 officialMonthRemaining(usage, month) 와 같아요.
+CREATE FUNCTION official_share_month_remaining(p_company_id uuid, p_day date) RETURNS integer
+  LANGUAGE sql STABLE
+  AS $$ SELECT GREATEST(0, official_share_monthly_limit() - official_share_month_used(p_company_id, p_day)) $$;
+
+-- 같은 회사의 신청을 한 줄로 세우는 자물쇠 번호 (트랜잭션 자물쇠 pg_advisory_xact_lock(이름표, 회사) 의 두 번째 값)
+CREATE FUNCTION official_share_lock_key(p_company_id uuid) RETURNS integer
+  LANGUAGE sql IMMUTABLE PARALLEL SAFE
+  AS $$ SELECT hashtext('official_share_slots/' || p_company_id::text) $$;
 
 CREATE FUNCTION official_share_slots_guard() RETURNS trigger
   LANGUAGE plpgsql AS $$
+DECLARE
+  base_day date;
+  company  uuid;
+  used     integer;
 BEGIN
   IF TG_OP = 'INSERT' THEN
     IF NOT EXISTS (SELECT 1 FROM social_posts WHERE id = NEW.post_id AND kind = 'pr' AND blinded_at IS NULL) THEN
@@ -1399,27 +1432,51 @@ BEGIN
     IF OLD.status <> 'scheduled' AND (NEW.scheduled_on IS DISTINCT FROM OLD.scheduled_on OR NEW.channel IS DISTINCT FROM OLD.channel) THEN
       RAISE EXCEPTION '게시를 마쳤거나 취소한 신청의 채널·날짜는 바꿀 수 없어요' USING ERRCODE = 'check_violation';
     END IF;
+    IF NEW.requested_at IS DISTINCT FROM OLD.requested_at THEN
+      RAISE EXCEPTION '신청 시각은 바꿀 수 없어요 (날짜를 고를 수 있는 기간의 기준이에요)' USING ERRCODE = 'check_violation';
+    END IF;
     IF NEW.status = 'posted' AND OLD.status <> 'posted' THEN
       NEW.posted_at := COALESCE(NEW.posted_at, now());
     END IF;
   END IF;
-  IF (TG_OP = 'INSERT' OR NEW.scheduled_on IS DISTINCT FROM OLD.scheduled_on) AND NEW.scheduled_on <= jst_date(NEW.requested_at) THEN
-    RAISE EXCEPTION '게시 예정일은 신청한 날의 다음 날 이후여야 해요 (신청 %, 예정 %)', jst_date(NEW.requested_at), NEW.scheduled_on USING ERRCODE = 'check_violation';
+
+  -- ① 날짜: 새 신청은 신청한 날(requested_at, 일본 시간)의 내일부터 30일 뒤까지.
+  --    예정 신청의 날짜를 옮길 때는 다시 고르는 것과 같아서 오늘 기준이에요(신청한 날이 더 늦은 경우는 신청한 날 — 실제로는 늘 오늘이에요).
+  IF TG_OP = 'INSERT' OR NEW.scheduled_on IS DISTINCT FROM OLD.scheduled_on THEN
+    base_day := CASE WHEN TG_OP = 'INSERT' THEN jst_date(NEW.requested_at) ELSE GREATEST(jst_date(NEW.requested_at), jst_date(now())) END;
+    IF NEW.scheduled_on NOT BETWEEN base_day + 1 AND base_day + official_share_window_days() THEN
+      RAISE EXCEPTION '게시 날짜는 신청한 날의 내일부터 %일 뒤까지만 고를 수 있어요 (기준 %, 고른 날 %)', official_share_window_days(), base_day, NEW.scheduled_on
+        USING ERRCODE = 'check_violation';
+    END IF;
+  END IF;
+
+  -- ② 회사당 월 4회: 이 신청이 새로 어느 달의 횟수에 들어갈 때(새 신청 · 다른 달로 옮김 · 취소를 되살림 — 지금은 위에서 막혀요) 다시 세요.
+  --    같은 회사의 신청이 동시에 들어와도 한도를 넘지 않게, 세기 전에 그 회사의 트랜잭션 자물쇠를 잡아요(트랜잭션이 끝나면 풀려요).
+  --    기본 격리 수준(READ COMMITTED)에서는 자물쇠를 기다린 뒤의 셈에 먼저 끝난 신청이 들어가요.
+  IF NEW.status IN ('scheduled', 'posted')
+     AND (TG_OP = 'INSERT' OR OLD.status = 'cancelled' OR date_trunc('month', NEW.scheduled_on) <> date_trunc('month', OLD.scheduled_on)) THEN
+    SELECT p.company_id INTO company FROM social_posts p WHERE p.id = NEW.post_id;
+    PERFORM pg_advisory_xact_lock(hashtext('official_share_slots'), official_share_lock_key(company));
+    used := official_share_month_used(company, NEW.scheduled_on, NEW.post_id);
+    IF used >= official_share_monthly_limit() THEN
+      RAISE EXCEPTION '한 회사는 한 달에 %번까지 공식 SNS 게시를 신청할 수 있어요 (%년 %월은 이미 %번)',
+        official_share_monthly_limit(), extract(year FROM NEW.scheduled_on), extract(month FROM NEW.scheduled_on), used
+        USING ERRCODE = 'check_violation';
+    END IF;
   END IF;
   RETURN NEW;
 END $$;
 CREATE TRIGGER official_share_slots_guard_ins BEFORE INSERT ON official_share_slots FOR EACH ROW EXECUTE FUNCTION official_share_slots_guard();
 CREATE TRIGGER official_share_slots_guard_upd BEFORE UPDATE ON official_share_slots FOR EACH ROW EXECUTE FUNCTION official_share_slots_guard();
 
--- 신청에 배정할 날짜: 오늘(일본 시간) 다음 날부터, 그 채널에서 가장 빠른 빈 날짜. 앱의 nextOfficialDate(posts, today, channel) 와 같아요.
--- 그 채널이 이미 받은(예정·게시 완료) 날짜만 건너뛰고 다른 채널의 날짜는 상관없어요. 채널을 말하지 않으면 instagram 이에요(앱의 기본값과 같아요).
--- 그 채널이 받은 날짜가 N 개면 N+1 일 안에 반드시 빈 날이 있어요.
-CREATE FUNCTION next_official_share_date(p_today date DEFAULT jst_date(now()), p_channel official_channel DEFAULT 'instagram') RETURNS date
+-- 회사가 고를 수 있는 가장 빠른 게시 날짜(글쓰기 화면이 처음 골라 두는 날): 오늘(일본 시간)의 내일부터 30일 뒤까지 중, 그 날이 속한 달에 한도가 남은 첫날.
+-- 다른 회사의 신청은 상관없어요(하루 제한 없음). 기간 안의 모든 달이 찼으면 NULL. 앱의 earliestOfficialDate(posts, companyId, today) 와 같아요.
+CREATE FUNCTION earliest_official_share_date(p_company_id uuid, p_today date DEFAULT jst_date(now())) RETURNS date
   LANGUAGE sql STABLE
   AS $$
     SELECT p_today + g
-      FROM generate_series(1, 1 + (SELECT count(*)::integer FROM official_share_slots WHERE channel = p_channel AND status IN ('scheduled', 'posted'))) AS g
-     WHERE NOT EXISTS (SELECT 1 FROM official_share_slots s WHERE s.channel = p_channel AND s.scheduled_on = p_today + g AND s.status IN ('scheduled', 'posted'))
+      FROM generate_series(1, official_share_window_days()) AS g
+     WHERE official_share_month_remaining(p_company_id, p_today + g) > 0
      ORDER BY g
      LIMIT 1
   $$;
@@ -2018,7 +2075,7 @@ COMMENT ON TABLE interview_slots            IS '면접 일정 (확정 일정은 
 COMMENT ON TABLE social_posts               IS 'SNS 피드 글 (학생 자랑 200자·기업 홍보 400자, 연락처 금지) — F-503, F-504';
 COMMENT ON TABLE social_post_sdgs           IS '피드 글의 SDGs 태그 (글당 1~3개) — F-503, F-504';
 COMMENT ON TABLE social_post_likes          IS '피드 글 좋아요 (사람마다 한 번, 내 글 제외) — F-503, F-504';
-COMMENT ON TABLE official_share_slots       IS '공식 SNS(X·Instagram·Facebook) 게시 신청 (채널마다 하루 한 회사, 게시료 ¥3,000 샘플) — F-504';
+COMMENT ON TABLE official_share_slots       IS '공식 SNS(X·Instagram·Facebook) 게시 신청 (회사당 월 4회 · 날짜는 기업이 선택, 게시료 ¥3,000 샘플) — F-504';
 COMMENT ON TABLE esg_reports                IS 'ESG 성과 리포트 (PDF/Excel) — F-403';
 COMMENT ON TABLE cert_applications          IS 'SDGs 인증마크 신청 (점수·★1~3) — 인증마크';
 COMMENT ON TABLE cert_answers               IS '인증마크 항목별 답변과 증빙 — 인증마크';

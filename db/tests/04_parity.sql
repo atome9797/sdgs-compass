@@ -84,8 +84,10 @@ SELECT pg_temp.none($q$SELECT g.serial_no, g.verify_code AS core_code, c.verify_
 
 -- 6-1) 한도: POST_LIMITS 와 공식 게시료 — 경계 글자 수(N자는 받고 N+1자는 거절)를 실제로 넣어 같은 값인지 확인해요
 SELECT pg_temp.none($q$SELECT name AS unknown_limit FROM golden_post_limits
-                        WHERE name NOT IN ('bragBody', 'prTitle', 'prBody', 'maxSdgs', 'officialFeeYen')$q$,
-                    'core 에 새 한도가 생기면 이 대조에도 넣어야 한다 (지금 아는 한도: bragBody · prTitle · prBody · maxSdgs · officialFeeYen)');
+                        WHERE name NOT IN ('bragBody', 'prTitle', 'prBody', 'maxSdgs', 'officialFeeYen', 'officialMonthlyLimit', 'officialWindowDays')$q$,
+                    'core 에 새 한도가 생기면 이 대조에도 넣어야 한다 (지금 아는 한도: bragBody · prTitle · prBody · maxSdgs · officialFeeYen · officialMonthlyLimit · officialWindowDays)');
+SELECT pg_temp.eq(official_share_monthly_limit(), (SELECT value FROM golden_post_limits WHERE name = 'officialMonthlyLimit'), 'OFFICIAL_SHARE_MONTHLY_LIMIT 가 DB 의 회사당 월 횟수와 같다');
+SELECT pg_temp.eq(official_share_window_days(), (SELECT value FROM golden_post_limits WHERE name = 'officialWindowDays'), 'OFFICIAL_SHARE_WINDOW_DAYS 가 DB 의 고를 수 있는 날수와 같다');
 SELECT pg_temp.mk_brag(gen_random_uuid(), 'c0000000-0000-0000-0000-000000000001', 'ac100000-0000-0000-0000-000000000001',
                        repeat('あ', (SELECT value FROM golden_post_limits WHERE name = 'bragBody')));
 SELECT pg_temp.ok(true, 'POST_LIMITS.bragBody 글자의 자랑 글 본문을 DB 도 받아들인다');
@@ -108,7 +110,11 @@ SELECT pg_temp.eq((SELECT count(*) FROM social_post_sdgs WHERE post_id = '900000
 SELECT pg_temp.fails(format($s$INSERT INTO social_post_sdgs (post_id, position, sdg_id) VALUES ('90000000-0000-0000-0000-0000000000a1', %s, %s)$s$,
                             (SELECT value + 1 FROM golden_post_limits WHERE name = 'maxSdgs'), (SELECT value + 1 FROM golden_post_limits WHERE name = 'maxSdgs')),
                      '23514', 'maxSdgs + 1 번째 태그는 DB 도 거절한다');
-INSERT INTO official_share_slots (post_id, scheduled_on) VALUES ('90000000-0000-0000-0000-0000000000a1', jst_date(now()) + 1);
+-- 고를 수 있는 마지막 날(신청한 날 + officialWindowDays)은 DB 도 받고, 그다음 날은 거절한다
+SELECT pg_temp.fails(format($s$INSERT INTO official_share_slots (post_id, scheduled_on) VALUES ('90000000-0000-0000-0000-0000000000a1', jst_date(now()) + %s)$s$,
+                            (SELECT value + 1 FROM golden_post_limits WHERE name = 'officialWindowDays')),
+                     '23514', 'officialWindowDays + 1 일 뒤는 DB 도 거절한다');
+INSERT INTO official_share_slots (post_id, scheduled_on) VALUES ('90000000-0000-0000-0000-0000000000a1', jst_date(now()) + (SELECT value FROM golden_post_limits WHERE name = 'officialWindowDays')::int);
 SELECT pg_temp.eq((SELECT fee_yen FROM official_share_slots WHERE post_id = '90000000-0000-0000-0000-0000000000a1'), (SELECT value FROM golden_post_limits WHERE name = 'officialFeeYen'),
                   'OFFICIAL_SHARE_FEE_YEN 이 공식 게시 신청의 기본 게시료와 같다');
 SELECT pg_temp.eq((SELECT count(*) FROM golden_official_channels WHERE is_default)::int, 1, 'core 의 기본 채널(DEFAULT_OFFICIAL_CHANNEL)은 하나다');
@@ -133,36 +139,53 @@ SELECT pg_temp.none($q$SELECT g.case_no, g.content, g.has_contact AS core, (mask
 SELECT pg_temp.ok((SELECT count(*) FILTER (WHERE has_contact) FROM golden_post_contacts) >= 10
               AND (SELECT count(*) FILTER (WHERE NOT has_contact) FROM golden_post_contacts) >= 10, '연락처가 있는 사례와 없는 사례가 모두 충분히 들어 있다');
 
--- 6-4) 공식 SNS 게시 날짜: nextOfficialDate(posts, today, channel) ↔ next_official_share_date(today, channel)
---      (core 에서는 홍보 글의 official.on 이 "이미 받은 날짜"예요. 같은 채널·같은 날짜로 신청 행을 만들어 두고 DB 에 물어봐요.
---       channel 이 NULL 인 사례는 채널을 말하지 않은 경우예요 — DB 에서도 인자를 생략해서 기본값(instagram)이 core 와 같은지 함께 봐요.)
-CREATE TEMP TABLE parity_official_result (case_no integer PRIMARY KEY, next_on date);
+-- 6-4) 공식 SNS 게시 날짜: earliestOfficialDate(posts, companyId, today) ↔ earliest_official_share_date(company, today),
+--      officialMonthRemaining(usage, month) ↔ official_share_month_remaining(company, month) — 회사당 월 4회 · 내일 ~ 30일 뒤 · 하루 제한 없음.
+--      사례마다 우리 회사(기업 1, d..01)·다른 회사(기업 3, d..03)의 신청을 넣어 두고 DB 에 물어봐요. 신청 시각은 그 날짜의 전날로 두어 "내일 ~ 30일 뒤" 에 걸리지 않게 해요.
+--      취소(cancelled)는 먼저 넣었다가 취소로 바꿔요 — 앱에는 취소가 없어서(지운 것과 같아요) 정답표의 앱 쪽 계산에는 들어가지 않았어요.
+CREATE TEMP TABLE parity_official_result (case_no integer PRIMARY KEY, earliest_on date, remaining integer[]);
 DO $$
 DECLARE
   r record;
   i integer;
   pid uuid;
+  pass text;
 BEGIN
-  FOR r IN SELECT * FROM golden_official_dates ORDER BY case_no LOOP
-    FOR i IN 1 .. COALESCE(array_length(r.taken, 1), 0) LOOP
-      pid := gen_random_uuid();
-      PERFORM pg_temp.mk_pr(pid, 'b0000000-0000-0000-0000-000000000001', 'd0000000-0000-0000-0000-000000000001');
-      -- 신청 시각을 아주 옛날로 두어, 골든의 날짜가 "신청한 날의 다음 날 이후" 규칙에 걸리지 않게 해요
-      INSERT INTO official_share_slots (post_id, scheduled_on, channel, requested_at)
-      VALUES (pid, r.taken[i], r.taken_channels[i]::official_channel, timestamptz '2020-01-01 09:00+09');
+  FOR r IN SELECT * FROM golden_official_choices ORDER BY case_no LOOP
+    FOREACH pass IN ARRAY ARRAY['cancelled', 'scheduled', 'posted'] LOOP
+      FOR i IN 1 .. COALESCE(array_length(r.taken_on, 1), 0) LOOP
+        CONTINUE WHEN r.taken_status[i] <> pass;
+        pid := gen_random_uuid();
+        IF r.taken_mine[i] THEN
+          PERFORM pg_temp.mk_pr(pid, 'b0000000-0000-0000-0000-000000000001', 'd0000000-0000-0000-0000-000000000001');
+        ELSE
+          PERFORM pg_temp.mk_pr(pid, 'b0000000-0000-0000-0000-00000000000a', 'd0000000-0000-0000-0000-000000000003');
+        END IF;
+        INSERT INTO official_share_slots (post_id, scheduled_on, requested_at)
+        VALUES (pid, r.taken_on[i], (r.taken_on[i] - 1)::timestamp AT TIME ZONE 'Asia/Tokyo' + interval '9 hours');
+        IF pass <> 'scheduled' THEN
+          UPDATE official_share_slots SET status = pass::official_status WHERE post_id = pid;
+        END IF;
+      END LOOP;
     END LOOP;
     INSERT INTO parity_official_result VALUES (r.case_no,
-      CASE WHEN r.channel IS NULL THEN next_official_share_date(r.today) ELSE next_official_share_date(r.today, r.channel::official_channel) END);
+      earliest_official_share_date('d0000000-0000-0000-0000-000000000001', r.today),
+      ARRAY(SELECT official_share_month_remaining('d0000000-0000-0000-0000-000000000001', m) FROM unnest(r.months) WITH ORDINALITY AS t(m, o) ORDER BY o));
     DELETE FROM official_share_slots;
   END LOOP;
 END $$;
-SELECT pg_temp.eq((SELECT count(*) FROM parity_official_result)::int, (SELECT count(*) FROM golden_official_dates)::int, '날짜 대조: 모든 사례를 DB 에 물어보았다');
-SELECT pg_temp.none($q$SELECT g.case_no, g.label, g.today, g.channel, g.taken, g.taken_channels, g.next_on AS core, r.next_on AS db
-                         FROM golden_official_dates g JOIN parity_official_result r USING (case_no) WHERE g.next_on IS DISTINCT FROM r.next_on$q$,
-                    'next_official_share_date 가 core 의 nextOfficialDate 와 모두 같다 (채널별 · 월말·연말·윤년 포함)');
-SELECT pg_temp.ok((SELECT count(DISTINCT channel) FROM golden_official_dates) >= 3 AND (SELECT count(*) FROM golden_official_dates WHERE channel IS NULL) >= 10
-              AND (SELECT count(*) FROM golden_official_dates g WHERE EXISTS (SELECT 1 FROM unnest(g.taken_channels) c WHERE c <> COALESCE(g.channel, (SELECT channel FROM golden_official_channels WHERE is_default)))) >= 6,
-                  '채널을 말한 사례 · 말하지 않은 사례 · "다른 채널이 찬 날"이 섞인 사례가 모두 충분히 들어 있다');
+SELECT pg_temp.eq((SELECT count(*) FROM parity_official_result)::int, (SELECT count(*) FROM golden_official_choices)::int, '날짜 대조: 모든 사례를 DB 에 물어보았다');
+SELECT pg_temp.none($q$SELECT g.case_no, g.label, g.today, g.earliest_on AS core, r.earliest_on AS db
+                         FROM golden_official_choices g JOIN parity_official_result r USING (case_no) WHERE g.earliest_on IS DISTINCT FROM r.earliest_on$q$,
+                    'earliest_official_share_date 가 core 의 earliestOfficialDate 와 모두 같다 (월 한도 · 취소 · 다른 회사 · 월말·연말·윤년 · 고를 날 없음)');
+SELECT pg_temp.none($q$SELECT g.case_no, g.label, g.months, g.remaining AS core, r.remaining AS db
+                         FROM golden_official_choices g JOIN parity_official_result r USING (case_no) WHERE g.remaining IS DISTINCT FROM r.remaining$q$,
+                    'official_share_month_remaining 이 core 의 officialMonthRemaining 과 기간 안의 모든 달에서 같다');
+SELECT pg_temp.ok((SELECT count(*) FROM golden_official_choices WHERE earliest_on IS NULL) >= 2
+              AND (SELECT count(*) FROM golden_official_choices WHERE 'cancelled' = ANY (taken_status)) >= 2
+              AND (SELECT count(*) FROM golden_official_choices WHERE false = ANY (taken_mine)) >= 2
+              AND (SELECT count(*) FROM golden_official_choices WHERE cardinality(months) = 3) >= 1,
+                  '고를 날이 없는 사례 · 취소가 섞인 사례 · 다른 회사가 섞인 사례 · 세 달에 걸친 사례가 모두 들어 있다');
 
 -- 6-4b) 채널 값: 앱(isOfficialChannel)이 받아들이는 글자만 DB 의 열거형도 받아들인다 (YouTube · 대소문자 · 공백 · 옛 이름은 모두 거절)
 CREATE FUNCTION pg_temp.accepts_channel(v text) RETURNS boolean LANGUAGE plpgsql AS $$

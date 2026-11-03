@@ -45,9 +45,22 @@ export const feed = {
   "post.challengeLabel": { ja: "紐づける課題（任意）", ko: "연결할 챌린지(선택)" },
   "post.challengeNone": { ja: "紐づけない", ko: "연결하지 않음" },
   "post.officialLabel": { ja: "公式SNSへの掲載を申し込む", ko: "공식 SNS 게시 신청" },
-  "post.officialHint": { ja: "SNSごとに1日1社まで。空いている日が自動で決まります（掲載料 {fee}・サンプル）", ko: "SNS별로 하루에 한 회사만 가능해요. 비어 있는 날짜가 자동으로 정해져요(게시료 {fee}·샘플)" },
+  "post.officialHint": {
+    ja: "1社につき月{limit}回まで（すべてのSNSの合計）。掲載日は明日から{days}日後までの中から選べます（掲載料 {fee}・サンプル）",
+    ko: "회사마다 한 달에 {limit}번까지예요(모든 SNS 합계). 게시 날짜는 내일부터 {days}일 뒤까지 고를 수 있어요(게시료 {fee}·샘플)",
+  },
   "post.officialChannelLabel": { ja: "掲載するSNS", ko: "게시할 SNS" },
-  "post.officialDate": { ja: "掲載予定日：{date}", ko: "게시 예정일: {date}" },
+  // 게시 날짜 고르기 (회사당 월 4회 · 내일 ~ 30일 뒤)
+  "post.officialDateLabel": { ja: "掲載日", ko: "게시 날짜" },
+  "post.officialDatePrev": { ja: "前の候補日", ko: "이전 날짜" },
+  "post.officialDateNext": { ja: "次の候補日", ko: "다음 날짜" },
+  "post.officialDateReset": { ja: "最短の日に戻す", ko: "가장 빠른 날로" },
+  "post.officialRemaining": { ja: "{month}月の残り {remaining}/{limit}回", ko: "{month}월 남은 횟수 {remaining}/{limit}회" },
+  "post.officialMonthFull": { ja: "{month}月は掲載枠（月{limit}回）を使い切ったため選べません", ko: "{month}월은 게시 한도(한 달 {limit}번)를 다 써서 고를 수 없어요" },
+  "post.officialNoDate": {
+    ja: "この先{days}日間は掲載枠（月{limit}回）を使い切っているため、いまは申し込めません",
+    ko: "앞으로 {days}일 동안은 게시 한도(한 달 {limit}번)를 다 써서 지금은 신청할 수 없어요",
+  },
   // 채널 이름과 올라가는 모양 (YouTube 는 영상 채널이라 신청 대상이 아니에요)
   "post.channel.x": { ja: "X", ko: "X" },
   "post.channel.instagram": { ja: "Instagram", ko: "인스타그램" },
@@ -72,6 +85,8 @@ export const feed = {
   "post.error.sdgs_too_many": { ja: "SDGsは{max}つまでです", ko: "SDGs는 {max}개까지예요" },
   "post.error.challenge_not_found": { ja: "選んだ課題が見つかりません", ko: "고른 챌린지를 찾을 수 없어요" },
   "post.error.official_channel_invalid": { ja: "掲載するSNSを選んでください", ko: "게시할 SNS를 골라 주세요" },
+  "post.error.official_date_out_of_range": { ja: "掲載日は明日から{days}日後までの中から選んでください", ko: "게시 날짜는 내일부터 {days}일 뒤까지 중에서 골라 주세요" },
+  "post.error.official_month_full": { ja: "選んだ日の月は掲載枠（月{limit}回）を使い切っています", ko: "고른 날짜의 달은 게시 한도(한 달 {limit}번)를 다 썼어요" },
   "post.error.contact_info": { ja: "メールアドレスや電話番号は書けません", ko: "이메일 주소나 전화번호는 쓸 수 없어요" },
 
   // 다른 화면에서 글쓰기로 들어가는 단추

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
-  addDays, clamp, dDayLabel, daysBetween, formatBytes, formatDate, formatDateShort, formatDateTime, formatNumber, formatPeople, formatPoints,
-  formatYen, toIsoDate, toIsoDateTime,
+  addDays, clamp, dDayLabel, daysBetween, formatBytes, formatDate, formatDateShort, formatDateTime, formatMonthDayWeekday, formatNumber, formatPeople, formatPoints,
+  formatYen, toIsoDate, toIsoDateTime, weekdayOf,
 } from "./format";
 
 describe("날짜", () => {
@@ -46,6 +46,15 @@ describe("날짜", () => {
     expect(formatDateShort("2026-11-04")).toBe("11/4");
     expect(formatDateTime("2026-11-14T13:00", "ja")).toBe("2026年11月14日 13:00");
     expect(formatDateTime("2026-11-14", "ko")).toBe("2026년 11월 14일");
+  });
+
+  it("요일과 월·일·요일 표기 (공식 SNS 게시 날짜 고르기)", () => {
+    expect(weekdayOf("2026-11-01")).toBe(0); // 일요일
+    expect(weekdayOf("2026-10-31")).toBe(6); // 토요일
+    expect(weekdayOf("2028-02-29")).toBe(2); // 윤일(화요일)
+    expect(formatMonthDayWeekday("2026-11-05", "ja")).toBe("11月5日（木）");
+    expect(formatMonthDayWeekday("2026-11-05", "ko")).toBe("11월 5일(목)");
+    expect(formatMonthDayWeekday("2027-01-01", "ja")).toBe("1月1日（金）");
   });
 });
 

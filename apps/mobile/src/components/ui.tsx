@@ -366,14 +366,16 @@ export interface LabeledSwitchProps {
   value: boolean;
   onValueChange: (value: boolean) => void;
   hint?: string;
+  /** 켤 수 없을 때 (이유는 화면이 hint 나 옆의 글로 보여 줘요) */
+  disabled?: boolean;
   testID?: string;
 }
 
-export function LabeledSwitch({ label, value, onValueChange, hint, testID }: LabeledSwitchProps) {
+export function LabeledSwitch({ label, value, onValueChange, hint, disabled = false, testID }: LabeledSwitchProps) {
   return (
     <View style={styles.switchRow}>
       <View style={styles.flex}>
-        <Txt>{label}</Txt>
+        <Txt tone={disabled ? "muted" : "text"}>{label}</Txt>
         {hint ? (
           <Txt variant="small" tone="muted">
             {hint}
@@ -384,7 +386,9 @@ export function LabeledSwitch({ label, value, onValueChange, hint, testID }: Lab
         testID={testID}
         accessibilityRole="switch"
         accessibilityLabel={label}
-        accessibilityState={{ checked: value }}
+        accessibilityHint={hint}
+        accessibilityState={{ checked: value, disabled }}
+        disabled={disabled}
         value={value}
         onValueChange={onValueChange}
         trackColor={{ false: COLORS.textSubtle, true: COLORS.primary }}

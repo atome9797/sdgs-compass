@@ -6,7 +6,7 @@ import type { TFunction } from "@sdgs-compass/core/messages";
 import { containsContact, DEFAULT_OFFICIAL_CHANNEL, defaultPrSdgs, isOfficialChannel, POST_LIMITS, type PostDraft, type PostError } from "@sdgs-compass/core/post";
 import { charCount } from "@sdgs-compass/core/proposal";
 import type { SdgId } from "@sdgs-compass/core/sdg";
-import type { ComposerVM, OfficialChannelOptionVM, PostVM } from "@sdgs-compass/core/selectors";
+import { officialDateNav, type ComposerVM, type OfficialChannelOptionVM, type PostVM } from "@sdgs-compass/core/selectors";
 import { paramText } from "./nav";
 import { toggleSdg } from "./newChallenge";
 
@@ -27,6 +27,8 @@ export interface PostFormState {
   requestOfficial: boolean;
   /** 홍보 글: 신청할 공식 SNS (신청을 켠 뒤에만 의미가 있어요. 껐다 켜도 고른 채널은 그대로예요) */
   officialChannel: OfficialChannel;
+  /** 홍보 글: 고른 게시 날짜 YYYY-MM-DD (처음에는 고를 수 있는 가장 빠른 날, 고를 날이 없으면 null) */
+  officialOn: string | null;
 }
 
 /** 글쓰기 화면을 처음 열 때의 값: 미리 고른 실적·챌린지가 있으면 그것으로, SDGs 는 기본값(챌린지 → 없으면 기업의 SDGs)으로 */
@@ -41,6 +43,7 @@ export function initialPostForm(composer: Pick<ComposerVM, "kind" | "selectedAct
     challengeId: composer.kind === "pr" ? composer.selectedChallengeId : null,
     requestOfficial: false,
     officialChannel: composer.official.defaultChannel,
+    officialOn: composer.kind === "pr" ? composer.official.defaultDate : null,
   };
 }
 
@@ -55,6 +58,7 @@ export function toPostDraft(form: PostFormState): PostDraft {
     challengeId: form.challengeId,
     requestOfficial: form.requestOfficial,
     officialChannel: form.officialChannel,
+    officialOn: form.officialOn ?? undefined,
   };
 }
 
@@ -80,7 +84,24 @@ export function pickOfficialChannel(form: PostFormState, channel: string, compos
   return { ...form, officialChannel: channel };
 }
 
-/** 지금 고른 공식 SNS 의 선택지 (이름 · 올라가는 모양 · 배정될 날짜). 고른 값이 선택지에 없으면 처음 골라 두는 채널, 그것도 없으면 null */
+/** 게시 날짜를 ◀(-1) ▶(+1) 로 옮겨요: 고를 수 있는 날만 밟고(한도를 다 쓴 달은 건너뛰어요), 더 갈 곳이 없으면 그대로 */
+export function stepOfficialDate(form: PostFormState, composer: Pick<ComposerVM, "official">, direction: -1 | 1): PostFormState {
+  const nav = officialDateNav(composer.official, form.officialOn);
+  const target = direction < 0 ? nav.prev : nav.next;
+  return target === null ? form : { ...form, officialOn: target };
+}
+
+/** 「最短の日に戻す」: 고를 수 있는 가장 빠른 날로 */
+export function resetOfficialDate(form: PostFormState, composer: Pick<ComposerVM, "official">): PostFormState {
+  return { ...form, officialOn: composer.official.defaultDate };
+}
+
+/** 미리보기·안내에 쓸 게시 날짜: 고른 날이 지금 고를 수 있는 날이면 그 날, 아니면 가장 빠른 날(그것도 없으면 null) */
+export function shownOfficialDate(composer: Pick<ComposerVM, "official">, form: Pick<PostFormState, "officialOn">): string | null {
+  return composer.official.dates.some((d) => d.available && d.date === form.officialOn) ? form.officialOn : composer.official.defaultDate;
+}
+
+/** 지금 고른 공식 SNS 의 선택지 (이름 · 올라가는 모양). 고른 값이 선택지에 없으면 처음 골라 두는 채널, 그것도 없으면 null */
 export function selectedOfficialOption(composer: Pick<ComposerVM, "official">, form: Pick<PostFormState, "officialChannel">): OfficialChannelOptionVM | null {
   const { channels, defaultChannel } = composer.official;
   return channels.find((option) => option.id === form.officialChannel) ?? channels.find((option) => option.id === defaultChannel) ?? null;
@@ -92,8 +113,8 @@ export function counterOf(text: string, limit: number): { count: number; over: b
   return { count, over: count > limit };
 }
 
-/** 오류가 붙는 입력 칸 */
-export type PostField = "activity" | "title" | "body" | "sdgs" | "challenge" | "official";
+/** 오류가 붙는 입력 칸 (official = 채널 고르기, officialDate = 게시 날짜 고르기) */
+export type PostField = "activity" | "title" | "body" | "sdgs" | "challenge" | "official" | "officialDate";
 
 /** 오류가 어느 칸의 것인지. 연락처 오류는 연락처가 들어 있는 칸에 붙여요 (제목·본문 둘 다일 수도 있어요) */
 export function fieldsOfError(error: PostError, form: Pick<PostFormState, "kind" | "title" | "body">): PostField[] {
@@ -114,6 +135,9 @@ export function fieldsOfError(error: PostError, form: Pick<PostFormState, "kind"
       return ["challenge"];
     case "official_channel_invalid":
       return ["official"];
+    case "official_date_out_of_range":
+    case "official_month_full":
+      return ["officialDate"];
     case "contact_info": {
       const fields: PostField[] = [];
       if (form.kind === "pr" && containsContact(form.title)) fields.push("title");
@@ -143,6 +167,7 @@ export function previewPost(composer: ComposerVM, form: PostFormState, t: TFunct
   const activity = isBrag ? composer.activities.find((a) => a.id === form.activityId) : undefined;
   const challenge = !isBrag && form.challengeId !== null ? composer.challenges.find((c) => c.id === form.challengeId) : undefined;
   const official = !isBrag && form.requestOfficial ? selectedOfficialOption(composer, form) : null;
+  const officialOn = official ? shownOfficialDate(composer, form) : null;
   return {
     id: "preview",
     kind: form.kind,
@@ -163,10 +188,10 @@ export function previewPost(composer: ComposerVM, form: PostFormState, t: TFunct
     canDelete: false,
     achievement: activity ? { kindLabel: "", title: activity.label, companyName: "", awardLabel: null, sdgIds: activity.sdgIds, certificateId: null } : null,
     challenge: challenge ? { id: challenge.id, title: challenge.title } : null,
-    // 피드의 글 카드와 같은 글: "공식 SNS 게시 예정 · X · 11/2" (고른 채널에서 지금 신청하면 배정될 날짜)
-    official: official
+    // 피드의 글 카드와 같은 글: "공식 SNS 게시 예정 · X · 11/2" (고른 채널 · 고른 날짜)
+    official: official && officialOn
       ? {
-          label: t("feed.officialScheduled", { channel: official.name, date: formatDateShort(official.nextDate) }),
+          label: t("feed.officialScheduled", { channel: official.name, date: formatDateShort(officialOn) }),
           feeLabel: t("feed.officialFee", { fee: composer.official.feeLabel }),
           channel: official.id,
           channelName: official.name,

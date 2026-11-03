@@ -17,7 +17,10 @@ import {
   pickChallenge,
   pickOfficialChannel,
   previewPost,
+  resetOfficialDate,
   selectedOfficialOption,
+  shownOfficialDate,
+  stepOfficialDate,
   toggleFormSdg,
   toPostDraft,
   type PostFormState,
@@ -43,7 +46,7 @@ test("자랑 글 처음 값: 첫 실적(수상 → 제출·참가 순)이 골라
   const composer = bragComposer();
   const form = initialPostForm(composer);
   expect(form).toEqual({
-    kind: "brag", body: "", title: "", activityId: composer.activities[0].id, sdgIds: [], sdgsTouched: false, challengeId: null, requestOfficial: false, officialChannel: "instagram",
+    kind: "brag", body: "", title: "", activityId: composer.activities[0].id, sdgIds: [], sdgsTouched: false, challengeId: null, requestOfficial: false, officialChannel: "instagram", officialOn: null,
   });
 });
 
@@ -64,6 +67,7 @@ test("홍보 글 처음 값: 챌린지는 안 고른 채, SDGs 는 기업의 SDG
   // 공식 SNS 채널은 core 가 정한 기본값(Instagram)으로 골라져 있어요
   expect(form.officialChannel).toBe(composer.official.defaultChannel);
   expect(form.officialChannel).toBe("instagram");
+  expect(form.officialOn).toBe("2026-10-31"); // 게시 날짜는 고를 수 있는 가장 빠른 날(내일)
   expect(form.sdgIds).toEqual(composer.companySdgIds);
   expect(form.sdgIds.length).toBeGreaterThan(0);
   // 화면 안에서 고쳐도 core 가 준 배열이 바뀌면 안 돼요
@@ -89,7 +93,7 @@ test("자랑 글 초안에는 제목·SDGs·챌린지·공식 신청이 없어�
 test("홍보 글 초안에는 실적이 없고 나머지 칸이 모두 들어가요", () => {
   const form: PostFormState = { ...withBody(initialPostForm(prComposer("ch-bottle")), "참여해 주세요", "텀블러 챌린지"), requestOfficial: true };
   expect(toPostDraft(form)).toEqual({
-    kind: "pr", body: "참여해 주세요", title: "텀블러 챌린지", sdgIds: [12, 14], challengeId: "ch-bottle", requestOfficial: true, officialChannel: "instagram",
+    kind: "pr", body: "참여해 주세요", title: "텀블러 챌린지", sdgIds: [12, 14], challengeId: "ch-bottle", requestOfficial: true, officialChannel: "instagram", officialOn: "2026-10-31",
   });
 });
 
@@ -178,19 +182,49 @@ test("선택지에 없는 채널은 무시해요 (아무것도 바뀌지 않아�
   expect(pickOfficialChannel(form, "instagram", none)).toBe(form);
 });
 
-test("고른 채널의 선택지(이름 · 올라가는 모양 · 배정될 날짜)를 찾아요", () => {
+test("고른 채널의 선택지(이름 · 올라가는 모양)를 찾아요", () => {
   const composer = prComposer();
   const form = initialPostForm(composer);
   const instagram = selectedOfficialOption(composer, form);
   expect(instagram).toMatchObject({ id: "instagram", name: "인스타그램", format: "스토리", label: "인스타그램 스토리" });
   const x = selectedOfficialOption(composer, pickOfficialChannel(form, "x", composer));
   expect(x).toMatchObject({ id: "x", name: "X", format: "포스트", label: "X 포스트" });
-  // 채널마다 날짜가 달라요: 샘플에서 Instagram 은 내일(10/31)이 차 있어서 모레, X 는 내일부터 비어 있어요
-  expect(x?.nextDate).toBe("2026-10-31");
-  expect(instagram?.nextDate).toBe("2026-11-01");
   // 선택지에 없는 값이 들어 있으면 처음 골라 두는 채널이에요
   expect(selectedOfficialOption(composer, { officialChannel: "youtube" as never })?.id).toBe("instagram");
   expect(selectedOfficialOption({ official: { ...composer.official, channels: [] } }, form)).toBeNull();
+});
+
+// ───────── 공식 SNS 게시 날짜 고르기 (회사당 월 4회 · 내일 ~ 30일 뒤) ─────────
+
+test("게시 날짜는 ◀ ▶ 로 하루씩 옮기고, 기간 끝에서는 더 가지 않으며, 「가장 빠른 날로」로 돌아와요", () => {
+  const composer = prComposer();
+  const form = { ...initialPostForm(composer), requestOfficial: true };
+  const next = stepOfficialDate(form, composer, 1);
+  expect(next.officialOn).toBe("2026-11-01");
+  expect(stepOfficialDate(next, composer, -1).officialOn).toBe("2026-10-31");
+  expect(stepOfficialDate(form, composer, -1)).toBe(form); // 내일보다 앞은 없어요
+  const last = { ...form, officialOn: "2026-11-29" };
+  expect(stepOfficialDate(last, composer, 1)).toBe(last);
+  expect(resetOfficialDate(last, composer).officialOn).toBe("2026-10-31");
+  expect(toPostDraft(last)).toMatchObject({ requestOfficial: true, officialOn: "2026-11-29" });
+});
+
+test("한도를 다 쓴 달은 건너뛰고, 그 날을 억지로 넣으면 날짜 칸에 오류가 붙어요", () => {
+  // 우리 회사가 10/31 에 3건을 더 신청해서 10월(10/31 하루)을 다 쓴 상태
+  let state: DemoState = demo;
+  for (let i = 0; i < 3; i++) state = reducer(state, { type: "createPost", draft: { kind: "pr", title: `t${i}`, body: "b", sdgIds: [14], requestOfficial: true, officialOn: "2026-10-31" }, at: `${TODAY}T10:00` });
+  const composer = selectComposer(state, "ko", "pr");
+  expect(composer.official.defaultDate).toBe("2026-11-01");
+  const form = { ...withBody(initialPostForm(composer), "본문", "제목"), requestOfficial: true };
+  expect(stepOfficialDate(form, composer, -1)).toBe(form);
+  const forced = { ...form, officialOn: "2026-10-31" };
+  const errors = validatePostDraft(toPostDraft(forced), postContext(state));
+  expect(errors).toEqual(["official_month_full"]);
+  expect(errorsByField(errors, forced)).toEqual({ officialDate: "official_month_full" });
+  expect(fieldsOfError("official_date_out_of_range", forced)).toEqual(["officialDate"]);
+  // 미리보기는 고를 수 있는 가장 빠른 날로 보여 줘요
+  expect(shownOfficialDate(composer, forced)).toBe("2026-11-01");
+  expect(previewPost(composer, forced, t).official?.label).toBe("공식 SNS 게시 예정 · 인스타그램 · 11/1");
 });
 
 // ───────── 글자 수 ─────────
@@ -308,10 +342,10 @@ test("홍보 글 미리보기: 제목(앞뒤 공백 뺌)·고른 SDGs·연결한
     official: null,
     mine: true,
   });
-  // 피드의 글 카드와 같은 글: 고른 채널(처음엔 Instagram)과, 그 채널에서 지금 신청하면 배정될 날짜
+  // 피드의 글 카드와 같은 글: 고른 채널(처음엔 Instagram)과 고른 날짜(처음엔 가장 빠른 날 = 내일)
   const official = previewPost(composer, { ...base, requestOfficial: true }, t);
   expect(official.official).toEqual({
-    label: "공식 SNS 게시 예정 · 인스타그램 · 11/1",
+    label: "공식 SNS 게시 예정 · 인스타그램 · 10/31",
     feeLabel: "게시료 3,000엔(샘플)",
     channel: "instagram",
     channelName: "인스타그램",
@@ -319,13 +353,13 @@ test("홍보 글 미리보기: 제목(앞뒤 공백 뺌)·고른 SDGs·연결한
   });
 });
 
-test("홍보 글 미리보기: 채널을 바꾸면 라벨과 예정일이 그 채널 것으로 바뀌어요", () => {
+test("홍보 글 미리보기: 채널을 바꾸면 라벨이 그 채널 것으로 바뀌고, 날짜는 고른 날 그대로예요", () => {
   const composer = prComposer();
   const base: PostFormState = { ...withBody(initialPostForm(composer), "많이 참여해 주세요", "텀블러 챌린지"), requestOfficial: true };
   const x = previewPost(composer, pickOfficialChannel(base, "x", composer), t).official;
   expect(x).toMatchObject({ label: "공식 SNS 게시 예정 · X · 10/31", channel: "x", channelName: "X", channelLabel: "X 포스트" });
-  const facebook = previewPost(composer, pickOfficialChannel(base, "facebook", composer), t).official;
-  expect(facebook).toMatchObject({ label: "공식 SNS 게시 예정 · 페이스북 · 11/1", channel: "facebook", channelName: "페이스북", channelLabel: "페이스북 페이지 게시" });
+  const facebook = previewPost(composer, pickOfficialChannel({ ...base, officialOn: "2026-11-14" }, "facebook", composer), t).official;
+  expect(facebook).toMatchObject({ label: "공식 SNS 게시 예정 · 페이스북 · 11/14", channel: "facebook", channelName: "페이스북", channelLabel: "페이스북 페이지 게시" });
   // 게시료는 어느 채널이든 같아요
   expect(x?.feeLabel).toBe("게시료 3,000엔(샘플)");
   expect(facebook?.feeLabel).toBe(x?.feeLabel);
@@ -333,10 +367,10 @@ test("홍보 글 미리보기: 채널을 바꾸면 라벨과 예정일이 그 �
   expect(previewPost(composer, { ...pickOfficialChannel(base, "x", composer), requestOfficial: false }, t).official).toBeNull();
 });
 
-test("미리보기의 공식 SNS 글은 올린 뒤 피드 카드의 글과 같아요 (날짜는 올릴 때 다시 배정돼도 보여 준 날짜 그대로예요)", () => {
+test("미리보기의 공식 SNS 글은 올린 뒤 피드 카드의 글과 같아요 (고른 채널 · 고른 날짜)", () => {
   const composer = prComposer("ch-bottle");
   for (const option of composer.official.channels) {
-    const form = pickOfficialChannel({ ...withBody(initialPostForm(composer), "참여해 주세요", "텀블러 챌린지"), requestOfficial: true }, option.id, composer);
+    const form = pickOfficialChannel({ ...withBody(initialPostForm(composer), "참여해 주세요", "텀블러 챌린지"), requestOfficial: true, officialOn: "2026-11-20" }, option.id, composer);
     const preview = previewPost(composer, form, t).official;
     const next = reducer(demo, { type: "createPost", draft: toPostDraft(form), at: `${TODAY}T10:00` });
     const card = selectFeed(next, "ko", "b2b", "all").posts[0].official;
@@ -364,21 +398,21 @@ test("자랑 글을 올리면 피드 맨 위에 내 글로 뜨고, 좋아요는 
   expect(selectFeed(next, "ko", "b2b", "all").posts[0]).toMatchObject({ mine: false, canLike: true, canDelete: false });
 });
 
-test("홍보 글에 공식 SNS 를 신청하면 화면에 보여 준 채널과 예정일(nextDate)로 배정돼요 (채널마다)", () => {
+test("홍보 글에 공식 SNS 를 신청하면 화면에서 고른 채널과 날짜로 신청돼요 (채널마다)", () => {
   const composer = prComposer("ch-bottle");
   const form: PostFormState = { ...withBody(initialPostForm(composer), "참여해 주세요", "텀블러 챌린지"), requestOfficial: true };
   for (const option of composer.official.channels) {
-    const chosen = pickOfficialChannel(form, option.id, composer);
+    const chosen = stepOfficialDate(pickOfficialChannel(form, option.id, composer), composer, 1);
     const next = reducer(demo, { type: "createPost", draft: toPostDraft(chosen), at: `${TODAY}T10:00` });
     const created = next.posts[0];
     expect(created.kind).toBe("pr");
     if (created.kind !== "pr") throw new Error("pr post expected");
-    expect(created.official).toMatchObject({ on: option.nextDate, channel: option.id, status: "scheduled" });
+    expect(created.official).toMatchObject({ on: "2026-11-01", channel: option.id, status: "scheduled" });
     expect(created.challengeId).toBe("ch-bottle");
   }
-  // 채널을 따로 고르지 않고 올리면 처음 골라 둔 Instagram 이에요
+  // 채널·날짜를 따로 고르지 않고 올리면 처음 골라 둔 Instagram · 가장 빠른 날(내일)이에요
   const byDefault = reducer(demo, { type: "createPost", draft: toPostDraft(form), at: `${TODAY}T10:00` });
-  expect(byDefault.posts[0]).toMatchObject({ official: { channel: "instagram", on: "2026-11-01" } });
+  expect(byDefault.posts[0]).toMatchObject({ official: { channel: "instagram", on: "2026-10-31" } });
   // 신청하지 않으면 예정일이 없어요
   const without = reducer(demo, { type: "createPost", draft: toPostDraft({ ...form, requestOfficial: false }), at: `${TODAY}T10:00` });
   expect(selectFeed(without, "ko", "b2b", "all").posts[0].official).toBeNull();

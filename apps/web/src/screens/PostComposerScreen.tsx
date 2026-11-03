@@ -7,11 +7,14 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useId, useMemo, useRef, useState, type FormEvent } from "react";
 import type { PostKind } from "@sdgs-compass/core/domain";
 import { postContext, postErrorText, validatePostDraft } from "@sdgs-compass/core/post";
-import { selectComposer, selectSdgTiles } from "@sdgs-compass/core/selectors";
+import { officialDateNav, selectComposer, selectSdgTiles } from "@sdgs-compass/core/selectors";
 import { PostCard } from "@/components/PostCard";
 import { SdgChips, SdgMiniRow } from "@/components/sdg";
 import { Button, ButtonLink, Counter, Empty, Field, ScreenHead } from "@/components/ui";
-import { chooseChallenge, chooseOfficialChannel, counterOf, initialPostFields, previewDraft, previewPost, toggleSdg, toPostDraft, visibleFieldErrors, type PostField, type PostFields } from "@/lib/postForm";
+import {
+  chooseChallenge, chooseOfficialChannel, counterOf, initialPostFields, previewDraft, previewPost, resetOfficialDate, stepOfficialDate, toggleSdg, toPostDraft, visibleFieldErrors,
+  type PostField, type PostFields,
+} from "@/lib/postForm";
 import { buildHref, feedHref, ROUTES } from "@/lib/routes";
 import { useSession } from "@/lib/session";
 import { nowIso } from "@/lib/time";
@@ -21,6 +24,7 @@ function Composer({ kind, presetId }: { kind: PostKind; presetId: string | null 
   const router = useRouter();
   const formRef = useRef<HTMLFormElement>(null);
   const officialHintId = useId();
+  const officialNoteId = useId();
   const channelGroupName = useId();
   const previewHeadingId = useId();
 
@@ -44,6 +48,9 @@ function Composer({ kind, presetId }: { kind: PostKind; presetId: string | null 
   };
   const bodyCount = counterOf(fields.body, composer.bodyLimit);
   const titleCount = counterOf(fields.title, composer.titleLimit);
+  // 공식 SNS 게시 날짜: ◀ 날짜 ▶ 로 고르고, 고른 날이 속한 달의 남은 횟수를 함께 보여 줘요 (고를 날이 없으면 신청을 켤 수 없어요)
+  const dateNav = officialDateNav(composer.official, fields.officialOn);
+  const officialBlocked = composer.official.defaultDate === null;
 
   // 미리보기: 올린 뒤 피드에 나올 카드를 그대로 (입력 도중에는 안내 문구로 채워서 모양만 보여요)
   const preview = useMemo(() => {
@@ -169,40 +176,89 @@ function Composer({ kind, presetId }: { kind: PostKind; presetId: string | null 
 
               <div className="stack stack--sm">
                 <label className="check">
-                  <input type="checkbox" checked={fields.requestOfficial} aria-describedby={officialHintId} onChange={(event) => update({ requestOfficial: event.target.checked })} />
+                  <input
+                    type="checkbox"
+                    checked={fields.requestOfficial}
+                    disabled={officialBlocked}
+                    aria-describedby={officialBlocked ? `${officialHintId} ${officialNoteId}` : officialHintId}
+                    onChange={(event) => update({ requestOfficial: event.target.checked })}
+                  />
                   {t("post.officialLabel")}
                 </label>
                 <p id={officialHintId} className="field__hint">
                   {composer.official.hint}
                 </p>
+                {composer.official.unavailableReason ? (
+                  <p id={officialNoteId} className="official-blocked">
+                    {composer.official.unavailableReason}
+                  </p>
+                ) : null}
                 {fields.requestOfficial ? (
-                  <fieldset className="channels" tabIndex={-1} data-invalid={shown.official ? "true" : undefined}>
-                    <legend className="field__label">{t("post.officialChannelLabel")}</legend>
-                    {composer.official.channels.map((channel) => {
-                      const selected = fields.officialChannel === channel.id;
-                      return (
-                        <label key={channel.id} className={selected ? "channel channel--on" : "channel"}>
-                          <input
-                            type="radio"
-                            name={channelGroupName}
-                            value={channel.id}
-                            checked={selected}
-                            onChange={() => {
-                              setFields((current) => chooseOfficialChannel(current, channel.id));
-                              touch("official");
-                            }}
-                          />
-                          <span className="channel__text">
-                            <span className="channel__name">
-                              {channel.name} <span className="channel__format">{channel.format}</span>
+                  <>
+                    <fieldset className="channels" tabIndex={-1} data-invalid={shown.official ? "true" : undefined}>
+                      <legend className="field__label">{t("post.officialChannelLabel")}</legend>
+                      {composer.official.channels.map((channel) => {
+                        const selected = fields.officialChannel === channel.id;
+                        return (
+                          <label key={channel.id} className={selected ? "channel channel--on" : "channel"}>
+                            <input
+                              type="radio"
+                              name={channelGroupName}
+                              value={channel.id}
+                              checked={selected}
+                              onChange={() => {
+                                setFields((current) => chooseOfficialChannel(current, channel.id));
+                                touch("official");
+                              }}
+                            />
+                            <span className="channel__text">
+                              <span className="channel__name">
+                                {channel.name} <span className="channel__format">{channel.format}</span>
+                              </span>
                             </span>
-                            <span className="channel__date">{channel.nextDateLabel}</span>
-                          </span>
-                        </label>
-                      );
-                    })}
-                    {message("official") ? <p className="field__error">{message("official")}</p> : null}
-                  </fieldset>
+                          </label>
+                        );
+                      })}
+                      {message("official") ? <p className="field__error">{message("official")}</p> : null}
+                    </fieldset>
+
+                    <fieldset className="odate" tabIndex={-1} data-invalid={shown.officialDate ? "true" : undefined}>
+                      <legend className="field__label">{t("post.officialDateLabel")}</legend>
+                      <div className="odate__row">
+                        <button
+                          type="button"
+                          className="odate__step"
+                          aria-label={t("post.officialDatePrev")}
+                          aria-disabled={dateNav.prev === null}
+                          onClick={() => setFields((current) => stepOfficialDate(current, composer, -1))}
+                        >
+                          <span aria-hidden="true">◀</span>
+                        </button>
+                        <output className="odate__out" aria-live="polite" aria-atomic="true">
+                          <span className="odate__value">{dateNav.option?.label ?? "—"}</span>
+                          {dateNav.option ? <span className="odate__remaining">{dateNav.option.remainingLabel}</span> : null}
+                        </output>
+                        <button
+                          type="button"
+                          className="odate__step"
+                          aria-label={t("post.officialDateNext")}
+                          aria-disabled={dateNav.next === null}
+                          onClick={() => setFields((current) => stepOfficialDate(current, composer, 1))}
+                        >
+                          <span aria-hidden="true">▶</span>
+                        </button>
+                      </div>
+                      <button type="button" className="odate__reset" aria-disabled={dateNav.atEarliest} onClick={() => setFields((current) => resetOfficialDate(current, composer))}>
+                        {t("post.officialDateReset")}
+                      </button>
+                      {composer.official.fullMonthNotes.map((note) => (
+                        <p key={note} className="field__hint">
+                          {note}
+                        </p>
+                      ))}
+                      {message("officialDate") ? <p className="field__error">{message("officialDate")}</p> : null}
+                    </fieldset>
+                  </>
                 ) : null}
               </div>
             </>

@@ -74,7 +74,7 @@ describe("문구 사전 (일본어·한국어)", () => {
     for (const e of challengeErrors) wanted.push(`new.error.${e}`);
     const postErrors: PostError[] = [
       "title_required", "title_too_long", "body_required", "body_too_long", "achievement_required", "achievement_not_found",
-      "sdgs_required", "sdgs_too_many", "challenge_not_found", "contact_info",
+      "sdgs_required", "sdgs_too_many", "challenge_not_found", "official_channel_invalid", "official_date_out_of_range", "official_month_full", "contact_info",
     ];
     for (const e of postErrors) wanted.push(`post.error.${e}`);
     for (const f of ["all", "pr", "brag"]) wanted.push(`feed.filter.${f}`);

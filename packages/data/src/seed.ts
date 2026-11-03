@@ -570,9 +570,9 @@ function buildPosts(today: string): SocialPost[] {
   const yasai = { ja: "やさい未来ファーム", ko: "야채 미래 팜" };
   const kotoba = { ja: "ことば教育サポート株式会社", ko: "코토바 교육 서포트(주)" };
   return [
-    // 기업 홍보 글. 다른 기업 셋이 공식 SNS 게시 날짜를 이미 받았어요 — Instagram 은 내일(po-1), X 는 모레(po-2), Facebook 은 내일(po-3).
-    // 같은 날(내일)도 채널이 다르면 함께 받을 수 있고, 같은 채널에서만 하루에 한 회사예요. 그래서 우리 회사가 지금 신청하면
-    // X 는 내일, Instagram·Facebook 은 모레가 배정돼요(채널을 바꾸면 날짜가 달라지는 모습이 보여요).
+    // 기업 홍보 글. 공식 SNS 게시 신청은 하루 제한이 없고 회사마다 한 달에 4번까지예요(채널 합계 — docs/sns-feed.md §3).
+    // 내일 Instagram 에는 세 회사(po-1 · po-3 · 우리 회사 po-4)가 함께 올라가고, X 는 모레(po-2)예요.
+    // 우리 회사는 내일 1건을 이미 신청해 두어서, 새 글을 쓰면 기본 날짜(내일)가 속한 달의 남은 횟수가 「残り 3/4回」로 보여요.
     {
       id: "po-1", kind: "pr", companyId: "co-green", challengeId: "ch-foodloss", sdgIds: [12, 2],
       title: { ja: "売り場のフードロス、学生の発想で減らしませんか", ko: "매장의 푸드 로스, 학생의 발상으로 줄여 볼까요" },
@@ -598,7 +598,7 @@ function buildPosts(today: string): SocialPost[] {
         ja: "シャッターが閉まったままの店舗を、SNSで人が集まる場所に変えたい。若い世代のアイデアを募集中です。",
         ko: "셔터가 내려간 점포를 SNS로 사람이 모이는 곳으로 바꾸고 싶어요. 젊은 세대의 아이디어를 모집 중이에요.",
       },
-      official: scheduled(1, "facebook"), createdAt: at(-3, "11:10"), likes: 9, likedBy: [], mine: false,
+      official: scheduled(1, "instagram"), createdAt: at(-3, "11:10"), likes: 9, likedBy: [], mine: false,
     },
     {
       id: "po-4", kind: "pr", companyId: "co-minato", challengeId: "ch-bottle", sdgIds: [14, 12],
@@ -607,7 +607,7 @@ function buildPosts(today: string): SocialPost[] {
         ja: "5チームから個性的な提案が届きました。審査結果は近日お知らせします。海を守る仲間が増えるのが楽しみです。",
         ko: "5개 팀에서 개성 있는 제안이 도착했어요. 심사 결과는 곧 알려 드릴게요. 바다를 지키는 동료가 늘어나는 것이 기대돼요.",
       },
-      official: null, createdAt: at(-1, "18:20"), likes: 12, likedBy: [], mine: true,
+      official: scheduled(1, "instagram"), createdAt: at(-1, "18:20"), likes: 12, likedBy: [], mine: true,
     },
     // 학생 자랑 글 (닉네임·레벨만 보이고, 실적 1건이 붙어요). 내가 쓴 글은 처음에는 없어요.
     {

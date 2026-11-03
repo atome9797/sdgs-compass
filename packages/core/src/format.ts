@@ -46,6 +46,21 @@ export function formatDateShort(iso: string): string {
   return `${m}/${d}`;
 }
 
+const WEEKDAYS: Record<Locale, readonly string[]> = { ja: ["日", "月", "火", "水", "木", "金", "土"], ko: ["일", "월", "화", "수", "목", "금", "토"] };
+
+/** 요일 번호: 0 = 일요일 … 6 = 토요일 (날짜만 보고 계산해서 기기의 시간대와 상관없어요) */
+export function weekdayOf(iso: string): number {
+  const { y, m, d } = parseDate(iso);
+  return new Date(Date.UTC(y, m - 1, d)).getUTCDay();
+}
+
+/** 2026-11-05 → ja "11月5日（木）" / ko "11월 5일(목)" — 해가 바뀌지 않는 가까운 날(공식 SNS 게시 날짜 고르기)에 써요 */
+export function formatMonthDayWeekday(iso: string, locale: Locale): string {
+  const { m, d } = parseDate(iso);
+  const weekday = WEEKDAYS[locale][weekdayOf(iso)];
+  return locale === "ja" ? `${m}月${d}日（${weekday}）` : `${m}월 ${d}일(${weekday})`;
+}
+
 /** 2026-11-19T14:30 → ja "2026年11月19日 14:30" */
 export function formatDateTime(isoDateTime: string, locale: Locale): string {
   const time = /T(\d{2}:\d{2})/.exec(isoDateTime)?.[1];

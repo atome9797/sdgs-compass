@@ -18,7 +18,8 @@ import type {
 } from "../packages/core/src/domain";
 import { PRIZE_AWARD, RETURN_RESERVE_MONTHS, returnPoolYen, WITHDRAWAL_MAX_YEN, WITHDRAWAL_MIN_YEN } from "../packages/core/src/wallet";
 import {
-  containsContact, DEFAULT_OFFICIAL_CHANNEL, isOfficialChannel, nextOfficialDate, OFFICIAL_CHANNELS, OFFICIAL_SHARE_FEE_YEN, POST_LIMITS, validatePostDraft,
+  containsContact, DEFAULT_OFFICIAL_CHANNEL, earliestOfficialDate, isOfficialChannel, OFFICIAL_CHANNELS, OFFICIAL_SHARE_FEE_YEN, OFFICIAL_SHARE_MONTHLY_LIMIT,
+  OFFICIAL_SHARE_WINDOW_DAYS, officialDateChoices, officialMonthRemaining, officialUsageByMonth, POST_LIMITS, validatePostDraft,
 } from "../packages/core/src/post";
 import type { PostContext, PostDraft } from "../packages/core/src/post";
 import { charCount } from "../packages/core/src/proposal";
@@ -292,8 +293,13 @@ interface DraftScenario {
 function buildFeedGolden(): string[] {
   const out: string[] = [];
 
-  // 한도: POST_LIMITS 의 모든 값 + 공식 게시료. core 에 한도가 늘면 여기에도 자동으로 들어와서, DB 쪽 대조가 없으면 04_parity.sql 이 알려 줘요.
-  const limits: Array<[string, number]> = [...Object.entries(POST_LIMITS), ["officialFeeYen", OFFICIAL_SHARE_FEE_YEN]];
+  // 한도: POST_LIMITS 의 모든 값 + 공식 게시료·회사당 월 횟수·고를 수 있는 날수. core 에 한도가 늘면 여기에도 자동으로 들어와서, DB 쪽 대조가 없으면 04_parity.sql 이 알려 줘요.
+  const limits: Array<[string, number]> = [
+    ...Object.entries(POST_LIMITS),
+    ["officialFeeYen", OFFICIAL_SHARE_FEE_YEN],
+    ["officialMonthlyLimit", OFFICIAL_SHARE_MONTHLY_LIMIT],
+    ["officialWindowDays", OFFICIAL_SHARE_WINDOW_DAYS],
+  ];
   out.push(`-- ───── SNS 피드 (F-503 · F-504) ─────`);
   out.push(`CREATE TEMP TABLE golden_post_limits (name text PRIMARY KEY, value integer NOT NULL);`);
   out.push(`INSERT INTO golden_post_limits VALUES\n${rows(limits.map(([name, value]) => `(${q(name)}, ${value})`))}\n`);
@@ -354,7 +360,7 @@ function buildFeedGolden(): string[] {
   out.push(`INSERT INTO golden_post_contacts VALUES\n${rows(contactTexts.map((content, i) => `(${i + 1}, ${sqlText(content)}, ${bool(containsContact(content))})`))}\n`);
 
   // 공식 SNS 게시 채널: 값 · 말하지 않았을 때의 기본값. DB 의 열거형(official_channel)은 이 값과 정확히 같아야 하고(golden_enums),
-  // 기본값(채널 열의 DEFAULT 와 next_official_share_date 의 p_channel)도 같아야 해요. 화면에 보이는 순서는 앱의 일이라 DB 는 몰라요.
+  // 기본값(채널 열의 DEFAULT)도 같아야 해요. 화면에 보이는 순서는 앱의 일이라 DB 는 몰라요.
   out.push(`CREATE TEMP TABLE golden_official_channels (channel text PRIMARY KEY, is_default boolean NOT NULL);`);
   out.push(`INSERT INTO golden_official_channels VALUES\n${rows(OFFICIAL_CHANNELS.map((channel) => `(${q(channel)}, ${bool(channel === DEFAULT_OFFICIAL_CHANNEL)})`))}\n`);
   // 채널 값 검사: 앱의 isOfficialChannel 이 받아들이는 글자만 DB 의 열거형도 받아들여요 (YouTube · 대소문자 · 공백 · 옛 이름은 모두 거절)
@@ -364,71 +370,76 @@ function buildFeedGolden(): string[] {
   out.push(`CREATE TEMP TABLE golden_official_channel_values (case_no integer PRIMARY KEY, value text NOT NULL, valid boolean NOT NULL);`);
   out.push(`INSERT INTO golden_official_channel_values VALUES\n${rows(channelValues.map((value, i) => `(${i + 1}, ${q(value)}, ${bool(isOfficialChannel(value))})`))}\n`);
 
-  // 공식 SNS 게시 날짜: 채널마다 내일부터 가장 빠른 빈 날짜 (그 채널이 이미 받은 날짜만 건너뛰어요). 홍보 글이 아니거나 신청이 없는 글은 날짜를 잡지 않아요.
-  const prPost = (id: string, on: string | null, channel: OfficialChannel = DEFAULT_OFFICIAL_CHANNEL): SocialPost => ({
-    id, kind: "pr", companyId: "co-1", title: "題", body: "本文", sdgIds: [14], createdAt: "2026-10-30T09:00", likes: 0, likedBy: [], mine: false, challengeId: null,
-    official: on === null ? null : { on, channel, feeYen: OFFICIAL_SHARE_FEE_YEN, status: "scheduled" },
+  // 공식 SNS 게시 날짜: 회사당 월 4회(채널 합계 · 예정·게시 완료만), 날짜는 내일 ~ 30일 뒤에서 골라요 — 하루 제한은 없어요.
+  // 사례마다 "우리 회사(mine)·다른 회사(other)가 이미 한 신청"을 두고, 앱이 내는 가장 빠른 날(earliestOfficialDate)과 기간 안의 달마다 남은 횟수를 정답으로 적어요.
+  // 취소(cancelled)한 신청은 앱에는 없어요(지운 것과 같아요) — DB 에서는 넣었다가 취소로 바꿔서, DB 도 세지 않는지 함께 봐요.
+  type TakenStatus = "scheduled" | "cancelled";
+  interface Taken {
+    on: string;
+    who?: "mine" | "other";
+    status?: TakenStatus;
+    channel?: OfficialChannel;
+  }
+  const prPost = (id: string, taken: Taken): SocialPost => ({
+    id, kind: "pr", companyId: taken.who === "other" ? "co-other" : "co-me", title: "題", body: "本文", sdgIds: [14], createdAt: "2026-10-30T09:00", likes: 0, likedBy: [], mine: false,
+    challengeId: null, official: { on: taken.on, channel: taken.channel ?? DEFAULT_OFFICIAL_CHANNEL, feeYen: OFFICIAL_SHARE_FEE_YEN, status: "scheduled" },
   });
   const bragPost: SocialPost = {
     id: "po-brag", kind: "brag", authorName: "Mina", authorLevel: 1, body: "本文", sdgIds: [14], createdAt: "2026-10-30T09:00", likes: 0, likedBy: [], mine: false,
     achievement: { activityId: null, kind: "participation", title: "題", companyName: "社", award: null, sdgIds: [14] },
   };
-  /** 이미 받은 날짜: [날짜] 만 쓰면 기본 채널(instagram), [날짜, 채널] 이면 그 채널의 날짜 */
-  type Taken = string | readonly [string, OfficialChannel];
-  const takenOn = (t: Taken) => (typeof t === "string" ? t : t[0]);
-  const takenChannel = (t: Taken): OfficialChannel => (typeof t === "string" ? DEFAULT_OFFICIAL_CHANNEL : t[1]);
-  /** [설명, 기준일, 이미 받은 날짜들, 물어보는 채널 — undefined 면 채널을 말하지 않은 것(기본 instagram)] */
-  const dateCases: Array<[string, string, Taken[], OfficialChannel | undefined]> = [
-    ["신청이 없으면 내일", "2026-10-30", [], undefined],
-    ["내일이 찼으면 모레", "2026-10-30", ["2026-10-31"], undefined],
-    ["연달아 찼으면 그다음 날", "2026-10-30", ["2026-10-31", "2026-11-01"], undefined],
-    ["내일은 비어 있고 모레만 찼다", "2026-10-30", ["2026-11-01"], undefined],
-    ["가운데가 비어 있으면 가장 빠른 빈 날짜", "2026-10-30", ["2026-10-31", "2026-11-02"], undefined],
-    ["오늘 이전·오늘 날짜는 상관없다", "2026-10-30", ["2026-10-29", "2026-10-30"], undefined],
-    ["먼 미래만 찼다", "2026-10-30", ["2026-11-19"], undefined],
-    ["닷새 연속으로 찼다", "2026-10-30", ["2026-10-31", "2026-11-01", "2026-11-02", "2026-11-03", "2026-11-04"], undefined],
-    ["순서가 뒤섞여 있어도 같다", "2026-10-30", ["2026-11-02", "2026-10-31", "2026-11-01"], undefined],
-    ["연말: 12/31 → 이듬해 1/1", "2026-12-31", [], undefined],
-    ["연말: 1/1 이 찼으면 1/2", "2026-12-31", ["2027-01-01"], undefined],
-    ["월말: 11/30 → 12/1", "2026-11-30", [], undefined],
-    ["윤년 2/28 → 2/29", "2028-02-28", [], undefined],
-    ["윤년 2/29 가 찼으면 3/1", "2028-02-28", ["2028-02-29"], undefined],
-    ["평년 2/28 → 3/1", "2027-02-28", [], undefined],
-    // 채널별: 같은 채널이 받은 날짜만 건너뛰고, 다른 채널의 날짜는 상관없다
-    ["X: 신청이 없으면 내일", "2026-10-30", [], "x"],
-    ["Facebook: 신청이 없으면 내일", "2026-10-30", [], "facebook"],
-    ["Instagram 을 이름으로 말해도 기본값과 같다", "2026-10-30", ["2026-10-31"], "instagram"],
-    ["X: 같은 채널의 내일이 찼으면 모레", "2026-10-30", [["2026-10-31", "x"]], "x"],
-    ["X: Instagram·Facebook 의 내일은 상관없다", "2026-10-30", [["2026-10-31", "instagram"], ["2026-10-31", "facebook"]], "x"],
-    ["Instagram: X 의 내일은 상관없다 (같은 날 다른 채널)", "2026-10-30", [["2026-10-31", "x"]], "instagram"],
-    ["말하지 않으면 Instagram: X·Facebook 이 찬 날은 건너뛰지 않는다", "2026-10-30", [["2026-10-31", "x"], ["2026-11-01", "facebook"]], undefined],
-    ["말하지 않으면 Instagram: Instagram 이 찬 날만 건너뛴다", "2026-10-30", [["2026-10-31", "x"], ["2026-10-31", "instagram"], ["2026-11-01", "x"]], undefined],
-    ["세 채널이 같은 날을 각각 받았다 — Instagram", "2026-10-30", [["2026-10-31", "x"], ["2026-10-31", "instagram"], ["2026-10-31", "facebook"]], "instagram"],
-    ["세 채널이 같은 날을 각각 받았다 — Facebook", "2026-10-30", [["2026-10-31", "x"], ["2026-10-31", "instagram"], ["2026-10-31", "facebook"]], "facebook"],
-    ["채널마다 찬 날이 달라 답이 모두 다르다 — X 는 3일 뒤", "2026-10-30", [["2026-10-31", "x"], ["2026-11-01", "x"], ["2026-11-01", "instagram"], ["2026-10-31", "facebook"]], "x"],
-    ["채널마다 찬 날이 달라 답이 모두 다르다 — Instagram 은 내일", "2026-10-30", [["2026-10-31", "x"], ["2026-11-01", "x"], ["2026-11-01", "instagram"], ["2026-10-31", "facebook"]], "instagram"],
-    ["채널마다 찬 날이 달라 답이 모두 다르다 — Facebook 은 모레", "2026-10-30", [["2026-10-31", "x"], ["2026-11-01", "x"], ["2026-11-01", "instagram"], ["2026-10-31", "facebook"]], "facebook"],
-    ["Facebook: 가운데가 비어 있으면 가장 빠른 빈 날짜", "2026-10-30", [["2026-10-31", "facebook"], ["2026-11-02", "facebook"], ["2026-11-01", "x"]], "facebook"],
-    ["X: 연말 12/31 → 이듬해 1/1", "2026-12-31", [["2027-01-01", "facebook"]], "x"],
-    ["Facebook: 윤년 2/29 가 찼으면 3/1", "2028-02-28", [["2028-02-29", "facebook"], ["2028-02-29", "x"]], "facebook"],
+  const noOfficial: SocialPost = { ...prPost("po-none", { on: "2026-10-31" }), official: null };
+  const times = (n: number, taken: Taken): Taken[] => Array.from({ length: n }, () => taken);
+  /** [설명, 기준일(오늘), 이미 한 신청들] */
+  const choiceCases: Array<[string, string, Taken[]]> = [
+    ["신청이 없으면 내일", "2026-10-30", []],
+    ["다른 회사가 같은 날·같은 채널에 4번 있어도 내일 (하루 제한 없음)", "2026-10-30", times(4, { on: "2026-10-31", who: "other" })],
+    ["우리 회사가 내일을 이미 받았어도 같은 날을 또 고른다", "2026-10-30", [{ on: "2026-10-31" }]],
+    ["이번 달 3번 — 한 번 남아서 내일", "2026-10-30", times(3, { on: "2026-10-31" })],
+    ["이번 달 4번 — 다음 달 1일", "2026-10-30", times(4, { on: "2026-10-31" })],
+    ["채널을 섞어도 합쳐서 센다 — 다음 달 1일", "2026-10-30", [{ on: "2026-10-31", channel: "x" }, { on: "2026-10-31" }, { on: "2026-10-31", channel: "facebook" }, { on: "2026-10-31", channel: "x" }]],
+    ["취소한 신청은 세지 않는다 (4번 중 1번 취소)", "2026-10-30", [{ on: "2026-10-31", status: "cancelled" }, ...times(3, { on: "2026-10-31" })]],
+    ["취소 2번 + 예정 4번 — 예정만 세서 다음 달 1일", "2026-10-30", [...times(2, { on: "2026-10-31", status: "cancelled" }), ...times(4, { on: "2026-10-31" })]],
+    ["다른 회사의 신청은 세지 않는다 (우리 2번 + 다른 회사 4번)", "2026-10-30", [...times(2, { on: "2026-10-31" }), ...times(4, { on: "2026-10-31", who: "other" })]],
+    ["다음 달만 찼다 — 이번 달 내일", "2026-10-30", times(4, { on: "2026-11-01" })],
+    ["지난달에 4번 썼어도 기간 안의 달과는 상관없다", "2026-11-10", times(4, { on: "2026-10-31" })],
+    ["기간(11/1 ~ 11/30)이 한 달뿐이고 그 달이 찼다 — 고를 날이 없다", "2026-10-31", times(4, { on: "2026-11-05" })],
+    ["하루 지나 12/1 이 기간에 들어오면 그 날", "2026-11-01", times(4, { on: "2026-11-05" })],
+    ["12월이 차면 1월 1일", "2026-12-20", times(4, { on: "2026-12-21" })],
+    ["연말: 12/31 → 1/1", "2026-12-31", []],
+    ["연말: 기간이 1월뿐이고 1월이 찼다 — 고를 날이 없다", "2026-12-31", times(4, { on: "2027-01-05" })],
+    ["세 달에 걸친 기간(1/31 · 2월 · 3/1) — 1·2월이 차면 3/1", "2027-01-30", [...times(4, { on: "2027-01-31" }), ...times(4, { on: "2027-02-14" })]],
+    ["윤년: 2/28 → 2/29", "2028-02-28", []],
+    ["윤년: 2월이 차면 3/1", "2028-02-28", times(4, { on: "2028-02-29" })],
+    ["평년: 2/28 → 3/1", "2027-02-28", []],
   ];
   out.push(
-    `CREATE TEMP TABLE golden_official_dates (case_no integer PRIMARY KEY, label text NOT NULL, today date NOT NULL, channel text, taken date[] NOT NULL, taken_channels text[] NOT NULL, next_on date NOT NULL);`,
+    `CREATE TEMP TABLE golden_official_choices (case_no integer PRIMARY KEY, label text NOT NULL, today date NOT NULL, taken_on date[] NOT NULL, taken_mine boolean[] NOT NULL, taken_status text[] NOT NULL, earliest_on date, months date[] NOT NULL, remaining integer[] NOT NULL);`,
   );
   out.push(
-    `INSERT INTO golden_official_dates VALUES\n${rows(
-      dateCases.map(([label, today, taken, channel], i) => {
-        const posts = [...taken.map((t, n) => prPost(`po-${n}`, takenOn(t), takenChannel(t))), prPost("po-none", null), bragPost];
-        const dates = taken.length === 0 ? "ARRAY[]::date[]" : `ARRAY[${taken.map((t) => `DATE ${q(takenOn(t))}`).join(", ")}]`;
-        const channels = taken.length === 0 ? "ARRAY[]::text[]" : `ARRAY[${taken.map((t) => q(takenChannel(t))).join(", ")}]`;
-        const next = channel === undefined ? nextOfficialDate(posts, today) : nextOfficialDate(posts, today, channel);
-        return `(${i + 1}, ${q(label)}, DATE ${q(today)}, ${channel === undefined ? "NULL" : q(channel)}, ${dates}, ${channels}, DATE ${q(next)})`;
+    `INSERT INTO golden_official_choices VALUES\n${rows(
+      choiceCases.map(([label, today, taken], i) => {
+        // 앱에는 취소 상태가 없어서, 취소한 신청은 앱의 글 목록에 넣지 않아요 (지운 것과 같아요)
+        const posts = [...taken.filter((t) => (t.status ?? "scheduled") !== "cancelled").map((t, n) => prPost(`po-${n}`, t)), noOfficial, bragPost];
+        const earliest = earliestOfficialDate(posts, "co-me", today);
+        const usage = officialUsageByMonth(posts, "co-me");
+        const months = [...new Set(officialDateChoices(usage, today).map((c) => c.month))];
+        const list = <T,>(values: T[], fmt: (v: T) => string, empty: string) => (values.length === 0 ? empty : `ARRAY[${values.map(fmt).join(", ")}]`);
+        return [
+          `(${i + 1}, ${q(label)}, DATE ${q(today)}`,
+          list(taken, (t) => `DATE ${q(t.on)}`, "ARRAY[]::date[]"),
+          list(taken, (t) => bool(t.who !== "other"), "ARRAY[]::boolean[]"),
+          list(taken, (t) => q(t.status ?? "scheduled"), "ARRAY[]::text[]"),
+          earliest === null ? "NULL" : `DATE ${q(earliest)}`,
+          list(months, (m) => `DATE ${q(`${m}-01`)}`, "ARRAY[]::date[]"),
+          `${list(months, (m) => String(officialMonthRemaining(usage, m)), "ARRAY[]::integer[]")})`,
+        ].join(", ");
       }),
     )}\n`,
   );
 
   // 입력 검사: 앱의 validatePostDraft 가 낸 오류 목록. 오류가 하나도 없으면 DB 도 받아들이고, 있으면 DB 도 거절해야 해요.
-  const context: PostContext = { activityIds: ["act-1", "act-2"], challengeIds: ["ch-1"] };
+  const context: PostContext = { activityIds: ["act-1", "act-2"], challengeIds: ["ch-1"], today: "2026-10-30", officialUsage: {} };
   const ACTIVITY_IDS = { own: "act-1", none: null, other: "act-9", share: "act-share-1" } as const; // other·share 는 context 에 없는 id
   const CHALLENGE_IDS = { none: null, own: "ch-1", other: "ch-9" } as const;
   const SDG_ORDER: SdgId[] = [14, 12, 13, 11, 7];

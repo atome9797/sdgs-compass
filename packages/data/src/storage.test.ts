@@ -195,13 +195,17 @@ describe("공식 SNS 게시 채널이 생기기 전에 저장된 데모 상태",
     expect(isDemoState(loaded)).toBe(true);
   });
 
-  it("옛 상태에서 이어 신청하면 Instagram 은 옛 날짜를 건너뛰고, X · Facebook 은 비어 있어요", () => {
+  it("옛 상태에서 이어 신청해도 지금 규칙(회사당 월 4회 · 하루 제한 없음)으로 세요 — 옛 신청도 우리 회사의 횟수예요", () => {
     const loaded = parseState(legacyJson)!;
-    const next = (channel: "instagram" | "x" | "facebook") =>
-      reducer(loaded, { type: "createPost", draft: { kind: "pr", title: "t", body: "b", sdgIds: [14], requestOfficial: true, officialChannel: channel }, at: "2026-10-30T10:00" }).posts[0];
-    expect(next("instagram")).toMatchObject({ official: { on: addDays(TODAY, 4), channel: "instagram" } }); // +1 +2 +3 이 찼어요
-    expect(next("x")).toMatchObject({ official: { on: addDays(TODAY, 1), channel: "x" } });
-    expect(next("facebook")).toMatchObject({ official: { on: addDays(TODAY, 1), channel: "facebook" } });
+    const next = (officialOn?: string) =>
+      reducer(loaded, { type: "createPost", draft: { kind: "pr", title: "t", body: "b", sdgIds: [14], requestOfficial: true, officialOn }, at: "2026-10-30T10:00" }).posts[0];
+    // 다른 회사(po-1)가 받은 내일도 고를 수 있어요 (날짜를 비우면 내일)
+    expect(next()).toMatchObject({ official: { on: addDays(TODAY, 1), channel: "instagram" } });
+    // 우리 회사의 옛 신청(po-4, 11/2)은 11월의 1건이라, 11월은 3건을 더 넣으면 차요
+    let state = loaded;
+    for (let i = 0; i < 3; i++) state = reducer(state, { type: "createPost", draft: { kind: "pr", title: `t${i}`, body: "b", sdgIds: [14], requestOfficial: true, officialOn: "2026-11-10" }, at: "2026-10-30T10:00" });
+    expect(reducer(state, { type: "createPost", draft: { kind: "pr", title: "5", body: "b", sdgIds: [14], requestOfficial: true, officialOn: "2026-11-10" }, at: "2026-10-30T10:00" })).toBe(state);
+    expect(next("2026-11-10")).toMatchObject({ official: { on: "2026-11-10" } });
   });
 
   it("channel 이 틀린 값이면 (youtube · 빈 글자 · 대소문자 · null · 숫자) 저장된 상태를 버려요", () => {
@@ -211,8 +215,8 @@ describe("공식 SNS 게시 채널이 생기기 전에 저장된 데모 상태",
     }
   });
 
-  it("지금 모양(X · Instagram · Facebook)은 저장했다 불러와도 그대로예요", () => {
-    expect(officialsOf(current).map(([, o]) => (o as { channel: string }).channel).sort()).toEqual(["facebook", "instagram", "x"]);
+  it("지금 모양(채널이 있는 신청)은 저장했다 불러와도 그대로예요", () => {
+    expect(officialsOf(current).map(([, o]) => (o as { channel: string }).channel).sort()).toEqual(["instagram", "instagram", "instagram", "x"]);
     expect(parseState(serializeState(current))).toEqual(current);
   });
 });

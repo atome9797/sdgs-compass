@@ -5,11 +5,11 @@ import type { Locale } from "@sdgs-compass/core/i18n";
 import { containsContact, defaultPrSdgs, isOfficialChannel, POST_LIMITS, type PostDraft, type PostError } from "@sdgs-compass/core/post";
 import { charCount } from "@sdgs-compass/core/proposal";
 import type { SdgId } from "@sdgs-compass/core/sdg";
-import { selectFeed, type ComposerVM, type PostVM } from "@sdgs-compass/core/selectors";
+import { officialDateNav, selectFeed, type ComposerVM, type PostVM } from "@sdgs-compass/core/selectors";
 import { reducer } from "@sdgs-compass/core/state";
 
-/** 입력 칸 묶음: 화면에서 오류가 붙는 단위예요 */
-export type PostField = "activity" | "title" | "body" | "sdgs" | "challenge" | "official";
+/** 입력 칸 묶음: 화면에서 오류가 붙는 단위예요 (official = 채널 고르기, officialDate = 게시 날짜 고르기) */
+export type PostField = "activity" | "title" | "body" | "sdgs" | "challenge" | "official" | "officialDate";
 
 export interface PostFields {
   body: string;
@@ -27,6 +27,8 @@ export interface PostFields {
   requestOfficial: boolean;
   /** 홍보 글만: 신청할 공식 SNS (신청을 켠 뒤에만 의미가 있어요. 끄고 다시 켜도 고른 채널은 그대로) */
   officialChannel: OfficialChannel;
+  /** 홍보 글만: 고른 게시 날짜 YYYY-MM-DD (처음에는 고를 수 있는 가장 빠른 날, 고를 날이 없으면 null) */
+  officialOn: string | null;
 }
 
 /** 글쓰기 화면을 처음 열었을 때의 값 (다른 화면에서 넘어왔다면 실적/챌린지가 미리 골라져 있어요) */
@@ -40,6 +42,7 @@ export function initialPostFields(composer: ComposerVM): PostFields {
     challengeId: composer.selectedChallengeId,
     requestOfficial: false,
     officialChannel: composer.official.defaultChannel,
+    officialOn: composer.official.defaultDate,
   };
 }
 
@@ -48,8 +51,20 @@ export function toPostDraft(kind: PostKind, fields: PostFields): PostDraft {
   if (kind === "brag") return { kind, body: fields.body, activityId: fields.activityId };
   return {
     kind, title: fields.title, body: fields.body, sdgIds: fields.sdgIds, challengeId: fields.challengeId,
-    requestOfficial: fields.requestOfficial, officialChannel: fields.officialChannel,
+    requestOfficial: fields.requestOfficial, officialChannel: fields.officialChannel, officialOn: fields.officialOn ?? undefined,
   };
+}
+
+/** 게시 날짜를 ◀(-1) ▶(+1) 로 옮겨요: 고를 수 있는 날만 밟고(한도를 다 쓴 달은 건너뛰어요), 더 갈 곳이 없으면 그대로 */
+export function stepOfficialDate(fields: PostFields, composer: Pick<ComposerVM, "official">, direction: -1 | 1): PostFields {
+  const nav = officialDateNav(composer.official, fields.officialOn);
+  const target = direction < 0 ? nav.prev : nav.next;
+  return target === null ? fields : { ...fields, officialOn: target };
+}
+
+/** 「最短の日に戻す」: 고를 수 있는 가장 빠른 날로 */
+export function resetOfficialDate(fields: PostFields, composer: Pick<ComposerVM, "official">): PostFields {
+  return { ...fields, officialOn: composer.official.defaultDate };
 }
 
 /** 채널 고르기: 화면의 라디오가 보내는 값이 채널이 아니면(깨진 값) 지금 고른 채널을 그대로 둬요 */
@@ -80,6 +95,7 @@ export function chooseChallenge(fields: PostFields, composer: ComposerVM, challe
 /** 사용자가 방금 친 글자 때문에 생기는 오류는 입력하는 동안 바로 보여 줘요. 나머지(비었다 등)는 칸을 만져 본 뒤나 올리기를 눌러 본 뒤에 보여요. */
 const LIVE_ERRORS: readonly PostError[] = [
   "title_too_long", "body_too_long", "contact_info", "sdgs_too_many", "achievement_not_found", "challenge_not_found", "official_channel_invalid",
+  "official_date_out_of_range", "official_month_full",
 ];
 
 const FIELD_OF: Record<Exclude<PostError, "contact_info">, PostField> = {
@@ -93,6 +109,8 @@ const FIELD_OF: Record<Exclude<PostError, "contact_info">, PostField> = {
   sdgs_too_many: "sdgs",
   challenge_not_found: "challenge",
   official_channel_invalid: "official",
+  official_date_out_of_range: "officialDate",
+  official_month_full: "officialDate",
 };
 
 /** 연락처 오류는 연락처가 든 칸마다 붙어요 (제목이든 본문이든, 둘 다든) */
@@ -156,7 +174,13 @@ export function previewDraft(kind: PostKind, fields: PostFields, composer: Compo
   const sdgIds = fields.sdgIds.length > 0 ? fields.sdgIds.slice(0, composer.maxSdgs) : composer.defaultSdgIds;
   const challengeId = composer.challenges.some((c) => c.id === fields.challengeId) ? fields.challengeId : null;
   const officialChannel = isOfficialChannel(fields.officialChannel) ? fields.officialChannel : composer.official.defaultChannel;
-  return { draft: { kind, title, body, sdgIds, challengeId, requestOfficial: fields.requestOfficial, officialChannel }, placeholder: !bodyOk || !titleOk };
+  // 고른 날짜가 지금 고를 수 없는 날이면(목록 밖·한도를 다 쓴 달) 가장 빠른 날로 보여 줘요. 고를 날이 하나도 없으면 신청 없이 보여 줘요
+  const officialOn = composer.official.dates.some((d) => d.available && d.date === fields.officialOn) ? fields.officialOn : composer.official.defaultDate;
+  const requestOfficial = fields.requestOfficial && officialOn !== null;
+  return {
+    draft: { kind, title, body, sdgIds, challengeId, requestOfficial, officialChannel, officialOn: officialOn ?? undefined },
+    placeholder: !bodyOk || !titleOk,
+  };
 }
 
 /**

@@ -69,13 +69,17 @@ SELECT pg_temp.none($q$SELECT t.name AS table_without_guard
                     'SNS 피드의 표 4개에는 한국어 메시지를 내는 가드 트리거가 있다');
 SELECT pg_temp.eq((SELECT count(*) FROM pg_trigger WHERE tgconstraint <> 0 AND tgdeferrable AND tgrelid IN ('social_posts'::regclass, 'social_post_sdgs'::regclass))::int, 2,
                   '글에 SDGs 태그가 1개 이상 있는지는 트랜잭션 끝에서 검사한다 (지연 제약 트리거 2개: 글을 올릴 때 · 태그를 지울 때)');
-SELECT pg_temp.eq((SELECT count(*) FROM pg_indexes WHERE schemaname = 'public' AND indexname = 'official_share_slots_one_per_channel_day'
-                      AND indexdef LIKE 'CREATE UNIQUE INDEX%' AND indexdef LIKE '%(channel, scheduled_on)%' AND indexdef LIKE '%WHERE%')::int, 1,
-                  '공식 SNS 게시는 예정·게시 완료 상태에서 채널마다 하루에 한 건만 (채널 + 날짜의 부분 유일 인덱스)');
-SELECT pg_temp.eq((SELECT count(*) FROM pg_indexes WHERE schemaname = 'public' AND indexname = 'official_share_slots_one_per_day')::int, 0,
-                  '채널이 없던 때의 "하루 한 건" 인덱스는 남아 있지 않다 (남아 있으면 같은 날 다른 채널이 막혀요)');
+SELECT pg_temp.eq((SELECT count(*) FROM pg_indexes WHERE schemaname = 'public' AND tablename = 'official_share_slots' AND indexdef LIKE 'CREATE UNIQUE INDEX%')::int, 1,
+                  '공식 SNS 게시에는 하루 제한이 없다 — 유일 인덱스는 기본 키(글 하나에 신청 하나)뿐이다');
+SELECT pg_temp.eq((SELECT count(*) FROM pg_indexes WHERE schemaname = 'public' AND indexname IN ('official_share_slots_one_per_day', 'official_share_slots_one_per_channel_day'))::int, 0,
+                  '"하루에 한 회사"(채널마다·채널 없이) 인덱스는 남아 있지 않다 (남아 있으면 같은 날 다른 회사가 막혀요)');
 SELECT pg_temp.eq((SELECT count(*) FROM pg_constraint WHERE conrelid = 'social_posts'::regclass AND contype = 'f' AND conname IN ('social_posts_activity_id_author_id_fkey', 'social_posts_challenge_id_company_id_fkey'))::int, 2,
                   '"내 실적만" · "우리 기업의 챌린지만" 은 복합 외래 키로 지킨다 (활동 + 글쓴이 · 챌린지 + 기업)');
-SELECT pg_temp.ok((SELECT count(*) FROM pg_proc WHERE proname IN ('post_char_count', 'next_official_share_date')) = 2, '글자 수 함수와 공식 게시 날짜 함수가 있다 (core 의 charCount · nextOfficialDate 와 04_parity.sql 이 대조)');
-SELECT pg_temp.ok(to_regprocedure('next_official_share_date(date, official_channel)') IS NOT NULL, '공식 게시 날짜 함수는 (기준일, 채널) 을 받는다 — 둘 다 생략할 수 있다 (core 의 nextOfficialDate(posts, today, channel))');
+SELECT pg_temp.ok((SELECT count(*) FROM pg_proc WHERE proname IN ('post_char_count', 'earliest_official_share_date', 'official_share_month_remaining')) = 3,
+                  '글자 수 함수와 공식 게시 날짜·남은 횟수 함수가 있다 (core 의 charCount · earliestOfficialDate · officialMonthRemaining 과 04_parity.sql 이 대조)');
+SELECT pg_temp.ok(to_regprocedure('earliest_official_share_date(uuid, date)') IS NOT NULL AND to_regprocedure('official_share_month_remaining(uuid, date)') IS NOT NULL,
+                  '가장 빠른 게시 날짜는 (회사, 기준일) 로, 남은 횟수는 (회사, 그 달의 날) 로 묻는다 (core 의 earliestOfficialDate(posts, companyId, today))');
+SELECT pg_temp.eq((SELECT count(*) FROM pg_proc WHERE proname = 'next_official_share_date')::int, 0, '채널마다 빈 날을 찾던 옛 함수(next_official_share_date)는 남아 있지 않다');
+SELECT pg_temp.ok(EXISTS (SELECT 1 FROM pg_proc WHERE proname = 'official_share_slots_guard' AND prosrc LIKE '%pg_advisory_xact_lock%'),
+                  '공식 게시 가드는 회사마다 트랜잭션 자물쇠(pg_advisory_xact_lock)를 잡고 한 달 횟수를 센다 (동시에 들어와도 한도를 넘지 않게)');
 \echo '01_structure: 통과'

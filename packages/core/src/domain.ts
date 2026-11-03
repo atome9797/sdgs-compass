@@ -198,11 +198,11 @@ export interface PostAchievement {
 export type OfficialChannel = "instagram" | "x" | "facebook";
 
 /**
- * 기업 홍보 글의 공식 SNS 게시 신청. 같은 채널의 같은 날짜에는 한 회사만 가능하고(채널이 다르면 같은 날도 돼요),
+ * 기업 홍보 글의 공식 SNS 게시 신청. 하루 제한은 없고(같은 날·같은 채널에 여러 회사), 한 회사는 게시일이 속한 달에 4번까지예요(채널 합계 — post.ts 의 OFFICIAL_SHARE_MONTHLY_LIMIT).
  * 데모에는 관리자 화면이 없어서 상태는 "예정"뿐이에요
  */
 export interface OfficialShare {
-  /** 게시 예정일 (YYYY-MM-DD) */
+  /** 게시 예정일 (YYYY-MM-DD) — 기업이 내일부터 30일 뒤까지에서 골라요 */
   on: string;
   /** 게시할 공식 SNS. 채널을 고르기 전에 저장된 옛 데모 상태에는 없어서, 불러올 때 instagram 으로 채워요 (storage.ts) */
   channel: OfficialChannel;

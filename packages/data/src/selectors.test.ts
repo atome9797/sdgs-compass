@@ -997,18 +997,17 @@ describe("SNS 피드 (F-503 · F-504)", () => {
     const ko = find(selectFeed(initial, "ko", "b2c").posts, "po-2");
     expect(ko.official?.label).toBe("공식 SNS 게시 예정 · X · 11/1");
     expect(ko.official).toMatchObject({ channel: "x", channelName: "X", channelLabel: "X 포스트" });
-    // 같은 날(10/31)에 Instagram 과 Facebook 이 함께 있어요
+    // 하루 제한이 없어서 같은 날(10/31)·같은 채널(Instagram)에 다른 회사(po-3)와 우리 회사(po-4)가 함께 있어요
     expect(find(selectFeed(initial, "ja", "b2c").posts, "po-3").official).toMatchObject({
-      label: "公式SNS掲載予定 · Facebook · 10/31", channel: "facebook", channelLabel: "Facebook ページ投稿",
+      label: "公式SNS掲載予定 · Instagram · 10/31", channel: "instagram", channelLabel: "Instagram ストーリー",
     });
     expect(find(selectFeed(initial, "ko", "b2c").posts, "po-3").official).toMatchObject({
-      label: "공식 SNS 게시 예정 · 페이스북 · 10/31", channelName: "페이스북", channelLabel: "페이스북 페이지 게시",
+      label: "공식 SNS 게시 예정 · 인스타그램 · 10/31", channelName: "인스타그램", channelLabel: "인스타그램 스토리",
     });
-    // 신청하지 않은 글(우리 회사 po-4)에는 없어요
-    expect(find(selectFeed(initial, "ja", "b2c").posts, "po-4").official).toBeNull();
+    expect(find(selectFeed(initial, "ja", "b2b").posts, "po-4").official).toMatchObject({ label: "公式SNS掲載予定 · Instagram · 10/31", channel: "instagram" });
   });
 
-  it("공식 SNS 게시 신청 라벨은 글을 올릴 때 고른 채널을 따라가요 (신청 날짜는 그 채널의 첫 빈 날짜)", () => {
+  it("공식 SNS 게시 신청 라벨은 글을 올릴 때 고른 채널을 따라가요 (날짜를 비우면 고를 수 있는 가장 빠른 날)", () => {
     const requested = run(initial, { type: "createPost", draft: { kind: "pr", title: "t", body: "b", sdgIds: [14], requestOfficial: true, officialChannel: "x" }, at: AT });
     const mine = find(selectFeed(requested, "ko", "b2b").posts, requested.posts[0].id);
     expect(mine.official).toMatchObject({ label: "공식 SNS 게시 예정 · X · 10/31", channel: "x" });
@@ -1050,7 +1049,7 @@ describe("SNS 피드 (F-503 · F-504)", () => {
     for (const a of composer.activities) expect(a.sdgIds.length).toBeLessThanOrEqual(3);
   });
 
-  it("글쓰기(홍보): 우리 회사 챌린지만 고르고, SDGs 기본값은 챌린지 → 기업 순서이며, 공식 게시는 채널마다 날짜를 안내해요", () => {
+  it("글쓰기(홍보): 우리 회사 챌린지만 고르고, SDGs 기본값은 챌린지 → 기업 순서이며, 공식 게시는 채널과 날짜(회사당 월 4회)를 골라요", () => {
     const composer = selectComposer(initial, "ko", "pr");
     const mine = new Set(initial.challenges.filter((c) => c.companyId === initial.myCompanyId).map((c) => c.id));
     expect(composer.challenges.map((c) => c.id).sort()).toEqual([...mine].sort());
@@ -1063,29 +1062,55 @@ describe("SNS 피드 (F-503 · F-504)", () => {
     expect(linked.selectedChallengeId).toBe("ch-plastic");
     expect(linked.defaultSdgIds).toEqual(initial.challenges.find((c) => c.id === "ch-plastic")!.sdgIds.slice(0, 3));
     expect(selectComposer(initial, "ko", "pr", { challengeId: "ch-solar" }).selectedChallengeId).toBeNull(); // 다른 회사 챌린지는 고를 수 없어요
-    expect(composer.official).toMatchObject({ feeYen: 3000, defaultChannel: "instagram" });
-    // 채널은 X · Instagram · Facebook 순서이고, 채널마다 내일부터 가장 빠른 빈 날짜를 안내해요 (X 는 내일, 나머지는 모레)
-    expect(composer.official.channels.map((c) => [c.id, c.name, c.format, c.nextDate])).toEqual([
-      ["x", "X", "포스트", "2026-10-31"],
-      ["instagram", "인스타그램", "스토리", "2026-11-01"],
-      ["facebook", "페이스북", "페이지 게시", "2026-11-01"],
+    expect(composer.official).toMatchObject({ feeYen: 3000, defaultChannel: "instagram", limit: 4, defaultDate: "2026-10-31", unavailableReason: null, fullMonthNotes: [] });
+    // 채널은 X · Instagram · Facebook 순서 (날짜는 채널과 상관없어요)
+    expect(composer.official.channels.map((c) => [c.id, c.name, c.format, c.label])).toEqual([
+      ["x", "X", "포스트", "X 포스트"],
+      ["instagram", "인스타그램", "스토리", "인스타그램 스토리"],
+      ["facebook", "페이스북", "페이지 게시", "페이스북 페이지 게시"],
     ]);
-    expect(composer.official.channels.map((c) => c.label)).toEqual(["X 포스트", "인스타그램 스토리", "페이스북 페이지 게시"]);
-    expect(composer.official.channels[1].nextDateLabel).toBe("게시 예정일: 2026년 11월 1일");
-    expect(selectComposer(initial, "ja", "pr").official.channels.map((c) => [c.label, c.nextDateLabel])).toEqual([
-      ["X ポスト", "掲載予定日：2026年10月31日"],
-      ["Instagram ストーリー", "掲載予定日：2026年11月1日"],
-      ["Facebook ページ投稿", "掲載予定日：2026年11月1日"],
-    ]);
+    // 날짜는 내일(10/31)부터 30일 뒤(11/29)까지. 우리 회사는 10/31 에 1건이 있어서 10월은 3/4, 11월은 4/4
+    const dates = composer.official.dates;
+    expect(dates).toHaveLength(30);
+    expect(dates[0]).toEqual({ date: "2026-10-31", label: "10월 31일(토)", available: true, month: "2026-10", remaining: 3, remainingLabel: "10월 남은 횟수 3/4회" });
+    expect(dates[1]).toMatchObject({ date: "2026-11-01", label: "11월 1일(일)", remaining: 4, remainingLabel: "11월 남은 횟수 4/4회" });
+    expect(dates.at(-1)?.date).toBe("2026-11-29");
+    expect(dates.every((d) => d.available)).toBe(true);
+    const ja = selectComposer(initial, "ja", "pr").official;
+    expect(ja.hint).toBe("1社につき月4回まで（すべてのSNSの合計）。掲載日は明日から30日後までの中から選べます（掲載料 ¥3,000・サンプル）");
+    expect([ja.dates[0].label, ja.dates[0].remainingLabel, ja.dates[1].remainingLabel]).toEqual(["10月31日（土）", "10月の残り 3/4回", "11月の残り 4/4回"]);
     expect(composer).toMatchObject({ kind: "pr", bodyLimit: 400, titleLimit: 40, author: { avatar: "🐟", verified: true } });
   });
 
-  it("공식 게시 날짜를 이미 받았다면 그 채널의 안내 날짜만 하루씩 밀려요", () => {
-    const next = (state: DemoState) => Object.fromEntries(selectComposer(state, "ja", "pr").official.channels.map((c) => [c.id, c.nextDate]));
-    const instagram = run(initial, { type: "createPost", draft: { kind: "pr", title: "t", body: "b", sdgIds: [14], requestOfficial: true }, at: AT });
-    expect(next(instagram)).toEqual({ x: "2026-10-31", instagram: "2026-11-02", facebook: "2026-11-01" });
-    const x = run(instagram, { type: "createPost", draft: { kind: "pr", title: "t", body: "b", sdgIds: [14], requestOfficial: true, officialChannel: "x" }, at: AT });
-    // X 는 내일을 내가 받았고 모레는 다른 기업이 받아서 3일 뒤예요
-    expect(next(x)).toEqual({ x: "2026-11-02", instagram: "2026-11-02", facebook: "2026-11-01" });
+  it("같은 달에 4번을 다 쓰면 그 달의 날짜는 고를 수 없고 이유가 보여요 — 다른 회사의 신청은 상관없어요", () => {
+    const apply = (state: DemoState, officialOn?: string) =>
+      run(state, { type: "createPost", draft: { kind: "pr", title: "t", body: "b", sdgIds: [14], requestOfficial: true, officialOn }, at: AT });
+    // 10월은 10/31 하루뿐: 이미 1건 → 3건을 더 넣으면 10월이 차요
+    const octoberFull = apply(apply(apply(initial)));
+    const official = selectComposer(octoberFull, "ja", "pr").official;
+    expect(official.dates[0]).toMatchObject({ date: "2026-10-31", available: false, remaining: 0, remainingLabel: "10月の残り 0/4回" });
+    expect(official.defaultDate).toBe("2026-11-01");
+    expect(official.fullMonthNotes).toEqual(["10月は掲載枠（月4回）を使い切ったため選べません"]);
+    expect(apply(octoberFull, "2026-10-31")).toBe(octoberFull); // 찬 달의 날짜로는 올라가지 않아요
+    // 11월도 4번 채우면 고를 날이 없어요 → 신청 스위치를 꺼요
+    const allFull = ["2026-11-02", "2026-11-09", "2026-11-16", "2026-11-23"].reduce(apply, octoberFull);
+    const none = selectComposer(allFull, "ja", "pr").official;
+    expect(none.defaultDate).toBeNull();
+    expect(none.dates.every((d) => !d.available)).toBe(true);
+    expect(none.unavailableReason).toBe("この先30日間は掲載枠（月4回）を使い切っているため、いまは申し込めません");
+    expect(none.fullMonthNotes).toHaveLength(2);
+    expect(selectComposer(allFull, "ko", "pr").official.unavailableReason).toContain("30일");
+    // 다른 회사(po-1 · po-3)가 10/31 Instagram 에 있어도 우리 회사의 선택지에는 영향이 없어요
+    expect(selectComposer(initial, "ja", "pr").official.dates[0].remaining).toBe(3);
+  });
+
+  it("고른 날짜로 신청돼요: 날짜를 비우면 가장 빠른 날, 고르면 그 날 (채널과 상관없어요)", () => {
+    const create = (officialOn?: string, officialChannel?: "x" | "instagram" | "facebook") =>
+      run(initial, { type: "createPost", draft: { kind: "pr", title: "t", body: "b", sdgIds: [14], requestOfficial: true, officialChannel, officialOn }, at: AT }).posts[0];
+    expect(create()).toMatchObject({ official: { on: "2026-10-31", channel: "instagram" } });
+    expect(create("2026-11-20", "x")).toMatchObject({ official: { on: "2026-11-20", channel: "x" } });
+    expect(create("2026-11-29", "facebook")).toMatchObject({ official: { on: "2026-11-29", channel: "facebook" } });
+    // 31일 뒤는 거절돼서 아무것도 바뀌지 않아요
+    expect(run(initial, { type: "createPost", draft: { kind: "pr", title: "t", body: "b", sdgIds: [14], requestOfficial: true, officialOn: "2026-11-30" }, at: AT })).toBe(initial);
   });
 });

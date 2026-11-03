@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { evaluateCertification } from "@sdgs-compass/core/certification";
+import { certStarsOf, evaluateCertification } from "@sdgs-compass/core/certification";
 import { addDays, daysBetween } from "@sdgs-compass/core/format";
 import { pick } from "@sdgs-compass/core/i18n";
 import { levelOf } from "@sdgs-compass/core/impact";
@@ -126,11 +126,24 @@ describe("샘플 데이터", () => {
     expect(selectHome(state, "ko").recommended[0].id).toBe("ch-plastic");
   });
 
-  it("기업 인증마크는 처음 53점(★1)이고 증빙 하나가 모자라요", () => {
+  it("기업 실천 마크는 처음 53점(★2.5, 다음 ★3.0 까지 7점)이고 증빙 하나가 모자라요", () => {
     const result = evaluateCertification(state.cert);
     expect(result.total).toBe(53);
-    expect(result.level).toBe(1);
+    expect(result.stars).toBe(2.5);
+    expect(result.pointsToNext).toBe(7);
     expect(selectEsg(state, "ko").needEvidence).toBe(true);
+  });
+
+  it("다른 샘플 회사들도 가상의 마크 값을 가져요 (#35) — 서로 다른 별, 하나는 未取得", () => {
+    const scores = Object.fromEntries(state.companies.map((c) => [c.id, c.certScore]));
+    expect(scores).toEqual({ "co-minato": null, "co-green": 84, "co-hikari": 93, "co-machi": 36, "co-yasai": null, "co-kotoba": 71 });
+    const others = state.companies.filter((c) => c.id !== state.myCompanyId);
+    const stars = others.map((c) => (c.certScore === null ? 0 : certStarsOf(c.certScore)));
+    expect(stars).toEqual([4, 4.5, 1.5, 0, 3.5]);
+    // 우리 회사(★2.5)까지 모두 다른 값이고, 마크가 없는 회사(未取得)는 하나뿐이에요
+    expect(new Set([...stars, evaluateCertification(state.cert).stars]).size).toBe(6);
+    expect(stars.filter((s) => s === 0)).toHaveLength(1);
+    for (const c of state.companies) expect(c.certScore === null || (Number.isInteger(c.certScore) && c.certScore >= 0 && c.certScore <= 100), c.id).toBe(true);
   });
 
   it("오늘 날짜가 달라도 남은 날수(D-day)는 같아요", () => {

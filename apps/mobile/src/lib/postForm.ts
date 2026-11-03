@@ -177,6 +177,7 @@ export function previewPost(composer: ComposerVM, form: PostFormState, t: TFunct
     avatar: composer.author.avatar,
     avatarColor: composer.author.avatarColor,
     verified: composer.author.verified,
+    companyMark: composer.author.mark,
     title: isBrag ? null : form.title.trim(),
     body: form.body.trim(),
     sdgIds: isBrag ? (activity?.sdgIds ?? []) : form.sdgIds,

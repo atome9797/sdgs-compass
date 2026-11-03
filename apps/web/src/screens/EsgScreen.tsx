@@ -1,12 +1,14 @@
 "use client";
 
-// ESG 리포트(F-403)·SDGs 인증마크: 6개 문항(수치 + 증빙 제출 여부) → 점수·레벨·다음 ★까지 → 리포트 생성(PDF 저장·인쇄)
-// 증빙 자료를 제출하지 않은 항목은 점수에 들어가지 않아요(core/certification.ts). 인증마크는 UN 공식 인증이 아니라는 안내를 항상 함께 보여 줘요.
+// ESG 리포트(F-403)·SDGs 실천 마크: 6개 문항(수치 + 증빙 제출 여부) → 점수·별(★5 만점 · 0.5 단위, #35)·다음 반 개까지 → 리포트 생성(PDF 저장·인쇄)
+// 증빙 자료를 제출하지 않은 항목은 점수에 들어가지 않아요(core/certification.ts). 마크는 UN 공식 인증이 아니라는 안내를 항상 함께 보여 줘요.
+// 별 그림(가득·반·빈)은 늘 숫자(★2.5)와 함께, 스크린 리더에는 「SDGs取組みマーク 5段階中2.5」로 읽혀요.
 import { useId, useMemo, useState } from "react";
 import { clampCertValue } from "@sdgs-compass/core/certification";
 import { formatYen } from "@sdgs-compass/core/format";
 import { selectB2bDashboard, selectEsg, type CertItemVM, type EsgVM } from "@sdgs-compass/core/selectors";
 import { ESG_COLORS } from "@sdgs-compass/core/theme";
+import { StarRow } from "@/components/CertMark";
 import { Banner, Button, Empty, ScreenHead, Section, Tag } from "@/components/ui";
 import { useSession } from "@/lib/session";
 import { nowIso } from "@/lib/time";
@@ -80,18 +82,29 @@ function CategoryBars({ vm }: { vm: EsgVM }) {
   );
 }
 
+/** 점수 + 별: 「53 / 100  ★★⯨☆☆ ★2.5」. 별 그림과 숫자는 하나의 그림(role=img)으로 묶어서 숫자가 든 이름으로 읽혀요 */
+function ScoreLine({ vm }: { vm: EsgVM }) {
+  return (
+    <div className="esg-score">
+      <span className="esg-score__num">{vm.total}</span>
+      <span className="small muted">/ 100</span>
+      <span className="esg-score__mark" role="img" aria-label={vm.markLabel}>
+        <StarRow icons={vm.starIcons} size="lg" />
+        <span className="esg-score__level">{vm.starsLabel}</span>
+      </span>
+    </div>
+  );
+}
+
 function CertificationPanel({ vm }: { vm: EsgVM }) {
   const { t } = useSession();
   return (
     <div className="stack stack--lg">
       <section className="card esg-hero" aria-label={t("esg.certTitle")}>
         <p className="small muted">{t("esg.certTitle")}</p>
-        <div className="esg-score">
-          <span className="esg-score__num">{vm.total}</span>
-          <span className="small muted">/ 100</span>
-          <span className="esg-score__level">{vm.levelLabel}</span>
-        </div>
-        <p className="small">{vm.nextLabel ?? t("impact.maxLevel")}</p>
+        <ScoreLine vm={vm} />
+        <p className="small esg-next">{vm.nextLabel}</p>
+        <p className="small muted">{t("esg.certShown")}</p>
         <div className="stack stack--sm">
           <p className="field__label">{t("web.esg.categories")}</p>
           <CategoryBars vm={vm} />
@@ -134,11 +147,7 @@ function ReportPanel({ vm, companyName }: { vm: EsgVM; companyName: string }) {
               <h3 className="report__title">{t("esg.reportTitle")}</h3>
               <p className="small muted">{vm.generatedLabel}</p>
             </div>
-            <div className="esg-score">
-              <span className="esg-score__num">{vm.total}</span>
-              <span className="small muted">/ 100</span>
-              <span className="esg-score__level">{vm.levelLabel}</span>
-            </div>
+            <ScoreLine vm={vm} />
             <div className="stack stack--sm">
               <p className="field__label">{t("web.esg.categories")}</p>
               <CategoryBars vm={vm} />
@@ -155,7 +164,9 @@ function ReportPanel({ vm, companyName }: { vm: EsgVM; companyName: string }) {
             </div>
             <p className="disclaimer">{vm.disclaimer}</p>
             <div className="row">
-              <Tag tone="info">{vm.levelLabel}</Tag>
+              <Tag tone="info">
+                {t("esg.certTitle")} {vm.starsLabel}
+              </Tag>
               <Tag>{vm.scoreLabel}</Tag>
             </div>
           </article>

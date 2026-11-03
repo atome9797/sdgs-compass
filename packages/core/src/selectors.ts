@@ -1,7 +1,10 @@
 // 화면용 데이터(뷰 모델) 만들기. 상태(DemoState)와 언어(Locale)를 받아 "그대로 그리면 되는" 글자·숫자로 바꿔 줘요.
 // 웹·모바일 화면은 이 함수들의 결과만 그려서 두 앱의 표시 내용이 늘 같고, 계산·번역 실수는 core 테스트가 잡아요.
 import { deriveActivities, showableActivities, type ShowableActivity } from "./activities";
-import { CERT_CRITERIA, criterionOf, evaluateCertification, type CertUnit, type EsgCategory } from "./certification";
+import {
+  CERT_CRITERIA, CERT_MAX_STARS, CERT_POINTS_PER_STAR_STEP, CERT_STAR_STEP, certStarIcons, certStarsOf, criterionOf, evaluateCertification, formatStars, type CertUnit,
+  type EsgCategory, type StarIcon,
+} from "./certification";
 import { certificateFromActivity, certificateIdAt, qrPayload, verifyCode, type Certificate } from "./certificate";
 import type {
   Activity, ActivityKind, AwardKind, Candidate, Challenge, ChallengeStatus, CertCriterionId, Company, DemoState, OfficialChannel, OfficialShare, PostKind, Proposal, ProposalStatus, Review,
@@ -77,6 +80,57 @@ function companyOf(state: DemoState, id: string): Company | undefined {
   return state.companies.find((c) => c.id === id);
 }
 
+// ───────── SDGs 실천 마크 (#35) ─────────
+
+/** 회사 이름 옆에 붙는 SDGs 실천 마크. 未取得(별 0)이면 만들지 않아요(null → 화면에 아무것도 안 보여요) */
+export interface CertMarkVM {
+  /** 0.5 ~ 5.0 */
+  stars: number;
+  /** "SDGs取組みマーク" / "SDGs 실천 마크" — 별 옆에 늘 함께 써요(사용자 평점으로 읽히지 않게) */
+  name: string;
+  /** "★4.5" */
+  starsLabel: string;
+  /** 스크린 리더 이름: "SDGs取組みマーク 5段階中4.5" / "SDGs 실천 마크 5단계 중 4.5" */
+  accessibilityLabel: string;
+  /** 별 그림 5칸 (가득·반·빈) */
+  icons: StarIcon[];
+  /** 누르면 보이는 안내: 독자 기준이고 국가·자치체·유엔의 인증이 아님 (esg.disclaimer = CERT_DISCLAIMER) */
+  disclaimer: string;
+  /** 누르면 보이는 기준 한 줄: 10점마다 ★0.5, 100점이면 ★5.0 */
+  rule: string;
+}
+
+/** 마크 이름 + 숫자 (스크린 리더 이름). 별이 0 이면 「未取得」 */
+export function certMarkA11yLabel(stars: number, locale: Locale): string {
+  const name = translate("esg.certTitle", locale);
+  return stars > 0 ? translate("mark.a11y", locale, { name, max: CERT_MAX_STARS, stars: formatStars(stars) }) : translate("mark.a11yNone", locale, { name });
+}
+
+export function certMarkVM(stars: number, locale: Locale): CertMarkVM | null {
+  if (!(stars > 0)) return null;
+  return {
+    stars,
+    name: translate("esg.certTitle", locale),
+    starsLabel: translate("mark.stars", locale, { stars: formatStars(stars) }),
+    accessibilityLabel: certMarkA11yLabel(stars, locale),
+    icons: certStarIcons(stars),
+    disclaimer: translate("esg.disclaimer", locale),
+    rule: translate("mark.rule", locale, { points: CERT_POINTS_PER_STAR_STEP, step: formatStars(CERT_STAR_STEP), max: formatStars(CERT_MAX_STARS) }),
+  };
+}
+
+/** 회사의 마크 달성도: 데모의 우리 회사는 ESG 화면의 입력(state.cert)에서, 다른 회사는 샘플 값(Company.certScore). 마크가 없으면 null */
+export function companyCertScore(state: DemoState, companyId: string): number | null {
+  if (companyId === state.myCompanyId) return evaluateCertification(state.cert).total;
+  return companyOf(state, companyId)?.certScore ?? null;
+}
+
+/** 회사 이름 옆의 마크 (未取得·마크 없음이면 null) */
+export function selectCompanyMark(state: DemoState, companyId: string, locale: Locale): CertMarkVM | null {
+  const score = companyCertScore(state, companyId);
+  return score === null ? null : certMarkVM(certStarsOf(score), locale);
+}
+
 function reasonText(reason: Reason, locale: Locale): string {
   switch (reason.code) {
     case "sdg":
@@ -101,6 +155,8 @@ export interface ChallengeCardVM {
   companyName: string;
   companyEmoji: string;
   companyAccent: string;
+  /** 회사 이름 옆의 SDGs 실천 마크 (#35, 未取得이면 null) */
+  companyMark: CertMarkVM | null;
   sdgIds: SdgId[];
   hue: number;
   daysLeft: number;
@@ -134,6 +190,7 @@ export function challengeCard(state: DemoState, challenge: Challenge, locale: Lo
     companyName: company ? pick(company.name, locale) : "",
     companyEmoji: company?.emoji ?? "🏢",
     companyAccent: company?.accent ?? COLORS.primary,
+    companyMark: selectCompanyMark(state, challenge.companyId, locale),
     sdgIds: challenge.sdgIds,
     hue: challenge.hue,
     daysLeft,
@@ -251,7 +308,7 @@ export interface TeamPostVM {
 
 export interface ChallengeDetailVM {
   card: ChallengeCardVM;
-  company: { name: string; industry: string; region: string; about: string; verified: boolean; emoji: string; accent: string };
+  company: { name: string; industry: string; region: string; about: string; verified: boolean; emoji: string; accent: string; mark: CertMarkVM | null };
   skills: string[];
   background: string;
   mission: string;
@@ -293,6 +350,7 @@ export function selectChallengeDetail(state: DemoState, id: string, locale: Loca
       verified: company?.verified ?? false,
       emoji: company?.emoji ?? "🏢",
       accent: company?.accent ?? COLORS.primary,
+      mark: card.companyMark,
     },
     skills: challenge.skills.map((s) => skillLabel(s, locale)),
     background: pick(challenge.background, locale),
@@ -1097,10 +1155,17 @@ export interface CertItemVM {
 
 export interface EsgVM {
   total: number;
-  level: number;
-  levelLabel: string;
+  /** 실천 마크의 별 수: 0(未取得) · 0.5 ~ 5.0 (#35) */
+  stars: number;
+  /** "★2.5" / 별 0 이면 "未取得" */
+  starsLabel: string;
+  /** 별 그림 5칸 (가득·반·빈) — 숫자(starsLabel)와 늘 함께 보여요 */
+  starIcons: StarIcon[];
+  /** 별 그림의 스크린 리더 이름: "SDGs取組みマーク 5段階中2.5" / "SDGs取組みマーク 未取得" */
+  markLabel: string;
   scoreLabel: string;
-  nextLabel: string | null;
+  /** "次の★3.0まであと 7点" — ★5.0 이면 "最高の★5.0です" */
+  nextLabel: string;
   items: CertItemVM[];
   byCategory: { key: EsgCategory; label: string; score: number }[];
   highlights: string[];
@@ -1131,7 +1196,7 @@ export function selectEsg(state: DemoState, locale: Locale): EsgVM {
   const result = evaluateCertification(state.cert);
   const mine = state.challenges.filter((c) => c.companyId === state.myCompanyId);
   const matches = summarizeMatches(state.matches.filter((m) => m.companyId === state.myCompanyId));
-  const levelLabel = t(`esg.certLevel${result.level}`);
+  const starsLabel = result.stars > 0 ? t("mark.stars", { stars: formatStars(result.stars) }) : t("esg.certNone");
   const items: CertItemVM[] = result.items.map((item) => {
     const criterion = criterionOf(item.id);
     return {
@@ -1148,10 +1213,15 @@ export function selectEsg(state: DemoState, locale: Locale): EsgVM {
   });
   return {
     total: result.total,
-    level: result.level,
-    levelLabel,
+    stars: result.stars,
+    starsLabel,
+    starIcons: certStarIcons(result.stars),
+    markLabel: certMarkA11yLabel(result.stars, locale),
     scoreLabel: t("esg.certScore", { score: result.total }),
-    nextLabel: result.pointsToNext === null ? null : t("esg.certNext", { points: result.pointsToNext }),
+    nextLabel:
+      result.pointsToNext === null || result.nextStars === null
+        ? t("esg.certMax", { stars: formatStars(result.stars) })
+        : t("esg.certNext", { stars: formatStars(result.nextStars), points: result.pointsToNext }),
     items,
     byCategory: [
       { key: "E", label: t("esg.e"), score: result.byCategory.E },
@@ -1162,7 +1232,7 @@ export function selectEsg(state: DemoState, locale: Locale): EsgVM {
       t("esg.hlChallenges", { count: mine.length }),
       t("esg.hlApplicants", { count: formatPeople(mine.reduce((sum, c) => sum + c.applicants, 0), locale) }),
       t("esg.hlDonation", { amount: formatYen(matches.donationYen, locale) }),
-      t("esg.hlCert", { level: levelLabel }),
+      t("esg.hlCert", { mark: starsLabel }),
     ],
     generated: state.esgGeneratedOn !== null,
     generatedLabel: state.esgGeneratedOn ? t("esg.generated", { date: formatDate(state.esgGeneratedOn, locale) }) : t("esg.notGenerated"),
@@ -1201,6 +1271,8 @@ export interface PostVM {
   avatarColor: string | null;
   /** 홍보 글의 기업 인증 ✓ */
   verified: boolean;
+  /** 홍보 글: 회사 이름 옆의 SDGs 실천 마크 (#35 — 未取得·자랑 글은 null) */
+  companyMark: CertMarkVM | null;
   title: string | null;
   body: string;
   sdgIds: SdgId[];
@@ -1318,6 +1390,7 @@ function postVM(state: DemoState, post: SocialPost, locale: Locale, role: Role, 
       avatar: [...post.authorName][0]?.toUpperCase() ?? "?",
       avatarColor: null,
       verified: false,
+      companyMark: null,
       title: null,
       achievement,
       challenge: null,
@@ -1338,6 +1411,7 @@ function postVM(state: DemoState, post: SocialPost, locale: Locale, role: Role, 
     avatar: company?.emoji ?? "🏢",
     avatarColor: company?.accent ?? null,
     verified: company?.verified ?? false,
+    companyMark: selectCompanyMark(state, post.companyId, locale),
     title,
     achievement: null,
     challenge: challenge ? { id: challenge.id, title: pick(challenge.title, locale) } : null,
@@ -1377,8 +1451,8 @@ export interface ComposerVM {
   bodyLimit: number;
   titleLimit: number;
   maxSdgs: number;
-  /** 글쓴이로 보이는 모습 (미리보기·머리말에 써요) */
-  author: { name: string; meta: string; avatar: string; avatarColor: string | null; verified: boolean };
+  /** 글쓴이로 보이는 모습 (미리보기·머리말에 써요). mark = 홍보 글의 회사 이름 옆 SDGs 실천 마크 (#35 — 자랑 글·未取得은 null) */
+  author: { name: string; meta: string; avatar: string; avatarColor: string | null; verified: boolean; mark: CertMarkVM | null };
   /** 자랑 글: 고를 수 있는 내 실적(수상 → 제출·참가 순)과, 처음 선택된 것 */
   activities: { id: string; label: string; sdgIds: SdgId[] }[];
   selectedActivityId: string | null;
@@ -1511,8 +1585,15 @@ export function selectComposer(state: DemoState, locale: Locale, kind: PostKind,
     maxSdgs: POST_LIMITS.maxSdgs,
     author:
       kind === "brag"
-        ? { name: state.me.nickname, meta: t("feed.level", { level: levelOf(points) }), avatar: [...state.me.nickname][0]?.toUpperCase() ?? "?", avatarColor: null, verified: false }
-        : { name: company ? pick(company.name, locale) : "", meta: company ? pick(company.industry, locale) : "", avatar: company?.emoji ?? "🏢", avatarColor: company?.accent ?? null, verified: company?.verified ?? false },
+        ? { name: state.me.nickname, meta: t("feed.level", { level: levelOf(points) }), avatar: [...state.me.nickname][0]?.toUpperCase() ?? "?", avatarColor: null, verified: false, mark: null }
+        : {
+            name: company ? pick(company.name, locale) : "",
+            meta: company ? pick(company.industry, locale) : "",
+            avatar: company?.emoji ?? "🏢",
+            avatarColor: company?.accent ?? null,
+            verified: company?.verified ?? false,
+            mark: selectCompanyMark(state, state.myCompanyId, locale),
+          },
     activities,
     selectedActivityId,
     challenges,

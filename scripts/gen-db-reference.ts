@@ -9,7 +9,7 @@ import { SDGS } from "../packages/core/src/sdg";
 import { SKILL_IDS } from "../packages/core/src/domain";
 import { translate } from "../packages/core/src/messages";
 import { BADGE_CODES, BADGE_EMOJI, levelOf, SDG_SATURATION } from "../packages/core/src/impact";
-import { CERT_CRITERIA, evaluateCertification } from "../packages/core/src/certification";
+import { CERT_CRITERIA, CERT_MAX_STARS, CERT_POINTS_PER_STAR_STEP, CERT_STAR_STEP, certStarsOf, evaluateCertification, formatStars } from "../packages/core/src/certification";
 import { splitMatchFee } from "../packages/core/src/fees";
 import { issueCertificate, qrPayload, verifyCode } from "../packages/core/src/certificate";
 import type {
@@ -131,7 +131,19 @@ function buildGolden(): string {
   out.push(`CREATE TEMP TABLE golden_cert_items (code text, value bigint, evidence boolean, points numeric(4,1), PRIMARY KEY (code, value, evidence));`);
   out.push(`INSERT INTO golden_cert_items VALUES\n${rows(itemRows)}\n`);
 
-  // 인증마크: 여섯 항목을 한꺼번에 낸 신청서 → 합계 점수와 레벨
+  // 인증마크의 별(#35): 상수 · 점수마다의 별 수 (달성도 10점마다 ★0.5, 10점 미만은 0 = 未取得)
+  out.push(`CREATE TEMP TABLE golden_cert_star_constants (name text PRIMARY KEY, value numeric NOT NULL);`);
+  out.push(
+    `INSERT INTO golden_cert_star_constants VALUES\n${rows(
+      ([["star_step", CERT_STAR_STEP], ["points_per_star_step", CERT_POINTS_PER_STAR_STEP], ["max_stars", CERT_MAX_STARS]] as const).map(([name, value]) => `(${q(name)}, ${value})`),
+    )}\n`,
+  );
+  const starScores: number[] = [];
+  for (let score = 0; score <= 100; score++) starScores.push(score);
+  out.push(`CREATE TEMP TABLE golden_cert_stars (score integer PRIMARY KEY, stars numeric(2,1) NOT NULL);`);
+  out.push(`INSERT INTO golden_cert_stars VALUES\n${rows(starScores.map((score) => `(${score}, ${formatStars(certStarsOf(score))})`))}\n`);
+
+  // 인증마크: 여섯 항목을 한꺼번에 낸 신청서 → 합계 점수와 별 수
   const rand = prng(20261114);
   const pickOf = <T,>(list: readonly T[]): T => list[Math.floor(rand() * list.length)];
   const caseRows: string[] = [];
@@ -146,11 +158,11 @@ function buildGolden(): string {
       caseRows.push(`(${n}, ${q(c.id)}, ${value}, ${bool(evidence)})`);
     }
     const result = evaluateCertification(answers);
-    totalRows.push(`(${n}, ${result.total}, ${result.level})`);
+    totalRows.push(`(${n}, ${result.total}, ${formatStars(result.stars)})`);
   }
   out.push(`CREATE TEMP TABLE golden_cert_cases (case_no integer, code text, value bigint, evidence boolean, PRIMARY KEY (case_no, code));`);
   out.push(`INSERT INTO golden_cert_cases VALUES\n${rows(caseRows)}\n`);
-  out.push(`CREATE TEMP TABLE golden_cert_totals (case_no integer PRIMARY KEY, total integer NOT NULL, level integer NOT NULL);`);
+  out.push(`CREATE TEMP TABLE golden_cert_totals (case_no integer PRIMARY KEY, total integer NOT NULL, stars numeric(2,1) NOT NULL);`);
   out.push(`INSERT INTO golden_cert_totals VALUES\n${rows(totalRows)}\n`);
 
   // 열거형: core 의 유니온 타입 값이 DB 열거형에 모두 있는지 (exact 면 DB 에 여분이 없는지도)

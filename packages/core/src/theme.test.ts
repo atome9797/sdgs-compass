@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CHART_COLORS, COLORS, coverColors, ESG_COLORS, PHONE_WIDTH, RADIUS, SDG_TILE_TINT, SPACE, tint } from "./theme";
+import { CHART_COLORS, COLORS, coverColors, ESG_COLORS, MARK_COLORS, PHONE_WIDTH, RADIUS, SDG_TILE_TINT, SPACE, tint } from "./theme";
 import { SDGS } from "./sdg";
 import { pointsAttr, radarPolygon, radarRing, radarVertex, segmentsOf } from "./radar";
 
@@ -30,6 +30,12 @@ describe("디자인 토큰", () => {
     expect(contrast(COLORS.danger, COLORS.dangerSoft)).toBeGreaterThanOrEqual(4.5);
     expect(contrast(COLORS.warning, COLORS.warningSoft)).toBeGreaterThanOrEqual(4.5);
     expect(contrast(COLORS.primaryDark, COLORS.primarySoft)).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it("실천 마크의 별(#35): 금색 별은 흰 카드·옅은 바탕·빈 별 바탕과 3:1 이상, 빈 별 바탕은 카드와 구분돼요", () => {
+    for (const value of Object.values(MARK_COLORS)) expect(value).toMatch(/^#[0-9A-Fa-f]{6}$/);
+    for (const background of [COLORS.card, COLORS.bg, COLORS.primarySoft, MARK_COLORS.starSoft]) expect(contrast(MARK_COLORS.star, background)).toBeGreaterThanOrEqual(3);
+    expect(MARK_COLORS.starSoft).not.toBe(COLORS.card);
   });
 
   it("간격·둥글기는 작은 것부터 커져요", () => {

@@ -1,9 +1,11 @@
-// ESG 리포트(F-403)·SDGs 인증마크: 6개 문항(수치 + 증빙 제출 여부) → 점수·레벨·다음 ★까지 → 리포트 생성.
-// 증빙 자료를 제출하지 않은 항목은 점수에 들어가지 않아요(core/certification.ts). 인증마크는 UN 공식 인증이 아니라는 안내를 항상 함께 보여 줘요.
+// ESG 리포트(F-403)·SDGs 실천 마크: 6개 문항(수치 + 증빙 제출 여부) → 점수·별(★5 만점 · 0.5 단위, #35)·다음 반 개까지 → 리포트 생성.
+// 증빙 자료를 제출하지 않은 항목은 점수에 들어가지 않아요(core/certification.ts). 마크는 UN 공식 인증이 아니라는 안내를 항상 함께 보여 줘요.
+// 별 그림(가득·반·빈)은 늘 숫자(★2.5)와 함께, 스크린 리더에는 점수와 「SDGs取組みマーク 5段階中2.5」로 읽혀요.
 import { useMemo, useState } from "react";
 import { StyleSheet, View } from "react-native";
 import { clampCertValue, type EsgCategory } from "@sdgs-compass/core/certification";
 import { selectB2bDashboard, selectEsg, type CertItemVM, type EsgVM } from "@sdgs-compass/core/selectors";
+import { StarRow } from "@/components/CertMark";
 import { Screen, ScreenTitle } from "@/components/Screen";
 import { Badge, Button, Card, Divider, Empty, Field, LabeledSwitch, Notice, ProgressBar, Section, Segmented, Txt } from "@/components/ui";
 import { useApp } from "@/lib/AppProvider";
@@ -109,14 +111,20 @@ function CriterionCard({ item }: { item: CertItemVM }) {
   );
 }
 
+/** 점수 + 별: 「53 / 100  ★★⯨☆☆ ★2.5」 — 한 덩어리로 「達成度 53/100, SDGs取組みマーク 5段階中2.5」라고 읽혀요 */
 function ScoreLine({ vm, testID }: { vm: EsgVM; testID: string }) {
   return (
-    <View style={styles.scoreLine} accessible accessibilityLabel={`${vm.scoreLabel}, ${vm.levelLabel}`}>
+    <View style={styles.scoreLine} accessible accessibilityLabel={`${vm.scoreLabel}, ${vm.markLabel}`}>
       <Txt variant="display" testID={testID}>
         {vm.total}
       </Txt>
       <Txt tone="muted">/ 100</Txt>
-      <Badge tone="primary" label={vm.levelLabel} />
+      <View style={styles.mark}>
+        <StarRow testID={`${testID}-stars`} icons={vm.starIcons} size={22} />
+        <Txt variant="heading" tone="primary" testID={`${testID}-mark`}>
+          {vm.starsLabel}
+        </Txt>
+      </View>
     </View>
   );
 }
@@ -135,7 +143,12 @@ export function EsgScreen() {
           {t("esg.certTitle")}
         </Txt>
         <ScoreLine vm={vm} testID="esg-total" />
-        <Txt variant="small">{vm.nextLabel ?? t("impact.maxLevel")}</Txt>
+        <Txt variant="small" bold testID="esg-next">
+          {vm.nextLabel}
+        </Txt>
+        <Txt variant="small" tone="muted">
+          {t("esg.certShown")}
+        </Txt>
         <Txt variant="small" tone="muted" bold>
           {t("mobile.esgCategories")}
         </Txt>
@@ -196,6 +209,7 @@ export function EsgScreen() {
 const styles = StyleSheet.create({
   stack: { gap: SPACE.sm },
   scoreLine: { flexDirection: "row", alignItems: "baseline", flexWrap: "wrap", gap: SPACE.sm },
+  mark: { flexDirection: "row", alignItems: "center", gap: SPACE.sm, alignSelf: "center" },
   categoryRow: { flexDirection: "row", alignItems: "center", gap: SPACE.sm },
   categoryLabel: { width: 96 },
   categoryBar: { flex: 1 },

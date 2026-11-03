@@ -1,8 +1,9 @@
-// 챌린지 카드: 표지(색 + 기업 이모지 + D-day) · 제목(2줄) · 기업 · SDGs 미니 타일 · 칩(상금·혜택·모집 형태).
+// 챌린지 카드: 표지(색 + 기업 이모지 + D-day) · 제목(2줄) · 기업(+ SDGs 실천 마크, #35) · SDGs 미니 타일 · 칩(상금·혜택·모집 형태).
 // AI 추천 카드는 매칭률과 이유도 보여 줘요. 카드 전체가 하나의 버튼이고, 아래 footer 는 버튼 밖이에요.
 import type { ReactNode } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import type { ChallengeCardVM } from "@sdgs-compass/core/selectors";
+import { CertMarkBadge } from "@/components/CertMark";
 import { Cover } from "@/components/Cover";
 import { SdgMiniRow } from "@/components/SdgTile";
 import { Badge, Txt } from "@/components/ui";
@@ -22,7 +23,8 @@ export interface ChallengeCardProps {
 export function ChallengeCard({ card, onPress, showMatch = false, footer, testID }: ChallengeCardProps) {
   const { t } = useApp();
   const prizeName = t("reward.prize");
-  const label = `${card.title}, ${card.companyName}, ${card.dDay}, ${card.statusLabel}`;
+  // 카드 전체가 하나의 단추라 회사 이름 옆의 마크(#35)는 누르지 않는 표시로 두고, 숫자가 든 마크 이름을 카드 이름에 넣어요 (안내는 상세 화면의 마크에서)
+  const label = [card.title, card.companyName, card.companyMark?.accessibilityLabel, card.dDay, card.statusLabel].filter(Boolean).join(", ");
   return (
     <View style={styles.shadow}>
       <View style={styles.clip}>
@@ -32,9 +34,12 @@ export function ChallengeCard({ card, onPress, showMatch = false, footer, testID
             <Txt variant="heading" numberOfLines={2}>
               {card.title}
             </Txt>
-            <Txt variant="small" tone="muted" numberOfLines={1}>
-              {card.companyName}
-            </Txt>
+            <View style={styles.companyRow}>
+              <Txt variant="small" tone="muted" numberOfLines={1} style={styles.company}>
+                {card.companyName}
+              </Txt>
+              {card.companyMark ? <CertMarkBadge testID={testID ? `${testID}-mark` : undefined} mark={card.companyMark} /> : null}
+            </View>
             <SdgMiniRow ids={card.sdgIds} />
             <View style={styles.chips}>
               {card.prizeLabel ? <Badge tone="primary" label={`💰 ${card.prizeLabel}`} /> : null}
@@ -72,6 +77,8 @@ const styles = StyleSheet.create({
   clip: { borderRadius: RADIUS.lg, overflow: "hidden", borderWidth: 1, borderColor: COLORS.border },
   body: { padding: SPACE.lg, gap: SPACE.sm },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: SPACE.xs + 2 },
+  companyRow: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: SPACE.xs + 2 },
+  company: { flexShrink: 1 },
   match: { gap: SPACE.xs, backgroundColor: COLORS.bg, borderRadius: RADIUS.md, padding: SPACE.md },
   footer: { paddingHorizontal: SPACE.lg, paddingBottom: SPACE.lg },
 });

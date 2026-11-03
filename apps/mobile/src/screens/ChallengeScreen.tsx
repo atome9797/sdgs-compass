@@ -7,6 +7,7 @@ import { SKILL_IDS, type SkillId } from "@sdgs-compass/core/domain";
 import { pick } from "@sdgs-compass/core/i18n";
 import { skillLabel } from "@sdgs-compass/core/labels";
 import { selectChallengeDetail, type ChallengeDetailVM, type TeamPostVM } from "@sdgs-compass/core/selectors";
+import { CertMarkButton, CertMarkDetail } from "@/components/CertMark";
 import { Cover } from "@/components/Cover";
 import { Screen } from "@/components/Screen";
 import { SdgMiniRow } from "@/components/SdgTile";
@@ -176,6 +177,7 @@ function DetailTab({ vm }: { vm: ChallengeDetailVM }) {
               ✓ {t("mobile.companyVerified")}
             </Txt>
           ) : null}
+          {vm.company.mark ? <CertMarkDetail testID="company-mark" mark={vm.company.mark} /> : null}
         </Card>
       </Section>
     </View>
@@ -201,6 +203,7 @@ function ChallengeView({ id }: { id: string }) {
   const { demo, locale, t, dispatch } = useApp();
   const router = useRouter();
   const [tab, setTab] = useState<TabId>("detail");
+  const [markOpen, setMarkOpen] = useState(false);
   const vm = selectChallengeDetail(demo, id, locale);
 
   if (!vm) {
@@ -227,10 +230,14 @@ function ChallengeView({ id }: { id: string }) {
             <Txt variant="title" accessibilityRole="header">
               {card.title}
             </Txt>
-            <Txt variant="small" tone="muted">
-              🏢 {vm.company.name}
-              {vm.company.verified ? " ✓" : ""}
-            </Txt>
+            <View style={styles.companyRow}>
+              <Txt variant="small" tone="muted" style={styles.shrink}>
+                🏢 {vm.company.name}
+                {vm.company.verified ? " ✓" : ""}
+              </Txt>
+              {vm.company.mark ? <CertMarkButton testID="challenge-mark" mark={vm.company.mark} open={markOpen} onToggle={() => setMarkOpen((open) => !open)} /> : null}
+            </View>
+            {vm.company.mark && markOpen ? <CertMarkDetail testID="challenge-mark-note" mark={vm.company.mark} /> : null}
             <SdgMiniRow ids={card.sdgIds} />
             <View style={styles.facts}>
               <Fact label={t("reward.prize")} value={card.prizeLabel ?? t("common.none")} />
@@ -292,6 +299,7 @@ const styles = StyleSheet.create({
   facts: { flexDirection: "row", flexWrap: "wrap", gap: SPACE.sm },
   fact: { flexBasis: "48%", flexGrow: 1, gap: 2, padding: SPACE.md, borderRadius: RADIUS.md, backgroundColor: COLORS.bg },
   rowBetween: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: SPACE.sm },
+  companyRow: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: SPACE.xs + 2 },
   shrink: { flexShrink: 1 },
   grow: { flex: 1 },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: SPACE.xs + 2 },

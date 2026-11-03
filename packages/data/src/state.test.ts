@@ -212,13 +212,13 @@ describe("공유·인증마크·ESG", () => {
     expect(points(s)).toBe(start - 10 * initial.shares + 50);
   });
 
-  it("증빙을 올리면 인증 점수가 오르고 ★2 가 돼요", () => {
+  it("증빙을 올리면 실천 마크 점수가 오르고 ★2.5 → ★3.0 이 돼요", () => {
     const before = evaluateCertification(initial.cert);
     const next = run(initial, { type: "setCertAnswer", id: "womenManagers", evidence: true });
     const after = evaluateCertification(next.cert);
-    expect(before.level).toBe(1);
+    expect(before.stars).toBe(2.5);
     expect(after.total).toBe(62);
-    expect(after.level).toBe(2);
+    expect(after.stars).toBe(3);
   });
 
   it("입력값은 허용 범위로 맞춰요", () => {

@@ -515,7 +515,7 @@ PC 폭에서는 왼쪽 메뉴, 좁은 화면에서는 하단 탭으로 바뀌어
 - 아래 그림과 표 설명은 **실제 DB 에서 읽어 자동으로 만든 것**이에요(`npm run erd`). 스키마를 바꾸고 README 를 안 고치면 CI 가 실패해요.
 
 <!-- erd:begin — 자동 생성: node scripts/erd.mjs --write (db/schema.sql 에서 읽어요. 직접 고치지 마세요) -->
-표 68개 · 뷰 8개 · 외래 키 124개. 아래 그림과 표 설명은 `db/schema.sql` 을 실제 PostgreSQL 에 올려서 읽어 만든 거라, 스키마가 바뀌면 CI 가 README 를 다시 만들라고 알려 줘요.
+표 68개 · 뷰 9개 · 외래 키 124개. 아래 그림과 표 설명은 `db/schema.sql` 을 실제 PostgreSQL 에 올려서 읽어 만든 거라, 스키마가 바뀌면 CI 가 README 를 다시 만들라고 알려 줘요.
 
 #### 한눈에 보기 (핵심 표만, 열 생략)
 
@@ -1245,7 +1245,7 @@ erDiagram
 
 #### ⑥ ESG 리포트 · 인증마크 — F-403, 인증마크
 
-ESG 성과 리포트(PDF/Excel)와 SDGs 인증마크(입력 → 증빙 → 기준 충족 시 ★1~3 부여)예요.
+ESG 성과 리포트(PDF/Excel)와 SDGs 인증마크(입력 → 증빙 → 달성도 10점마다 ★0.5, ★0.5~★5.0 부여)예요. 회사마다 지금 유효한 마크는 뷰 company_cert_marks 로 학생 화면의 회사 이름 옆에 보여요.
 
 ```mermaid
 erDiagram
@@ -1273,7 +1273,7 @@ erDiagram
     uuid company_id FK
     cert_status status
     smallint score
-    smallint level "자동 계산"
+    numeric stars "자동 계산"
     timestamptz submitted_at
     timestamptz decided_at
     uuid decided_by FK
@@ -1305,7 +1305,7 @@ erDiagram
 | --- | --- | --- |
 | `esg_reports` | ESG 성과 리포트 (PDF/Excel) | F-403 |
 | `cert_criteria` | SDGs 인증마크 심사 기준표 (항목·배점·목표값) | 인증마크 |
-| `cert_applications` | SDGs 인증마크 신청 (점수·★1~3) | 인증마크 |
+| `cert_applications` | SDGs 인증마크 신청 (점수·★0.5~5.0, 10점마다 0.5) | 인증마크 |
 | `cert_answers` | 인증마크 항목별 답변과 증빙 | 인증마크 |
 
 #### ⑦ 알림 · 운영 · 통계 · 번역 — F-204, F-701 ~ F-703
@@ -1606,9 +1606,10 @@ erDiagram
 | 뷰 | 설명 | 기능 |
 | --- | --- | --- |
 | `challenge_stats` | 챌린지별 응모자 수·관심 수·평균 점수·남은 일수 | F-402 |
+| `company_cert_marks` | 회사별 지금 유효한 인증마크 (점수·별 수, 학생 화면의 회사 이름 옆) | 인증마크 |
 | `company_fee_summary` | 기업별 수수료·기부·운영 수익 요약 | 수익 모델 |
 | `company_prize_summary` | 기업별 상금 예치·송금·반환 합계 | #25 리워드 |
-| `feed_posts` | 피드에 보이는 글 (닉네임·레벨 또는 기업 정보만, 블라인드 제외) | F-503, F-504 |
+| `feed_posts` | 피드에 보이는 글 (닉네임·레벨 또는 기업 정보·인증마크만, 블라인드 제외) | F-503, F-504 |
 | `impact_totals` | 학생별 누적 포인트와 레벨 | F-401 |
 | `proposal_current` | 제출 건 + 가장 최신 버전 (심사 화면용) | F-302 |
 | `talent_directory` | 인재 검색에 보이는 학생 (비공개·정지 계정 제외) | F-601 |

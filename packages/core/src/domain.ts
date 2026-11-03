@@ -21,6 +21,12 @@ export interface Company {
   about: Text;
   sdgIds: SdgId[];
   verified: boolean;
+  /**
+   * SDGs 실천 마크의 달성도(0~100, 가상의 샘플 값) — 별 수는 certification.ts 의 certStarsOf 로 계산해요(#35). null = 마크 없음(未取得).
+   * 데모의 우리 회사(DemoState.myCompanyId)는 이 값 대신 ESG 화면의 입력(DemoState.cert)으로 계산해요.
+   * DB 에서는 회사마다 지금 유효한 부여 신청의 점수예요(뷰 company_cert_marks).
+   */
+  certScore: number | null;
   /** 데모용 로고 대신 쓰는 이모지와 배경색 */
   emoji: string;
   accent: string;

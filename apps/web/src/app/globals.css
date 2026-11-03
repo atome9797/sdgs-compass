@@ -49,6 +49,8 @@
   --stage: #E7EBE8;
   --donation-soft: #F4E9EE; /* 기부 표시의 옅은 바탕 */
   --donation-ink: #87455F; /* 그 위의 글자: --donation-soft 와 5.8:1 */
+  --mark-star: #A87612; /* SDGs 실천 마크의 별 (theme.ts MARK_COLORS.star — 흰 바탕과 3:1 이상, 글자에는 쓰지 않아요) */
+  --mark-star-soft: #F5EEDC; /* 빈 별·마크 단추의 옅은 바탕 (MARK_COLORS.starSoft) */
   --shadow: 0 1px 2px rgba(30, 41, 37, 0.05), 0 6px 18px rgba(30, 41, 37, 0.06);
   --font: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans", "Noto Sans JP", "Noto Sans CJK JP", "Noto Sans KR", "Noto Sans CJK KR", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
   color-scheme: light;
@@ -518,6 +520,38 @@ svg { display: block; }
 .two-col { display: grid; gap: 20px; }
 @media (min-width: 1024px) { .two-col { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); align-items: start; } }
 
+/* ───────── SDGs 실천 마크 (#35): ★5 만점 · 0.5 단위, 별 그림은 늘 이름·숫자와 함께 ───────── */
+.stars { display: inline-flex; align-items: center; gap: 1px; vertical-align: middle; flex: none; }
+.stars--sm { font-size: 14px; }
+.stars--md { font-size: 18px; }
+.stars--lg { font-size: 24px; }
+.star { position: relative; display: inline-block; width: 1em; height: 1em; flex: none; }
+.star svg { width: 1em; height: 1em; }
+.star path { stroke: var(--mark-star); stroke-width: 1.6; stroke-linejoin: round; }
+.star__base path { fill: var(--mark-star-soft); }
+.star__fill { position: absolute; top: 0; left: 0; bottom: 0; width: 100%; overflow: hidden; }
+.star--half .star__fill { width: 50%; }
+.star__fill path { fill: var(--mark-star); }
+.esg-score__mark { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.esg-next { font-weight: 700; }
+/* 회사 이름 옆의 마크 단추: 누르는 곳은 44px, 보이는 알약은 작게 (위아래 여백을 겹쳐 줄이 높아지지 않게) */
+.ccard__company-row, .fcard__name-row, .hero__company { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 8px; min-width: 0; }
+.fcard__name-row > .fcard__name { min-width: 0; }
+.cmark { position: relative; z-index: 2; flex: none; display: inline-flex; align-items: center; min-height: var(--tap); margin: -8px 0; }
+.cmark__pill { display: inline-flex; align-items: center; gap: 3px; padding: 2px 6px 2px 9px; border: 1px solid color-mix(in srgb, var(--mark-star) 40%, white); border-radius: var(--radius-pill); background: var(--mark-star-soft); color: var(--text); font-size: var(--fs-xs); font-weight: 700; line-height: 18px; white-space: nowrap; }
+.cmark:hover .cmark__pill { border-color: var(--mark-star); }
+.cmark__star { color: var(--mark-star); font-size: 13px; line-height: 1; }
+.cmark__num { font-weight: 800; font-variant-numeric: tabular-nums; }
+.cmark__help { display: inline-grid; place-items: center; width: 15px; height: 15px; margin-left: 2px; border: 1px solid var(--text-muted); border-radius: 50%; color: var(--text-muted); font-size: 10px; font-weight: 800; line-height: 1; }
+.cmark[aria-expanded="true"] .cmark__help { background: var(--text-muted); color: var(--on-primary); }
+.cmark:focus-visible { outline: none; }
+.cmark:focus-visible .cmark__pill { outline: 3px solid var(--primary); outline-offset: 2px; }
+.cmark-note { position: relative; z-index: 2; } /* 챌린지 카드 전체를 덮는 링크보다 위 — 안내를 읽다가 눌러도 상세로 넘어가지 않게 */
+.cmark-detail { display: flex; flex-direction: column; gap: 4px; padding: 8px 12px; border-left: 4px solid var(--mark-star); border-radius: var(--radius-sm); background: var(--mark-star-soft); font-size: var(--fs-xs); line-height: 1.55; }
+.cmark-detail__head { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 8px; font-size: var(--fs-sm); font-weight: 800; }
+.cmark-detail__num { font-variant-numeric: tabular-nums; }
+.cmark-detail__text { color: var(--text-muted); }
+
 /* ───────── SNS 피드 (F-503 학생 자랑 글 · F-504 기업 홍보 글) ───────── */
 .chip__count { font-weight: 600; color: var(--text-muted); font-variant-numeric: tabular-nums; }
 .chip[aria-pressed="true"] .chip__count { color: inherit; }
@@ -599,6 +633,7 @@ button.fcard__action:hover, a.fcard__action:hover { background: var(--bg); color
   .b2b-shell { display: block; }
   .page { max-width: none; padding: 0; }
   .card, .report { box-shadow: none; }
+  .stars, .cmark__pill, .cmark-detail { -webkit-print-color-adjust: exact; print-color-adjust: exact; } /* 별·마크 색을 인쇄에도 그대로 */
 }
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
 

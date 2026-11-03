@@ -42,6 +42,12 @@ export const CHART_COLORS = ["#3770A3", "#AC6549", "#2FA094", "#C19652"] as cons
 export const ESG_COLORS = { E: CHART_COLORS[2], S: CHART_COLORS[0], G: CHART_COLORS[1] } as const;
 
 /**
+ * SDGs 실천 마크의 별 색(#35, 웹·앱 같은 값): 가득·반 별은 금색(star — 흰 카드·옅은 바탕과 3:1 이상), 빈 별은 같은 금색 테두리 + 옅은 금색 바탕(starSoft).
+ * 별 그림은 늘 숫자(★2.5)와 함께 보여서 색만으로 뜻을 전하지 않아요. 웹은 globals.css 의 --mark-star · --mark-star-soft 가 같은 값이에요(globals.test.ts).
+ */
+export const MARK_COLORS = { star: "#A87612", starSoft: "#F5EEDC" } as const;
+
+/**
  * #RRGGBB 를 흰색과 섞은 옅은 색(amount 0~1 = 원래 색의 비율, 결과도 #RRGGBB). SDG 타일·기업 로고처럼 넓은 면을 차분하게 칠할 때 써요.
  * 모양이 #RRGGBB 가 아니면 그대로 돌려줘요(화면이 깨지지 않게).
  */

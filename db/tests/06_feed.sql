@@ -358,6 +358,19 @@ SELECT pg_temp.eq((SELECT author_name || '/' || company_industry || '/' || compa
                      FROM feed_posts WHERE id = '90000000-0000-0000-0000-000000000010'),
                   'みなと海洋フーズ/食品/true/-/-', '홍보 글: 기업 이름 · 업종 · 인증 ✓ (레벨·실적은 없다)');
 SELECT pg_temp.eq((SELECT challenge_id FROM feed_posts WHERE id = '90000000-0000-0000-0000-000000000010'), 'e1000000-0000-0000-0000-000000000001'::uuid, '홍보 글에 연결한 챌린지가 보인다');
+-- #35 홍보 글의 회사 이름 옆 마크: 그 회사의 지금 유효한 인증마크 별 수 (없으면 NULL = 未取得, 자랑 글에는 없다)
+SELECT pg_temp.eq((SELECT count(*) FROM feed_posts WHERE kind = 'pr' AND company_cert_stars IS NOT NULL)::int, 0, '인증마크를 받은 회사가 없으면 홍보 글에 마크가 없다 (未取得)');
+INSERT INTO cert_applications (id, company_id) VALUES ('ce000000-0000-0000-0000-0000000000f1', 'd0000000-0000-0000-0000-000000000001');
+INSERT INTO cert_answers (application_id, criterion_code, value, evidence_key)
+  SELECT 'ce000000-0000-0000-0000-0000000000f1', code, value, 'evidence/' || code
+    FROM (VALUES ('ecoPackage', 35), ('renewable', 20), ('donation', 120000), ('volunteer', 4), ('disclosure', 1)) v(code, value);
+UPDATE cert_applications SET status = 'submitted' WHERE id = 'ce000000-0000-0000-0000-0000000000f1';
+UPDATE cert_applications SET status = 'granted', decided_at = now(), decided_by = 'a0000000-0000-0000-0000-000000000001', valid_until = current_date + 365
+ WHERE id = 'ce000000-0000-0000-0000-0000000000f1';
+SELECT pg_temp.eq((SELECT company_cert_stars FROM feed_posts WHERE id = '90000000-0000-0000-0000-000000000010'), 2.5::numeric, '마크를 받은 회사(53점)의 홍보 글에는 ★2.5 가 함께 나온다 (데모의 みなと海洋フーズ 처음 값)');
+SELECT pg_temp.eq((SELECT count(*) FROM feed_posts WHERE company_id = 'd0000000-0000-0000-0000-000000000003' AND kind = 'pr' AND company_cert_stars IS NULL)::int,
+                  (SELECT count(*) FROM feed_posts WHERE company_id = 'd0000000-0000-0000-0000-000000000003' AND kind = 'pr')::int, '마크가 없는 다른 회사(まちづくりラボ)의 홍보 글에는 마크가 없다');
+SELECT pg_temp.eq((SELECT count(*) FROM feed_posts WHERE kind = 'brag' AND company_cert_stars IS NOT NULL)::int, 0, '학생 자랑 글에는 회사 마크가 없다');
 SELECT pg_temp.eq((SELECT official_channel::text || '/' || official_on || '/' || official_status FROM feed_posts WHERE id = '90000000-0000-0000-0000-000000000032'),
                   'instagram/2026-10-31/scheduled', '공식 SNS 게시 채널 · 날짜 · 상태가 보인다');
 SELECT pg_temp.eq((SELECT official_channel::text || '/' || official_status || ' ' || official_post_url FROM feed_posts WHERE id = '90000000-0000-0000-0000-000000000035'),

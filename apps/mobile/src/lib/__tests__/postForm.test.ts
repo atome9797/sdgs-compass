@@ -318,6 +318,15 @@ test("자랑 글 미리보기: 고른 실적의 이름·SDGs 가 붙고, 동작 
   expect(preview.achievement).toMatchObject({ title: "🏆 특별상 · 다국어 방재 지도 제안", sdgIds: [11, 10], certificateId: null });
 });
 
+test("미리보기의 회사 이름 옆 SDGs 실천 마크(#35): 홍보 글은 우리 회사의 지금 마크(ESG 입력에서 ★2.5), 자랑 글은 없음 — 피드 카드와 같아요", () => {
+  const pr = prComposer();
+  const preview = previewPost(pr, withBody(initialPostForm(pr), "본문", "제목"), t);
+  expect(preview.companyMark).toMatchObject({ stars: 2.5, name: "SDGs 실천 마크", starsLabel: "★2.5", accessibilityLabel: "SDGs 실천 마크 5단계 중 2.5" });
+  const posted = selectFeed(demo, "ko", "b2b").posts.find((p) => p.id === "po-4")!;
+  expect(preview.companyMark).toEqual(posted.companyMark);
+  expect(previewPost(bragComposer("h-4b"), withBody(initialPostForm(bragComposer("h-4b")), "본문"), t).companyMark).toBeNull();
+});
+
 test("자랑 글 미리보기: 실적을 못 골랐으면 실적도 SDGs 도 비어 있어요", () => {
   const composer = bragComposer();
   const preview = previewPost(composer, { ...initialPostForm(composer), activityId: null }, t);

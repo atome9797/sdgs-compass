@@ -154,6 +154,8 @@ function isSocialPost(value: unknown): boolean {
 }
 
 const isYen = (value: unknown): value is number => typeof value === "number" && Number.isSafeInteger(value) && value > 0;
+/** #35 회사의 실천 마크 달성도: null(마크 없음) 또는 0~100 */
+const isCertScore = (value: unknown): boolean => value === null || (typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= 100);
 
 /** #25 リワード残高 원장 한 줄 (rebase 와 화면이 깨지지 않을 만큼만 확인해요) */
 function isWalletEntry(value: unknown): boolean {
@@ -197,6 +199,7 @@ export function isDemoState(value: unknown): value is DemoState {
   if (!(value.posts as unknown[]).every(isSocialPost)) return false;
   if (!isWallet(value.wallet) || !Array.isArray(value.prizeDeposits) || !value.prizeDeposits.every(isPrizeDeposit)) return false;
   if (!(value.challenges as unknown[]).every((c) => isObject(c) && typeof c.id === "string" && isDay(c.opensOn) && isDay(c.closesOn))) return false;
+  if (!(value.companies as unknown[]).every((c) => isObject(c) && typeof c.id === "string" && isCertScore(c.certScore))) return false;
   if (!(value.proposals as unknown[]).every((p) => isObject(p) && typeof p.id === "string" && Array.isArray(p.versions) && typeof p.submittedAt === "string")) return false;
   if (!isObject(value.cert)) return false;
   const cert = value.cert;
@@ -237,6 +240,7 @@ function normalizeOfficial(post: unknown): unknown {
  * - 공식 SNS 게시 신청: channel 이 없으면 instagram, 상태가 없거나 모르는 값이면 예정, postUrl 은 게시 완료의 https:// 주소만 (normalizeOfficial).
  * - #25 リワード残高가 생기기 전의 상태에는 wallet·prizeDeposits 가 없어요 → 저장했을 때의 "오늘" 기준 샘플(잔액·상금 예치)을 채워 넣어요.
  *   데모에서 새로 낸 과제(샘플에 없는 과제)는 예치 기록 없이 열려요.
+ * - #35 실천 마크가 생기기 전의 상태에는 회사의 certScore 가 없어요 → 샘플 회사는 샘플 값으로, 샘플에 없는 회사는 null(마크 없음)로 채워요.
  */
 function upgradeSaved(data: unknown): unknown {
   if (!isObject(data) || data.version !== 1) return data;
@@ -248,6 +252,10 @@ function upgradeSaved(data: unknown): unknown {
   if (next.prizeDeposits === undefined && isDay(data.today)) {
     const ids = new Set(Array.isArray(next.challenges) ? next.challenges.map((c) => (isObject(c) ? c.id : null)) : []);
     next = { ...next, prizeDeposits: sample().prizeDeposits.filter((d) => ids.has(d.challengeId)) };
+  }
+  if (Array.isArray(next.companies) && next.companies.some((c) => isObject(c) && c.certScore === undefined) && isDay(data.today)) {
+    const scores = new Map(sample().companies.map((c) => [c.id, c.certScore]));
+    next = { ...next, companies: next.companies.map((c) => (isObject(c) && c.certScore === undefined ? { ...c, certScore: scores.get(String(c.id)) ?? null } : c)) };
   }
   return next;
 }

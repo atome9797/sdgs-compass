@@ -10,6 +10,16 @@ export const common = {
   // 앱 전체 고지(#19): 웹 사이드바 아래·첫 화면·설정, 모바일 설정에 작게 항상 보여요
   "app.unNotice": { ja: "本アプリは国連の承認を受けたものではありません。", ko: "이 앱은 유엔의 승인을 받은 것이 아니에요." },
 
+  // #35 회사 이름 옆의 SDGs 실천 마크(학생·기업 공통). 이름은 #19 그대로(ja 取組みマーク · ko 실천 마크), 별은 늘 이름·숫자와 함께 — 사용자 평점으로 읽히지 않게.
+  // 스크린 리더 이름에는 숫자가 들어가요(별 그림만으로 뜻을 전하지 않게). 누르면 기존 안내(esg.disclaimer)와 기준 한 줄(mark.rule)이 보여요.
+  "mark.stars": { ja: "★{stars}", ko: "★{stars}" },
+  "mark.a11y": { ja: "{name} {max}段階中{stars}", ko: "{name} {max}단계 중 {stars}" },
+  "mark.a11yNone": { ja: "{name} 未取得", ko: "{name} 미획득" },
+  "mark.rule": {
+    ja: "基準：ESG 6項目の達成度（証明資料のある項目のみ・100点満点）{points}点ごとに★{step}、100点で★{max}。",
+    ko: "기준: ESG 6개 항목의 달성도(증빙 자료가 있는 항목만, 100점 만점) {points}점마다 ★{step}, 100점이면 ★{max}.",
+  },
+
   "common.back": { ja: "戻る", ko: "뒤로" },
   "common.close": { ja: "閉じる", ko: "닫기" },
   "common.cancel": { ja: "キャンセル", ko: "취소" },

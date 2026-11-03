@@ -45,8 +45,19 @@ SELECT pg_temp.none($q$SELECT g.code, g.value, g.evidence, g.points AS core, cer
                          FROM golden_cert_items g WHERE cert_item_points(g.code, g.value, g.evidence) <> g.points$q$,
                     'cert_item_points 가 core 의 항목별 점수와 모두 같다');
 
--- 4) 인증마크: 여섯 항목 합계 → 점수·레벨 (제출하는 순간 서버가 다시 계산해요)
-CREATE TEMP TABLE parity_cert_result (case_no integer, total integer, level integer);
+-- 3-2) 인증마크의 별(#35): 상수와 점수(0~100)마다의 별 수 — 달성도 10점마다 ★0.5, 10점 미만은 0(未取得)
+SELECT pg_temp.none($q$SELECT g.name, g.value AS core,
+                              CASE g.name WHEN 'star_step' THEN cert_star_step() WHEN 'points_per_star_step' THEN cert_points_per_star_step() WHEN 'max_stars' THEN cert_max_stars() END AS db
+                         FROM golden_cert_star_constants g
+                        WHERE g.value IS DISTINCT FROM CASE g.name WHEN 'star_step' THEN cert_star_step() WHEN 'points_per_star_step' THEN cert_points_per_star_step() WHEN 'max_stars' THEN cert_max_stars() END$q$,
+                    '별 규칙의 상수(0.5 단위 · 10점마다 · 최대 5)가 core 와 같다');
+SELECT pg_temp.eq((SELECT count(*) FROM golden_cert_star_constants)::int, 3, '별 규칙의 상수는 셋이다 (core 에 상수가 늘면 DB 쪽 대조도 더해야 해요)');
+SELECT pg_temp.none($q$SELECT g.score, g.stars AS core, cert_stars(g.score) AS db FROM golden_cert_stars g WHERE cert_stars(g.score) <> g.stars$q$,
+                    'cert_stars 가 core 의 certStarsOf 와 0~100점 모두 같다 (10점 ★0.5 … 100점 ★5.0)');
+SELECT pg_temp.eq((SELECT string_agg(cert_stars(s)::text, ' ' ORDER BY s) FROM unnest(ARRAY[0, 9, 10, 53, 99, 100]) s), '0.0 0.0 0.5 2.5 4.5 5.0', '경계: 9점 未取得 · 10점 ★0.5 · 53점 ★2.5 · 99점 ★4.5 · 100점 ★5.0');
+
+-- 4) 인증마크: 여섯 항목 합계 → 점수·별 수 (제출하는 순간 서버가 다시 계산해요)
+CREATE TEMP TABLE parity_cert_result (case_no integer, total integer, stars numeric(2,1));
 DO $$
 DECLARE
   r record;
@@ -57,13 +68,14 @@ BEGIN
     INSERT INTO cert_answers (application_id, criterion_code, value, evidence_key)
       SELECT app, code, value, CASE WHEN evidence THEN 'evidence/' || code END FROM golden_cert_cases WHERE case_no = r.case_no;
     UPDATE cert_applications SET status = 'submitted' WHERE id = app;
-    INSERT INTO parity_cert_result SELECT r.case_no, score, level FROM cert_applications WHERE id = app;
+    INSERT INTO parity_cert_result SELECT r.case_no, score, stars FROM cert_applications WHERE id = app;
   END LOOP;
 END $$;
-SELECT pg_temp.none($q$SELECT g.case_no, g.total AS core_total, p.total AS db_total, g.level AS core_level, p.level AS db_level
+SELECT pg_temp.none($q$SELECT g.case_no, g.total AS core_total, p.total AS db_total, g.stars AS core_stars, p.stars AS db_stars
                          FROM golden_cert_totals g JOIN parity_cert_result p USING (case_no)
-                        WHERE g.total <> p.total OR g.level <> p.level$q$,
-                    '인증마크 합계 점수·레벨이 core 의 evaluateCertification 과 300건 모두 같다');
+                        WHERE g.total <> p.total OR g.stars <> p.stars$q$,
+                    '인증마크 합계 점수·별 수가 core 의 evaluateCertification 과 300건 모두 같다');
+SELECT pg_temp.ok((SELECT count(DISTINCT stars) FROM golden_cert_totals) >= 6, '300건의 별 수는 여러 단계에 고루 퍼져 있다 (대조가 한두 값에 몰리지 않게)');
 
 -- 5) 디지털 증명서: core 가 만든 해시를 DB 가 같은 글자열로 다시 계산해서 받아들인다 (한글·일본어·이모지·따옴표·줄바꿈 포함)
 INSERT INTO certificates (serial_no, user_id, kind, holder_name, challenge_title, company_name, award_kind, sdg_ids, points, issued_on, content_hash)

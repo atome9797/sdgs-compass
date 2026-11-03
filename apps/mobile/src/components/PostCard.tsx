@@ -5,6 +5,7 @@ import { useState } from "react";
 import { Linking, Pressable, StyleSheet, Text, View } from "react-native";
 import { sdgLabel } from "@sdgs-compass/core/labels";
 import type { PostAchievementVM, PostOfficialVM, PostVM } from "@sdgs-compass/core/selectors";
+import { CertMarkButton, CertMarkDetail } from "@/components/CertMark";
 import { CompanyAvatar } from "@/components/CompanyAvatar";
 import { SdgMiniRow } from "@/components/SdgTile";
 import { Badge, Button, Card, Notice, Txt } from "@/components/ui";
@@ -138,6 +139,7 @@ function LikeButton({ post, onLike }: { post: PostVM; onLike?: () => void }) {
 export function PostCard({ post, preview = false, onLike, onDelete, onShare, links = [], testID }: PostCardProps) {
   const { t, locale } = useApp();
   const [confirming, setConfirming] = useState(false);
+  const [markOpen, setMarkOpen] = useState(false);
   const isPr = post.kind === "pr";
   const showMeta = post.dateLabel !== "" || (post.mine && !preview);
 
@@ -147,16 +149,21 @@ export function PostCard({ post, preview = false, onLike, onDelete, onShare, lin
         <View style={styles.head}>
           {isPr ? <CompanyAvatar emoji={post.avatar} accent={post.avatarColor ?? COLORS.primary} size={AVATAR_SIZE} /> : <InitialAvatar letter={post.avatar} />}
           <View style={styles.headText}>
-            <Txt bold numberOfLines={1} accessibilityLabel={post.verified ? `${post.authorName}, ${t("mobile.companyVerified")}` : undefined}>
-              {post.authorName}
-              {post.verified ? " ✓" : ""}
-            </Txt>
+            {/* 기업 글: 회사 이름·확인 표시 옆에 SDGs 실천 마크(#35) — 이름이 길면 다음 줄로 내려가요 */}
+            <View style={styles.nameRow}>
+              <Txt bold numberOfLines={1} style={styles.name} accessibilityLabel={post.verified ? `${post.authorName}, ${t("mobile.companyVerified")}` : undefined}>
+                {post.authorName}
+                {post.verified ? " ✓" : ""}
+              </Txt>
+              {post.companyMark ? <CertMarkButton testID={`post-mark-${post.id}`} mark={post.companyMark} open={markOpen} onToggle={() => setMarkOpen((open) => !open)} /> : null}
+            </View>
             <Txt variant="small" tone="muted" numberOfLines={1}>
               {post.authorMeta}
             </Txt>
           </View>
           <Badge tone={isPr ? "warning" : "primary"} label={post.chipLabel} />
         </View>
+        {post.companyMark && markOpen ? <CertMarkDetail testID={`post-mark-note-${post.id}`} mark={post.companyMark} /> : null}
 
         {post.title ? (
           <Txt variant="heading" accessibilityRole="header">
@@ -222,6 +229,8 @@ export function PostCard({ post, preview = false, onLike, onDelete, onShare, lin
 const styles = StyleSheet.create({
   head: { flexDirection: "row", alignItems: "center", gap: SPACE.sm + 2 },
   headText: { flex: 1, gap: 1 },
+  nameRow: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: SPACE.xs + 2 },
+  name: { flexShrink: 1 },
   initial: {
     width: AVATAR_SIZE,
     height: AVATAR_SIZE,

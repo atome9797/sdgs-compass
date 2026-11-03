@@ -99,17 +99,31 @@ INSERT INTO cert_answers (application_id, criterion_code, value, evidence_key)
 SELECT pg_temp.eq((SELECT points FROM cert_answers WHERE application_id = 'ce000000-0000-0000-0000-00000000000a' AND criterion_code = 'womenManagers'), 0::numeric(4,1), '증빙이 없는 항목은 0점이다');
 SELECT pg_temp.eq((SELECT points FROM cert_answers WHERE application_id = 'ce000000-0000-0000-0000-00000000000b' AND criterion_code = 'womenManagers'), 10.0::numeric(4,1), '증빙이 있으면 배점 15 × (20/30) = 10.0 점이다');
 UPDATE cert_applications SET status = 'submitted' WHERE id IN ('ce000000-0000-0000-0000-00000000000a', 'ce000000-0000-0000-0000-00000000000b', 'ce000000-0000-0000-0000-00000000000c');
-SELECT pg_temp.eq((SELECT score || ' ★' || level FROM cert_applications WHERE id = 'ce000000-0000-0000-0000-00000000000a'), '70 ★2', '신청 A(증빙 하나 부족): 70점 ★2');
-SELECT pg_temp.eq((SELECT score || ' ★' || level FROM cert_applications WHERE id = 'ce000000-0000-0000-0000-00000000000b'), '80 ★3', '신청 B(증빙 모두 있음): 80점 ★3');
-SELECT pg_temp.eq((SELECT score || ' ★' || level FROM cert_applications WHERE id = 'ce000000-0000-0000-0000-00000000000c'), '0 ★0', '아무것도 입력하지 않으면 0점 ★0');
+SELECT pg_temp.eq((SELECT score || ' ★' || stars FROM cert_applications WHERE id = 'ce000000-0000-0000-0000-00000000000a'), '70 ★3.5', '신청 A(증빙 하나 부족): 70점 ★3.5 (10점마다 ★0.5, #35)');
+SELECT pg_temp.eq((SELECT score || ' ★' || stars FROM cert_applications WHERE id = 'ce000000-0000-0000-0000-00000000000b'), '80 ★4.0', '신청 B(증빙 모두 있음): 80점 ★4.0');
+SELECT pg_temp.eq((SELECT score || ' ★' || stars FROM cert_applications WHERE id = 'ce000000-0000-0000-0000-00000000000c'), '0 ★0.0', '아무것도 입력하지 않으면 0점 ★0 (未取得)');
 SELECT pg_temp.ok((SELECT submitted_at IS NOT NULL FROM cert_applications WHERE id = 'ce000000-0000-0000-0000-00000000000a'), '제출하면 제출 시각이 기록된다');
 SELECT pg_temp.fails($s$UPDATE cert_answers SET value = 100 WHERE application_id = 'ce000000-0000-0000-0000-00000000000a' AND criterion_code = 'ecoPackage'$s$, '23514', '제출한 신청서의 답변은 고칠 수 없다');
 SELECT pg_temp.fails($s$UPDATE cert_applications SET status = 'granted', decided_at = now(), decided_by = 'a0000000-0000-0000-0000-000000000001' WHERE id = 'ce000000-0000-0000-0000-00000000000c'$s$,
-                     '23514', '기준(★1 = 40점)에 못 미치면 인증마크를 줄 수 없다');
+                     '23514', '10점 미만(별 0 = 未取得)이면 인증마크를 줄 수 없다');
 SELECT pg_temp.fails($s$UPDATE cert_applications SET status = 'granted', decided_at = now(), decided_by = 'a0000000-0000-0000-0000-000000000001' WHERE id = 'ce000000-0000-0000-0000-00000000000b'$s$,
                      '23514', '유효 기간(valid_until) 없이 인증마크를 줄 수 없다');
+-- #35 회사 이름 옆의 마크(company_cert_marks): 부여하기 전에는 없어요 (未取得 — 학생 화면에 보이지 않아요)
+SELECT pg_temp.eq((SELECT count(*) FROM company_cert_marks WHERE company_id = 'd0000000-0000-0000-0000-000000000001')::int, 0, '제출만 하고 부여 전이면 회사의 마크가 없다 (未取得)');
 UPDATE cert_applications SET status = 'granted', decided_at = now(), decided_by = 'a0000000-0000-0000-0000-000000000001', valid_until = current_date + 365 WHERE id = 'ce000000-0000-0000-0000-00000000000b';
-SELECT pg_temp.ok(true, '80점 · 증빙 완비 · 유효 기간이 있으면 인증마크(★3)를 부여할 수 있다');
+SELECT pg_temp.ok(true, '80점 · 증빙 완비 · 유효 기간이 있으면 인증마크(★4.0)를 부여할 수 있다');
+SELECT pg_temp.eq((SELECT score || ' ★' || stars FROM company_cert_marks WHERE company_id = 'd0000000-0000-0000-0000-000000000001'), '80 ★4.0', '부여하면 회사의 마크가 ★4.0 으로 보인다');
+SELECT pg_temp.fails($s$UPDATE cert_applications SET stars = 5 WHERE id = 'ce000000-0000-0000-0000-00000000000b'$s$, '428C9', '별 수는 생성 열이라 직접 정할 수 없다');
+-- 같은 회사에 더 최근의 부여(신청 A, 70점)가 생기면 그것이 지금 마크 · 유효 기간이 지난 부여는 빠져요
+UPDATE cert_applications SET status = 'granted', decided_at = now() + interval '1 minute', decided_by = 'a0000000-0000-0000-0000-000000000001', valid_until = current_date + 30
+ WHERE id = 'ce000000-0000-0000-0000-00000000000a';
+SELECT pg_temp.eq((SELECT stars FROM company_cert_marks WHERE company_id = 'd0000000-0000-0000-0000-000000000001'), 3.5::numeric, '가장 최근에 부여한 신청(70점 ★3.5)이 지금 마크다');
+SELECT pg_temp.eq((SELECT count(*) FROM company_cert_marks)::int, 1, '회사마다 마크는 하나다');
+UPDATE cert_applications SET valid_until = current_date - 1 WHERE id = 'ce000000-0000-0000-0000-00000000000a';
+SELECT pg_temp.eq((SELECT stars FROM company_cert_marks WHERE company_id = 'd0000000-0000-0000-0000-000000000001'), 4.0::numeric, '유효 기간이 지난 부여는 빠지고, 아직 유효한 부여(★4.0)가 보인다');
+UPDATE cert_applications SET valid_until = current_date - 1 WHERE id = 'ce000000-0000-0000-0000-00000000000b';
+SELECT pg_temp.eq((SELECT count(*) FROM company_cert_marks)::int, 0, '유효한 부여가 하나도 없으면 회사의 마크가 없다 (未取得)');
+UPDATE cert_applications SET valid_until = current_date + 365 WHERE id = 'ce000000-0000-0000-0000-00000000000b';
 
 -- ───────── F-702 신고 · F-701 블랙리스트 · 감사 로그 ─────────
 INSERT INTO challenges (id, company_id, created_by, title, summary, created_at, closes_at)

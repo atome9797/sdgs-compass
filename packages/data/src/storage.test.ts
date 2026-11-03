@@ -294,3 +294,35 @@ describe("공식 SNS 게시 상태·게시글 주소가 생기기 전에 저장�
     expect(load({ on: day, channel: "x", feeYen: "무료", status: "scheduled", postUrl: null })).toBeUndefined();
   });
 });
+
+describe("실천 마크(#35)가 생기기 전에 저장된 데모 상태", () => {
+  const current = createInitialState(TODAY);
+  /** 회사에 certScore 가 없던 때의 모양 (데모에서 이어 쓰던 상태) */
+  const old = { ...current, companies: current.companies.map(({ certScore: _drop, ...company }) => company) };
+
+  it("certScore 가 없는 예전 상태도 버리지 않고, 샘플 회사의 가상 마크 값을 채워서 이어 써요", () => {
+    expect(isDemoState(old)).toBe(false);
+    const loaded = parseState(JSON.stringify(old));
+    expect(loaded).not.toBeNull();
+    expect(loaded!.companies.map((c) => [c.id, c.certScore])).toEqual(current.companies.map((c) => [c.id, c.certScore]));
+    expect(loaded).toEqual(current);
+  });
+
+  it("샘플에 없는 회사는 null(마크 없음)로, 이미 값이 있는 회사는 그대로 읽어요", () => {
+    const extra = { ...old.companies[1], id: "co-extra" };
+    const mixed = { ...old, companies: [...old.companies.slice(0, 2), { ...old.companies[2], certScore: 12 }, ...old.companies.slice(3), extra] };
+    const loaded = parseState(JSON.stringify(mixed))!;
+    expect(loaded.companies.find((c) => c.id === "co-extra")?.certScore).toBeNull();
+    expect(loaded.companies.find((c) => c.id === mixed.companies[2].id)?.certScore).toBe(12);
+    expect(loaded.companies.find((c) => c.id === "co-green")?.certScore).toBe(84);
+  });
+
+  it("마크 값이 0~100 이 아니거나 숫자가 아니면 저장된 상태를 버려요", () => {
+    // (NaN 은 JSON 에서 null 이 돼서 "마크 없음"으로 읽혀요 — 그래서 여기서는 JSON 에 남는 값만)
+    for (const bad of [-1, 101, 100.5, "84", true, {}]) {
+      const broken = { ...current, companies: current.companies.map((c, i) => (i === 1 ? { ...c, certScore: bad } : c)) };
+      expect(parseState(JSON.stringify(broken)), String(bad)).toBeNull();
+    }
+    expect(parseState(serializeState(current))).toEqual(current);
+  });
+});

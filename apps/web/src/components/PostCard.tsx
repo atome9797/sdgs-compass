@@ -5,6 +5,7 @@
 import Link from "next/link";
 import { useEffect, useId, useRef, useState } from "react";
 import type { PostVM } from "@sdgs-compass/core/selectors";
+import { CertMarkButton, CertMarkNote, useMarkDisclosure } from "@/components/CertMark";
 import { SdgMiniRow } from "@/components/sdg";
 import { Tag } from "@/components/ui";
 import { useSession } from "@/lib/session";
@@ -36,6 +37,7 @@ export function PostCard({ post, links, highlight = false, preview, onLike, onDe
   const nameId = useId();
   const [confirming, setConfirming] = useState(false);
   const cancelRef = useRef<HTMLButtonElement>(null);
+  const mark = useMarkDisclosure();
 
   // "삭제"를 누르면 확인 단추가 나타나요 — 키보드 사용자가 길을 잃지 않게 안전한 쪽(취소)에 포커스를 둬요
   useEffect(() => {
@@ -61,18 +63,23 @@ export function PostCard({ post, links, highlight = false, preview, onLike, onDe
           {post.avatar}
         </span>
         <div className="fcard__who">
-          <p className="fcard__name" id={nameId}>
-            {post.authorName}
-            {post.verified ? (
-              <span className="fcard__verified" role="img" aria-label={t("mobile.companyVerified")}>
-                ✓
-              </span>
-            ) : null}
-          </p>
+          {/* 기업 글: 회사 이름·확인 표시 옆에 SDGs 실천 마크(#35) — 좁으면 다음 줄로 내려가요. 글 카드의 이름(aria-labelledby)에는 넣지 않아요 */}
+          <div className="fcard__name-row">
+            <p className="fcard__name" id={nameId}>
+              {post.authorName}
+              {post.verified ? (
+                <span className="fcard__verified" role="img" aria-label={t("mobile.companyVerified")}>
+                  ✓
+                </span>
+              ) : null}
+            </p>
+            {post.companyMark ? <CertMarkButton mark={post.companyMark} open={mark.open} noteId={mark.noteId} onToggle={mark.toggle} /> : null}
+          </div>
           <p className="fcard__meta">{preview ? post.authorMeta : `${post.authorMeta} · ${post.dateLabel}`}</p>
         </div>
         <Tag tone={post.kind === "pr" ? "warning" : "info"}>{post.chipLabel}</Tag>
       </header>
+      {post.companyMark ? <CertMarkNote mark={post.companyMark} open={mark.open} noteId={mark.noteId} /> : null}
 
       {post.title ? <h2 className="fcard__title">{post.title}</h2> : null}
       <p className="fcard__body">{post.body}</p>

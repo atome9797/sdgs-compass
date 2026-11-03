@@ -32,6 +32,7 @@ import {
   selectInbox,
   selectReceipt,
   searchResultsLabel,
+  selectCompanyMark,
   selectSdgCountTiles,
   selectSdgOpenCounts,
   selectSdgTiles,
@@ -811,7 +812,7 @@ describe("B2B: 대시보드·응모자·ESG", () => {
       const esg = selectEsg(initial, locale);
       const evaluated = evaluateCertification(initial.cert);
       expect(esg.total).toBe(evaluated.total);
-      expect(esg.level).toBe(evaluated.level);
+      expect(esg.stars).toBe(evaluated.stars);
       expect(esg.items).toHaveLength(6);
       expect(esg.byCategory.map((c) => c.key)).toEqual(["E", "S", "G"]);
       expect(esg.byCategory.every((c) => c.score >= 0 && c.score <= 100)).toBe(true);
@@ -1142,5 +1143,108 @@ describe("SNS 피드 (F-503 · F-504)", () => {
     expect(create("2026-11-29", "facebook")).toMatchObject({ official: { on: "2026-11-29", channel: "facebook" } });
     // 31일 뒤는 거절돼서 아무것도 바뀌지 않아요
     expect(run(initial, { type: "createPost", draft: { kind: "pr", title: "t", body: "b", sdgIds: [14], requestOfficial: true, officialOn: "2026-11-30" }, at: AT })).toBe(initial);
+  });
+});
+
+describe("SDGs 실천 마크 — ★5 만점 · 0.5 단위, 학생에게도 회사 이름 옆에 (#35)", () => {
+  const starsOf = (state: DemoState, locale: Locale) => Object.fromEntries(state.companies.map((c) => [c.id, selectCompanyMark(state, c.id, locale)?.starsLabel ?? null]));
+  const companyOfChallenge = (state: DemoState, challengeId: string) => state.challenges.find((c) => c.id === challengeId)!.companyId;
+  const allEvidence = (state: DemoState, evidence: boolean) =>
+    run(state, ...(["ecoPackage", "renewable", "donation", "womenManagers", "volunteer", "disclosure"] as const).map((id): Action => ({ type: "setCertAnswer", id, evidence })));
+
+  it("샘플 회사의 마크: 우리 회사는 ESG 입력값(53점 ★2.5), 다른 회사는 가상의 샘플 값, 마크 없는 회사(未取得)는 null", () => {
+    for (const locale of LOCALES) {
+      expect(starsOf(initial, locale)).toEqual({ "co-minato": "★2.5", "co-green": "★4.0", "co-hikari": "★4.5", "co-machi": "★1.5", "co-yasai": null, "co-kotoba": "★3.5" });
+    }
+    expect(selectCompanyMark(initial, "없는-회사", "ja")).toBeNull();
+  });
+
+  it("이름은 #19 그대로 + ★숫자, 스크린 리더 이름에 숫자, 누르면 보이는 안내는 기존 문구와 기준 한 줄", () => {
+    const ja = selectCompanyMark(initial, "co-hikari", "ja")!;
+    expect(ja).toEqual({
+      stars: 4.5,
+      name: "SDGs取組みマーク",
+      starsLabel: "★4.5",
+      accessibilityLabel: "SDGs取組みマーク 5段階中4.5",
+      icons: ["full", "full", "full", "full", "half"],
+      disclaimer: CERT_DISCLAIMER.ja,
+      rule: "基準：ESG 6項目の達成度（証明資料のある項目のみ・100点満点）10点ごとに★0.5、100点で★5.0。",
+    });
+    expect(ja.disclaimer).toBe("※この取組みマークは独自の目安です。国・自治体・国連の認証ではありません。");
+    const ko = selectCompanyMark(initial, "co-hikari", "ko")!;
+    expect(ko).toMatchObject({ name: "SDGs 실천 마크", starsLabel: "★4.5", accessibilityLabel: "SDGs 실천 마크 5단계 중 4.5", disclaimer: CERT_DISCLAIMER.ko });
+    expect(ko.rule).toBe("기준: ESG 6개 항목의 달성도(증빙 자료가 있는 항목만, 100점 만점) 10점마다 ★0.5, 100점이면 ★5.0.");
+    expect(selectCompanyMark(initial, "co-green", "ja")!.accessibilityLabel).toBe("SDGs取組みマーク 5段階中4.0");
+    // 인증·추천·평점으로 읽히는 말, 옛 이름은 쓰지 않아요
+    for (const vm of [ja, ko]) expect(JSON.stringify(vm)).not.toMatch(/優良|実践マーク|認証マーク|인증마크|우수 기업|우량|評価|평점|スタンダード|シルバー|ゴールド|스탠다드|실버|골드/);
+  });
+
+  it("학생이 보는 챌린지 카드(홈 추천·마감 임박·검색)와 챌린지 상세에 그 회사의 마크 — 未取得 회사의 과제는 마크 없음", () => {
+    for (const locale of LOCALES) {
+      const home = selectHome(initial, locale);
+      const cards = [...home.recommended, ...home.soon, ...selectSearch(initial, locale, { query: "", sdgIds: [] })];
+      expect(cards.length).toBeGreaterThan(5);
+      for (const card of cards) expect(card.companyMark, card.id).toEqual(selectCompanyMark(initial, companyOfChallenge(initial, card.id), locale));
+      for (const challenge of initial.challenges) {
+        const detail = selectChallengeDetail(initial, challenge.id, locale)!;
+        expect(detail.company.mark, challenge.id).toEqual(selectCompanyMark(initial, challenge.companyId, locale));
+      }
+    }
+    const yasai = initial.challenges.filter((c) => c.companyId === "co-yasai");
+    expect(yasai.length).toBeGreaterThan(0);
+    for (const c of yasai) expect(selectChallengeDetail(initial, c.id, "ja")!.card.companyMark).toBeNull();
+    expect(selectChallengeDetail(initial, "ch-plastic", "ja")!.company.mark?.starsLabel).toBe("★2.5");
+  });
+
+  it("피드: 기업 글의 회사 이름 옆에 마크(학생·기업 화면 같은 값), 학생 자랑 글에는 없음", () => {
+    for (const locale of LOCALES) {
+      for (const role of ["b2c", "b2b"] as const) {
+        for (const post of selectFeed(busy, locale, role).posts) {
+          const source = busy.posts.find((p) => p.id === post.id)!;
+          if (source.kind === "brag") expect(post.companyMark, post.id).toBeNull();
+          else expect(post.companyMark, post.id).toEqual(selectCompanyMark(busy, source.companyId, locale));
+        }
+      }
+    }
+    const marks = Object.fromEntries(selectFeed(initial, "ja", "b2c").posts.filter((p) => p.kind === "pr").map((p) => [p.id, p.companyMark?.starsLabel ?? null]));
+    expect(marks).toEqual({ "po-1": "★4.0", "po-2": "★4.5", "po-3": "★1.5", "po-4": "★2.5" });
+  });
+
+  it("우리 회사의 마크는 ESG 입력을 그대로 따라가요: 증빙을 올리면 학생 피드·카드·상세도 ★3.0, 10점 미만이 되면 사라져요", () => {
+    const more = run(initial, { type: "setCertAnswer", id: "womenManagers", evidence: true });
+    const minatoPost = (state: DemoState) => selectFeed(state, "ja", "b2c").posts.find((p) => p.id === "po-4")!;
+    expect(minatoPost(initial).companyMark?.starsLabel).toBe("★2.5");
+    expect(minatoPost(more).companyMark?.starsLabel).toBe("★3.0");
+    expect(selectChallengeDetail(more, "ch-plastic", "ko")!.card.companyMark?.accessibilityLabel).toBe("SDGs 실천 마크 5단계 중 3.0");
+    const none = allEvidence(initial, false);
+    expect(minatoPost(none).companyMark).toBeNull();
+    expect(selectChallengeDetail(none, "ch-plastic", "ja")!.company.mark).toBeNull();
+    // 다른 회사의 마크는 우리 회사의 입력과 상관없어요
+    expect(starsOf(none, "ja")["co-green"]).toBe("★4.0");
+  });
+
+  it("기업 ESG 화면: 「★2.5」 + 별 그림 + 다음 반 개까지 남은 점수 — 예전 3단계 이름은 없어요", () => {
+    const ja = selectEsg(initial, "ja");
+    expect(ja).toMatchObject({ total: 53, stars: 2.5, starsLabel: "★2.5", markLabel: "SDGs取組みマーク 5段階中2.5", nextLabel: "次の★3.0まであと 7点" });
+    expect(ja.starIcons).toEqual(["full", "full", "half", "empty", "empty"]);
+    expect(ja.highlights).toContain("SDGs取組みマーク：★2.5");
+    const ko = selectEsg(initial, "ko");
+    expect(ko).toMatchObject({ starsLabel: "★2.5", markLabel: "SDGs 실천 마크 5단계 중 2.5", nextLabel: "다음 ★3.0까지 7점 남았어요" });
+    expect(ko.highlights).toContain("SDGs 실천 마크: ★2.5");
+    for (const vm of [ja, ko]) expect(JSON.stringify(vm)).not.toMatch(/スタンダード|シルバー|ゴールド|스탠다드|실버|골드/);
+    // 증빙을 모두 내리면 0점 → 未取得 · 다음 ★0.5 까지 10점
+    const none = selectEsg(allEvidence(initial, false), "ja");
+    expect(none).toMatchObject({ total: 0, stars: 0, starsLabel: "未取得", markLabel: "SDGs取組みマーク 未取得", nextLabel: "次の★0.5まであと 10点" });
+    expect(none.starIcons.every((i) => i === "empty")).toBe(true);
+    expect(none.highlights).toContain("SDGs取組みマーク：未取得");
+    // 모든 항목을 목표 이상 + 증빙 → 100점 ★5.0, 다음 별 없음
+    const top = run(
+      allEvidence(initial, true),
+      ...([["ecoPackage", 60], ["renewable", 40], ["donation", 300_000], ["womenManagers", 30], ["volunteer", 8], ["disclosure", 1]] as const).map(
+        ([id, value]): Action => ({ type: "setCertAnswer", id, value }),
+      ),
+    );
+    expect(selectEsg(top, "ja")).toMatchObject({ total: 100, stars: 5, starsLabel: "★5.0", nextLabel: "最高の★5.0です" });
+    expect(selectEsg(top, "ko").nextLabel).toBe("최고 단계 ★5.0이에요");
   });
 });

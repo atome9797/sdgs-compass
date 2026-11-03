@@ -8,6 +8,7 @@ import { SKILL_IDS, type SkillId } from "@sdgs-compass/core/domain";
 import { skillLabel } from "@sdgs-compass/core/labels";
 import { coverColors } from "@sdgs-compass/core/theme";
 import { selectChallengeDetail, type TeamPostVM } from "@sdgs-compass/core/selectors";
+import { CertMarkButton, CertMarkDetail, CertMarkNote, useMarkDisclosure } from "@/components/CertMark";
 import { SdgMiniRow } from "@/components/sdg";
 import { Banner, Button, ButtonLink, Empty, Field, ScreenHead, Section, Tag } from "@/components/ui";
 import { buildHref, receiptHref, ROUTES, submitHref } from "@/lib/routes";
@@ -96,6 +97,7 @@ function ChallengeView({ id }: { id: string }) {
   const { demo, locale, t, dispatch } = useSession();
   const [tab, setTab] = useState<TabId>("detail");
   const [composing, setComposing] = useState(false);
+  const mark = useMarkDisclosure();
   const vm = selectChallengeDetail(demo, id, locale);
 
   if (!vm) {
@@ -130,10 +132,14 @@ function ChallengeView({ id }: { id: string }) {
           <h2 id="challenge-title" className="hero__title">
             {card.title}
           </h2>
-          <p className="muted small">
-            🏢 {vm.company.name}
-            {vm.company.verified ? " ✓" : ""}
-          </p>
+          <div className="hero__company">
+            <p className="muted small">
+              🏢 {vm.company.name}
+              {vm.company.verified ? " ✓" : ""}
+            </p>
+            {vm.company.mark ? <CertMarkButton mark={vm.company.mark} open={mark.open} noteId={mark.noteId} onToggle={mark.toggle} /> : null}
+          </div>
+          {vm.company.mark ? <CertMarkNote mark={vm.company.mark} open={mark.open} noteId={mark.noteId} /> : null}
           <SdgMiniRow ids={card.sdgIds} />
           <div className="facts">
             <div className="fact">
@@ -242,6 +248,7 @@ function ChallengeView({ id }: { id: string }) {
                 {vm.company.industry} · {vm.company.region}
               </p>
               <p className="small">{vm.company.about}</p>
+              {vm.company.mark ? <CertMarkDetail mark={vm.company.mark} /> : null}
             </div>
           </Section>
         </div>

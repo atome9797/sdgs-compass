@@ -44,7 +44,7 @@ const GROUPS = [
   },
   {
     id: "esg", no: "⑥", title: "ESG 리포트 · 인증마크", features: "F-403, 인증마크",
-    summary: "ESG 성과 리포트(PDF/Excel)와 SDGs 인증마크(입력 → 증빙 → 기준 충족 시 ★1~3 부여)예요.",
+    summary: "ESG 성과 리포트(PDF/Excel)와 SDGs 인증마크(입력 → 증빙 → 달성도 10점마다 ★0.5, ★0.5~★5.0 부여)예요. 회사마다 지금 유효한 마크는 뷰 company_cert_marks 로 학생 화면의 회사 이름 옆에 보여요.",
     tables: ["esg_reports", "cert_criteria", "cert_applications", "cert_answers"],
   },
   {

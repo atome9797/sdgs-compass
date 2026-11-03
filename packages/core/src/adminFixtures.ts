@@ -11,6 +11,7 @@ const company = (id: string, verified: boolean): Company => ({
   about: "",
   sdgIds: [14],
   verified,
+  certScore: null,
   emoji: "🌊",
   accent: "#0A97D9",
 });

@@ -26,6 +26,7 @@ const companies: Company[] = [
     },
     sdgIds: [14, 12],
     verified: true,
+    certScore: null, // #35 SDGs 실천 마크 달성도 — 우리 회사(데모의 기업 계정): ESG 화면의 입력(cert)에서 계산해요 — 처음 53점 ★2.5
     emoji: "🐟",
     accent: "#0A97D9",
   },
@@ -40,6 +41,7 @@ const companies: Company[] = [
     },
     sdgIds: [12, 13],
     verified: true,
+    certScore: 84, // #35 SDGs 실천 마크 달성도 — 가상의 샘플 값: ★4.0
     emoji: "🛒",
     accent: "#3F7E44",
   },
@@ -54,6 +56,7 @@ const companies: Company[] = [
     },
     sdgIds: [7, 13],
     verified: true,
+    certScore: 93, // #35 SDGs 실천 마크 달성도 — 가상의 샘플 값: ★4.5
     emoji: "☀️",
     accent: "#F5B700",
   },
@@ -68,6 +71,7 @@ const companies: Company[] = [
     },
     sdgIds: [11, 17],
     verified: true,
+    certScore: 36, // #35 SDGs 실천 마크 달성도 — 가상의 샘플 값: ★1.5
     emoji: "🏘️",
     accent: "#FD9D24",
   },
@@ -82,6 +86,7 @@ const companies: Company[] = [
     },
     sdgIds: [2, 15],
     verified: true,
+    certScore: null, // #35 SDGs 실천 마크 달성도 — 아직 마크 없음(未取得) — 학생 화면에 마크가 보이지 않아요
     emoji: "🥬",
     accent: "#56C02B",
   },
@@ -96,6 +101,7 @@ const companies: Company[] = [
     },
     sdgIds: [4, 10, 17],
     verified: true,
+    certScore: 71, // #35 SDGs 실천 마크 달성도 — 가상의 샘플 값: ★3.5
     emoji: "📚",
     accent: "#C5192D",
   },

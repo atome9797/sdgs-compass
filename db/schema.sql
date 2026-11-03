@@ -1504,7 +1504,7 @@ CREATE TABLE esg_reports (
 );
 CREATE INDEX esg_reports_company_idx ON esg_reports (company_id, generated_at DESC);
 
--- ① 설문·수치 입력 → ② 증빙 자료 제출 → ③ 기준을 넘으면 인증마크 자동 부여.
+-- ① 설문·수치 입력 → ② 증빙 자료 제출 → ③ 달성도 10점마다 ★0.5 (관리자가 확인한 뒤 유효 기간과 함께 부여).
 -- ※ 인증마크는 UN SDGs 지표를 바탕으로 한 독자 시스템이며 유엔의 공식 인증이 아니에요 (앱 안에 항상 안내: CERT_DISCLAIMER).
 CREATE FUNCTION cert_item_points(p_code text, p_value bigint, p_has_evidence boolean) RETURNS numeric
   LANGUAGE sql STABLE
@@ -1516,16 +1516,24 @@ CREATE FUNCTION cert_item_points(p_code text, p_value bigint, p_has_evidence boo
       FROM cert_criteria c WHERE c.code = p_code
   $$;
 
-CREATE FUNCTION cert_level(p_score numeric) RETURNS smallint
+-- #35 실천 마크의 별: 달성도 10점마다 ★0.5 (10점 ★0.5 … 100점 ★5.0), 10점 미만은 0 = 未取得. 앱의 상수·certStarsOf 와 같아요
+-- (CERT_STAR_STEP · CERT_POINTS_PER_STAR_STEP · CERT_MAX_STARS — 바꿀 때는 아래 세 함수도 함께, db/tests/04_parity.sql 이 점수마다 대조해요).
+CREATE FUNCTION cert_star_step() RETURNS numeric LANGUAGE sql IMMUTABLE PARALLEL SAFE AS $$ SELECT 0.5 $$;
+CREATE FUNCTION cert_points_per_star_step() RETURNS integer LANGUAGE sql IMMUTABLE PARALLEL SAFE AS $$ SELECT 10 $$;
+CREATE FUNCTION cert_max_stars() RETURNS numeric LANGUAGE sql IMMUTABLE PARALLEL SAFE AS $$ SELECT 5 $$;
+CREATE FUNCTION cert_stars(p_score numeric) RETURNS numeric
   LANGUAGE sql IMMUTABLE PARALLEL SAFE
-  AS $$ SELECT (CASE WHEN p_score >= 80 THEN 3 WHEN p_score >= 60 THEN 2 WHEN p_score >= 40 THEN 1 ELSE 0 END)::smallint $$;   -- CERT_LEVEL_THRESHOLDS [40, 60, 80]
+  AS $$
+    -- floor(점수 ÷ 10) × 0.5, 최대 ★5.0 (0 미만은 0) — 소수 첫째 자리까지
+    SELECT round(least(cert_max_stars(), floor(greatest(p_score, 0) / cert_points_per_star_step()) * cert_star_step()), 1)
+  $$;
 
 CREATE TABLE cert_applications (
   id           uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   company_id   uuid        NOT NULL REFERENCES companies (id),
   status       cert_status NOT NULL DEFAULT 'draft',
   score        smallint    CHECK (score BETWEEN 0 AND 100),
-  level        smallint    GENERATED ALWAYS AS (CASE WHEN score IS NULL THEN NULL ELSE cert_level(score) END) STORED,
+  stars        numeric(2,1) GENERATED ALWAYS AS (CASE WHEN score IS NULL THEN NULL ELSE cert_stars(score) END) STORED,   -- ★0.5~★5.0, 0 = 未取得 (#35)
   submitted_at timestamptz,
   decided_at   timestamptz,
   decided_by   uuid        REFERENCES users (id),
@@ -1533,7 +1541,7 @@ CREATE TABLE cert_applications (
   created_at   timestamptz NOT NULL DEFAULT now(),
   CONSTRAINT cert_applications_submitted CHECK ((status = 'draft') = (submitted_at IS NULL)),
   CONSTRAINT cert_applications_decided   CHECK ((status IN ('granted', 'rejected')) = (decided_at IS NOT NULL)),
-  CONSTRAINT cert_applications_granted   CHECK (status <> 'granted' OR (level >= 1 AND valid_until IS NOT NULL))
+  CONSTRAINT cert_applications_granted   CHECK (status <> 'granted' OR (stars > 0 AND valid_until IS NOT NULL))   -- 10점 미만(未取得)에는 마크를 줄 수 없어요
 );
 CREATE INDEX cert_applications_company_idx ON cert_applications (company_id, created_at DESC);
 
@@ -1577,6 +1585,14 @@ BEGIN
   RETURN NEW;
 END $$;
 CREATE TRIGGER cert_applications_score_upd BEFORE UPDATE OF status ON cert_applications FOR EACH ROW EXECUTE FUNCTION cert_applications_score();
+
+-- #35 회사 이름 옆의 마크(학생이 보는 피드·챌린지): 회사마다 지금 유효한(부여됨 · 유효 기간 안) 가장 최근 신청의 점수·별 수.
+-- 부여 전·거절·기간이 지난 회사는 이 뷰에 없어요 = 未取得(화면에 마크를 보이지 않아요). 같은 날 부여가 둘이면 나중에 결정한 쪽이에요.
+CREATE VIEW company_cert_marks AS
+  SELECT DISTINCT ON (a.company_id) a.company_id, a.id AS application_id, a.score, a.stars, a.decided_at, a.valid_until
+    FROM cert_applications a
+   WHERE a.status = 'granted' AND a.valid_until >= jst_date(now())
+   ORDER BY a.company_id, a.decided_at DESC, a.id DESC;
 
 -- ============================================================================
 -- 8. 운영 · 신고 · 감사 · 통계 · 번역 (F-701 ~ F-703)
@@ -1985,7 +2001,7 @@ CREATE VIEW company_fee_summary AS
     FROM matches
    GROUP BY company_id;
 
--- 피드 화면(F-503·F-504): 블라인드되지 않은 글 + 글쓴이 표시 + 붙은 실적 + 태그 + 좋아요 수 + 공식 게시 채널·날짜·상태·게시글 주소.
+-- 피드 화면(F-503·F-504): 블라인드되지 않은 글 + 글쓴이 표시(홍보 글은 회사의 실천 마크 별 수 — #35, 없으면 NULL) + 붙은 실적 + 태그 + 좋아요 수 + 공식 게시 채널·날짜·상태·게시글 주소.
 -- 예정일·게시료를 누구에게 보여 줄지(쓴 기업에게만)와 게시글 주소가 없을 때 공식 계정으로 이어 주는 일은 앱·서버 계층이 해요(PostVM.official).
 -- 자랑 글은 닉네임과 레벨만, 홍보 글은 기업 정보만 보여요 (이메일·연락처 열은 없어요). 최신순은 화면이 ORDER BY created_at DESC 로 정해요.
 -- 레벨은 지금 값이에요 (앱의 샘플 글은 올린 때의 레벨을 그대로 들고 있어요).
@@ -1995,6 +2011,7 @@ CREATE VIEW feed_posts AS
          CASE p.kind WHEN 'brag' THEN t.level END AS author_level,
          c.industry AS company_industry,
          (c.status = 'approved') AS company_verified,
+         m.stars AS company_cert_stars,
          p.company_id, p.challenge_id, p.activity_id,
          a.kind AS achievement_kind, a.title AS achievement_title, a.company_name AS achievement_company, aw.kind AS achievement_award,
          ARRAY(SELECT s.sdg_id FROM social_post_sdgs s WHERE s.post_id = p.id ORDER BY s.position) AS sdg_ids,
@@ -2004,6 +2021,7 @@ CREATE VIEW feed_posts AS
     LEFT JOIN student_profiles sp    ON sp.user_id = p.author_id AND p.kind = 'brag'
     LEFT JOIN impact_totals t        ON t.user_id = p.author_id AND p.kind = 'brag'
     LEFT JOIN companies c            ON c.id = p.company_id
+    LEFT JOIN company_cert_marks m   ON m.company_id = p.company_id AND p.kind = 'pr'
     LEFT JOIN activities a           ON a.id = p.activity_id
     LEFT JOIN awards aw              ON aw.id = a.award_id
     LEFT JOIN official_share_slots o ON o.post_id = p.id AND o.status <> 'cancelled'
@@ -2082,7 +2100,7 @@ COMMENT ON TABLE social_post_sdgs           IS '피드 글의 SDGs 태그 (글�
 COMMENT ON TABLE social_post_likes          IS '피드 글 좋아요 (사람마다 한 번, 내 글 제외) — F-503, F-504';
 COMMENT ON TABLE official_share_slots       IS '공식 SNS(X·Instagram·Facebook) 게시 신청 (회사당 월 4회 · 날짜는 기업이 선택, 게시료 ¥3,000 샘플) — F-504';
 COMMENT ON TABLE esg_reports                IS 'ESG 성과 리포트 (PDF/Excel) — F-403';
-COMMENT ON TABLE cert_applications          IS 'SDGs 인증마크 신청 (점수·★1~3) — 인증마크';
+COMMENT ON TABLE cert_applications          IS 'SDGs 인증마크 신청 (점수·★0.5~5.0, 10점마다 0.5) — 인증마크';
 COMMENT ON TABLE cert_answers               IS '인증마크 항목별 답변과 증빙 — 인증마크';
 COMMENT ON TABLE reports                    IS '신고 (저작권·표절·부적절) — F-702';
 COMMENT ON TABLE blacklist_entries          IS '블랙리스트 (사용자 또는 기업) — F-701';
@@ -2103,5 +2121,8 @@ COMMENT ON VIEW challenge_stats             IS '챌린지별 응모자 수·관�
 COMMENT ON VIEW company_fee_summary         IS '기업별 수수료·기부·운영 수익 요약 — 수익 모델';
 COMMENT ON VIEW wallet_balances             IS '학생별 リワード残高 (잔액 = 입금 − 출금) — #25 리워드';
 COMMENT ON VIEW company_prize_summary       IS '기업별 상금 예치·송금·반환 합계 — #25 리워드';
-COMMENT ON VIEW feed_posts                  IS '피드에 보이는 글 (닉네임·레벨 또는 기업 정보만, 블라인드 제외) — F-503, F-504';
+COMMENT ON VIEW company_cert_marks          IS '회사별 지금 유효한 인증마크 (점수·별 수, 학생 화면의 회사 이름 옆) — 인증마크';
+COMMENT ON VIEW feed_posts                  IS '피드에 보이는 글 (닉네임·레벨 또는 기업 정보·인증마크만, 블라인드 제외) — F-503, F-504';
 COMMENT ON COLUMN feed_posts.author_level   IS '자랑 글 글쓴이의 지금 레벨 (앱은 글을 올린 때의 레벨을 스냅샷으로 저장해요)';
+COMMENT ON COLUMN feed_posts.company_cert_stars IS '홍보 글 회사의 지금 유효한 실천 마크 별 수 ★0.5~5.0 (company_cert_marks, 없으면 NULL = 未取得 — 화면에 보이지 않아요, #35)';
+COMMENT ON COLUMN cert_applications.stars   IS '실천 마크의 별 수: 달성도 10점마다 0.5 (cert_stars, 0 = 未取得) — 앱의 certStarsOf 와 같아요 (#35)';

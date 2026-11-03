@@ -21,7 +21,7 @@
 | | 학생 자랑 글 `brag` (F-503) | 기업 홍보 글 `pr` (F-504) |
 | --- | --- | --- |
 | 누가 | 학생·개인(B2C) | 기업·기관(B2B) |
-| 작성자 표시 | 닉네임 · Lv(학교·실명 없음) | 기업 이름 · 업종 · 인증 ✓ |
+| 작성자 표시 | 닉네임 · Lv(학교·실명 없음) | 기업 이름 · 업종 · 인증 ✓ · 이름 옆 「SDGs取組みマーク ★4.5」(#35 — 누르면 독자 기준 안내, 未取得이면 없음) |
 | 표시 | `자랑` 칩 | **`PR` 칩(광고 표시, 항상)** |
 | 제목 | 없음 | 1~40자 |
 | 본문 | 1~200자 | 1~400자 |
@@ -96,7 +96,7 @@ DB 에서는 `official_share_slots_guard` 트리거가 같은 규칙을 지켜�
 | `likes` / `likedBy` | `social_post_likes` | 좋아요(계정당 글 하나에 한 번). 앱은 두 계정(학생·기업)을 `likedBy: Role[]` 로 들고, DB 는 사용자마다 한 행 |
 | `SocialPost.official` | `official_share_slots` | 공식 SNS 게시 채널·날짜·요금·상태·게시글 주소. 채널은 앱의 `OfficialChannel`(`"instagram" \| "x" \| "facebook"`)과 DB enum `official_channel`, 상태는 앱 `"scheduled" \| "posted"`(DB 는 `cancelled` 도), 게시글 주소는 앱 `postUrl` · DB `post_url`(게시 완료일 때만 `https://`). 가장 빠른 날은 DB 함수 `earliest_official_share_date(회사, 오늘)` 가 앱의 `earliestOfficialDate(posts, companyId, today)` 와, 달마다 남은 횟수는 `official_share_month_remaining(회사, 그 달의 날)` 이 `officialMonthRemaining(usage, month)` 와 같은 답을 내요 |
 | `PostAchievement` | `social_posts.activity_id` → `activities` | 자랑 글에 붙은 실적(앱은 다른 학생의 샘플 글을 위해 스냅샷으로 들고 있어요). DB 는 복합 외래 키 `(activity_id, author_id) → activities(id, user_id)` 로 "내 실적만", 트리거로 "공유 기록 제외"를 지켜요 |
-| `selectFeed` | `feed_posts` 뷰 | 피드 한 화면용 뷰(블라인드 제외, 태그 배열·좋아요 수·공식 게시 채널·날짜·상태·게시글 주소 포함). 누구에게 무엇을 보여 줄지(예정·게시료는 쓴 회사에게만)와 공식 계정 주소로 이어 주는 일은 앱(`PostVM.official`)·서버 계층이 해요 |
+| `selectFeed` | `feed_posts` 뷰 | 피드 한 화면용 뷰(블라인드 제외, 태그 배열·좋아요 수·공식 게시 채널·날짜·상태·게시글 주소, 홍보 글 회사의 실천 마크 별 수 `company_cert_stars` 포함). 누구에게 무엇을 보여 줄지(예정·게시료는 쓴 회사에게만)와 공식 계정 주소로 이어 주는 일은 앱(`PostVM.official`)·서버 계층이 해요 |
 | — | `reports` (`target_type='post'` 추가) | 신고(F-702). 앱 화면은 없어요 |
 
 규칙 코드: `packages/core/src/post.ts` (`validatePostDraft`, `containsContact`, `earliestOfficialDate`, `officialDateChoices`, `officialShareLink`, `OFFICIAL_CHANNELS`, `OFFICIAL_ACCOUNT_URLS`, `POST_LIMITS`, `OFFICIAL_SHARE_FEE_YEN`, `OFFICIAL_SHARE_MONTHLY_LIMIT`, `OFFICIAL_SHARE_WINDOW_DAYS`), 리듀서 액션 `createPost` · `togglePostLike` · `deletePost`, 화면용 값 `selectFeed`(`officialShareVM`) · `selectComposer`(`officialDateNav`)(selectors.ts), 문구 `feed.*` · `post.*`(messages).
@@ -107,6 +107,7 @@ DB 에서는 `official_share_slots_guard` 트리거가 같은 규칙을 지켜�
 
 - **글자 수·연락처 검출·공식 게시 날짜(가장 빠른 날 · 달마다 남은 횟수)·게시글 주소 규칙·입력 검사**는 같은 답이 나와야 해서 `db/tests/04_parity.sql` 이 앱의 계산과 하나씩 대조해요(글자 수는 `post_char_count()` 가 JS `trim()` 과 같은지 BMP 전체를 비교). 회사당 월 4회 · 30일은 앱의 상수와 DB 함수(`official_share_monthly_limit()` · `official_share_window_days()`)가 같은지도 봐요.
 - **레벨**: 앱은 글을 올린 때의 레벨(`authorLevel`)을 글에 저장하고, DB 는 저장하지 않고 `feed_posts` 가 `impact_totals` 의 **지금 값**을 보여 줘요.
+- **실천 마크(#35)**: 별 수는 달성도 10점마다 ★0.5(10점 미만은 未取得)로 앱(`certStarsOf`)과 DB(`cert_stars()`)가 같고 `04_parity.sql` 이 0~100점을 모두 대조해요. 데모 앱은 우리 회사의 마크를 ESG 화면의 입력값에서 바로 계산하고 다른 회사는 샘플 값(`Company.certScore`)을 쓰지만, DB 는 회사마다 **지금 유효한(부여됨 · 유효 기간 안) 신청**의 별 수를 보여 줘요(뷰 `company_cert_marks` → `feed_posts.company_cert_stars`).
 - **좋아요 수**: 앱의 `likes` 는 샘플의 다른 사람 좋아요까지 합친 숫자이고, DB 의 `like_count` 는 `social_post_likes` 행 수예요. DB 는 기업 글에 같은 기업의 담당자 전원이 못 눌러요(앱은 데모 기업 계정이 하나라서 같은 효과).
 - **SDGs 태그**: 앱은 실적 SDGs 의 앞 3개를 자동으로 붙이고, DB 는 "실적의 SDGs 중 1~3개"를 받아요. DB 는 태그 0개를 막지만, 앱은 SDGs 가 없는 실적에 자랑 글을 올리면 0개가 될 수 있어요(현재 데이터에는 그런 실적이 없어요).
 - **DB 에만 있는 것**: 블라인드(`blinded_at` → 피드에서 빠지고 좋아요·공식 게시 신청 불가), 공식 게시 상태 `cancelled`(앱은 `scheduled`·`posted` 만 — 앱에서 새로 신청하면 늘 `scheduled`), 예정 신청의 날짜·채널 옮기기, 신고 대상 `post`, 번역 캐시. 글 수정은 본문·제목·연결 챌린지만 되지만 앱에는 수정 기능이 없어요.

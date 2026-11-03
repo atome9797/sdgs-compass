@@ -2,13 +2,14 @@
 
 // 응모자·심사(F-303): 챌린지 선택 → 점수순 응모자 → 심사(3항목 1~5점 + 코멘트) → 시상 → 채택(매칭 성립: 수수료 ¥30,000 중 50% 기부)
 // #25 최우수상을 정하면 맡긴 상금이 수상자의 リワード残高로 송금돼요(데모) — 과제를 고르면 상금 상태를 안내해요
+// #33 「すべての課題」와 상태 필터(?id=all&status=submitted 처럼 주소에 남아요) — 대시보드 숫자 카드가 여기로 와요
 // #30 심사 점수·코멘트는 학생에게 공개되고 Impact 포인트에 더해진다는 안내를 점수 입력 바로 위에 둬요
 import { useRouter, useSearchParams } from "next/navigation";
 import { useId, useMemo, useState } from "react";
 import type { AwardKind } from "@sdgs-compass/core/domain";
 import { REVIEW_BONUS_MAX } from "@sdgs-compass/core/impact";
 import { awardLabel } from "@sdgs-compass/core/labels";
-import { selectApplicants, type ApplicantVM } from "@sdgs-compass/core/selectors";
+import { parseApplicantFilter, selectApplicants, type ApplicantFilter, type ApplicantVM } from "@sdgs-compass/core/selectors";
 import { prizeNotice } from "@sdgs-compass/core/walletView";
 import { Banner, Button, ButtonLink, Empty, Field, ScreenHead, Tag } from "@/components/ui";
 import { applicantsHref, postNewHref } from "@/lib/routes";
@@ -33,7 +34,7 @@ function RateRow({ label, value, onChange }: { label: string; value: number; onC
   );
 }
 
-function ReviewForm({ applicant }: { applicant: ApplicantVM }) {
+function ReviewForm({ applicant, onTouched }: { applicant: ApplicantVM; onTouched: () => void }) {
   const { t, dispatch } = useSession();
   const existing = applicant.review;
   const [creativity, setCreativity] = useState<number>(existing?.creativity ?? 3);
@@ -47,6 +48,7 @@ function ReviewForm({ applicant }: { applicant: ApplicantVM }) {
     setSaved(false);
   };
   const save = () => {
+    onTouched();
     dispatch({ type: "reviewProposal", proposalId: applicant.id, review: { creativity, feasibility, sdgContribution, comment }, at: nowIso() });
     setSaved(true);
   };
@@ -73,7 +75,7 @@ function ReviewForm({ applicant }: { applicant: ApplicantVM }) {
   );
 }
 
-function ApplicantCard({ applicant, feeNote, challengeId }: { applicant: ApplicantVM; feeNote: string; challengeId: string | null }) {
+function ApplicantCard({ applicant, feeNote, showChallenge, onTouched }: { applicant: ApplicantVM; feeNote: string; showChallenge: boolean; onTouched: () => void }) {
   const { t, locale, dispatch } = useSession();
   const [open, setOpen] = useState(false);
   const [award, setAward] = useState<AwardKind>(applicant.award ?? "excellence");
@@ -96,6 +98,7 @@ function ApplicantCard({ applicant, feeNote, challengeId }: { applicant: Applica
         </div>
         <span className="applicant__score">{applicant.scoreLabel}</span>
       </div>
+      {showChallenge ? <p className="applicant__challenge">{applicant.challengeLabel}</p> : null}
       <h3 className="applicant__title">{applicant.title}</h3>
       <p className="small muted">{t("applicants.team", { name: applicant.teamName })}</p>
       <p className="small">{applicant.summary}</p>
@@ -125,7 +128,7 @@ function ApplicantCard({ applicant, feeNote, challengeId }: { applicant: Applica
         {applicant.adopted ? <Tag tone="success">✓ {t("review.adopted")}</Tag> : null}
         {/* 수상·채택된 기획서는 이 챌린지를 연결한 홍보 글(F-504)로 알릴 수 있어요 */}
         {applicant.status === "awarded" || applicant.status === "adopted" ? (
-          <ButtonLink href={postNewHref("b2b", challengeId)} size="sm" variant="secondary">
+          <ButtonLink href={postNewHref("b2b", applicant.challengeId)} size="sm" variant="secondary">
             <span aria-hidden="true">📣</span> {t("applicants.promote")}
           </ButtonLink>
         ) : null}
@@ -133,7 +136,7 @@ function ApplicantCard({ applicant, feeNote, challengeId }: { applicant: Applica
 
       {open ? (
         <div id={panelId} className="stack">
-          <ReviewForm applicant={applicant} />
+          <ReviewForm applicant={applicant} onTouched={onTouched} />
           {!applicant.adopted ? (
             <div className="review-form">
               <div className="row">
@@ -150,7 +153,13 @@ function ApplicantCard({ applicant, feeNote, challengeId }: { applicant: Applica
                     )}
                   </Field>
                 </div>
-                <Button variant="secondary" onClick={() => dispatch({ type: "awardProposal", proposalId: applicant.id, award })}>
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    onTouched();
+                    dispatch({ type: "awardProposal", proposalId: applicant.id, award });
+                  }}
+                >
                   🏆 {t("review.award")}
                 </Button>
               </div>
@@ -162,6 +171,7 @@ function ApplicantCard({ applicant, feeNote, challengeId }: { applicant: Applica
                   <div className="row">
                     <Button
                       onClick={() => {
+                        onTouched();
                         dispatch({ type: "adoptProposal", proposalId: applicant.id, at: nowIso() });
                         setConfirming(false);
                       }}
@@ -186,10 +196,13 @@ function ApplicantCard({ applicant, feeNote, challengeId }: { applicant: Applica
   );
 }
 
-function ApplicantsView({ requestedId }: { requestedId: string | null }) {
+function ApplicantsView({ requestedId, filter }: { requestedId: string | null; filter: ApplicantFilter }) {
   const { demo, locale, t } = useSession();
   const router = useRouter();
-  const vm = useMemo(() => selectApplicants(demo, locale, requestedId), [demo, locale, requestedId]);
+  // 필터를 켠 채 심사·표창·채택한 응모는 상태가 바뀌어도 목록에 남겨요(누르던 카드가 갑자기 사라지지 않게). 과제·필터를 바꾸면 비워져요(key)
+  const [kept, setKept] = useState<readonly string[]>([]);
+  const keep = (id: string) => setKept((list) => (list.includes(id) ? list : [...list, id]));
+  const vm = useMemo(() => selectApplicants(demo, locale, requestedId, filter, kept), [demo, locale, requestedId, filter, kept]);
   // #25 고른 과제의 상금: 예치 중이면 "최우수상을 정하면 송금", 보냈으면 "송금했어요" (데모)
   const prize = useMemo(() => prizeNotice(demo, vm.selectedId, locale), [demo, vm.selectedId, locale]);
   return (
@@ -202,10 +215,10 @@ function ApplicantsView({ requestedId }: { requestedId: string | null }) {
           <div style={{ maxWidth: 560 }}>
             <Field label={t("applicants.pick")}>
               {(props) => (
-                <select {...props} className="select" value={vm.selectedId ?? ""} onChange={(event) => router.replace(applicantsHref(event.target.value))}>
+                <select {...props} className="select" value={vm.selectedId ?? ""} onChange={(event) => router.replace(applicantsHref(event.target.value, vm.filter))}>
                   {vm.challengeOptions.map((option) => (
                     <option key={option.id} value={option.id}>
-                      {option.title} ({option.statusLabel})
+                      {option.all ? option.title : `${option.title} (${option.statusLabel})`}
                     </option>
                   ))}
                 </select>
@@ -226,12 +239,25 @@ function ApplicantsView({ requestedId }: { requestedId: string | null }) {
               </Banner>
             </div>
           ) : null}
+          <div className="chips" role="group" aria-label={t("applicants.filterLabel")}>
+            {vm.filters.map((item) => (
+              <button key={item.id} type="button" className="chip" aria-pressed={vm.filter === item.id} onClick={() => router.replace(applicantsHref(vm.selectedId, item.id))}>
+                {item.label} <span className="chip__count">{item.count}</span>
+              </button>
+            ))}
+          </div>
+          {vm.countNote ? (
+            <p className="applicants__note">
+              <span aria-hidden="true">ℹ️ </span>
+              {vm.countNote}
+            </p>
+          ) : null}
           {vm.applicants.length === 0 ? (
-            <Empty>{t("applicants.empty")}</Empty>
+            <Empty>{vm.emptyLabel}</Empty>
           ) : (
             <ul className="card-list">
               {vm.applicants.map((applicant) => (
-                <ApplicantCard key={applicant.id} applicant={applicant} feeNote={vm.feeNote} challengeId={vm.selectedId} />
+                <ApplicantCard key={applicant.id} applicant={applicant} feeNote={vm.feeNote} showChallenge={vm.allChallenges} onTouched={() => keep(applicant.id)} />
               ))}
             </ul>
           )}
@@ -242,7 +268,9 @@ function ApplicantsView({ requestedId }: { requestedId: string | null }) {
 }
 
 export function ApplicantsScreen() {
-  const id = useSearchParams().get("id");
-  return <ApplicantsView key={id ?? ""} requestedId={id} />;
+  const search = useSearchParams();
+  const id = search.get("id");
+  const filter = parseApplicantFilter(search.get("status"));
+  return <ApplicantsView key={`${id ?? ""}|${filter}`} requestedId={id} filter={filter} />;
 }
 

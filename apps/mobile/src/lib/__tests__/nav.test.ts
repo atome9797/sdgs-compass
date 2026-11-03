@@ -43,8 +43,15 @@ test("id 가 들어가는 경로는 특수 문자를 안전하게 인코딩해�
   expect(challengeHref("a b/c")).toBe("/challenge/a%20b%2Fc");
   expect(submitHref("ch-plastic")).toBe("/challenge/submit/ch-plastic");
   expect(certificateHref("SC-C-0001")).toBe("/certificate/SC-C-0001");
-  expect(applicantsHref("ch-plastic")).toBe("/b2b/applicants?id=ch-plastic");
-  expect(applicantsHref("a&b")).toBe("/b2b/applicants?id=a%26b");
+  // 필터(#33)가 늘 함께 붙어요 — 「応募者を見る」로 들어오면 앞서 켠 필터가 풀려요
+  expect(applicantsHref("ch-plastic")).toBe("/b2b/applicants?id=ch-plastic&status=all");
+  expect(applicantsHref("a&b")).toBe("/b2b/applicants?id=a%26b&status=all");
+});
+
+test("대시보드 숫자 카드(#33): 모든 과제 + 상태 필터로 응모자 탭을 열어요", () => {
+  expect(applicantsHref("all", "submitted")).toBe("/b2b/applicants?id=all&status=submitted");
+  expect(applicantsHref("all", "adopted")).toBe("/b2b/applicants?id=all&status=adopted");
+  expect(applicantsHref("all")).toBe("/b2b/applicants?id=all&status=all");
 });
 
 test("카드뉴스 화면은 실적을 미리 골라서 열 수 있어요", () => {

@@ -2,6 +2,7 @@
 // 정적 내보내기(GitHub Pages)를 위해 동적 경로([id])를 쓰지 않아요. 상세 화면은 쿼리(?id=)로 구분하고, 주소는 항상 슬래시로 끝나요.
 import type { Role } from "@sdgs-compass/core/domain";
 import { isSdgId, type SdgId } from "@sdgs-compass/core/sdg";
+import type { ApplicantFilter, DashboardSection } from "@sdgs-compass/core/selectors";
 
 export const ROUTES = {
   root: "/",
@@ -97,7 +98,14 @@ export const certificateHref = (id?: string): string => buildHref(ROUTES.certifi
 export const impactHref = (just?: string | null): string => buildHref(ROUTES.impact, { just });
 /** 신청 요약 주소 (기간 프리셋: all · year · half — 기본값이면 쿼리를 붙이지 않아요) */
 export const impactSummaryHref = (period?: string | null): string => buildHref(ROUTES.impactSummary, { period: period === "all" ? null : period });
-export const applicantsHref = (id?: string): string => buildHref(ROUTES.b2bApplicants, { id });
+/**
+ * 응모자·심사 주소. id = 과제 id 또는 "all"(모든 과제, #33), status = 상태 필터 — 둘 다 주소에 남아서 새로고침해도 그대로예요.
+ * 상태가 전체(all)면 쿼리를 붙이지 않아요.
+ */
+export const applicantsHref = (id?: string | null, status?: ApplicantFilter | null): string =>
+  buildHref(ROUTES.b2bApplicants, { id, status: status === "all" ? null : status });
+/** 대시보드 안의 칸 앵커 (#33: 숫자 카드 「募集中の課題」 → 課題の管理, 「寄付累計」 → 仲介手数料と寄付) */
+export const DASHBOARD_ANCHORS: Record<DashboardSection, string> = { challenges: "b2b-challenges", fees: "b2b-fees" };
 export function searchHref(opts: { q?: string; sdgIds?: readonly SdgId[] } = {}): string {
   return buildHref(ROUTES.search, { q: opts.q, sdg: opts.sdgIds && opts.sdgIds.length > 0 ? opts.sdgIds.join(",") : undefined });
 }

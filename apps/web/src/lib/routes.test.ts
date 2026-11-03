@@ -1,10 +1,35 @@
 import { describe, expect, it } from "vitest";
 import { MESSAGES } from "@sdgs-compass/core/messages";
 import { activeTabId, ADMIN_TABS, B2B_TABS, B2C_TABS, tabsFor } from "./nav";
+import { ALL_CHALLENGES, APPLICANT_FILTERS, KPI_TARGETS, parseApplicantFilter } from "@sdgs-compass/core/selectors";
 import {
-  ADMIN_PATHS, areaOf, applicantsHref, buildHref, certificateHref, challengeHref, feedHref, guardRedirect, homeFor, impactHref, impactSummaryHref, isAdminPath, normalizeBasePath, normalizePath,
+  ADMIN_PATHS, areaOf, applicantsHref, buildHref, certificateHref, challengeHref, DASHBOARD_ANCHORS, feedHref, guardRedirect, homeFor, impactHref, impactSummaryHref, isAdminPath, normalizeBasePath, normalizePath,
   parseSdgParam, postNewHref, receiptHref, ROUTES, searchHref, shareHref, stripBasePath, submitHref, withBase,
 } from "./routes";
+
+describe("대시보드 숫자 카드 → 응모자 화면의 필터 (#33)", () => {
+  it("모든 과제(all)와 상태 필터가 주소에 남아요 — 전체(all)는 쿼리를 붙이지 않아요", () => {
+    expect(applicantsHref(ALL_CHALLENGES, "submitted")).toBe("/b2b/applicants/?id=all&status=submitted");
+    expect(applicantsHref(ALL_CHALLENGES, "adopted")).toBe("/b2b/applicants/?id=all&status=adopted");
+    expect(applicantsHref(ALL_CHALLENGES, "all")).toBe("/b2b/applicants/?id=all");
+    expect(applicantsHref("ch-plastic", "reviewed")).toBe("/b2b/applicants/?id=ch-plastic&status=reviewed");
+    expect(applicantsHref(null, null)).toBe("/b2b/applicants/");
+    expect(areaOf(applicantsHref(ALL_CHALLENGES, "submitted"))).toBe("b2b");
+  });
+
+  it("주소의 status 를 다시 읽으면 같은 필터예요 (새로고침해도 유지)", () => {
+    for (const filter of APPLICANT_FILTERS) {
+      const href = applicantsHref(ALL_CHALLENGES, filter);
+      const status = new URL(`https://example.com${href}`).searchParams.get("status");
+      expect(parseApplicantFilter(status)).toBe(filter);
+    }
+  });
+
+  it("카드가 가는 곳: 응모자 화면(필터) 셋, 대시보드 안의 칸(앵커) 둘", () => {
+    const hrefs = Object.values(KPI_TARGETS).map((target) => (target.kind === "applicants" ? applicantsHref(ALL_CHALLENGES, target.filter) : `#${DASHBOARD_ANCHORS[target.section]}`));
+    expect(hrefs).toEqual(["#b2b-challenges", "/b2b/applicants/?id=all", "/b2b/applicants/?id=all&status=submitted", "/b2b/applicants/?id=all&status=adopted", "#b2b-fees"]);
+  });
+});
 
 describe("신청 요약 (#22)", () => {
   it("주소: 기본 기간(전체)은 쿼리 없이, 나머지는 ?period=", () => {

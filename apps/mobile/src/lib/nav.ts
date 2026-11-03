@@ -2,6 +2,7 @@
 //   학생·개인: /  /feed  /search  /impact  /messages  /settings  /challenge/[id]  /challenge/submit/[id]  /certificate/[id]  /share  /impact-summary  /wallet  /feed/new
 //   기업·단체: /b2b  /b2b/feed  /b2b/applicants  /b2b/talent  /b2b/esg  /b2b/settings  /b2b/new  /b2b/feed/new
 import type { OfficialChannel, PostKind, Role } from "@sdgs-compass/core/domain";
+import type { ApplicantFilter } from "@sdgs-compass/core/selectors";
 
 export const ROUTES = {
   home: "/",
@@ -49,9 +50,12 @@ export function certificateHref(id: string): string {
   return `/certificate/${encodeURIComponent(id)}`;
 }
 
-/** 기업 화면의 응모자·심사 (챌린지를 미리 고른 채로) */
-export function applicantsHref(challengeId: string): string {
-  return `${ROUTES.b2bApplicants}?id=${encodeURIComponent(challengeId)}`;
+/**
+ * 기업 화면의 응모자·심사 (챌린지를 미리 고른 채로). challengeId 가 "all" 이면 모든 과제, status 는 상태 필터(#33 대시보드 숫자 카드).
+ * 탭으로 다시 들어올 때 앞서 켠 필터가 남지 않도록 status 를 언제나 붙여요(전체도 status=all).
+ */
+export function applicantsHref(challengeId: string, status: ApplicantFilter = "all"): string {
+  return `${ROUTES.b2bApplicants}?id=${encodeURIComponent(challengeId)}&status=${status}`;
 }
 
 /** 카드뉴스 화면 (실적을 미리 골라서 열 수 있어요) */

@@ -721,10 +721,28 @@ export function selectInbox(state: DemoState, locale: Locale): InboxVM {
 
 // ───────── B2B 대시보드(SCR-06) ─────────
 
+export type KpiId = "open" | "applicants" | "pending" | "matches" | "donation";
+/** 대시보드 안에서 숫자 카드가 가리키는 칸 (#33): 課題の管理 · 仲介手数料と寄付 */
+export type DashboardSection = "challenges" | "fees";
+/** 숫자 카드를 누르면 가는 곳 (#33): 대시보드의 칸, 또는 상태 필터가 켜진 응모자 화면(모든 과제) */
+export type KpiTarget = { kind: "section"; section: DashboardSection } | { kind: "applicants"; filter: ApplicantFilter };
+
+export const KPI_TARGETS: Record<KpiId, KpiTarget> = {
+  open: { kind: "section", section: "challenges" },
+  applicants: { kind: "applicants", filter: "all" },
+  pending: { kind: "applicants", filter: "submitted" },
+  matches: { kind: "applicants", filter: "adopted" },
+  donation: { kind: "section", section: "fees" },
+};
+
 export interface KpiVM {
-  id: "open" | "applicants" | "pending" | "matches" | "donation";
+  id: KpiId;
   label: string;
   value: string;
+  /** 누르면 가는 곳 (#33) */
+  target: KpiTarget;
+  /** 스크린 리더용 이름: 「審査待ち 7（審査待ちの応募者を見る）」 — 숫자와 어디로 가는지가 함께 들어가요 */
+  actionLabel: string;
 }
 
 export interface FeeVM {
@@ -778,17 +796,18 @@ export function selectB2bDashboard(state: DemoState, locale: Locale): B2bDashboa
   const matches = state.matches.filter((m) => m.companyId === state.myCompanyId);
   const total = summarizeMatches(matches);
   const name = company ? pick(company.name, locale) : "";
+  const kpi = (id: KpiId, label: string, value: string): KpiVM => ({ id, label, value, target: KPI_TARGETS[id], actionLabel: t("b2b.kpiAction", { label, value, go: t(`b2b.kpiGo.${id}`) }) });
   return {
     companyName: name,
     companyEmoji: company?.emoji ?? "🏢",
     companyAccent: company?.accent ?? COLORS.primary,
     welcome: t("b2b.welcome", { company: name }),
     kpis: [
-      { id: "open", label: t("b2b.kpiOpen"), value: String(mine.filter((c) => isOpenFor(c, state.today)).length) },
-      { id: "applicants", label: t("b2b.kpiApplicants"), value: formatPeople(mine.reduce((sum, c) => sum + c.applicants, 0), locale) },
-      { id: "pending", label: t("b2b.kpiPending"), value: String(pending) },
-      { id: "matches", label: t("b2b.kpiMatches"), value: String(total.count) },
-      { id: "donation", label: t("b2b.kpiDonation"), value: formatYen(total.donationYen, locale) },
+      kpi("open", t("b2b.kpiOpen"), String(mine.filter((c) => isOpenFor(c, state.today)).length)),
+      kpi("applicants", t("b2b.kpiApplicants"), formatPeople(mine.reduce((sum, c) => sum + c.applicants, 0), locale)),
+      kpi("pending", t("b2b.kpiPending"), String(pending)),
+      kpi("matches", t("b2b.kpiMatches"), String(total.count)),
+      kpi("donation", t("b2b.kpiDonation"), formatYen(total.donationYen, locale)),
     ],
     challenges: mine
       .map((c) => challengeCard(state, c, locale))
@@ -799,8 +818,23 @@ export function selectB2bDashboard(state: DemoState, locale: Locale): B2bDashboa
 
 // ───────── 응모자·심사 ─────────
 
+/** 응모자 화면의 상태 필터 (#33): 전체 · 審査待ち(submitted) · 審査済み · 受賞 · 採用 — 기획서 상태(ProposalStatus) 하나에 하나씩 맞아요 */
+export type ApplicantFilter = "all" | ProposalStatus;
+export const APPLICANT_FILTERS: readonly ApplicantFilter[] = ["all", "submitted", "reviewed", "awarded", "adopted"];
+/** 응모자 화면에서 「すべての課題」를 고른 값 (과제 id 와 겹치지 않아요 — 과제 id 는 ch-… 꼴) */
+export const ALL_CHALLENGES = "all";
+
+/** 주소의 ?status= 값을 필터로 읽어요 (모르는 값·빈 값은 전체) */
+export function parseApplicantFilter(raw: string | null | undefined): ApplicantFilter {
+  return APPLICANT_FILTERS.find((filter) => filter === raw) ?? "all";
+}
+
 export interface ApplicantVM {
   id: string;
+  /** 이 기획서가 응모한 과제 — 「すべての課題」로 볼 때 카드에 과제 이름이 붙고, 홍보 글 링크도 이 과제로 열려요 */
+  challengeId: string;
+  /** 「課題：海洋プラスチックを減らす新しい包装アイデア」 */
+  challengeLabel: string;
   teamName: string;
   title: string;
   summary: string;
@@ -825,10 +859,23 @@ export interface ApplicantVM {
 }
 
 export interface ApplicantsVM {
-  challengeOptions: { id: string; title: string; statusLabel: string }[];
+  /** 맨 앞은 「すべての課題」(id = ALL_CHALLENGES, all = true), 그다음 응모가 있는 과제부터 */
+  challengeOptions: { id: string; title: string; statusLabel: string; all: boolean }[];
+  /** 고른 과제 id, 또는 ALL_CHALLENGES */
   selectedId: string | null;
+  /** 고른 과제 (「すべての課題」면 null) */
   selected: ChallengeCardVM | null;
+  /** 「すべての課題」를 보고 있어요 */
+  allChallenges: boolean;
+  filter: ApplicantFilter;
+  /** 상태 필터 칩: 이름과 (고른 범위 안의) 건수 — 건수를 더하면 전체와 같아요 */
+  filters: { id: ApplicantFilter; label: string; count: number }[];
+  /** 필터에 맞는 응모 (+ 방금 손댄 응모 keep), 점수 높은 순 */
   applicants: ApplicantVM[];
+  /** 대시보드 숫자(샘플 응모자 수·지난 매칭)와 이 목록의 수가 다를 때 그 이유 한 줄 (같으면 null) */
+  countNote: string | null;
+  /** 필터 때문에 목록이 비었을 때의 안내 (응모가 하나도 없으면 applicants.empty) */
+  emptyLabel: string;
   feeNote: string;
 }
 
@@ -837,11 +884,13 @@ export function averageScore(review: Review | null): number | null {
   return Math.round(((review.creativity + review.feasibility + review.sdgContribution) / 3) * 10) / 10;
 }
 
-export function applicantVM(p: Proposal, locale: Locale): ApplicantVM {
+export function applicantVM(p: Proposal, locale: Locale, challengeTitle = ""): ApplicantVM {
   const latest = p.versions[p.versions.length - 1];
   const average = averageScore(p.review);
   return {
     id: p.id,
+    challengeId: p.challengeId,
+    challengeLabel: translate("applicants.challenge", locale, { title: challengeTitle }),
     teamName: p.teamName,
     title: p.title,
     summary: p.summary,
@@ -863,23 +912,52 @@ export function applicantVM(p: Proposal, locale: Locale): ApplicantVM {
   };
 }
 
-export function selectApplicants(state: DemoState, locale: Locale, challengeId: string | null): ApplicantsVM {
+/**
+ * 응모자·심사 화면. challengeId 는 과제 id 또는 ALL_CHALLENGES(모든 과제를 한꺼번에 — 대시보드 숫자 카드가 여기로 와요, #33), 모르는 값·null 이면 응모가 있는 첫 과제.
+ * filter 는 상태 필터, keep 은 필터에 맞지 않아도 남겨 둘 응모 id — 「審査待ち」로 보다가 심사를 저장해도 그 카드가 목록에서 갑자기 사라지지 않게 화면이 넘겨요.
+ */
+export function selectApplicants(state: DemoState, locale: Locale, challengeId: string | null, filter: ApplicantFilter = "all", keep: readonly string[] = []): ApplicantsVM {
+  const t = makeT(locale);
   const mine = state.challenges.filter((c) => c.companyId === state.myCompanyId);
   const withProposals = mine.filter((c) => state.proposals.some((p) => p.challengeId === c.id));
   const optionSource = [...withProposals, ...mine.filter((c) => !withProposals.includes(c))];
-  const selectedChallenge = optionSource.find((c) => c.id === challengeId) ?? withProposals[0] ?? mine[0] ?? null;
+  const allChallenges = challengeId === ALL_CHALLENGES && mine.length > 0;
+  const selectedChallenge = allChallenges ? null : (optionSource.find((c) => c.id === challengeId) ?? withProposals[0] ?? mine[0] ?? null);
+  const scope = allChallenges ? mine : selectedChallenge ? [selectedChallenge] : [];
+  const scopeIds = new Set(scope.map((c) => c.id));
+  const titles = new Map(mine.map((c) => [c.id, pick(c.title, locale)]));
+  const inScope = state.proposals.filter((p) => scopeIds.has(p.challengeId));
+  const count = (id: ApplicantFilter) => (id === "all" ? inScope.length : inScope.filter((p) => p.status === id).length);
+  const shown = inScope
+    .filter((p) => filter === "all" || p.status === filter || keep.includes(p.id))
+    .map((p) => applicantVM(p, locale, titles.get(p.challengeId) ?? ""))
+    // 점수 높은 순(심사 전은 맨 뒤). 점수가 같으면 데모의 「あなたの提出」(학생 화면에서 낸 기획서)를 먼저 — 시연 D5 에서 처음 보이는 「審査」가 D2 에서 낸 그 기획서예요
+    .sort((a, b) => (b.average ?? -1) - (a.average ?? -1) || Number(b.mine) - Number(a.mine) || a.id.localeCompare(b.id));
+  // 대시보드의 「総応募者数」는 과제마다 적힌 응모자 수(샘플 포함)의 합이고, 「マッチング成立」은 지난 매칭 기록까지 세요.
+  // 이 화면은 기획서가 있는 응모만 보여서 수가 다를 수 있어요 → 다를 때만 이유를 한 줄로 밝혀요 (#33)
+  const people = scope.reduce((sum, c) => sum + c.applicants, 0);
+  const matches = state.matches.filter((m) => m.companyId === state.myCompanyId).length;
+  let countNote: string | null = null;
+  if (filter === "all" && scope.length > 0 && people !== inScope.length) {
+    countNote = t("applicants.countNote", { people: formatPeople(people, locale), count: inScope.length });
+  } else if (filter === "adopted" && allChallenges && matches !== count("adopted")) {
+    countNote = t("applicants.matchNote", { matches, count: count("adopted") });
+  }
   const split = splitMatchFee();
   return {
-    challengeOptions: optionSource.map((c) => ({ id: c.id, title: pick(c.title, locale), statusLabel: challengeStatusLabel(c.status, locale) })),
-    selectedId: selectedChallenge?.id ?? null,
+    challengeOptions: [
+      ...(mine.length > 0 ? [{ id: ALL_CHALLENGES, title: t("applicants.allChallenges"), statusLabel: t("applicants.allChallengesHint", { count: mine.length }), all: true }] : []),
+      ...optionSource.map((c) => ({ id: c.id, title: pick(c.title, locale), statusLabel: challengeStatusLabel(c.status, locale), all: false })),
+    ],
+    selectedId: allChallenges ? ALL_CHALLENGES : (selectedChallenge?.id ?? null),
     selected: selectedChallenge ? challengeCard(state, selectedChallenge, locale) : null,
-    applicants: selectedChallenge
-      ? state.proposals
-          .filter((p) => p.challengeId === selectedChallenge.id)
-          .map((p) => applicantVM(p, locale))
-          // 점수 높은 순(심사 전은 맨 뒤). 점수가 같으면 데모의 「あなたの提出」(학생 화면에서 낸 기획서)를 먼저 — 시연 D5 에서 처음 보이는 「審査」가 D2 에서 낸 그 기획서예요
-          .sort((a, b) => (b.average ?? -1) - (a.average ?? -1) || Number(b.mine) - Number(a.mine) || a.id.localeCompare(b.id))
-      : [],
+    allChallenges,
+    filter,
+    filters: APPLICANT_FILTERS.map((id) => ({ id, label: t(`applicants.filter.${id}`), count: count(id) })),
+    applicants: shown,
+    countNote,
+    // 응모가 하나도 없으면 「応募はまだありません」, 응모자 수(샘플)만 있고 기획서가 없으면 「表示できる企画書はありません」, 필터에 맞는 것이 없으면 「この条件の…」
+    emptyLabel: inScope.length > 0 ? t("applicants.filterEmpty") : people > 0 ? t("applicants.noProposals") : t("applicants.empty"),
     feeNote: translate("review.feeNote", locale, { fee: formatYen(split.feeYen, locale), donation: formatYen(split.donationYen, locale) }),
   };
 }

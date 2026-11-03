@@ -84,7 +84,7 @@ test("학생: 내 글이지만 증명서가 없는 실적이면 카드뉴스로 
 test("기업: 우리 회사의 홍보 글에서 그 챌린지의 응모자 화면으로 가요", () => {
   const post = postOf(demo, "b2b", "po-4");
   expect(post.mine).toBe(true);
-  expect(feedLinks(post, "b2b", null)).toEqual([{ kind: "challenge", href: "/b2b/applicants?id=ch-bottle" }]);
+  expect(feedLinks(post, "b2b", null)).toEqual([{ kind: "challenge", href: "/b2b/applicants?id=ch-bottle&status=all" }]);
 });
 
 test("기업: 다른 회사의 홍보 글은 열 곳이 없어요 (챌린지 상세는 학생 화면이에요)", () => {
@@ -106,7 +106,7 @@ test("기업이 새로 올린 글(챌린지 연결)도 응모자 화면으로 �
     at: `${TODAY}T09:00`,
   });
   const created = next.posts[0];
-  expect(feedLinks(postOf(next, "b2b", created.id), "b2b", null)).toEqual([{ kind: "challenge", href: "/b2b/applicants?id=ch-asaichi" }]);
+  expect(feedLinks(postOf(next, "b2b", created.id), "b2b", null)).toEqual([{ kind: "challenge", href: "/b2b/applicants?id=ch-asaichi&status=all" }]);
   // 같은 글을 학생이 보면 챌린지 상세로 가요
   expect(feedLinks(postOf(next, "b2c", created.id), "b2c", null)).toEqual([{ kind: "challenge", href: "/challenge/ch-asaichi" }]);
 });

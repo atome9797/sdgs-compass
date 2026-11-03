@@ -13,7 +13,10 @@ import type { ProposalDraft } from "@sdgs-compass/core/proposal";
 import { SCOUT_DAILY_LIMIT } from "@sdgs-compass/core/scout";
 import { SDG_IDS, type SdgId } from "@sdgs-compass/core/sdg";
 import {
+  ALL_CHALLENGES,
+  APPLICANT_FILTERS,
   certificateVM,
+  parseApplicantFilter,
   selectApplicants,
   selectApplications,
   selectB2bDashboard,
@@ -120,6 +123,10 @@ function allViews(state: DemoState, locale: Locale) {
     dashboard: selectB2bDashboard(state, locale),
     applicants: selectApplicants(state, locale, null),
     applicantsPlastic: selectApplicants(state, locale, "ch-plastic"),
+    applicantsAll: selectApplicants(state, locale, ALL_CHALLENGES),
+    applicantsAllPending: selectApplicants(state, locale, ALL_CHALLENGES, "submitted"),
+    applicantsAllAdopted: selectApplicants(state, locale, ALL_CHALLENGES, "adopted"),
+    applicantsOld: selectApplicants(state, locale, "ch-old1"),
     talent: selectTalent(state, locale, { query: "", sdgIds: [] }),
     esg: selectEsg(state, locale),
     feedStudent: selectFeed(state, locale, "b2c"),
@@ -555,6 +562,7 @@ describe("심사 결과를 학생에게 — 「応募中の課題」 카드 (#30
     expect(mine.title).toBe(draft.title);
     // 심사 전(점수가 같을 때)에는 내 기획서가 맨 위 — D5 에서 처음 누르는 「審査」가 D2 의 기획서예요
     expect(applicants[0].id).toBe(mineId);
+    expect(selectApplicants(submitted, "ja", ALL_CHALLENGES, "submitted").applicants[0].id).toBe(mineId);
     const after = selectApplications(reviewedMine, "ja");
     expect(after).toHaveLength(1);
     expect(after[0].challengeId).toBe("ch-plastic");
@@ -816,6 +824,102 @@ describe("B2B: 대시보드·응모자·ESG", () => {
     expect(done.needEvidence).toBe(false);
     expect(done.total).toBeGreaterThan(selectEsg(initial, "ja").total);
   });
+});
+
+describe("대시보드 숫자 카드 → 해당 목록, 응모자 상태 필터 (#33)", () => {
+  const submitted = run(initial, { type: "submitProposal", challengeId: "ch-plastic", draft, at: AT });
+
+  it("카드 5개는 각자 갈 곳이 있고, 스크린 리더 이름에 숫자와 갈 곳이 함께 들어가요", () => {
+    const ja = selectB2bDashboard(submitted, "ja");
+    expect(ja.kpis.map((k) => [k.id, k.target])).toEqual([
+      ["open", { kind: "section", section: "challenges" }],
+      ["applicants", { kind: "applicants", filter: "all" }],
+      ["pending", { kind: "applicants", filter: "submitted" }],
+      ["matches", { kind: "applicants", filter: "adopted" }],
+      ["donation", { kind: "section", section: "fees" }],
+    ]);
+    const label = (id: string) => ja.kpis.find((k) => k.id === id)!;
+    expect(label("pending").actionLabel).toBe(`審査待ち ${label("pending").value}（審査待ちの応募者を見る）`);
+    expect(label("donation").actionLabel).toBe(`寄付累計（貴社名義） ${formatYen(30_000, "ja")}（仲介手数料と寄付の内訳を見る）`);
+    for (const kpi of ja.kpis) expect(kpi.actionLabel.startsWith(`${kpi.label} ${kpi.value}`)).toBe(true);
+    const ko = selectB2bDashboard(submitted, "ko");
+    expect(ko.kpis.find((k) => k.id === "matches")!.actionLabel).toBe(`매칭 성립 ${ko.kpis.find((k) => k.id === "matches")!.value} (채택한 응모자 보기)`);
+    expect(ko.kpis.find((k) => k.id === "open")!.actionLabel).toContain("챌린지 관리 보기");
+  });
+
+  it("「すべての課題」: 맨 앞 선택지이고, 필터 칩 건수를 더하면 전체와 같아요", () => {
+    for (const locale of LOCALES) {
+      const view = selectApplicants(submitted, locale, ALL_CHALLENGES);
+      expect(view.challengeOptions[0]).toMatchObject({ id: ALL_CHALLENGES, all: true });
+      expect(view.challengeOptions.slice(1).every((o) => !o.all)).toBe(true);
+      expect(view.allChallenges).toBe(true);
+      expect(view.selectedId).toBe(ALL_CHALLENGES);
+      expect(view.selected).toBeNull();
+      expect(view.filters.map((f) => f.id)).toEqual(APPLICANT_FILTERS);
+      const [all, ...rest] = view.filters;
+      expect(rest.reduce((sum, f) => sum + f.count, 0)).toBe(all.count);
+      expect(view.applicants).toHaveLength(all.count);
+      // 여러 과제의 응모가 섞여서 카드마다 과제 이름이 붙어요
+      expect(new Set(view.applicants.map((a) => a.challengeId))).toEqual(new Set(["ch-plastic", "ch-bottle"]));
+    }
+    expect(selectApplicants(submitted, "ja", ALL_CHALLENGES).challengeOptions[0].title).toBe("すべての課題");
+    expect(selectApplicants(submitted, "ko", ALL_CHALLENGES).challengeOptions[0].title).toBe("모든 챌린지");
+    expect(selectApplicants(submitted, "ja", ALL_CHALLENGES).filters.map((f) => f.label)).toEqual(["すべて", "審査待ち", "審査済み", "受賞", "採用"]);
+    expect(selectApplicants(submitted, "ja", ALL_CHALLENGES).applicants.find((a) => a.challengeId === "ch-bottle")!.challengeLabel).toBe(`課題：${selectChallengeDetail(submitted, "ch-bottle", "ja")!.card.title}`);
+  });
+
+  it("「審査待ち」 카드 숫자 = 필터를 켠 목록 수 (심사하면 둘 다 줄어요)", () => {
+    for (const state of [initial, submitted, busy, reviewedMine]) {
+      const pending = Number(selectB2bDashboard(state, "ja").kpis.find((k) => k.id === "pending")!.value);
+      const view = selectApplicants(state, "ja", ALL_CHALLENGES, "submitted");
+      expect(view.applicants).toHaveLength(pending);
+      expect(view.applicants.every((a) => a.status === "submitted")).toBe(true);
+      expect(view.countNote).toBeNull();
+    }
+    expect(Number(selectB2bDashboard(reviewedMine, "ja").kpis.find((k) => k.id === "pending")!.value)).toBe(Number(selectB2bDashboard(submitted, "ja").kpis.find((k) => k.id === "pending")!.value) - 1);
+  });
+
+  it("카드 숫자와 목록 수가 다르면 이유를 한 줄로 밝혀요 (샘플 응모자 수 · 지난 매칭)", () => {
+    const all = selectApplicants(submitted, "ja", ALL_CHALLENGES);
+    const people = selectB2bDashboard(submitted, "ja").kpis.find((k) => k.id === "applicants")!.value;
+    expect(all.countNote).toBe(`応募者 ${people}には、企画書データのない過去の応募（サンプル）も含まれます。ここに表示しているのは企画書 ${all.applicants.length}件です。`);
+    const adopted = selectApplicants(submitted, "ja", ALL_CHALLENGES, "adopted");
+    expect(adopted.applicants).toHaveLength(0);
+    expect(adopted.countNote).toContain("マッチング成立 2件");
+    expect(adopted.emptyLabel).toBe("この条件の応募はありません");
+    // 내 기획서를 채택하면 매칭 3건 중 1건이 목록에 보여요
+    const after = selectApplicants(reviewedMine, "ko", ALL_CHALLENGES, "adopted");
+    expect(after.applicants.map((a) => a.id)).toEqual([mineId]);
+    expect(after.countNote).toBe("매칭 성립 3건에는 기획서 데이터가 없는 지난 채택(샘플 · 내역은 대시보드의 「중개 수수료와 기부」)도 포함돼요. 여기에는 1건을 보여 줘요.");
+    // 한 과제만 볼 때: 응모자 수와 기획서 수가 같으면 안내가 없어요
+    expect(selectApplicants(submitted, "ja", "ch-plastic").countNote).toBeNull();
+    // 응모자 수(샘플)만 있고 기획서가 없는 지난 과제는 안내 + 「表示できる企画書はありません」
+    const old = selectApplicants(submitted, "ja", "ch-old1");
+    expect(old.applicants).toEqual([]);
+    expect(old.countNote).toContain("企画書 0件");
+    expect(old.emptyLabel).toBe("表示できる企画書はありません");
+    expect(selectApplicants(submitted, "ja", "ch-asaichi").emptyLabel).toBe("応募はまだありません");
+  });
+
+  it("주소의 status 값: 모르는 값은 전체, 필터를 켜도 방금 손댄 응모(keep)는 남아요", () => {
+    expect(APPLICANT_FILTERS.map((f) => parseApplicantFilter(f))).toEqual(APPLICANT_FILTERS);
+    for (const raw of [null, undefined, "", "pending", "ALL", "x"]) expect(parseApplicantFilter(raw)).toBe("all");
+    const state = run(submitted, { type: "reviewProposal", proposalId: mineId, review: { creativity: 4, feasibility: 3, sdgContribution: 5, comment: "" }, at: AT });
+    expect(selectApplicants(state, "ja", ALL_CHALLENGES, "submitted").applicants.some((a) => a.id === mineId)).toBe(false);
+    const kept = selectApplicants(state, "ja", ALL_CHALLENGES, "submitted", [mineId]);
+    expect(kept.applicants.some((a) => a.id === mineId && a.status === "reviewed")).toBe(true);
+    expect(kept.filters.find((f) => f.id === "submitted")!.count).toBe(kept.applicants.length - 1);
+  });
+
+  it("한 과제를 고르면 그 과제의 응모만, 필터는 그 과제 안에서 세요 (기본 선택은 그대로)", () => {
+    const one = selectApplicants(submitted, "ja", "ch-bottle", "reviewed");
+    expect(one.allChallenges).toBe(false);
+    expect(one.selectedId).toBe("ch-bottle");
+    expect(one.applicants.map((a) => a.id).sort()).toEqual(["pb-1", "pb-2"]);
+    expect(one.filters.find((f) => f.id === "all")!.count).toBe(5);
+    expect(selectApplicants(submitted, "ja", null).selectedId).toBe("ch-plastic");
+  });
+
 });
 
 describe("SNS 피드 (F-503 · F-504)", () => {

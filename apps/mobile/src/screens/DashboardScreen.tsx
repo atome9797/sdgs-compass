@@ -1,9 +1,10 @@
 // SCR-06 기업 대시보드: 환영 · KPI 5개 · 챌린지 관리 · 상금 예치(#25 데모) · 중개 수수료와 기부 내역(1건 ¥30,000 → 50% 기부).
 // 숫자는 모두 core 의 selectB2bDashboard 에서 와요. 챌린지 카드의 "응모자 보기"는 그 챌린지를 고른 채로 응모자 탭을 열어요.
+// #33 KPI 카드를 누르면: 응모자 탭(모든 과제 + 상태 필터) 또는 이 화면 안의 칸(課題の管理 · 仲介手数料と寄付)으로 스크롤해요.
 import { useRouter } from "expo-router";
-import { useMemo } from "react";
-import { StyleSheet, View } from "react-native";
-import { selectB2bDashboard, type FeeVM, type KpiVM } from "@sdgs-compass/core/selectors";
+import { useMemo, useRef, type ComponentRef } from "react";
+import { Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { ALL_CHALLENGES, selectB2bDashboard, type DashboardSection, type FeeVM, type KpiVM } from "@sdgs-compass/core/selectors";
 import { selectPrizeDeposits, type PrizeDepositsVM } from "@sdgs-compass/core/walletView";
 import { ChallengeCard } from "@/components/ChallengeCard";
 import { CompanyAvatar } from "@/components/CompanyAvatar";
@@ -11,24 +12,31 @@ import { Screen } from "@/components/Screen";
 import { Badge, Button, Card, Divider, Empty, KeyValue, Notice, Section, Txt } from "@/components/ui";
 import { useApp } from "@/lib/AppProvider";
 import { applicantsHref, ROUTES } from "@/lib/nav";
-import { COLORS, RADIUS, SPACE } from "@/theme";
+import { COLORS, FONT_SIZE, HIT, RADIUS, SPACE } from "@/theme";
 
-function Kpi({ kpi }: { kpi: KpiVM }) {
+/** 숫자 카드 하나: 카드 전체를 누를 수 있고(이름은 「숫자 + 갈 곳」), 오른쪽 › 가 누를 수 있다는 표시예요 */
+function Kpi({ kpi, onPress }: { kpi: KpiVM; onPress: () => void }) {
   const donation = kpi.id === "donation";
   return (
-    <View
+    <Pressable
       testID={`kpi-${kpi.id}`}
-      accessible
-      accessibilityLabel={`${kpi.label}: ${kpi.value}`}
-      style={[styles.kpi, donation ? styles.kpiDonation : null]}
+      accessibilityRole={kpi.target.kind === "applicants" ? "link" : "button"}
+      accessibilityLabel={kpi.actionLabel}
+      onPress={onPress}
+      style={({ pressed }) => [styles.kpi, donation ? styles.kpiDonation : null, pressed ? styles.kpiPressed : null]}
     >
-      <Txt variant="small" tone="muted">
-        {kpi.label}
+      <View style={styles.kpiText}>
+        <Txt variant="small" tone="muted">
+          {kpi.label}
+        </Txt>
+        <Txt variant="title" tone={donation ? "donation" : "text"} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
+          {kpi.value}
+        </Txt>
+      </View>
+      <Txt style={styles.kpiGo} accessibilityElementsHidden importantForAccessibility="no">
+        ›
       </Txt>
-      <Txt variant="title" tone={donation ? "donation" : "text"} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
-        {kpi.value}
-      </Txt>
-    </View>
+    </Pressable>
   );
 }
 
@@ -129,9 +137,17 @@ export function DashboardScreen() {
   const router = useRouter();
   const vm = useMemo(() => selectB2bDashboard(demo, locale), [demo, locale]);
   const prize = useMemo(() => selectPrizeDeposits(demo, locale), [demo, locale]);
+  // 같은 화면 안의 칸으로 스크롤: 칸의 위치(onLayout y — 본문 맨 위 기준)를 기억해 두고 scrollTo 해요
+  const scrollRef = useRef<ComponentRef<typeof ScrollView> | null>(null);
+  const sectionY = useRef<Record<DashboardSection, number>>({ challenges: 0, fees: 0 });
+  const openKpi = (kpi: KpiVM) => {
+    const target = kpi.target;
+    if (target.kind === "applicants") router.push(applicantsHref(ALL_CHALLENGES, target.filter));
+    else scrollRef.current?.scrollTo({ y: Math.max(0, sectionY.current[target.section] - SPACE.sm), animated: true });
+  };
 
   return (
-    <Screen tabbed testID="screen-dashboard">
+    <Screen tabbed testID="screen-dashboard" scrollRef={scrollRef}>
       <View style={styles.welcome}>
         <CompanyAvatar emoji={vm.companyEmoji} accent={vm.companyAccent} size={52} />
         <Txt variant="title" accessibilityRole="header" style={styles.welcomeText}>
@@ -143,29 +159,33 @@ export function DashboardScreen() {
 
       <View accessibilityLabel={t("b2b.title")} style={styles.kpis}>
         {vm.kpis.map((kpi) => (
-          <Kpi key={kpi.id} kpi={kpi} />
+          <Kpi key={kpi.id} kpi={kpi} onPress={() => openKpi(kpi)} />
         ))}
       </View>
 
-      <Section title={t("b2b.challenges")}>
-        {vm.challenges.length === 0 ? (
-          <Empty testID="no-challenges">{t("b2b.noChallenges")}</Empty>
-        ) : (
-          vm.challenges.map((challenge) => (
-            <ChallengeCard
-              key={challenge.id}
-              testID={`managed-${challenge.id}`}
-              card={challenge}
-              onPress={() => router.push(applicantsHref(challenge.id))}
-              footer={<Button small variant="secondary" label={t("b2b.viewApplicants")} onPress={() => router.push(applicantsHref(challenge.id))} />}
-            />
-          ))
-        )}
-      </Section>
+      <View testID="section-challenges" onLayout={(event) => (sectionY.current.challenges = event.nativeEvent.layout.y)}>
+        <Section title={t("b2b.challenges")}>
+          {vm.challenges.length === 0 ? (
+            <Empty testID="no-challenges">{t("b2b.noChallenges")}</Empty>
+          ) : (
+            vm.challenges.map((challenge) => (
+              <ChallengeCard
+                key={challenge.id}
+                testID={`managed-${challenge.id}`}
+                card={challenge}
+                onPress={() => router.push(applicantsHref(challenge.id))}
+                footer={<Button small variant="secondary" label={t("b2b.viewApplicants")} onPress={() => router.push(applicantsHref(challenge.id))} />}
+              />
+            ))
+          )}
+        </Section>
+      </View>
 
       <PrizeSection prize={prize} />
 
-      <FeeSection fee={vm.fee} />
+      <View testID="section-fees" onLayout={(event) => (sectionY.current.fees = event.nativeEvent.layout.y)}>
+        <FeeSection fee={vm.fee} />
+      </View>
     </Screen>
   );
 }
@@ -177,7 +197,10 @@ const styles = StyleSheet.create({
   kpi: {
     flexBasis: "47%",
     flexGrow: 1,
-    gap: 2,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: SPACE.xs,
+    minHeight: HIT,
     padding: SPACE.md,
     borderRadius: RADIUS.lg,
     borderWidth: 1,
@@ -185,6 +208,9 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.card,
   },
   kpiDonation: { borderColor: COLORS.donation },
+  kpiPressed: { opacity: 0.8 },
+  kpiText: { flex: 1, minWidth: 0, gap: 2 },
+  kpiGo: { fontSize: FONT_SIZE.xl + 6, lineHeight: 30, fontWeight: "700", color: COLORS.primary },
   feeSplit: { flexDirection: "row", gap: SPACE.sm },
   feeCell: { flex: 1, gap: 2, padding: SPACE.sm, borderRadius: RADIUS.md, backgroundColor: COLORS.bg },
   feeCellDonation: { borderWidth: 1, borderColor: COLORS.donation },

@@ -5,7 +5,7 @@
 //    adjustResize 가 창 크기를 줄이지 않고 키보드 높이만 알려 주기 때문이에요(SchedulAI 와 같은 방식). 이 화면은 머리글을 직접 그려서
 //    KeyboardAvoidingView 의 위쪽이 화면 맨 위 기준이라 keyboardVerticalOffset 은 0 이에요.
 import { useRouter } from "expo-router";
-import type { ReactNode } from "react";
+import type { ComponentRef, ReactNode, RefObject } from "react";
 import { KeyboardAvoidingView, Pressable, ScrollView, StyleSheet, Text, View, type StyleProp, type ViewStyle } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { AppHeader } from "@/components/AppHeader";
@@ -29,9 +29,11 @@ export interface ScreenProps {
   footer?: ReactNode;
   contentStyle?: StyleProp<ViewStyle>;
   testID?: string;
+  /** 본문 스크롤을 화면이 직접 움직일 때 (#33 대시보드 숫자 카드 → 같은 화면 안의 칸으로 scrollTo) */
+  scrollRef?: RefObject<ComponentRef<typeof ScrollView> | null>;
 }
 
-export function Screen({ children, header = "full", tabbed = false, backTitle, fixed = false, footer, contentStyle, testID }: ScreenProps) {
+export function Screen({ children, header = "full", tabbed = false, backTitle, fixed = false, footer, contentStyle, testID, scrollRef }: ScreenProps) {
   const insets = useSafeAreaInsets();
   const bottomInset = tabbed ? 0 : insets.bottom;
   const content = [styles.content, contentStyle];
@@ -48,6 +50,7 @@ export function Screen({ children, header = "full", tabbed = false, backTitle, f
           <View style={[styles.flex, styles.maxWidth, content]}>{children}</View>
         ) : (
           <ScrollView
+            ref={scrollRef}
             style={styles.flex}
             contentContainerStyle={[styles.scrollContent, { paddingBottom: SPACE.xxl + bottomInset }]}
             keyboardShouldPersistTaps="handled"

@@ -1,14 +1,43 @@
 "use client";
 
 // B2B 관리자(SCR-06) 대시보드: 환영 · KPI 5개 · 챌린지 관리 · 상금 예치(#25 데모) · 중개 수수료와 기부 내역(¥30,000 → 50% 기부)
+// #33 KPI 카드는 링크예요: 응모자·심사(모든 과제 + 상태 필터 — 주소에 남아요) 또는 이 화면 안의 칸(#b2b-challenges · #b2b-fees)으로 가요.
 import Link from "next/link";
-import { useMemo } from "react";
+import { useMemo, type ReactNode } from "react";
 import { coverColors, tint } from "@sdgs-compass/core/theme";
-import { selectB2bDashboard, type ChallengeCardVM, type FeeVM } from "@sdgs-compass/core/selectors";
+import { ALL_CHALLENGES, selectB2bDashboard, type ChallengeCardVM, type FeeVM, type KpiVM } from "@sdgs-compass/core/selectors";
 import { selectPrizeDeposits, type PrizeDepositsVM } from "@sdgs-compass/core/walletView";
 import { Banner, ButtonLink, Empty, Section, Tag } from "@/components/ui";
-import { applicantsHref, buildHref, ROUTES } from "@/lib/routes";
+import { applicantsHref, buildHref, DASHBOARD_ANCHORS, ROUTES } from "@/lib/routes";
 import { useSession } from "@/lib/session";
+
+/** 숫자 카드 하나: 카드 전체가 링크(키보드·스크린 리더는 「숫자 + 갈 곳」 이름으로), 오른쪽의 › 가 누를 수 있다는 표시예요 */
+function KpiCard({ kpi }: { kpi: KpiVM }) {
+  const body: ReactNode = (
+    <>
+      <span className="kpi__label">{kpi.label}</span>
+      <span className="kpi__value">{kpi.value}</span>
+      <span className="kpi__go" aria-hidden="true">
+        ›
+      </span>
+    </>
+  );
+  const target = kpi.target;
+  return (
+    <li className={kpi.id === "donation" ? "card kpi kpi--donation" : "card kpi"}>
+      {target.kind === "applicants" ? (
+        <Link className="kpi__link" href={applicantsHref(ALL_CHALLENGES, target.filter)} aria-label={kpi.actionLabel} data-kpi={kpi.id}>
+          {body}
+        </Link>
+      ) : (
+        // 같은 화면 안의 칸이라 브라우저 기본 앵커 이동을 써요(라우터를 거치지 않아요)
+        <a className="kpi__link" href={`#${DASHBOARD_ANCHORS[target.section]}`} aria-label={kpi.actionLabel} data-kpi={kpi.id}>
+          {body}
+        </a>
+      )}
+    </li>
+  );
+}
 
 function ManagedChallenge({ vm }: { vm: ChallengeCardVM }) {
   const { t } = useSession();
@@ -39,10 +68,10 @@ function ManagedChallenge({ vm }: { vm: ChallengeCardVM }) {
   );
 }
 
-export function FeeSection({ fee }: { fee: FeeVM }) {
+export function FeeSection({ fee, anchorId }: { fee: FeeVM; anchorId?: string }) {
   const { t } = useSession();
   return (
-    <Section title={t("b2b.fees")} hint={t("fee.title")}>
+    <Section title={t("b2b.fees")} hint={t("fee.title")} id={anchorId}>
       <div className="card card--pad stack">
         <div className="stack stack--sm">
           <p className="field__label">{t("fee.perMatch")}</p>
@@ -192,15 +221,12 @@ export function DashboardScreen() {
       <section aria-label={t("b2b.title")}>
         <ul className="kpi-grid">
           {vm.kpis.map((kpi) => (
-            <li key={kpi.id} className={kpi.id === "donation" ? "card kpi kpi--donation" : "card kpi"}>
-              <span className="kpi__label">{kpi.label}</span>
-              <span className="kpi__value">{kpi.value}</span>
-            </li>
+            <KpiCard key={kpi.id} kpi={kpi} />
           ))}
         </ul>
       </section>
 
-      <Section title={t("b2b.challenges")}>
+      <Section title={t("b2b.challenges")} id={DASHBOARD_ANCHORS.challenges}>
         {vm.challenges.length === 0 ? (
           <Empty>{t("b2b.noChallenges")}</Empty>
         ) : (
@@ -214,7 +240,7 @@ export function DashboardScreen() {
 
       <PrizeSection prize={prize} />
 
-      <FeeSection fee={vm.fee} />
+      <FeeSection fee={vm.fee} anchorId={DASHBOARD_ANCHORS.fees} />
     </>
   );
 }

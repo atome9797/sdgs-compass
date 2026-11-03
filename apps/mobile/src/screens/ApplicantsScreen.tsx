@@ -1,5 +1,6 @@
 // 응모자·심사(F-303): 챌린지 선택 → 점수순 응모자 → 심사(3항목 1~5점 + 코멘트) → 시상 → 채택(매칭 성립: 수수료 ¥30,000 중 50% 기부).
 // 대시보드의 "응모자 보기"는 ?id=챌린지 를 붙여 이 탭을 열고, 그 챌린지를 미리 골라요.
+// #33 숫자 카드는 ?id=all(모든 과제)&status=필터 로 열어요. 과제·필터는 경로 값이 기준이고, 이 화면에서 고르면 setParams 로 경로 값을 바꿔요.
 // #30 심사 점수·코멘트는 학생에게 공개되고 Impact 포인트에 더해진다는 안내를 점수 입력 바로 위에 둬요.
 // 수상·채택된 응모 건에는 "홍보하기"가 붙어요 — 그 챌린지를 연결한 홍보 글쓰기(F-504)가 열려요.
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -8,11 +9,11 @@ import { Linking, StyleSheet, View } from "react-native";
 import type { AwardKind, ProposalStatus } from "@sdgs-compass/core/domain";
 import { REVIEW_BONUS_MAX } from "@sdgs-compass/core/impact";
 import { awardLabel } from "@sdgs-compass/core/labels";
-import { selectApplicants, type ApplicantVM } from "@sdgs-compass/core/selectors";
+import { parseApplicantFilter, selectApplicants, type ApplicantVM } from "@sdgs-compass/core/selectors";
 import { prizeNotice } from "@sdgs-compass/core/walletView";
 import { OptionRow } from "@/components/OptionRow";
 import { Screen, ScreenTitle } from "@/components/Screen";
-import { Badge, Button, Card, Empty, Field, KeyValue, Notice, Section, Segmented, Stepper, Txt, type BadgeTone } from "@/components/ui";
+import { Badge, Button, Card, Chip, Empty, Field, KeyValue, Notice, Section, Segmented, Stepper, Txt, type BadgeTone } from "@/components/ui";
 import { useApp } from "@/lib/AppProvider";
 import { isHttpUrl } from "@/lib/links";
 import { composeHref, paramText } from "@/lib/nav";
@@ -39,7 +40,7 @@ function RateStepper({ label, value, onChange }: { label: string; value: number;
   );
 }
 
-function ReviewForm({ applicant }: { applicant: ApplicantVM }) {
+function ReviewForm({ applicant, onTouched }: { applicant: ApplicantVM; onTouched: () => void }) {
   const { t, dispatch } = useApp();
   const [form, setForm] = useState<ReviewFormState>(() => reviewFormFrom(applicant.review));
   const [saved, setSaved] = useState(false);
@@ -49,6 +50,7 @@ function ReviewForm({ applicant }: { applicant: ApplicantVM }) {
     setSaved(false);
   };
   const save = () => {
+    onTouched();
     dispatch({ type: "reviewProposal", proposalId: applicant.id, review: toReviewInput(form), at: nowIso() });
     setSaved(true);
   };
@@ -69,7 +71,7 @@ function ReviewForm({ applicant }: { applicant: ApplicantVM }) {
   );
 }
 
-function AwardAndAdopt({ applicant, feeNote }: { applicant: ApplicantVM; feeNote: string }) {
+function AwardAndAdopt({ applicant, feeNote, onTouched }: { applicant: ApplicantVM; feeNote: string; onTouched: () => void }) {
   const { t, locale, dispatch } = useApp();
   const [award, setAward] = useState<AwardKind>(applicant.award ?? DEFAULT_AWARD);
   const [confirming, setConfirming] = useState(false);
@@ -87,7 +89,10 @@ function AwardAndAdopt({ applicant, feeNote }: { applicant: ApplicantVM; feeNote
         variant="secondary"
         icon="🏆"
         label={t("review.award")}
-        onPress={() => dispatch({ type: "awardProposal", proposalId: applicant.id, award })}
+        onPress={() => {
+          onTouched();
+          dispatch({ type: "awardProposal", proposalId: applicant.id, award });
+        }}
       />
       {confirming ? (
         <View style={styles.stack}>
@@ -96,6 +101,7 @@ function AwardAndAdopt({ applicant, feeNote }: { applicant: ApplicantVM; feeNote
             testID={`adopt-confirm-${applicant.id}`}
             label={t("common.confirm")}
             onPress={() => {
+              onTouched();
               dispatch({ type: "adoptProposal", proposalId: applicant.id, at: nowIso() });
               setConfirming(false);
             }}
@@ -109,7 +115,7 @@ function AwardAndAdopt({ applicant, feeNote }: { applicant: ApplicantVM; feeNote
   );
 }
 
-function ApplicantCard({ applicant, challengeId, feeNote }: { applicant: ApplicantVM; challengeId: string | null; feeNote: string }) {
+function ApplicantCard({ applicant, feeNote, showChallenge, onTouched }: { applicant: ApplicantVM; feeNote: string; showChallenge: boolean; onTouched: () => void }) {
   const { t } = useApp();
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -130,6 +136,11 @@ function ApplicantCard({ applicant, challengeId, feeNote }: { applicant: Applica
       <Txt variant="small" tone={applicant.average === null ? "muted" : "primary"} bold>
         {applicant.scoreLabel}
       </Txt>
+      {showChallenge ? (
+        <Txt variant="caption" tone="muted" bold numberOfLines={2}>
+          {applicant.challengeLabel}
+        </Txt>
+      ) : null}
       <Txt variant="heading">{applicant.title}</Txt>
       <Txt variant="small" tone="muted">
         {t("applicants.team", { name: applicant.teamName })}
@@ -156,15 +167,15 @@ function ApplicantCard({ applicant, challengeId, feeNote }: { applicant: Applica
             variant="secondary"
             icon="📣"
             label={t("applicants.promote")}
-            onPress={() => router.push(composeHref("pr", challengeId))}
+            onPress={() => router.push(composeHref("pr", applicant.challengeId))}
           />
         ) : null}
       </View>
 
       {open ? (
         <View style={styles.panel}>
-          <ReviewForm applicant={applicant} />
-          {applicant.adopted ? null : <AwardAndAdopt applicant={applicant} feeNote={feeNote} />}
+          <ReviewForm applicant={applicant} onTouched={onTouched} />
+          {applicant.adopted ? null : <AwardAndAdopt applicant={applicant} feeNote={feeNote} onTouched={onTouched} />}
         </View>
       ) : null}
     </Card>
@@ -173,15 +184,21 @@ function ApplicantCard({ applicant, challengeId, feeNote }: { applicant: Applica
 
 export function ApplicantsScreen() {
   const { demo, locale, t } = useApp();
-  const requestedId = paramText(useLocalSearchParams().id);
-  const [picked, setPicked] = useState<string | null>(requestedId === "" ? null : requestedId);
-  const [seenParam, setSeenParam] = useState(requestedId);
-  // 대시보드에서 다른 챌린지로 다시 열리면 그 챌린지로 맞춰요 (렌더 중에 맞추는 방식이라 effect 가 필요 없어요)
-  if (seenParam !== requestedId) {
-    setSeenParam(requestedId);
-    if (requestedId !== "") setPicked(requestedId);
+  const router = useRouter();
+  const params = useLocalSearchParams();
+  // 과제(?id=, all = 모든 과제)와 상태 필터(?status=)는 경로 값이 기준이에요 — 대시보드에서 다시 열려도, 여기서 골라도(setParams) 같은 곳에서 읽어요
+  const requestedId = paramText(params.id);
+  const filter = parseApplicantFilter(paramText(params.status));
+  // 필터를 켠 채 심사·표창·채택한 응모는 상태가 바뀌어도 목록에 남겨요(누르던 카드가 갑자기 사라지지 않게). 과제·필터가 바뀌면 비워요(렌더 중에 맞추는 방식)
+  const [kept, setKept] = useState<readonly string[]>([]);
+  const scopeKey = `${requestedId}|${filter}`;
+  const [seenScope, setSeenScope] = useState(scopeKey);
+  if (seenScope !== scopeKey) {
+    setSeenScope(scopeKey);
+    setKept([]);
   }
-  const vm = useMemo(() => selectApplicants(demo, locale, picked), [demo, locale, picked]);
+  const keep = (id: string) => setKept((list) => (list.includes(id) ? list : [...list, id]));
+  const vm = useMemo(() => selectApplicants(demo, locale, requestedId === "" ? null : requestedId, filter, kept), [demo, locale, requestedId, filter, kept]);
   // #25 고른 과제의 상금: 예치 중이면 "최우수상을 정하면 송금", 보냈으면 "송금했어요" (데모)
   const prize = useMemo(() => prizeNotice(demo, vm.selectedId, locale), [demo, vm.selectedId, locale]);
 
@@ -202,7 +219,7 @@ export function ApplicantsScreen() {
                   title={option.title}
                   subtitle={option.statusLabel}
                   selected={option.id === vm.selectedId}
-                  onPress={() => setPicked(option.id)}
+                  onPress={() => router.setParams({ id: option.id })}
                 />
               ))}
             </View>
@@ -218,10 +235,32 @@ export function ApplicantsScreen() {
 
           {prize ? <Notice testID="applicants-prize" tone={prize.status === "paid" ? "success" : "info"} message={`💴 ${prize.text}`} /> : null}
 
+          <View accessibilityRole="radiogroup" accessibilityLabel={t("applicants.filterLabel")} style={styles.badges} testID="applicant-filters">
+            {vm.filters.map((item) => (
+              <Chip
+                key={item.id}
+                testID={`filter-${item.id}`}
+                kind="radio"
+                label={item.label}
+                count={item.count}
+                accessibilityLabel={`${item.label} ${item.count}`}
+                selected={vm.filter === item.id}
+                onPress={() => router.setParams({ status: item.id })}
+              />
+            ))}
+          </View>
+          {vm.countNote ? (
+            <Txt testID="applicants-count-note" variant="small" tone="muted">
+              {`ℹ️ ${vm.countNote}`}
+            </Txt>
+          ) : null}
+
           {vm.applicants.length === 0 ? (
-            <Empty testID="no-applicants">{t("applicants.empty")}</Empty>
+            <Empty testID="no-applicants">{vm.emptyLabel}</Empty>
           ) : (
-            vm.applicants.map((applicant) => <ApplicantCard key={applicant.id} applicant={applicant} challengeId={vm.selectedId} feeNote={vm.feeNote} />)
+            vm.applicants.map((applicant) => (
+              <ApplicantCard key={applicant.id} applicant={applicant} feeNote={vm.feeNote} showChallenge={vm.allChallenges} onTouched={() => keep(applicant.id)} />
+            ))
           )}
         </>
       )}

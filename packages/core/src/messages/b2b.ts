@@ -10,6 +10,13 @@ export const b2b = {
   "b2b.kpiPending": { ja: "審査待ち", ko: "심사 대기" },
   "b2b.kpiMatches": { ja: "マッチング成立", ko: "매칭 성립" },
   "b2b.kpiDonation": { ja: "寄付累計（貴社名義）", ko: "기부 누계(귀사 명의)" },
+  // #33 숫자 카드를 누르면 그 숫자의 내용이 있는 곳으로 가요 — 스크린 리더 이름은 「숫자 + 어디로 가는지」
+  "b2b.kpiAction": { ja: "{label} {value}（{go}）", ko: "{label} {value} ({go})" },
+  "b2b.kpiGo.open": { ja: "課題の管理を見る", ko: "챌린지 관리 보기" },
+  "b2b.kpiGo.applicants": { ja: "応募者の一覧を見る", ko: "응모자 목록 보기" },
+  "b2b.kpiGo.pending": { ja: "審査待ちの応募者を見る", ko: "심사 대기 응모자 보기" },
+  "b2b.kpiGo.matches": { ja: "採用した応募者を見る", ko: "채택한 응모자 보기" },
+  "b2b.kpiGo.donation": { ja: "仲介手数料と寄付の内訳を見る", ko: "중개 수수료와 기부 내역 보기" },
   "b2b.challenges": { ja: "課題の管理", ko: "챌린지 관리" },
   "b2b.newChallenge": { ja: "新しい課題を出題", ko: "신규 챌린지 출제" },
   "b2b.noChallenges": { ja: "まだ出題がありません", ko: "아직 출제한 챌린지가 없어요" },
@@ -42,6 +49,27 @@ export const b2b = {
   "applicants.average": { ja: "総合 {score}/5.0", ko: "종합 {score}/5.0" },
   "applicants.notReviewed": { ja: "未審査", ko: "미심사" },
   "applicants.mine": { ja: "（デモ：あなたの提出）", ko: "(데모: 내가 제출한 기획서)" },
+  // #33 「すべての課題」와 상태 필터(すべて · 審査待ち · 審査済み · 受賞 · 採用) — 대시보드 숫자 카드에서 넘어오면 해당 필터가 켜져 있어요
+  "applicants.allChallenges": { ja: "すべての課題", ko: "모든 챌린지" },
+  "applicants.allChallengesHint": { ja: "{count}件の課題をまとめて表示", ko: "챌린지 {count}개를 한꺼번에 보기" },
+  "applicants.challenge": { ja: "課題：{title}", ko: "챌린지: {title}" },
+  "applicants.filterLabel": { ja: "状態で絞り込む", ko: "상태로 좁히기" },
+  "applicants.filter.all": { ja: "すべて", ko: "전체" },
+  "applicants.filter.submitted": { ja: "審査待ち", ko: "심사 대기" },
+  "applicants.filter.reviewed": { ja: "審査済み", ko: "심사 완료" },
+  "applicants.filter.awarded": { ja: "受賞", ko: "수상" },
+  "applicants.filter.adopted": { ja: "採用", ko: "채택" },
+  "applicants.filterEmpty": { ja: "この条件の応募はありません", ko: "이 조건의 응모가 없어요" },
+  "applicants.noProposals": { ja: "表示できる企画書はありません", ko: "보여 줄 기획서가 없어요" },
+  // 대시보드 숫자(샘플 응모자 수·지난 매칭)와 목록 수가 다를 때만 이유를 한 줄로 밝혀요
+  "applicants.countNote": {
+    ja: "応募者 {people}には、企画書データのない過去の応募（サンプル）も含まれます。ここに表示しているのは企画書 {count}件です。",
+    ko: "응모자 {people}에는 기획서 데이터가 없는 지난 응모(샘플)도 포함돼요. 여기에는 기획서 {count}건을 보여 줘요.",
+  },
+  "applicants.matchNote": {
+    ja: "マッチング成立 {matches}件には、企画書データのない過去の採用（サンプル・内訳はダッシュボードの「仲介手数料と寄付」）も含まれます。ここに表示しているのは {count}件です。",
+    ko: "매칭 성립 {matches}건에는 기획서 데이터가 없는 지난 채택(샘플 · 내역은 대시보드의 「중개 수수료와 기부」)도 포함돼요. 여기에는 {count}건을 보여 줘요.",
+  },
 
   "review.title": { ja: "審査", ko: "심사" },
   "review.creativity": { ja: "創造性", ko: "창의성" },

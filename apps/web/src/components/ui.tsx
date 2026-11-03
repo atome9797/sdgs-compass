@@ -53,9 +53,10 @@ export function Empty({ children }: { children: ReactNode }) {
   return <p className="empty">{children}</p>;
 }
 
-export function Section({ title, hint, action, children }: { title: string; hint?: string; action?: ReactNode; children: ReactNode }) {
+/** 제목 + (설명) + 내용 묶음. id 를 주면 같은 화면 안의 링크(#id)로 올 수 있는 칸이 돼요 — 고정 머리글에 가리지 않게 여백을 두고, 포커스도 받아요(#33 대시보드 숫자 카드) */
+export function Section({ title, hint, action, id, children }: { title: string; hint?: string; action?: ReactNode; id?: string; children: ReactNode }) {
   return (
-    <section className="section">
+    <section className={id ? "section section--anchor" : "section"} id={id} tabIndex={id ? -1 : undefined} aria-label={id ? title : undefined}>
       <div className="section__head">
         <h2 className="section__title">{title}</h2>
         {action}

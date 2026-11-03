@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { PrPost } from "@sdgs-compass/core/domain";
 import { addDays, daysBetween } from "@sdgs-compass/core/format";
 import { reducer } from "@sdgs-compass/core/state";
 import { createInitialState } from "./seed";
@@ -169,15 +170,15 @@ describe("공식 SNS 게시 채널이 생기기 전에 저장된 데모 상태",
   const officialsOf = (state: { posts: readonly { id: string; kind: string; official?: unknown }[] }) =>
     state.posts.flatMap((p) => (p.kind === "pr" && p.official ? [[p.id, p.official] as const] : []));
 
-  it("옛 모양 JSON 은 그대로 불러와지고, channel 이 없는 신청은 instagram 으로 읽어요 (날짜·게시료·상태는 그대로)", () => {
+  it("옛 모양 JSON 은 그대로 불러와지고, channel 이 없는 신청은 instagram · postUrl 은 null 로 읽어요 (날짜·게시료·상태는 그대로)", () => {
     expect(JSON.stringify(legacyPosts)).not.toContain('"channel"'); // 정말 옛 모양인지
     const loaded = parseState(legacyJson);
     expect(loaded).not.toBeNull();
     expect(isDemoState(loaded)).toBe(true);
     expect(officialsOf(loaded!)).toEqual([
-      ["po-1", { on: addDays(TODAY, 1), channel: "instagram", feeYen: 3000, status: "scheduled" }],
-      ["po-2", { on: addDays(TODAY, 2), channel: "instagram", feeYen: 3000, status: "scheduled" }],
-      ["po-4", { on: addDays(TODAY, 3), channel: "instagram", feeYen: 3000, status: "scheduled" }],
+      ["po-1", { on: addDays(TODAY, 1), channel: "instagram", feeYen: 3000, status: "scheduled", postUrl: null }],
+      ["po-2", { on: addDays(TODAY, 2), channel: "instagram", feeYen: 3000, status: "scheduled", postUrl: null }],
+      ["po-4", { on: addDays(TODAY, 3), channel: "instagram", feeYen: 3000, status: "scheduled", postUrl: null }],
     ]);
     // 신청이 없는 글과 다른 글은 건드리지 않아요
     const untouched = (posts: readonly { id: string }[]) => posts.filter((p) => !["po-1", "po-2", "po-4"].includes(p.id));
@@ -188,9 +189,9 @@ describe("공식 SNS 게시 채널이 생기기 전에 저장된 데모 상태",
     const kv = memoryStorage({ [STORAGE_KEYS.state]: legacyJson });
     const loaded = await loadState(kv, "2026-11-02"); // 3일 뒤
     expect(officialsOf(loaded)).toEqual([
-      ["po-1", { on: "2026-11-03", channel: "instagram", feeYen: 3000, status: "scheduled" }],
-      ["po-2", { on: "2026-11-04", channel: "instagram", feeYen: 3000, status: "scheduled" }],
-      ["po-4", { on: "2026-11-05", channel: "instagram", feeYen: 3000, status: "scheduled" }],
+      ["po-1", { on: "2026-11-03", channel: "instagram", feeYen: 3000, status: "scheduled", postUrl: null }],
+      ["po-2", { on: "2026-11-04", channel: "instagram", feeYen: 3000, status: "scheduled", postUrl: null }],
+      ["po-4", { on: "2026-11-05", channel: "instagram", feeYen: 3000, status: "scheduled", postUrl: null }],
     ]);
     expect(isDemoState(loaded)).toBe(true);
   });
@@ -250,6 +251,46 @@ describe("SNS 피드 글 검사", () => {
     expect(parseState(withPosts([...others(brag.id), { ...brag, achievement: { ...(brag as { achievement: object }).achievement, kind: "share" } }]))).toBeNull();
     expect(parseState(withPosts([...others(pr.id), { ...pr, companyId: 7 }]))).toBeNull();
     expect(parseState(withPosts([...others(pr.id), { ...pr, official: { on: "내일", feeYen: 3000, status: "scheduled" } }]))).toBeNull();
-    expect(parseState(withPosts([...others(pr.id), { ...pr, official: { on: "2026-11-01", feeYen: 3000, status: "posted" } }]))).toBeNull();
+  });
+});
+
+describe("공식 SNS 게시 상태·게시글 주소가 생기기 전에 저장된 데모 상태 (#31)", () => {
+  const current = createInitialState(TODAY);
+  const pr = current.posts.find((p) => p.id === "po-4" && p.kind === "pr")!;
+  const others = current.posts.filter((p) => p.id !== pr.id);
+  const load = (official: unknown) => {
+    const loaded = parseState(JSON.stringify({ ...current, posts: [...others, { ...pr, official }] }));
+    return loaded?.posts.find((p) => p.id === pr.id) as PrPost | undefined;
+  };
+  const day = addDays(TODAY, 2);
+
+  it("상태가 없거나 모르는 값이면 예정으로, postUrl 은 null 로 읽어요", () => {
+    expect(load({ on: day, channel: "x", feeYen: 3000 })?.official).toEqual({ on: day, channel: "x", feeYen: 3000, status: "scheduled", postUrl: null });
+    for (const status of ["cancelled", "done", "", null, 1, "Posted"]) {
+      expect(load({ on: day, channel: "x", feeYen: 3000, status })?.official, String(status)).toEqual({ on: day, channel: "x", feeYen: 3000, status: "scheduled", postUrl: null });
+    }
+    // 채널도 상태도 없는 아주 옛 모양
+    expect(load({ on: day, feeYen: 3000 })?.official).toEqual({ on: day, channel: "instagram", feeYen: 3000, status: "scheduled", postUrl: null });
+  });
+
+  it("게시 완료는 그대로 읽고, 게시글 주소는 https:// 일 때만 남겨요 (예정에 붙은 주소·이상한 주소는 null)", () => {
+    const url = "https://www.instagram.com/p/sample/";
+    expect(load({ on: day, channel: "instagram", feeYen: 3000, status: "posted" })?.official).toEqual({ on: day, channel: "instagram", feeYen: 3000, status: "posted", postUrl: null });
+    expect(load({ on: day, channel: "instagram", feeYen: 3000, status: "posted", postUrl: url })?.official?.postUrl).toBe(url);
+    expect(load({ on: day, channel: "instagram", feeYen: 3000, status: "scheduled", postUrl: url })?.official?.postUrl).toBeNull();
+    for (const bad of ["javascript:alert(1)", "http://www.instagram.com/p/x/", "https://", "www.instagram.com", 42, {}]) {
+      expect(load({ on: day, channel: "instagram", feeYen: 3000, status: "posted", postUrl: bad })?.official, String(bad)).toMatchObject({ status: "posted", postUrl: null });
+    }
+  });
+
+  it("지금 모양(게시 완료 샘플 po-1 포함)은 저장했다 불러와도 그대로예요", () => {
+    expect(current.posts.find((p) => p.id === "po-1")).toMatchObject({ official: { status: "posted", postUrl: null } });
+    expect(parseState(serializeState(current))).toEqual(current);
+  });
+
+  it("날짜·채널·게시료가 틀린 신청은 여전히 버려요", () => {
+    expect(load({ on: "내일", channel: "x", feeYen: 3000, status: "scheduled", postUrl: null })).toBeUndefined();
+    expect(load({ on: day, channel: "youtube", feeYen: 3000, status: "posted", postUrl: null })).toBeUndefined();
+    expect(load({ on: day, channel: "x", feeYen: "무료", status: "scheduled", postUrl: null })).toBeUndefined();
   });
 });

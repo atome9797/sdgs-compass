@@ -188,11 +188,14 @@ export function previewPost(composer: ComposerVM, form: PostFormState, t: TFunct
     canDelete: false,
     achievement: activity ? { kindLabel: "", title: activity.label, companyName: "", awardLabel: null, sdgIds: activity.sdgIds, certificateId: null } : null,
     challenge: challenge ? { id: challenge.id, title: challenge.title } : null,
-    // 피드의 글 카드와 같은 글: "공식 SNS 게시 예정 · X · 11/2" (고른 채널 · 고른 날짜)
+    // 피드의 글 카드(쓴 회사가 보는 예정 안내)와 같은 글: "공식 SNS 게시 예정 · X · 11/2" + 게시료 (고른 채널 · 고른 날짜). 링크는 게시된 뒤에만 생겨요
     official: official && officialOn
       ? {
+          audience: "author",
+          status: "scheduled",
           label: t("feed.officialScheduled", { channel: official.name, date: formatDateShort(officialOn) }),
           feeLabel: t("feed.officialFee", { fee: composer.official.feeLabel }),
+          link: null,
           channel: official.id,
           channelName: official.name,
           channelLabel: official.label,

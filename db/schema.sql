@@ -77,7 +77,7 @@ CREATE TYPE report_status      AS ENUM ('open', 'blinded', 'dismissed', 'deleted
 CREATE TYPE cert_kind          AS ENUM ('participation', 'award');
 CREATE TYPE verify_result      AS ENUM ('valid', 'revoked', 'tampered', 'unknown');
 CREATE TYPE post_kind          AS ENUM ('brag', 'pr');                          -- F-503 학생 자랑 글 / F-504 기업 홍보 글
-CREATE TYPE official_status    AS ENUM ('scheduled', 'posted', 'cancelled');    -- 공식 SNS 게시 신청 (데모 앱은 scheduled 만 써요)
+CREATE TYPE official_status    AS ENUM ('scheduled', 'posted', 'cancelled');    -- 공식 SNS 게시 신청 (데모 앱은 scheduled·posted 만 써요 — 취소는 서버의 운영 도구)
 CREATE TYPE official_channel   AS ENUM ('instagram', 'x', 'facebook');          -- 공식 SNS 게시 신청의 채널 (YouTube 는 영상 채널이라 신청 대상이 아니에요)
 CREATE TYPE wallet_kyc_status    AS ENUM ('none', 'pending', 'verified');   -- #25 リワード残高의 본인 확인(eKYC). 데모 앱은 none·verified 만 써요
 CREATE TYPE wallet_entry_kind    AS ENUM ('prize', 'return', 'withdrawal'); -- #25 원장: 기업 상금 · 운영 환원 · 출금
@@ -1368,7 +1368,8 @@ CREATE TRIGGER social_post_likes_guard_ins BEFORE INSERT ON social_post_likes FO
 -- F-504 공식 SNS(X · Instagram · Facebook) 게시 신청: 기업 홍보 글 하나에 한 번(채널은 하나만 골라요). 하루 제한은 없어요 — 같은 날·같은 채널에 여러 회사가 올라가도 돼요.
 -- 한 회사는 게시일이 속한 달(일본 시간 달력 월)에 4번까지예요(채널 합계 · 예정·게시 완료만 세고 취소·삭제는 세지 않아요 — OFFICIAL_SHARE_MONTHLY_LIMIT).
 -- 날짜는 기업이 신청한 날의 내일부터 30일 뒤까지에서 골라요(OFFICIAL_SHARE_WINDOW_DAYS). 게시료 ¥3,000 은 샘플 값이고 모든 채널이 같으며 정산은 하지 않아요(OFFICIAL_SHARE_FEE_YEN).
--- 데모 앱에는 관리자 화면이 없어서 scheduled 까지만 써요. posted·cancelled 는 서버의 운영 도구가 바꿔요. (실제로 올리는 일은 이 표 밖의 운영 일이에요 — OAuth·자동 게시는 하지 않아요.)
+-- 앱에서 새로 신청하면 scheduled 예요. posted(+ 게시글 주소)·cancelled 는 서버 버전의 운영 도구가 바꿔요 — 데모에는 그 화면이 없고 샘플에만 posted 가 있어요.
+-- (실제로 올리는 일은 이 표 밖의 운영 일이에요 — OAuth·자동 게시는 하지 않아요.) 예정일·게시료는 글을 쓴 기업에게만, 다른 사람에게는 게시된 뒤의 링크만 보여 줘요(앱의 PostVM.official).
 CREATE TABLE official_share_slots (
   post_id      uuid PRIMARY KEY REFERENCES social_posts (id) ON DELETE CASCADE,
   channel      official_channel NOT NULL DEFAULT 'instagram',              -- 올릴 공식 SNS (채널이 없던 때의 신청은 모두 Instagram 스토리였어요)
@@ -1377,7 +1378,10 @@ CREATE TABLE official_share_slots (
   status       official_status NOT NULL DEFAULT 'scheduled',
   requested_at timestamptz     NOT NULL DEFAULT now(),
   posted_at    timestamptz,
-  CONSTRAINT official_share_posted CHECK ((status = 'posted') = (posted_at IS NOT NULL))
+  post_url     text,                                                       -- 게시된 글의 주소 (게시 완료일 때만, https://). 없으면 앱이 그 채널의 공식 계정 주소로 이어 줘요(OFFICIAL_ACCOUNT_URLS)
+  CONSTRAINT official_share_posted CHECK ((status = 'posted') = (posted_at IS NOT NULL)),
+  -- 게시글 주소는 https:// + 빈칸 없는 ASCII 글자(!~~ 범위)만 — 앱의 isOfficialPostUrl 과 같은 규칙이에요(locale 에 따라 달라지는 \s 대신 글자 범위로 정했어요)
+  CONSTRAINT official_share_post_url CHECK (post_url IS NULL OR (status = 'posted' AND post_url ~ '^https://[!-~]+$'))
 );
 -- 회사·달별 횟수를 셀 때 날짜 범위로 찾아요 (취소한 신청은 세지 않아서 빼요)
 CREATE INDEX official_share_slots_on_idx ON official_share_slots (scheduled_on) WHERE status <> 'cancelled';
@@ -1981,7 +1985,8 @@ CREATE VIEW company_fee_summary AS
     FROM matches
    GROUP BY company_id;
 
--- 피드 화면(F-503·F-504): 블라인드되지 않은 글 + 글쓴이 표시 + 붙은 실적 + 태그 + 좋아요 수 + 공식 게시 채널·날짜.
+-- 피드 화면(F-503·F-504): 블라인드되지 않은 글 + 글쓴이 표시 + 붙은 실적 + 태그 + 좋아요 수 + 공식 게시 채널·날짜·상태·게시글 주소.
+-- 예정일·게시료를 누구에게 보여 줄지(쓴 기업에게만)와 게시글 주소가 없을 때 공식 계정으로 이어 주는 일은 앱·서버 계층이 해요(PostVM.official).
 -- 자랑 글은 닉네임과 레벨만, 홍보 글은 기업 정보만 보여요 (이메일·연락처 열은 없어요). 최신순은 화면이 ORDER BY created_at DESC 로 정해요.
 -- 레벨은 지금 값이에요 (앱의 샘플 글은 올린 때의 레벨을 그대로 들고 있어요).
 CREATE VIEW feed_posts AS
@@ -1994,7 +1999,7 @@ CREATE VIEW feed_posts AS
          a.kind AS achievement_kind, a.title AS achievement_title, a.company_name AS achievement_company, aw.kind AS achievement_award,
          ARRAY(SELECT s.sdg_id FROM social_post_sdgs s WHERE s.post_id = p.id ORDER BY s.position) AS sdg_ids,
          (SELECT count(*) FROM social_post_likes l WHERE l.post_id = p.id)::integer AS like_count,
-         o.channel AS official_channel, o.scheduled_on AS official_on, o.fee_yen AS official_fee_yen, o.status AS official_status
+         o.channel AS official_channel, o.scheduled_on AS official_on, o.fee_yen AS official_fee_yen, o.status AS official_status, o.post_url AS official_post_url
     FROM social_posts p
     LEFT JOIN student_profiles sp    ON sp.user_id = p.author_id AND p.kind = 'brag'
     LEFT JOIN impact_totals t        ON t.user_id = p.author_id AND p.kind = 'brag'

@@ -3,7 +3,10 @@
 import { deriveActivities, showableActivities, type ShowableActivity } from "./activities";
 import { CERT_CRITERIA, criterionOf, evaluateCertification, type CertUnit, type EsgCategory } from "./certification";
 import { certificateFromActivity, certificateIdAt, qrPayload, verifyCode, type Certificate } from "./certificate";
-import type { Activity, ActivityKind, AwardKind, Candidate, Challenge, ChallengeStatus, CertCriterionId, Company, DemoState, OfficialChannel, PostKind, Proposal, ProposalStatus, Review, Role, ScoutKind, ScoutStatus, SkillId, SocialPost } from "./domain";
+import type {
+  Activity, ActivityKind, AwardKind, Candidate, Challenge, ChallengeStatus, CertCriterionId, Company, DemoState, OfficialChannel, OfficialShare, PostKind, Proposal, ProposalStatus, Review,
+  Role, ScoutKind, ScoutStatus, SkillId, SocialPost,
+} from "./domain";
 import { summarizeMatches, splitMatchFee } from "./fees";
 import { dDayLabel, daysBetween, formatBytes, formatDate, formatDateShort, formatDateTime, formatMonthDayWeekday, formatPeople, formatYen } from "./format";
 import { computeBadges, computeImpactIndex, BADGE_EMOJI, levelProgress, levelOf, REVIEW_SCORE_MAX, reviewBonus, type BadgeCode } from "./impact";
@@ -12,7 +15,7 @@ import { awardLabel, challengeStatusLabel, participationLabel, proposalStatusLab
 import { makeT, translate, type TFunction } from "./messages";
 import {
   authorRole, bodyLimit, DEFAULT_OFFICIAL_CHANNEL, defaultPrSdgs, OFFICIAL_CHANNELS, OFFICIAL_SHARE_FEE_YEN, OFFICIAL_SHARE_MONTHLY_LIMIT, OFFICIAL_SHARE_WINDOW_DAYS,
-  officialChannelFormat, officialChannelLabel, officialChannelName, officialDateChoices, officialUsageByMonth, POST_LIMITS,
+  officialChannelFormat, officialChannelLabel, officialChannelName, officialDateChoices, officialShareLink, officialUsageByMonth, POST_LIMITS,
 } from "./post";
 import { qrMatrix } from "./qr";
 import { isOpenFor, recommendChallenges, scoreChallenge, type Reason, type Recommendation } from "./recommend";
@@ -1214,7 +1217,10 @@ export interface PostVM {
   achievement: PostAchievementVM | null;
   /** 홍보 글에 연결된 챌린지 (챌린지 상세로 이어져요) */
   challenge: { id: string; title: string } | null;
-  /** 공식 SNS 게시 신청: "공식 SNS 게시 예정 · X · 11/19", "게시료 ¥3,000(샘플)" */
+  /**
+   * 공식 SNS 게시 신청 — 보는 사람에 따라 달라요: 글을 쓴 회사(기업 화면·우리 회사 글)는 예정이면 날짜·게시료, 게시됨이면 링크.
+   * 그 밖의 사람(학생·다른 기업)은 예정이면 null(아무것도 안 보임), 게시됨이면 「公式SNSでも紹介中」 + 링크.
+   */
   official: PostOfficialVM | null;
   /** 공유·복사로 내보낼 글 (홍보 글은 맨 앞에 [PR] 이 붙어요) */
   shareText: string;
@@ -1222,15 +1228,47 @@ export interface PostVM {
 
 /** 글 카드에 보이는 공식 SNS 게시 신청 */
 export interface PostOfficialVM {
-  /** "공식 SNS 게시 예정 · X · 11/19" */
+  /** author = 글을 쓴 회사가 보는 안내, public = 그 밖의 사람(학생·다른 기업)이 보는 안내 (게시된 뒤에만 있어요) */
+  audience: OfficialAudience;
+  status: OfficialShare["status"];
+  /** author·예정 "公式SNS掲載予定 · Instagram · 11/5" / author·게시됨 "公式SNSに掲載済み · Instagram" / public·게시됨 "公式SNSでも紹介中 · Instagram" */
   label: string;
-  /** "게시료 ¥3,000(샘플)" */
-  feeLabel: string;
+  /** "掲載料 ¥3,000（サンプル）" — 글을 쓴 회사가 보는 예정 안내에만 있어요 */
+  feeLabel: string | null;
+  /** 게시된 뒤의 링크: 게시글 주소 → 없으면 그 채널의 공식 계정 주소(OFFICIAL_ACCOUNT_URLS). 둘 다 없으면 null — 채널 이름만 보여요 */
+  link: { url: string; label: string } | null;
   channel: OfficialChannel;
   /** 채널 이름: "X" / "Instagram" / "Facebook" (한국어는 인스타그램·페이스북) */
   channelName: string;
-  /** 채널 이름 + 올라가는 모양: "X ポスト" / "Instagram ストーリー" / "Facebook ページ投稿" */
+  /** 채널 이름 + 올라가는 모양: "X ポスト" / "Instagram フィード投稿" / "Facebook ページ投稿" */
   channelLabel: string;
+}
+
+export type OfficialAudience = "author" | "public";
+
+/**
+ * 공식 SNS 게시 신청을 보는 사람에 맞게 (#31): 예정일·게시료는 글을 쓴 회사에게만 보이고,
+ * 다른 사람에게는 실제로 게시된 뒤에만 「公式SNSでも紹介中 · Instagram」과 링크가 보여요(예정이면 null).
+ * 링크 글자는 게시글 주소가 있고 쓴 회사가 보면 「投稿を見る」, 그 밖에는 「公式SNSで見る」(공식 계정으로 이어질 때 포함)예요.
+ */
+export function officialShareVM(share: OfficialShare, audience: OfficialAudience, locale: Locale): PostOfficialVM | null {
+  if (audience === "public" && share.status !== "posted") return null;
+  const channelName = officialChannelName(share.channel, locale);
+  const url = officialShareLink(share);
+  const label =
+    share.status === "scheduled"
+      ? translate("feed.officialScheduled", locale, { channel: channelName, date: formatDateShort(share.on) })
+      : translate(audience === "author" ? "feed.officialPostedMine" : "feed.officialPosted", locale, { channel: channelName });
+  return {
+    audience,
+    status: share.status,
+    label,
+    feeLabel: audience === "author" && share.status === "scheduled" ? translate("feed.officialFee", locale, { fee: formatYen(share.feeYen, locale) }) : null,
+    link: url === null ? null : { url, label: translate(audience === "author" && share.postUrl !== null ? "feed.officialViewPost" : "feed.officialViewOnSns", locale) },
+    channel: share.channel,
+    channelName,
+    channelLabel: officialChannelLabel(share.channel, locale),
+  };
 }
 
 export interface FeedVM {
@@ -1303,15 +1341,8 @@ function postVM(state: DemoState, post: SocialPost, locale: Locale, role: Role, 
     title,
     achievement: null,
     challenge: challenge ? { id: challenge.id, title: pick(challenge.title, locale) } : null,
-    official: post.official
-      ? {
-          label: translate("feed.officialScheduled", locale, { channel: officialChannelName(post.official.channel, locale), date: formatDateShort(post.official.on) }),
-          feeLabel: translate("feed.officialFee", locale, { fee: formatYen(post.official.feeYen, locale) }),
-          channel: post.official.channel,
-          channelName: officialChannelName(post.official.channel, locale),
-          channelLabel: officialChannelLabel(post.official.channel, locale),
-        }
-      : null,
+    // 글을 쓴 회사 = 기업 화면이고 우리 회사의 글 (DB 에서는 그 기업의 담당자)
+    official: post.official ? officialShareVM(post.official, role === "b2b" && post.companyId === state.myCompanyId ? "author" : "public", locale) : null,
     shareText: [translate("feed.sharePr", locale, { title }), base.body, `${companyName} ${tags}`].join("\n"),
   };
 }

@@ -199,15 +199,21 @@ export type OfficialChannel = "instagram" | "x" | "facebook";
 
 /**
  * 기업 홍보 글의 공식 SNS 게시 신청. 하루 제한은 없고(같은 날·같은 채널에 여러 회사), 한 회사는 게시일이 속한 달에 4번까지예요(채널 합계 — post.ts 의 OFFICIAL_SHARE_MONTHLY_LIMIT).
- * 데모에는 관리자 화면이 없어서 상태는 "예정"뿐이에요
+ * 예정일·게시료는 글을 쓴 회사에게만 보이고, 다른 사람에게는 게시된 뒤에 링크만 보여요(selectors.ts 의 PostVM.official).
  */
 export interface OfficialShare {
-  /** 게시 예정일 (YYYY-MM-DD) — 기업이 내일부터 30일 뒤까지에서 골라요 */
+  /** 게시 날짜 (YYYY-MM-DD) — 기업이 내일부터 30일 뒤까지에서 골라요 */
   on: string;
   /** 게시할 공식 SNS. 채널을 고르기 전에 저장된 옛 데모 상태에는 없어서, 불러올 때 instagram 으로 채워요 (storage.ts) */
   channel: OfficialChannel;
   feeYen: number;
-  status: "scheduled";
+  /**
+   * scheduled = 게시 예정, posted = 운영자가 공식 SNS 에 올렸어요. 앱에서 새로 신청하면 늘 scheduled 이고,
+   * posted 로 바꾸는(게시글 주소를 넣는) 운영 화면은 서버 버전에서 만들어요 — 데모에서는 샘플에만 있어요. 취소(DB 의 cancelled)는 앱에 없어요(글을 지우면 사라져요).
+   */
+  status: "scheduled" | "posted";
+  /** 게시된 글의 주소 (posted 일 때만, https:// 로 시작). 없으면 null → 그 채널의 공식 계정 주소로 이어 줘요 (post.ts 의 officialShareLink) */
+  postUrl: string | null;
 }
 
 interface PostBase {

@@ -3,7 +3,7 @@
 import { CERT_CRITERIA } from "@sdgs-compass/core/certification";
 import type { DemoState, Role } from "@sdgs-compass/core/domain";
 import { isLocale, type Locale } from "@sdgs-compass/core/i18n";
-import { DEFAULT_OFFICIAL_CHANNEL, isOfficialChannel } from "@sdgs-compass/core/post";
+import { DEFAULT_OFFICIAL_CHANNEL, isOfficialChannel, isOfficialPostUrl, isOfficialStatus } from "@sdgs-compass/core/post";
 import { SDG_IDS, type SdgId } from "@sdgs-compass/core/sdg";
 import { rebaseState } from "@sdgs-compass/core/state";
 import { createInitialState } from "./seed";
@@ -145,7 +145,9 @@ function isSocialPost(value: unknown): boolean {
     const o = value.official;
     return (
       typeof value.companyId === "string" && isText(value.title) && (value.challengeId === null || typeof value.challengeId === "string") &&
-      (o === null || (isObject(o) && isDay(o.on) && isOfficialChannel(o.channel) && typeof o.feeYen === "number" && o.status === "scheduled"))
+      (o === null ||
+        (isObject(o) && isDay(o.on) && isOfficialChannel(o.channel) && typeof o.feeYen === "number" && isOfficialStatus(o.status) &&
+          (o.postUrl === null || (o.status === "posted" && isOfficialPostUrl(o.postUrl)))))
     );
   }
   return false;
@@ -209,18 +211,30 @@ export function serializeState(state: DemoState): string {
 }
 
 /**
- * 공식 SNS 게시 채널(channel)이 생기기 전에 저장된 홍보 글의 게시 신청에는 channel 이 없어요.
- * 그때는 Instagram 스토리 전용이었으니 instagram 으로 읽어요(이미 channel 이 있으면 — 틀린 값이어도 — 그대로 두고 isSocialPost 가 판단해요).
+ * 예전에 저장된 홍보 글의 공식 SNS 게시 신청을 지금 모양으로 읽어요.
+ * - channel 이 없으면(채널 선택이 생기기 전) 그때 하나뿐이던 instagram 으로 (이미 channel 이 있으면 — 틀린 값이어도 — 그대로 두고 isSocialPost 가 판단해요)
+ * - status 가 없거나 모르는 값이면 예정(scheduled)으로 — 게시 완료(posted)는 그대로
+ * - postUrl 은 게시 완료이고 https:// 주소일 때만 남기고, 없거나 그 밖이면 null (링크는 공식 계정 주소로 이어져요)
  */
-function withOfficialChannel(post: unknown): unknown {
-  if (!isObject(post) || post.kind !== "pr" || !isObject(post.official) || post.official.channel !== undefined) return post;
-  return { ...post, official: { ...post.official, channel: DEFAULT_OFFICIAL_CHANNEL } };
+function normalizeOfficial(post: unknown): unknown {
+  if (!isObject(post) || post.kind !== "pr" || !isObject(post.official)) return post;
+  const official = post.official;
+  const status = isOfficialStatus(official.status) ? official.status : "scheduled";
+  return {
+    ...post,
+    official: {
+      ...official,
+      channel: official.channel === undefined ? DEFAULT_OFFICIAL_CHANNEL : official.channel,
+      status,
+      postUrl: status === "posted" && isOfficialPostUrl(official.postUrl) ? official.postUrl : null,
+    },
+  };
 }
 
 /**
  * 예전 버전에서 저장된 상태를 지금 모양으로 이어 줘요(버리지 않고 이어서 쓸 수 있게):
  * - SNS 피드(posts)가 생기기 전의 상태에는 posts 가 없어요 → 저장했을 때의 "오늘" 기준 샘플 글을 채워 넣어요(날짜는 불러올 때 rebase 가 옮겨요).
- * - 공식 SNS 게시 채널이 생기기 전의 글에는 official.channel 이 없어요 → instagram 으로 읽어요.
+ * - 공식 SNS 게시 신청: channel 이 없으면 instagram, 상태가 없거나 모르는 값이면 예정, postUrl 은 게시 완료의 https:// 주소만 (normalizeOfficial).
  * - #25 リワード残高가 생기기 전의 상태에는 wallet·prizeDeposits 가 없어요 → 저장했을 때의 "오늘" 기준 샘플(잔액·상금 예치)을 채워 넣어요.
  *   데모에서 새로 낸 과제(샘플에 없는 과제)는 예치 기록 없이 열려요.
  */
@@ -229,7 +243,7 @@ function upgradeSaved(data: unknown): unknown {
   let next: Record<string, unknown> = data;
   const sample = () => createInitialState(String(data.today));
   if (next.posts === undefined && isDay(data.today)) next = { ...next, posts: sample().posts };
-  else if (Array.isArray(next.posts)) next = { ...next, posts: next.posts.map(withOfficialChannel) };
+  else if (Array.isArray(next.posts)) next = { ...next, posts: next.posts.map(normalizeOfficial) };
   if (next.wallet === undefined && isDay(data.today)) next = { ...next, wallet: sample().wallet };
   if (next.prizeDeposits === undefined && isDay(data.today)) {
     const ids = new Set(Array.isArray(next.challenges) ? next.challenges.map((c) => (isObject(c) ? c.id : null)) : []);

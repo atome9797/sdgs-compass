@@ -62,6 +62,9 @@ SELECT pg_temp.eq((SELECT string_agg(enumlabel, ',' ORDER BY enumsortorder) FROM
 SELECT pg_temp.ok(EXISTS (SELECT 1 FROM information_schema.columns
                            WHERE table_name = 'official_share_slots' AND column_name = 'channel' AND is_nullable = 'NO' AND column_default LIKE '''instagram''%'),
                   '게시 신청의 채널은 비워 둘 수 없고, 말하지 않으면 instagram 이다 (채널이 없던 때의 신청과 호환)');
+SELECT pg_temp.ok(EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid = 'official_share_slots'::regclass AND conname = 'official_share_post_url' AND contype = 'c')
+              AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'feed_posts' AND column_name = 'official_post_url'),
+                  '게시글 주소(post_url)는 게시 완료일 때만 https:// 로 받고(검사 제약), 피드 뷰가 상태와 함께 내보낸다');
 SELECT pg_temp.ok(EXISTS (SELECT 1 FROM pg_enum WHERE enumtypid = 'report_target'::regtype AND enumlabel = 'post'), '신고 대상에 피드 글(post)이 있다 (F-702)');
 SELECT pg_temp.none($q$SELECT t.name AS table_without_guard
                          FROM (VALUES ('social_posts'), ('social_post_sdgs'), ('social_post_likes'), ('official_share_slots')) t(name)

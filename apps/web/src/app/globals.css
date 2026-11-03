@@ -545,6 +545,10 @@ svg { display: block; }
 .fcard__challenge { font-size: var(--fs-sm); font-weight: 700; color: var(--primary-dark); }
 .fcard__official { display: flex; flex-direction: column; gap: 2px; padding: 8px 12px; border-radius: var(--radius-md); background: var(--warning-soft); color: var(--warning); font-size: var(--fs-sm); font-weight: 700; }
 .fcard__official-fee { font-size: var(--fs-xs); font-weight: 600; }
+/* 게시된 뒤: 광고(예정·게시료)가 아니라 공식 SNS 로 가는 안내라서 기본 색으로 */
+.fcard__official--posted { background: var(--primary-soft); color: var(--primary-dark); }
+.fcard__official-link { align-self: flex-start; display: inline-flex; align-items: center; min-height: var(--tap); margin: -4px 0 -6px; color: var(--primary-dark); font-weight: 800; text-decoration: underline; text-underline-offset: 3px; }
+.fcard__official-link:hover { color: var(--primary); }
 .fcard__actions { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 4px; margin: 2px -6px -6px; padding-top: 6px; border-top: 1px solid var(--border); }
 .fcard__action { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-width: var(--tap); min-height: var(--tap); padding: 0 12px; border-radius: var(--radius-pill); color: var(--text-muted); font-size: var(--fs-sm); font-weight: 700; white-space: nowrap; }
 button.fcard__action:hover, a.fcard__action:hover { background: var(--bg); color: var(--text); text-decoration: none; }

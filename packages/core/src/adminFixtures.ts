@@ -131,7 +131,7 @@ const CERT: CertAnswers = {
 };
 
 /** 공식 SNS 게시 신청 1건 (X) */
-const OFFICIAL: OfficialShare = { on: "2026-10-31", channel: "x", feeYen: 3000, status: "scheduled" };
+const OFFICIAL: OfficialShare = { on: "2026-10-31", channel: "x", feeYen: 3000, status: "scheduled", postUrl: null };
 
 /**
  * 기준일 2026-10-30. 값(손으로 센 것):

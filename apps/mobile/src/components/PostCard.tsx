@@ -1,10 +1,10 @@
-// SNS 피드의 글 카드(F-503 학생 자랑 글 · F-504 기업 홍보 글): 글쓴이 · 종류 칩(홍보 글은 항상 "PR") · 제목/본문 · 붙은 실적 · SDGs · 공식 SNS 게시 예정 · 좋아요/공유/바로가기/삭제.
+// SNS 피드의 글 카드(F-503 학생 자랑 글 · F-504 기업 홍보 글): 글쓴이 · 종류 칩(홍보 글은 항상 "PR") · 제목/본문 · 붙은 실적 · SDGs · 공식 SNS 게시 · 좋아요/공유/바로가기/삭제.
 // 값은 모두 core 의 PostVM 이고 이 조각은 그리기만 해요. 삭제는 경고창 대신 카드 안에서 한 번 더 확인해요.
 // preview 이면 동작 단추 없이 모양만 보여 줘요 (글쓰기 화면의 미리보기).
 import { useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Linking, Pressable, StyleSheet, Text, View } from "react-native";
 import { sdgLabel } from "@sdgs-compass/core/labels";
-import type { PostAchievementVM, PostVM } from "@sdgs-compass/core/selectors";
+import type { PostAchievementVM, PostOfficialVM, PostVM } from "@sdgs-compass/core/selectors";
 import { CompanyAvatar } from "@/components/CompanyAvatar";
 import { SdgMiniRow } from "@/components/SdgTile";
 import { Badge, Button, Card, Notice, Txt } from "@/components/ui";
@@ -59,6 +59,44 @@ function Achievement({ achievement, testID }: { achievement: PostAchievementVM; 
         <Txt variant="small" tone="muted" numberOfLines={1}>
           {achievement.companyName}
         </Txt>
+      ) : null}
+    </View>
+  );
+}
+
+/**
+ * 공식 SNS 게시: 쓴 회사에게는 예정이면 날짜·게시료, 게시됨이면 링크 / 다른 사람에게는 게시된 뒤에만 「公式SNSでも紹介中」 + 링크 (core 의 PostVM.official).
+ * 링크는 SNS 앱(없으면 브라우저)으로 열어요. 미리보기에서는 링크를 그리지 않아요.
+ */
+function Official({ official, postId, preview }: { official: PostOfficialVM; postId: string; preview: boolean }) {
+  const { t } = useApp();
+  const posted = official.status === "posted";
+  const link = preview ? null : official.link;
+  return (
+    <View testID={`post-official-${postId}`} style={[styles.official, posted ? styles.officialPosted : null]}>
+      <View accessible accessibilityLabel={official.feeLabel ? `${official.label}, ${official.feeLabel}` : official.label} style={styles.officialText}>
+        <Txt variant="small" bold style={posted ? styles.officialPostedLabel : styles.officialLabel}>
+          📣 {official.label}
+        </Txt>
+        {official.feeLabel ? (
+          <Txt variant="small" tone="muted">
+            {official.feeLabel}
+          </Txt>
+        ) : null}
+      </View>
+      {link ? (
+        <Pressable
+          testID={`post-official-link-${postId}`}
+          accessibilityRole="link"
+          accessibilityLabel={link.label}
+          accessibilityHint={t("mobile.opensExternal")}
+          onPress={() => void Linking.openURL(link.url).catch(() => undefined)}
+          style={({ pressed }) => [styles.officialLink, { opacity: pressed ? 0.7 : 1 }]}
+        >
+          <Txt variant="small" bold style={styles.officialLinkText}>
+            {link.label} ↗
+          </Txt>
+        </Pressable>
       ) : null}
     </View>
   );
@@ -135,16 +173,7 @@ export function PostCard({ post, preview = false, onLike, onDelete, onShare, lin
           </View>
         ) : null}
 
-        {post.official ? (
-          <View testID={`post-official-${post.id}`} accessible accessibilityLabel={`${post.official.label}, ${post.official.feeLabel}`} style={styles.official}>
-            <Txt variant="small" bold style={styles.officialText}>
-              📅 {post.official.label}
-            </Txt>
-            <Txt variant="small" tone="muted">
-              {post.official.feeLabel}
-            </Txt>
-          </View>
-        ) : null}
+        {post.official ? <Official official={post.official} postId={post.id} preview={preview} /> : null}
 
         {showMeta ? (
           <View style={styles.meta}>
@@ -213,9 +242,14 @@ const styles = StyleSheet.create({
     borderColor: COLORS.border,
     backgroundColor: COLORS.bg,
   },
-  official: { gap: 2, padding: SPACE.md, borderRadius: RADIUS.md, backgroundColor: COLORS.primarySoft },
-  // 연한 파랑 바탕 위에서 글자 대비가 4.5:1 이상이 되도록 가장 짙은 파랑
-  officialText: { color: COLORS.primaryDark },
+  official: { gap: SPACE.xs, padding: SPACE.md, borderRadius: RADIUS.md, backgroundColor: COLORS.warningSoft },
+  officialPosted: { backgroundColor: COLORS.primarySoft },
+  officialText: { gap: 2 },
+  // 예정(광고·게시료) 안내는 웹과 같은 주황 계열, 게시된 뒤의 안내는 기본 색 — 연한 바탕 위에서 글자 대비가 4.5:1 이상인 짙은 색
+  officialLabel: { color: COLORS.warning },
+  officialPostedLabel: { color: COLORS.primaryDark },
+  officialLink: { alignSelf: "flex-start", minHeight: HIT, justifyContent: "center" },
+  officialLinkText: { color: COLORS.primaryDark, textDecorationLine: "underline" },
   meta: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: SPACE.sm },
   actions: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: SPACE.xs },
   like: {

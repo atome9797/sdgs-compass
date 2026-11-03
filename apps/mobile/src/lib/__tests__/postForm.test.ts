@@ -186,7 +186,7 @@ test("고른 채널의 선택지(이름 · 올라가는 모양)를 찾아요", (
   const composer = prComposer();
   const form = initialPostForm(composer);
   const instagram = selectedOfficialOption(composer, form);
-  expect(instagram).toMatchObject({ id: "instagram", name: "인스타그램", format: "스토리", label: "인스타그램 스토리" });
+  expect(instagram).toMatchObject({ id: "instagram", name: "인스타그램", format: "피드 게시물", label: "인스타그램 피드 게시물" });
   const x = selectedOfficialOption(composer, pickOfficialChannel(form, "x", composer));
   expect(x).toMatchObject({ id: "x", name: "X", format: "포스트", label: "X 포스트" });
   // 선택지에 없는 값이 들어 있으면 처음 골라 두는 채널이에요
@@ -345,11 +345,14 @@ test("홍보 글 미리보기: 제목(앞뒤 공백 뺌)·고른 SDGs·연결한
   // 피드의 글 카드와 같은 글: 고른 채널(처음엔 Instagram)과 고른 날짜(처음엔 가장 빠른 날 = 내일)
   const official = previewPost(composer, { ...base, requestOfficial: true }, t);
   expect(official.official).toEqual({
+    audience: "author",
+    status: "scheduled",
     label: "공식 SNS 게시 예정 · 인스타그램 · 10/31",
     feeLabel: "게시료 3,000엔(샘플)",
+    link: null,
     channel: "instagram",
     channelName: "인스타그램",
-    channelLabel: "인스타그램 스토리",
+    channelLabel: "인스타그램 피드 게시물",
   });
 });
 

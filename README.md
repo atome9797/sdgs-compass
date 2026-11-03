@@ -1461,6 +1461,7 @@ erDiagram
     official_status status
     timestamptz requested_at
     timestamptz posted_at
+    text post_url
   }
   activities {
     uuid id PK

@@ -57,6 +57,17 @@ describe("이용 현황: 지금 값", () => {
     expect(totals.prPosts).toBe(2);
     expect(totals.likes).toBe(20);
     expect(totals.officialShares).toBe(1);
+    expect(totals.officialPosted).toBe(0);
+  });
+
+  it("공식 SNS 게시 신청 중 게시 완료(posted)는 따로 세요 (전체에는 예정과 함께 들어가요)", () => {
+    const first = makeUsageState().posts[0] as PrPost;
+    const share = first.official as OfficialShare;
+    const posted = summarizeTotals(
+      makeUsageState({ posts: [first, { ...first, id: "pp", official: { ...share, status: "posted", postUrl: null } }] }),
+    );
+    expect(posted.officialShares).toBe(2);
+    expect(posted.officialPosted).toBe(1);
   });
 
   it("공식 SNS 게시 신청은 채널별로도 세요 (신청이 없는 채널은 0, 채널 없는 옛 데이터는 Instagram)", () => {
@@ -94,6 +105,7 @@ describe("이용 현황: 지금 값", () => {
     expect(empty.feeYen).toBe(0);
     expect(empty.likes).toBe(0);
     expect(empty.officialShares).toBe(0);
+    expect(empty.officialPosted).toBe(0);
     expect(empty.officialByChannel).toEqual({ x: 0, instagram: 0, facebook: 0 });
   });
 });

@@ -263,7 +263,7 @@ export function reducer(state: DemoState, action: Action): DemoState {
         body: draft.body.trim(),
         sdgIds: uniqueSdgs(draft.sdgIds),
         challengeId: draft.challengeId || null,
-        official: officialOn ? { on: officialOn, channel, feeYen: OFFICIAL_SHARE_FEE_YEN, status: "scheduled" } : null,
+        official: officialOn ? { on: officialOn, channel, feeYen: OFFICIAL_SHARE_FEE_YEN, status: "scheduled", postUrl: null } : null,
         createdAt: action.at,
         likes: 0,
         likedBy: [],

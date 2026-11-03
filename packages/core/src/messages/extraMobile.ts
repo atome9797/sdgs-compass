@@ -48,6 +48,7 @@ export const extraMobile = {
   "mobile.increase": { ja: "増やす", ko: "늘리기" },
   "mobile.goToDashboard": { ja: "ダッシュボードへ", ko: "대시보드로" },
   "mobile.openVideo": { ja: "動画を開く", ko: "동영상 열기" },
+  "mobile.opensExternal": { ja: "SNSのアプリかブラウザで開きます", ko: "SNS 앱이나 브라우저에서 열려요" },
   "mobile.awardKind": { ja: "表彰の種類", ko: "시상 종류" },
   "mobile.talentDemoStudent": { ja: "学生画面のあなた（デモ）", ko: "학생 화면의 나(데모)" },
   "mobile.talentCount": { ja: "{count}名の人材", ko: "{count}명의 인재" },

@@ -18,8 +18,8 @@ import type {
 } from "../packages/core/src/domain";
 import { PRIZE_AWARD, RETURN_RESERVE_MONTHS, returnPoolYen, WITHDRAWAL_MAX_YEN, WITHDRAWAL_MIN_YEN } from "../packages/core/src/wallet";
 import {
-  containsContact, DEFAULT_OFFICIAL_CHANNEL, earliestOfficialDate, isOfficialChannel, OFFICIAL_CHANNELS, OFFICIAL_SHARE_FEE_YEN, OFFICIAL_SHARE_MONTHLY_LIMIT,
-  OFFICIAL_SHARE_WINDOW_DAYS, officialDateChoices, officialMonthRemaining, officialUsageByMonth, POST_LIMITS, validatePostDraft,
+  containsContact, DEFAULT_OFFICIAL_CHANNEL, earliestOfficialDate, isOfficialChannel, isOfficialPostUrl, OFFICIAL_CHANNELS, OFFICIAL_SHARE_FEE_YEN,
+  OFFICIAL_SHARE_MONTHLY_LIMIT, OFFICIAL_SHARE_WINDOW_DAYS, officialDateChoices, officialMonthRemaining, officialUsageByMonth, POST_LIMITS, validatePostDraft,
 } from "../packages/core/src/post";
 import type { PostContext, PostDraft } from "../packages/core/src/post";
 import { charCount } from "../packages/core/src/proposal";
@@ -192,7 +192,7 @@ const ENUMS: Array<{ name: string; labels: string[]; exact: boolean }> = [
   { name: "award_kind", labels: keysOf<AwardKind>({ grand: true, excellence: true, special: true }), exact: true },
   { name: "activity_kind", labels: keysOf<ActivityKind>({ participation: true, submission: true, award: true, share: true }), exact: true },
   { name: "post_kind", labels: keysOf<PostKind>({ brag: true, pr: true }), exact: true },
-  { name: "official_status", labels: keysOf<OfficialShare["status"]>({ scheduled: true }), exact: false },
+  { name: "official_status", labels: keysOf<OfficialShare["status"]>({ scheduled: true, posted: true }), exact: false },
   { name: "official_channel", labels: keysOf<OfficialChannel>({ instagram: true, x: true, facebook: true }), exact: true },
   { name: "scout_kind", labels: keysOf<ScoutKind>({ internship: true, offer: true, interview: true }), exact: true },
   { name: "scout_status", labels: keysOf<ScoutStatus>({ sent: true, read: true, accepted: true, declined: true }), exact: false },
@@ -370,10 +370,20 @@ function buildFeedGolden(): string[] {
   out.push(`CREATE TEMP TABLE golden_official_channel_values (case_no integer PRIMARY KEY, value text NOT NULL, valid boolean NOT NULL);`);
   out.push(`INSERT INTO golden_official_channel_values VALUES\n${rows(channelValues.map((value, i) => `(${i + 1}, ${q(value)}, ${bool(isOfficialChannel(value))})`))}\n`);
 
+  // 게시글 주소: 앱의 isOfficialPostUrl 이 받아들이는 주소만 DB 의 official_share_post_url 검사도 받아들여요 (https:// + 빈칸 없는 ASCII)
+  const postUrls = [
+    "https://www.instagram.com/p/abc123/", "https://www.instagram.com/sdgscompass_app/", "https://x.com/sdgs/status/1?ref=a&b=c#top", "https://a.b",
+    "https://www.facebook.com/permalink.php?story_fbid=1%E3%81%82", "http://www.instagram.com/p/abc/", "https://", "https:// x.com", "javascript:alert(1)",
+    "www.instagram.com/p/abc", " https://x.com", "https://x.com ", "https://x.com/\t", "HTTPS://X.COM/", "https://例え.jp/", `https://x.com/${IDEOGRAPHIC_SPACE}`,
+    `https://x.com/${NBSP}`, "https://x.com/\n", "",
+  ];
+  out.push(`CREATE TEMP TABLE golden_official_post_urls (case_no integer PRIMARY KEY, value text NOT NULL, valid boolean NOT NULL);`);
+  out.push(`INSERT INTO golden_official_post_urls VALUES\n${rows(postUrls.map((value, i) => `(${i + 1}, ${sqlText(value)}, ${bool(isOfficialPostUrl(value))})`))}\n`);
+
   // 공식 SNS 게시 날짜: 회사당 월 4회(채널 합계 · 예정·게시 완료만), 날짜는 내일 ~ 30일 뒤에서 골라요 — 하루 제한은 없어요.
   // 사례마다 "우리 회사(mine)·다른 회사(other)가 이미 한 신청"을 두고, 앱이 내는 가장 빠른 날(earliestOfficialDate)과 기간 안의 달마다 남은 횟수를 정답으로 적어요.
   // 취소(cancelled)한 신청은 앱에는 없어요(지운 것과 같아요) — DB 에서는 넣었다가 취소로 바꿔서, DB 도 세지 않는지 함께 봐요.
-  type TakenStatus = "scheduled" | "cancelled";
+  type TakenStatus = "scheduled" | "posted" | "cancelled";
   interface Taken {
     on: string;
     who?: "mine" | "other";
@@ -382,7 +392,8 @@ function buildFeedGolden(): string[] {
   }
   const prPost = (id: string, taken: Taken): SocialPost => ({
     id, kind: "pr", companyId: taken.who === "other" ? "co-other" : "co-me", title: "題", body: "本文", sdgIds: [14], createdAt: "2026-10-30T09:00", likes: 0, likedBy: [], mine: false,
-    challengeId: null, official: { on: taken.on, channel: taken.channel ?? DEFAULT_OFFICIAL_CHANNEL, feeYen: OFFICIAL_SHARE_FEE_YEN, status: "scheduled" },
+    challengeId: null,
+    official: { on: taken.on, channel: taken.channel ?? DEFAULT_OFFICIAL_CHANNEL, feeYen: OFFICIAL_SHARE_FEE_YEN, status: taken.status === "posted" ? "posted" : "scheduled", postUrl: null },
   });
   const bragPost: SocialPost = {
     id: "po-brag", kind: "brag", authorName: "Mina", authorLevel: 1, body: "本文", sdgIds: [14], createdAt: "2026-10-30T09:00", likes: 0, likedBy: [], mine: false,
@@ -400,6 +411,8 @@ function buildFeedGolden(): string[] {
     ["채널을 섞어도 합쳐서 센다 — 다음 달 1일", "2026-10-30", [{ on: "2026-10-31", channel: "x" }, { on: "2026-10-31" }, { on: "2026-10-31", channel: "facebook" }, { on: "2026-10-31", channel: "x" }]],
     ["취소한 신청은 세지 않는다 (4번 중 1번 취소)", "2026-10-30", [{ on: "2026-10-31", status: "cancelled" }, ...times(3, { on: "2026-10-31" })]],
     ["취소 2번 + 예정 4번 — 예정만 세서 다음 달 1일", "2026-10-30", [...times(2, { on: "2026-10-31", status: "cancelled" }), ...times(4, { on: "2026-10-31" })]],
+    ["게시 완료도 센다 (게시 완료 2번 + 예정 2번 — 다음 달 1일)", "2026-10-30", [...times(2, { on: "2026-10-31", status: "posted" }), ...times(2, { on: "2026-10-31" })]],
+    ["게시 완료 1번 + 취소 1번 + 예정 2번 — 한 번 남아서 내일", "2026-10-30", [{ on: "2026-10-31", status: "posted" }, { on: "2026-10-31", status: "cancelled" }, ...times(2, { on: "2026-10-31" })]],
     ["다른 회사의 신청은 세지 않는다 (우리 2번 + 다른 회사 4번)", "2026-10-30", [...times(2, { on: "2026-10-31" }), ...times(4, { on: "2026-10-31", who: "other" })]],
     ["다음 달만 찼다 — 이번 달 내일", "2026-10-30", times(4, { on: "2026-11-01" })],
     ["지난달에 4번 썼어도 기간 안의 달과는 상관없다", "2026-11-10", times(4, { on: "2026-10-31" })],

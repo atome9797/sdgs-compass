@@ -260,8 +260,17 @@ SELECT pg_temp.fails($s$UPDATE official_share_slots SET status = 'scheduled' WHE
                      '23514', '취소한 신청을 다시 예정으로 되돌릴 수 없다 (자리를 다시 쓰려면 새로 신청한다)');
 SELECT pg_temp.req('90000000-0000-0000-0000-000000000039', '2026-10-31');
 SELECT pg_temp.ok(true, '돌아온 자리에 새로 신청할 수 있다 (10월 4번째)');
+SELECT pg_temp.fails($s$UPDATE official_share_slots SET post_url = 'https://www.instagram.com/p/abc123/' WHERE post_id = '90000000-0000-0000-0000-000000000035'$s$,
+                     '23514', '예정 상태에는 게시글 주소를 넣을 수 없다 (게시 완료일 때만)');
+SELECT pg_temp.fails($s$INSERT INTO official_share_slots (post_id, scheduled_on, requested_at, post_url) VALUES ('90000000-0000-0000-0000-00000000003b', '2026-11-15', '2026-10-30 10:00+09', 'https://x.com/a')$s$,
+                     '23514', '새 신청에도 게시글 주소는 넣을 수 없다');
 UPDATE official_share_slots SET status = 'posted' WHERE post_id = '90000000-0000-0000-0000-000000000035';
 SELECT pg_temp.ok((SELECT posted_at IS NOT NULL FROM official_share_slots WHERE post_id = '90000000-0000-0000-0000-000000000035'), '게시 완료가 되면 게시 시각이 자동으로 기록된다');
+SELECT pg_temp.eq((SELECT post_url FROM official_share_slots WHERE post_id = '90000000-0000-0000-0000-000000000035'), NULL::text, '게시 완료여도 게시글 주소는 비워 둘 수 있다 (앱이 공식 계정 주소로 이어 줘요)');
+SELECT pg_temp.fails($s$UPDATE official_share_slots SET post_url = 'http://www.facebook.com/a' WHERE post_id = '90000000-0000-0000-0000-000000000035'$s$, '23514', '게시글 주소는 https:// 만 받는다');
+SELECT pg_temp.fails($s$UPDATE official_share_slots SET post_url = 'javascript:alert(1)' WHERE post_id = '90000000-0000-0000-0000-000000000035'$s$, '23514', '주소가 아닌 글자는 받지 않는다');
+UPDATE official_share_slots SET post_url = 'https://www.facebook.com/permalink.php?story_fbid=1' WHERE post_id = '90000000-0000-0000-0000-000000000035';
+SELECT pg_temp.ok(true, '게시 완료한 신청에는 운영자가 나중에 게시글 주소를 넣을 수 있다');
 SELECT pg_temp.eq(official_share_month_used('d0000000-0000-0000-0000-000000000001', '2026-10-31'), 4, '게시 완료한 신청도 계속 센다 (예정 3 + 게시 완료 1)');
 SELECT pg_temp.fails($s$UPDATE official_share_slots SET status = 'cancelled' WHERE post_id = '90000000-0000-0000-0000-000000000035'$s$, '23514', '게시를 마친 신청은 취소할 수 없다');
 SELECT pg_temp.fails($s$UPDATE official_share_slots SET scheduled_on = jst_date(now()) + 9 WHERE post_id = '90000000-0000-0000-0000-000000000035'$s$, '23514', '게시를 마친 신청의 날짜는 바꿀 수 없다');
@@ -351,7 +360,9 @@ SELECT pg_temp.eq((SELECT author_name || '/' || company_industry || '/' || compa
 SELECT pg_temp.eq((SELECT challenge_id FROM feed_posts WHERE id = '90000000-0000-0000-0000-000000000010'), 'e1000000-0000-0000-0000-000000000001'::uuid, '홍보 글에 연결한 챌린지가 보인다');
 SELECT pg_temp.eq((SELECT official_channel::text || '/' || official_on || '/' || official_status FROM feed_posts WHERE id = '90000000-0000-0000-0000-000000000032'),
                   'instagram/2026-10-31/scheduled', '공식 SNS 게시 채널 · 날짜 · 상태가 보인다');
-SELECT pg_temp.eq((SELECT official_channel::text || '/' || official_status FROM feed_posts WHERE id = '90000000-0000-0000-0000-000000000035'), 'facebook/posted', '게시 완료한 신청은 상태가 posted 로 보인다');
+SELECT pg_temp.eq((SELECT official_channel::text || '/' || official_status || ' ' || official_post_url FROM feed_posts WHERE id = '90000000-0000-0000-0000-000000000035'),
+                  'facebook/posted https://www.facebook.com/permalink.php?story_fbid=1', '게시 완료한 신청은 상태 posted 와 게시글 주소가 보인다');
+SELECT pg_temp.eq((SELECT count(*) FROM feed_posts WHERE id = '90000000-0000-0000-0000-000000000032' AND official_post_url IS NULL)::int, 1, '예정인 신청에는 게시글 주소가 없다');
 SELECT pg_temp.eq((SELECT official_channel::text FROM feed_posts WHERE id = '90000000-0000-0000-0000-000000000033'), 'x', '채널을 옮긴 신청은 옮긴 채널로 보인다');
 SELECT pg_temp.eq((SELECT count(*) FROM feed_posts WHERE id = '90000000-0000-0000-0000-000000000034' AND official_on IS NULL AND official_channel IS NULL AND official_status IS NULL)::int, 1,
                   '취소한 신청은 보이지 않는다');

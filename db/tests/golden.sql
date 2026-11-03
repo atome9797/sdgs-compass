@@ -4592,6 +4592,7 @@ INSERT INTO golden_enums VALUES
   ('post_kind', 'brag', true),
   ('post_kind', 'pr', true),
   ('official_status', 'scheduled', false),
+  ('official_status', 'posted', false),
   ('official_channel', 'instagram', true),
   ('official_channel', 'x', true),
   ('official_channel', 'facebook', true),
@@ -4771,6 +4772,28 @@ INSERT INTO golden_official_channel_values VALUES
   (14, 'insta', false),
   (15, 'facebook page', false);
 
+CREATE TEMP TABLE golden_official_post_urls (case_no integer PRIMARY KEY, value text NOT NULL, valid boolean NOT NULL);
+INSERT INTO golden_official_post_urls VALUES
+  (1, 'https://www.instagram.com/p/abc123/', true),
+  (2, 'https://www.instagram.com/sdgscompass_app/', true),
+  (3, 'https://x.com/sdgs/status/1?ref=a&b=c#top', true),
+  (4, 'https://a.b', true),
+  (5, 'https://www.facebook.com/permalink.php?story_fbid=1%E3%81%82', true),
+  (6, 'http://www.instagram.com/p/abc/', false),
+  (7, 'https://', false),
+  (8, 'https:// x.com', false),
+  (9, 'javascript:alert(1)', false),
+  (10, 'www.instagram.com/p/abc', false),
+  (11, ' https://x.com', false),
+  (12, 'https://x.com ', false),
+  (13, U&'https://x.com/\+000009', false),
+  (14, 'HTTPS://X.COM/', false),
+  (15, 'https://例え.jp/', false),
+  (16, U&'https://x.com/\+003000', false),
+  (17, U&'https://x.com/\+0000A0', false),
+  (18, U&'https://x.com/\+00000A', false),
+  (19, '', false);
+
 CREATE TEMP TABLE golden_official_choices (case_no integer PRIMARY KEY, label text NOT NULL, today date NOT NULL, taken_on date[] NOT NULL, taken_mine boolean[] NOT NULL, taken_status text[] NOT NULL, earliest_on date, months date[] NOT NULL, remaining integer[] NOT NULL);
 INSERT INTO golden_official_choices VALUES
   (1, '신청이 없으면 내일', DATE '2026-10-30', ARRAY[]::date[], ARRAY[]::boolean[], ARRAY[]::text[], DATE '2026-10-31', ARRAY[DATE '2026-10-01', DATE '2026-11-01'], ARRAY[4, 4]),
@@ -4781,18 +4804,20 @@ INSERT INTO golden_official_choices VALUES
   (6, '채널을 섞어도 합쳐서 센다 — 다음 달 1일', DATE '2026-10-30', ARRAY[DATE '2026-10-31', DATE '2026-10-31', DATE '2026-10-31', DATE '2026-10-31'], ARRAY[true, true, true, true], ARRAY['scheduled', 'scheduled', 'scheduled', 'scheduled'], DATE '2026-11-01', ARRAY[DATE '2026-10-01', DATE '2026-11-01'], ARRAY[0, 4]),
   (7, '취소한 신청은 세지 않는다 (4번 중 1번 취소)', DATE '2026-10-30', ARRAY[DATE '2026-10-31', DATE '2026-10-31', DATE '2026-10-31', DATE '2026-10-31'], ARRAY[true, true, true, true], ARRAY['cancelled', 'scheduled', 'scheduled', 'scheduled'], DATE '2026-10-31', ARRAY[DATE '2026-10-01', DATE '2026-11-01'], ARRAY[1, 4]),
   (8, '취소 2번 + 예정 4번 — 예정만 세서 다음 달 1일', DATE '2026-10-30', ARRAY[DATE '2026-10-31', DATE '2026-10-31', DATE '2026-10-31', DATE '2026-10-31', DATE '2026-10-31', DATE '2026-10-31'], ARRAY[true, true, true, true, true, true], ARRAY['cancelled', 'cancelled', 'scheduled', 'scheduled', 'scheduled', 'scheduled'], DATE '2026-11-01', ARRAY[DATE '2026-10-01', DATE '2026-11-01'], ARRAY[0, 4]),
-  (9, '다른 회사의 신청은 세지 않는다 (우리 2번 + 다른 회사 4번)', DATE '2026-10-30', ARRAY[DATE '2026-10-31', DATE '2026-10-31', DATE '2026-10-31', DATE '2026-10-31', DATE '2026-10-31', DATE '2026-10-31'], ARRAY[true, true, false, false, false, false], ARRAY['scheduled', 'scheduled', 'scheduled', 'scheduled', 'scheduled', 'scheduled'], DATE '2026-10-31', ARRAY[DATE '2026-10-01', DATE '2026-11-01'], ARRAY[2, 4]),
-  (10, '다음 달만 찼다 — 이번 달 내일', DATE '2026-10-30', ARRAY[DATE '2026-11-01', DATE '2026-11-01', DATE '2026-11-01', DATE '2026-11-01'], ARRAY[true, true, true, true], ARRAY['scheduled', 'scheduled', 'scheduled', 'scheduled'], DATE '2026-10-31', ARRAY[DATE '2026-10-01', DATE '2026-11-01'], ARRAY[4, 0]),
-  (11, '지난달에 4번 썼어도 기간 안의 달과는 상관없다', DATE '2026-11-10', ARRAY[DATE '2026-10-31', DATE '2026-10-31', DATE '2026-10-31', DATE '2026-10-31'], ARRAY[true, true, true, true], ARRAY['scheduled', 'scheduled', 'scheduled', 'scheduled'], DATE '2026-11-11', ARRAY[DATE '2026-11-01', DATE '2026-12-01'], ARRAY[4, 4]),
-  (12, '기간(11/1 ~ 11/30)이 한 달뿐이고 그 달이 찼다 — 고를 날이 없다', DATE '2026-10-31', ARRAY[DATE '2026-11-05', DATE '2026-11-05', DATE '2026-11-05', DATE '2026-11-05'], ARRAY[true, true, true, true], ARRAY['scheduled', 'scheduled', 'scheduled', 'scheduled'], NULL, ARRAY[DATE '2026-11-01'], ARRAY[0]),
-  (13, '하루 지나 12/1 이 기간에 들어오면 그 날', DATE '2026-11-01', ARRAY[DATE '2026-11-05', DATE '2026-11-05', DATE '2026-11-05', DATE '2026-11-05'], ARRAY[true, true, true, true], ARRAY['scheduled', 'scheduled', 'scheduled', 'scheduled'], DATE '2026-12-01', ARRAY[DATE '2026-11-01', DATE '2026-12-01'], ARRAY[0, 4]),
-  (14, '12월이 차면 1월 1일', DATE '2026-12-20', ARRAY[DATE '2026-12-21', DATE '2026-12-21', DATE '2026-12-21', DATE '2026-12-21'], ARRAY[true, true, true, true], ARRAY['scheduled', 'scheduled', 'scheduled', 'scheduled'], DATE '2027-01-01', ARRAY[DATE '2026-12-01', DATE '2027-01-01'], ARRAY[0, 4]),
-  (15, '연말: 12/31 → 1/1', DATE '2026-12-31', ARRAY[]::date[], ARRAY[]::boolean[], ARRAY[]::text[], DATE '2027-01-01', ARRAY[DATE '2027-01-01'], ARRAY[4]),
-  (16, '연말: 기간이 1월뿐이고 1월이 찼다 — 고를 날이 없다', DATE '2026-12-31', ARRAY[DATE '2027-01-05', DATE '2027-01-05', DATE '2027-01-05', DATE '2027-01-05'], ARRAY[true, true, true, true], ARRAY['scheduled', 'scheduled', 'scheduled', 'scheduled'], NULL, ARRAY[DATE '2027-01-01'], ARRAY[0]),
-  (17, '세 달에 걸친 기간(1/31 · 2월 · 3/1) — 1·2월이 차면 3/1', DATE '2027-01-30', ARRAY[DATE '2027-01-31', DATE '2027-01-31', DATE '2027-01-31', DATE '2027-01-31', DATE '2027-02-14', DATE '2027-02-14', DATE '2027-02-14', DATE '2027-02-14'], ARRAY[true, true, true, true, true, true, true, true], ARRAY['scheduled', 'scheduled', 'scheduled', 'scheduled', 'scheduled', 'scheduled', 'scheduled', 'scheduled'], DATE '2027-03-01', ARRAY[DATE '2027-01-01', DATE '2027-02-01', DATE '2027-03-01'], ARRAY[0, 0, 4]),
-  (18, '윤년: 2/28 → 2/29', DATE '2028-02-28', ARRAY[]::date[], ARRAY[]::boolean[], ARRAY[]::text[], DATE '2028-02-29', ARRAY[DATE '2028-02-01', DATE '2028-03-01'], ARRAY[4, 4]),
-  (19, '윤년: 2월이 차면 3/1', DATE '2028-02-28', ARRAY[DATE '2028-02-29', DATE '2028-02-29', DATE '2028-02-29', DATE '2028-02-29'], ARRAY[true, true, true, true], ARRAY['scheduled', 'scheduled', 'scheduled', 'scheduled'], DATE '2028-03-01', ARRAY[DATE '2028-02-01', DATE '2028-03-01'], ARRAY[0, 4]),
-  (20, '평년: 2/28 → 3/1', DATE '2027-02-28', ARRAY[]::date[], ARRAY[]::boolean[], ARRAY[]::text[], DATE '2027-03-01', ARRAY[DATE '2027-03-01'], ARRAY[4]);
+  (9, '게시 완료도 센다 (게시 완료 2번 + 예정 2번 — 다음 달 1일)', DATE '2026-10-30', ARRAY[DATE '2026-10-31', DATE '2026-10-31', DATE '2026-10-31', DATE '2026-10-31'], ARRAY[true, true, true, true], ARRAY['posted', 'posted', 'scheduled', 'scheduled'], DATE '2026-11-01', ARRAY[DATE '2026-10-01', DATE '2026-11-01'], ARRAY[0, 4]),
+  (10, '게시 완료 1번 + 취소 1번 + 예정 2번 — 한 번 남아서 내일', DATE '2026-10-30', ARRAY[DATE '2026-10-31', DATE '2026-10-31', DATE '2026-10-31', DATE '2026-10-31'], ARRAY[true, true, true, true], ARRAY['posted', 'cancelled', 'scheduled', 'scheduled'], DATE '2026-10-31', ARRAY[DATE '2026-10-01', DATE '2026-11-01'], ARRAY[1, 4]),
+  (11, '다른 회사의 신청은 세지 않는다 (우리 2번 + 다른 회사 4번)', DATE '2026-10-30', ARRAY[DATE '2026-10-31', DATE '2026-10-31', DATE '2026-10-31', DATE '2026-10-31', DATE '2026-10-31', DATE '2026-10-31'], ARRAY[true, true, false, false, false, false], ARRAY['scheduled', 'scheduled', 'scheduled', 'scheduled', 'scheduled', 'scheduled'], DATE '2026-10-31', ARRAY[DATE '2026-10-01', DATE '2026-11-01'], ARRAY[2, 4]),
+  (12, '다음 달만 찼다 — 이번 달 내일', DATE '2026-10-30', ARRAY[DATE '2026-11-01', DATE '2026-11-01', DATE '2026-11-01', DATE '2026-11-01'], ARRAY[true, true, true, true], ARRAY['scheduled', 'scheduled', 'scheduled', 'scheduled'], DATE '2026-10-31', ARRAY[DATE '2026-10-01', DATE '2026-11-01'], ARRAY[4, 0]),
+  (13, '지난달에 4번 썼어도 기간 안의 달과는 상관없다', DATE '2026-11-10', ARRAY[DATE '2026-10-31', DATE '2026-10-31', DATE '2026-10-31', DATE '2026-10-31'], ARRAY[true, true, true, true], ARRAY['scheduled', 'scheduled', 'scheduled', 'scheduled'], DATE '2026-11-11', ARRAY[DATE '2026-11-01', DATE '2026-12-01'], ARRAY[4, 4]),
+  (14, '기간(11/1 ~ 11/30)이 한 달뿐이고 그 달이 찼다 — 고를 날이 없다', DATE '2026-10-31', ARRAY[DATE '2026-11-05', DATE '2026-11-05', DATE '2026-11-05', DATE '2026-11-05'], ARRAY[true, true, true, true], ARRAY['scheduled', 'scheduled', 'scheduled', 'scheduled'], NULL, ARRAY[DATE '2026-11-01'], ARRAY[0]),
+  (15, '하루 지나 12/1 이 기간에 들어오면 그 날', DATE '2026-11-01', ARRAY[DATE '2026-11-05', DATE '2026-11-05', DATE '2026-11-05', DATE '2026-11-05'], ARRAY[true, true, true, true], ARRAY['scheduled', 'scheduled', 'scheduled', 'scheduled'], DATE '2026-12-01', ARRAY[DATE '2026-11-01', DATE '2026-12-01'], ARRAY[0, 4]),
+  (16, '12월이 차면 1월 1일', DATE '2026-12-20', ARRAY[DATE '2026-12-21', DATE '2026-12-21', DATE '2026-12-21', DATE '2026-12-21'], ARRAY[true, true, true, true], ARRAY['scheduled', 'scheduled', 'scheduled', 'scheduled'], DATE '2027-01-01', ARRAY[DATE '2026-12-01', DATE '2027-01-01'], ARRAY[0, 4]),
+  (17, '연말: 12/31 → 1/1', DATE '2026-12-31', ARRAY[]::date[], ARRAY[]::boolean[], ARRAY[]::text[], DATE '2027-01-01', ARRAY[DATE '2027-01-01'], ARRAY[4]),
+  (18, '연말: 기간이 1월뿐이고 1월이 찼다 — 고를 날이 없다', DATE '2026-12-31', ARRAY[DATE '2027-01-05', DATE '2027-01-05', DATE '2027-01-05', DATE '2027-01-05'], ARRAY[true, true, true, true], ARRAY['scheduled', 'scheduled', 'scheduled', 'scheduled'], NULL, ARRAY[DATE '2027-01-01'], ARRAY[0]),
+  (19, '세 달에 걸친 기간(1/31 · 2월 · 3/1) — 1·2월이 차면 3/1', DATE '2027-01-30', ARRAY[DATE '2027-01-31', DATE '2027-01-31', DATE '2027-01-31', DATE '2027-01-31', DATE '2027-02-14', DATE '2027-02-14', DATE '2027-02-14', DATE '2027-02-14'], ARRAY[true, true, true, true, true, true, true, true], ARRAY['scheduled', 'scheduled', 'scheduled', 'scheduled', 'scheduled', 'scheduled', 'scheduled', 'scheduled'], DATE '2027-03-01', ARRAY[DATE '2027-01-01', DATE '2027-02-01', DATE '2027-03-01'], ARRAY[0, 0, 4]),
+  (20, '윤년: 2/28 → 2/29', DATE '2028-02-28', ARRAY[]::date[], ARRAY[]::boolean[], ARRAY[]::text[], DATE '2028-02-29', ARRAY[DATE '2028-02-01', DATE '2028-03-01'], ARRAY[4, 4]),
+  (21, '윤년: 2월이 차면 3/1', DATE '2028-02-28', ARRAY[DATE '2028-02-29', DATE '2028-02-29', DATE '2028-02-29', DATE '2028-02-29'], ARRAY[true, true, true, true], ARRAY['scheduled', 'scheduled', 'scheduled', 'scheduled'], DATE '2028-03-01', ARRAY[DATE '2028-02-01', DATE '2028-03-01'], ARRAY[0, 4]),
+  (22, '평년: 2/28 → 3/1', DATE '2027-02-28', ARRAY[]::date[], ARRAY[]::boolean[], ARRAY[]::text[], DATE '2027-03-01', ARRAY[DATE '2027-03-01'], ARRAY[4]);
 
 CREATE TEMP TABLE golden_post_cases (case_no integer PRIMARY KEY, label text NOT NULL, kind text NOT NULL, title text, body text NOT NULL, activity text, sdg_count integer, challenge text, errors text NOT NULL);
 INSERT INTO golden_post_cases VALUES

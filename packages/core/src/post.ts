@@ -1,7 +1,7 @@
 // F-503 학생 자랑 글 · F-504 기업 홍보 글 (설계: docs/sns-feed.md): 입력 검사, 연락처 검출, 공식 SNS 게시 날짜(회사당 월 4회, 날짜는 기업이 골라요).
 // 화면은 이 규칙을 그대로 쓰고(validatePostDraft), reducer(state.ts)도 같은 검사를 한 번 더 해요.
 import { showableActivities } from "./activities";
-import type { DemoState, OfficialChannel, PostKind, Role, SocialPost } from "./domain";
+import type { DemoState, OfficialChannel, OfficialShare, PostKind, Role, SocialPost } from "./domain";
 import { addDays, daysBetween } from "./format";
 import type { Locale } from "./i18n";
 import { translate } from "./messages";
@@ -41,6 +41,36 @@ export const DEFAULT_OFFICIAL_CHANNEL: OfficialChannel = "instagram";
 
 export function isOfficialChannel(value: unknown): value is OfficialChannel {
   return typeof value === "string" && (OFFICIAL_CHANNELS as readonly string[]).includes(value);
+}
+
+/**
+ * 공식 계정 주소: 게시된 신청에 게시글 주소(postUrl)가 없을 때 대신 이어 줘요.
+ * X·Facebook 공식 계정은 만드는 중이라 비워 뒀어요 — 만들면 채워요. 비어 있는 채널은 링크 없이 채널 이름만 보여요.
+ */
+export const OFFICIAL_ACCOUNT_URLS: Readonly<Record<OfficialChannel, string | null>> = {
+  x: null,
+  instagram: "https://www.instagram.com/sdgscompass_app/",
+  facebook: null,
+};
+
+export const OFFICIAL_STATUSES: readonly OfficialShare["status"][] = ["scheduled", "posted"];
+
+export function isOfficialStatus(value: unknown): value is OfficialShare["status"] {
+  return typeof value === "string" && (OFFICIAL_STATUSES as readonly string[]).includes(value);
+}
+
+/**
+ * 게시글 주소로 받아들이는 글자: https:// 로 시작하고, 그 뒤는 빈칸 없는 ASCII 글자(! ~ ~)만이에요(한글·전각 글자는 퍼센트 인코딩해서 넣어요).
+ * DB 의 official_share_post_url 검사와 같아요(db/tests/04_parity.sql) — 두 쪽 다 글자 범위로 정해서 DB 의 locale 에 따라 달라지지 않아요.
+ */
+export function isOfficialPostUrl(value: unknown): value is string {
+  return typeof value === "string" && /^https:\/\/[!-~]+$/.test(value);
+}
+
+/** 공식 SNS 에서 볼 수 있는 곳: 게시된 신청만 — 게시글 주소 → 없으면 그 채널의 공식 계정 주소 → 그것도 없으면 null. 예정이면 늘 null */
+export function officialShareLink(share: Pick<OfficialShare, "status" | "postUrl" | "channel">): string | null {
+  if (share.status !== "posted") return null;
+  return share.postUrl ?? OFFICIAL_ACCOUNT_URLS[share.channel];
 }
 
 export const POST_KINDS: readonly PostKind[] = ["brag", "pr"];
@@ -274,12 +304,12 @@ export function officialChannelName(channel: OfficialChannel, locale: Locale): s
   return translate(`post.channel.${channel}`, locale);
 }
 
-/** 채널마다 올라가는 모양: Instagram → 스토리, X → 포스트, Facebook → 페이지 게시 */
+/** 채널마다 올라가는 모양: Instagram → 피드 게시물(24시간이면 사라지는 스토리가 아니라 링크가 남는 게시물), X → 포스트, Facebook → 페이지 게시 */
 export function officialChannelFormat(channel: OfficialChannel, locale: Locale): string {
   return translate(`post.channelFormat.${channel}`, locale);
 }
 
-/** 이름 + 올라가는 모양: "Instagram ストーリー" / "X ポスト" / "Facebook ページ投稿" (선택지·안내 문구에 써요) */
+/** 이름 + 올라가는 모양: "Instagram フィード投稿" / "X ポスト" / "Facebook ページ投稿" (선택지·안내 문구에 써요) */
 export function officialChannelLabel(channel: OfficialChannel, locale: Locale): string {
   return `${officialChannelName(channel, locale)} ${officialChannelFormat(channel, locale)}`;
 }

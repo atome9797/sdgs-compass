@@ -401,8 +401,8 @@ describe("SNS 피드: 글 올리기·좋아요·삭제 (F-503 · F-504)", () => 
     expect(create(state, pr({ title: "5件目", requestOfficial: true, officialOn: "2026-10-31" }))).toBe(state);
     // 날짜를 비우면 다음 달 1일이 배정돼요 (11월은 따로 세요)
     expect(create(state, pr({ title: "11月", requestOfficial: true })).posts[0]).toMatchObject({ official: { on: "2026-11-01" } });
-    // 다른 회사의 신청은 우리 회사의 횟수에 들어가지 않아요 (po-1·po-3 이 10/31 에 있어도 위 4건이 우리 몫)
-    expect(initial.posts.filter((p) => p.kind === "pr" && p.official?.on === "2026-10-31").length).toBeGreaterThanOrEqual(3);
+    // 다른 회사의 신청은 우리 회사의 횟수에 들어가지 않아요 (po-3 이 10/31 에 있어도 위 4건이 우리 몫)
+    expect(initial.posts.filter((p) => p.kind === "pr" && p.official?.on === "2026-10-31").map((p) => p.kind === "pr" && p.companyId)).toEqual(["co-machi", initial.myCompanyId]);
   });
 
   it("공식 SNS 게시: 글을 지우면 그 달의 횟수가 하나 돌아와요", () => {
@@ -428,7 +428,11 @@ describe("SNS 피드: 글 올리기·좋아요·삭제 (F-503 · F-504)", () => 
     expect(mine).toHaveLength(8);
     expect(mine.filter((on) => on.startsWith("2026-10"))).toHaveLength(4);
     expect(mine.filter((on) => on.startsWith("2026-11"))).toHaveLength(4);
-    expect(state.posts.every((p) => p.kind !== "pr" || !p.official || (daysBetween(TODAY, p.official.on) >= 1 && daysBetween(TODAY, p.official.on) <= 30))).toBe(true);
+    // 예정 신청은 모두 내일 ~ 30일 뒤예요 (게시 완료 샘플 po-1 은 사흘 전)
+    const scheduled = state.posts.flatMap((p) => (p.kind === "pr" && p.official?.status === "scheduled" ? [p.official.on] : []));
+    expect(scheduled.every((on) => daysBetween(TODAY, on) >= 1 && daysBetween(TODAY, on) <= 30)).toBe(true);
+    // 새로 신청한 글은 늘 예정이고 게시글 주소가 없어요
+    expect(state.posts.filter((p) => p.kind === "pr" && p.mine && p.id !== "po-4").every((p) => p.kind === "pr" && p.official?.status === "scheduled" && p.official.postUrl === null)).toBe(true);
   });
 
   it("좋아요: 학생·기업 계정이 따로 누르고, 다시 누르면 취소돼요", () => {

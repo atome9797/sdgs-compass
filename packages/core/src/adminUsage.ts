@@ -154,8 +154,10 @@ export interface UsageTotals {
   bragPosts: number;
   prPosts: number;
   likes: number;
-  /** 공식 SNS 게시를 신청한 홍보 글 */
+  /** 공식 SNS 게시를 신청한 홍보 글 (예정 + 게시 완료) */
   officialShares: number;
+  /** 그중 운영자가 공식 SNS 에 올린(게시 완료) 것 */
+  officialPosted: number;
   /** 공식 SNS 게시 신청을 채널별로 센 값 (신청이 없는 채널도 0 으로 있어요. 화면에 보이는 순서는 post.ts 의 OFFICIAL_CHANNELS) */
   officialByChannel: Record<OfficialChannel, number>;
 }
@@ -205,6 +207,7 @@ export function summarizeTotals(state: DemoState): UsageTotals {
     prPosts: prPosts.length,
     likes: state.posts.reduce((sum, post) => sum + post.likes, 0),
     officialShares: prPosts.filter((post) => post.official !== null).length,
+    officialPosted: prPosts.filter((post) => post.official?.status === "posted").length,
     officialByChannel: countOfficialByChannel(prPosts),
   };
 }

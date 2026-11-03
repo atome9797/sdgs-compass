@@ -4,7 +4,8 @@
 import { describe, expect, it } from "vitest";
 import { CERT_DISCLAIMER, evaluateCertification } from "@sdgs-compass/core/certification";
 import { verifyCertificate } from "@sdgs-compass/core/certificate";
-import type { DemoState } from "@sdgs-compass/core/domain";
+import type { DemoState, OfficialShare } from "@sdgs-compass/core/domain";
+import { OFFICIAL_ACCOUNT_URLS } from "@sdgs-compass/core/post";
 import { deriveActivities } from "@sdgs-compass/core/activities";
 import { addDays, formatYen } from "@sdgs-compass/core/format";
 import { REVIEW_BONUS_MAX, reviewBonus } from "@sdgs-compass/core/impact";
@@ -928,7 +929,8 @@ describe("SNS 피드 (F-503 · F-504)", () => {
 
   it("피드: 최신순이고, 전체 8건 · 기업 홍보 4건 · 학생 자랑 4건으로 걸러 볼 수 있어요", () => {
     const all = selectFeed(initial, "ja", "b2c");
-    expect(all.posts.map((p) => p.id)).toEqual(["po-5", "po-4", "po-1", "po-6", "po-2", "po-7", "po-3", "po-8"]);
+    // po-1 은 공식 SNS 에 이미 올라간 글이라 4일 전에 썼어요(게시는 사흘 전)
+    expect(all.posts.map((p) => p.id)).toEqual(["po-5", "po-4", "po-6", "po-2", "po-7", "po-3", "po-1", "po-8"]);
     expect(all.filters.map((f) => [f.id, f.count])).toEqual([["all", 8], ["pr", 4], ["brag", 4]]);
     expect(selectFeed(initial, "ja", "b2c", "pr").posts.map((p) => p.kind)).toEqual(["pr", "pr", "pr", "pr"]);
     expect(selectFeed(initial, "ja", "b2c", "brag").posts.map((p) => p.kind)).toEqual(["brag", "brag", "brag", "brag"]);
@@ -989,22 +991,50 @@ describe("SNS 피드 (F-503 · F-504)", () => {
     expect(find(selectFeed(liked, "ja", "b2b").posts, "po-1")).toMatchObject({ likes: 19, likedByMe: false });
   });
 
-  it("공식 SNS 게시 신청은 채널 · 날짜(M/D) · 게시료로 보여요", () => {
-    const ja = find(selectFeed(initial, "ja", "b2c").posts, "po-1");
-    expect(ja.official?.label).toBe("公式SNS掲載予定 · Instagram · 10/31");
-    expect(ja.official?.feeLabel).toContain(formatYen(3000, "ja"));
-    expect(ja.official).toMatchObject({ channel: "instagram", channelName: "Instagram", channelLabel: "Instagram ストーリー" });
-    const ko = find(selectFeed(initial, "ko", "b2c").posts, "po-2");
-    expect(ko.official?.label).toBe("공식 SNS 게시 예정 · X · 11/1");
-    expect(ko.official).toMatchObject({ channel: "x", channelName: "X", channelLabel: "X 포스트" });
-    // 하루 제한이 없어서 같은 날(10/31)·같은 채널(Instagram)에 다른 회사(po-3)와 우리 회사(po-4)가 함께 있어요
-    expect(find(selectFeed(initial, "ja", "b2c").posts, "po-3").official).toMatchObject({
-      label: "公式SNS掲載予定 · Instagram · 10/31", channel: "instagram", channelLabel: "Instagram ストーリー",
+  it("쓴 회사(기업 화면 · 우리 회사 글)에게는 예정이면 채널 · 날짜(M/D) · 게시료가 보여요", () => {
+    expect(find(selectFeed(initial, "ja", "b2b").posts, "po-4").official).toEqual({
+      audience: "author", status: "scheduled", label: "公式SNS掲載予定 · Instagram · 10/31", feeLabel: `掲載料 ${formatYen(3000, "ja")}（サンプル）`, link: null,
+      channel: "instagram", channelName: "Instagram", channelLabel: "Instagram フィード投稿",
     });
-    expect(find(selectFeed(initial, "ko", "b2c").posts, "po-3").official).toMatchObject({
-      label: "공식 SNS 게시 예정 · 인스타그램 · 10/31", channelName: "인스타그램", channelLabel: "인스타그램 스토리",
+    expect(find(selectFeed(initial, "ko", "b2b").posts, "po-4").official).toMatchObject({ label: "공식 SNS 게시 예정 · 인스타그램 · 10/31", feeLabel: "게시료 3,000엔(샘플)" });
+  });
+
+  it("학생·다른 기업에게는 예정이면 아무것도 보이지 않아요 (예정일·게시료는 쓴 회사에게만)", () => {
+    for (const locale of LOCALES) {
+      // 다른 회사의 예정 신청(po-2 X · po-3 Instagram)은 학생에게도 기업(우리 회사)에게도 안 보여요
+      for (const role of ["b2c", "b2b"] as const) for (const id of ["po-2", "po-3"]) expect(find(selectFeed(initial, locale, role).posts, id).official, `${locale} ${role} ${id}`).toBeNull();
+      // 우리 회사의 예정 신청(po-4)도 학생 화면에서는 안 보여요
+      expect(find(selectFeed(initial, locale, "b2c").posts, "po-4").official).toBeNull();
+    }
+  });
+
+  it("게시된 신청(po-1)은 누구에게나 「公式SNSでも紹介中」과 공식 SNS 링크로 보여요 — 게시글 주소가 없으면 공식 계정으로", () => {
+    const expected = {
+      audience: "public", status: "posted", label: "公式SNSでも紹介中 · Instagram", feeLabel: null,
+      link: { url: OFFICIAL_ACCOUNT_URLS.instagram, label: "公式SNSで見る" }, channel: "instagram", channelName: "Instagram", channelLabel: "Instagram フィード投稿",
+    };
+    expect(find(selectFeed(initial, "ja", "b2c").posts, "po-1").official).toEqual(expected);
+    expect(find(selectFeed(initial, "ja", "b2b").posts, "po-1").official).toEqual(expected); // 다른 회사(우리 회사)에게도 같아요
+    expect(find(selectFeed(initial, "ko", "b2c").posts, "po-1").official).toMatchObject({
+      label: "공식 SNS에서도 소개 중 · 인스타그램", link: { url: "https://www.instagram.com/sdgscompass_app/", label: "공식 SNS에서 보기" }, feeLabel: null,
     });
-    expect(find(selectFeed(initial, "ja", "b2b").posts, "po-4").official).toMatchObject({ label: "公式SNS掲載予定 · Instagram · 10/31", channel: "instagram" });
+  });
+
+  it("쓴 회사가 보는 게시 완료: 「公式SNSに掲載済み」 + 게시글이 있으면 「投稿を見る」, 없으면 공식 계정으로 「公式SNSで見る」", () => {
+    const withMine = (official: OfficialShare) => ({ ...initial, posts: initial.posts.map((p) => (p.id === "po-4" && p.kind === "pr" ? { ...p, official } : p)) });
+    const base: OfficialShare = { on: "2026-10-27", channel: "instagram", feeYen: 3000, status: "posted", postUrl: "https://www.instagram.com/p/sample/" };
+    expect(find(selectFeed(withMine(base), "ja", "b2b").posts, "po-4").official).toMatchObject({
+      audience: "author", status: "posted", label: "公式SNSに掲載済み · Instagram", feeLabel: null, link: { url: "https://www.instagram.com/p/sample/", label: "投稿を見る" },
+    });
+    expect(find(selectFeed(withMine({ ...base, postUrl: null }), "ko", "b2b").posts, "po-4").official).toMatchObject({
+      label: "공식 SNS에 게시됨 · 인스타그램", link: { url: "https://www.instagram.com/sdgscompass_app/", label: "공식 SNS에서 보기" },
+    });
+    // 학생이 보면 같은 글도 「公式SNSでも紹介中」 + 「公式SNSで見る」(게시글 주소로)
+    expect(find(selectFeed(withMine(base), "ja", "b2c").posts, "po-4").official).toMatchObject({ audience: "public", link: { url: "https://www.instagram.com/p/sample/", label: "公式SNSで見る" } });
+    // 공식 계정이 아직 없는 채널(X·Facebook)은 게시글 주소가 없으면 링크 없이 채널 이름만
+    for (const channel of ["x", "facebook"] as const) {
+      expect(find(selectFeed(withMine({ ...base, channel, postUrl: null }), "ja", "b2c").posts, "po-4").official).toMatchObject({ link: null, channel });
+    }
   });
 
   it("공식 SNS 게시 신청 라벨은 글을 올릴 때 고른 채널을 따라가요 (날짜를 비우면 고를 수 있는 가장 빠른 날)", () => {
@@ -1066,7 +1096,7 @@ describe("SNS 피드 (F-503 · F-504)", () => {
     // 채널은 X · Instagram · Facebook 순서 (날짜는 채널과 상관없어요)
     expect(composer.official.channels.map((c) => [c.id, c.name, c.format, c.label])).toEqual([
       ["x", "X", "포스트", "X 포스트"],
-      ["instagram", "인스타그램", "스토리", "인스타그램 스토리"],
+      ["instagram", "인스타그램", "피드 게시물", "인스타그램 피드 게시물"],
       ["facebook", "페이스북", "페이지 게시", "페이스북 페이지 게시"],
     ]);
     // 날짜는 내일(10/31)부터 30일 뒤(11/29)까지. 우리 회사는 10/31 에 1건이 있어서 10월은 3/4, 11월은 4/4

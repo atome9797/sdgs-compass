@@ -71,7 +71,12 @@ export function AdminUsageScreen() {
     },
     { id: "posts", label: t("admin.usage.kpi.posts"), value: totals.posts, sub: t("admin.usage.sub.posts", { brag: totals.bragPosts, pr: totals.prPosts }) },
     { id: "likes", label: t("admin.usage.kpi.likes"), value: totals.likes, sub: null },
-    { id: "official", label: t("admin.usage.kpi.official"), value: totals.officialShares, sub: t("admin.usage.sub.official") },
+    {
+      id: "official",
+      label: t("admin.usage.kpi.official"),
+      value: totals.officialShares,
+      sub: t("admin.usage.sub.official", { scheduled: totals.officialShares - totals.officialPosted, posted: totals.officialPosted }),
+    },
   ];
 
   const currentInsights = usageCurrentInsights(summary, locale);

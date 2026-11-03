@@ -94,12 +94,20 @@ export function PostCard({ post, links, highlight = false, preview, onLike, onDe
         </p>
       ) : null}
 
+      {/* 공식 SNS 게시: 쓴 회사는 예정이면 날짜·게시료, 다른 사람은 게시된 뒤에만 보여요(core 의 PostVM.official). 링크는 새 탭에서 열려요 */}
       {post.official ? (
-        <div className="fcard__official">
+        <div className={post.official.status === "posted" ? "fcard__official fcard__official--posted" : "fcard__official"}>
           <p>
             <span aria-hidden="true">📣</span> {post.official.label}
           </p>
-          <p className="fcard__official-fee">{post.official.feeLabel}</p>
+          {post.official.feeLabel ? <p className="fcard__official-fee">{post.official.feeLabel}</p> : null}
+          {post.official.link && !preview ? (
+            <a className="fcard__official-link" href={post.official.link.url} target="_blank" rel="noopener noreferrer">
+              {post.official.link.label}
+              <span aria-hidden="true"> ↗</span>
+              <span className="sr-only">{t("web.newTab")}</span>
+            </a>
+          ) : null}
         </div>
       ) : null}
 

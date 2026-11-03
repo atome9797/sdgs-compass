@@ -2,8 +2,9 @@ import { describe, expect, it } from "vitest";
 import type { OfficialChannel, PrPost, SocialPost } from "./domain";
 import {
   authorRole, bodyLimit, containsContact, DEFAULT_OFFICIAL_CHANNEL, defaultPrSdgs, earliestOfficialDate, isOfficialChannel, OFFICIAL_CHANNELS, OFFICIAL_SHARE_FEE_YEN,
-  OFFICIAL_SHARE_MONTHLY_LIMIT, OFFICIAL_SHARE_WINDOW_DAYS, officialChannelFormat, officialChannelLabel, officialChannelName, officialDateChoices, officialDateProblem,
-  officialMonthOf, officialMonthRemaining, officialUsageByMonth, POST_LIMITS, postContext, postErrorText, resolveOfficialDate, uniqueSdgs, validatePostDraft,
+  OFFICIAL_ACCOUNT_URLS, OFFICIAL_SHARE_MONTHLY_LIMIT, OFFICIAL_SHARE_WINDOW_DAYS, OFFICIAL_STATUSES, officialChannelFormat, officialChannelLabel, officialChannelName,
+  officialDateChoices, officialDateProblem, officialMonthOf, officialMonthRemaining, officialShareLink, officialUsageByMonth, isOfficialPostUrl, isOfficialStatus, POST_LIMITS,
+  postContext, postErrorText, resolveOfficialDate, uniqueSdgs, validatePostDraft,
   type PostContext, type PostDraft,
 } from "./post";
 import type { SdgId } from "./sdg";
@@ -162,10 +163,15 @@ describe("오류 문장", () => {
 describe("공식 SNS 게시 날짜 (회사당 월 4회 · 내일 ~ 30일 뒤에서 기업이 골라요)", () => {
   const prPost = (id: string, on: string | null, companyId = "co-me", channel: OfficialChannel = "instagram"): PrPost => ({
     id, kind: "pr", companyId, title: "t", body: "b", sdgIds: [14], challengeId: null,
-    official: on ? { on, channel, feeYen: OFFICIAL_SHARE_FEE_YEN, status: "scheduled" } : null,
+    official: on ? { on, channel, feeYen: OFFICIAL_SHARE_FEE_YEN, status: "scheduled", postUrl: null } : null,
     createdAt: "2026-10-29T10:00", likes: 0, likedBy: [], mine: false,
   });
   const today = "2026-10-30";
+
+  it("게시 완료(posted)한 신청도 그 달의 횟수에 들어가요", () => {
+    const posted: PrPost = { ...prPost("p", "2026-11-03"), official: { on: "2026-11-03", channel: "instagram", feeYen: OFFICIAL_SHARE_FEE_YEN, status: "posted", postUrl: null } };
+    expect(officialUsageByMonth([posted, prPost("s", "2026-11-04")], "co-me")).toEqual({ "2026-11": 2 });
+  });
 
   it("한도는 월 4회, 고를 수 있는 기간은 30일이에요 (상수 하나씩)", () => {
     expect(OFFICIAL_SHARE_MONTHLY_LIMIT).toBe(4);
@@ -262,13 +268,41 @@ describe("공식 SNS 채널", () => {
     for (const value of ["youtube", "linkedin", "X", "Instagram", "", null, undefined, 1, {}]) expect(isOfficialChannel(value), String(value)).toBe(false);
   });
 
-  it("채널 이름과 올라가는 모양: Instagram 스토리 · X 포스트 · Facebook 페이지 게시", () => {
+  it("채널 이름과 올라가는 모양: Instagram 피드 게시물(스토리는 24시간이면 사라져서 링크가 남지 않아요) · X 포스트 · Facebook 페이지 게시", () => {
     expect(OFFICIAL_CHANNELS.map((c) => officialChannelName(c, "ja"))).toEqual(["X", "Instagram", "Facebook"]);
-    expect(OFFICIAL_CHANNELS.map((c) => officialChannelFormat(c, "ja"))).toEqual(["ポスト", "ストーリー", "ページ投稿"]);
+    expect(OFFICIAL_CHANNELS.map((c) => officialChannelFormat(c, "ja"))).toEqual(["ポスト", "フィード投稿", "ページ投稿"]);
     expect(OFFICIAL_CHANNELS.map((c) => officialChannelName(c, "ko"))).toEqual(["X", "인스타그램", "페이스북"]);
-    expect(OFFICIAL_CHANNELS.map((c) => officialChannelFormat(c, "ko"))).toEqual(["포스트", "스토리", "페이지 게시"]);
-    expect(OFFICIAL_CHANNELS.map((c) => officialChannelLabel(c, "ja"))).toEqual(["X ポスト", "Instagram ストーリー", "Facebook ページ投稿"]);
-    expect(OFFICIAL_CHANNELS.map((c) => officialChannelLabel(c, "ko"))).toEqual(["X 포스트", "인스타그램 스토리", "페이스북 페이지 게시"]);
+    expect(OFFICIAL_CHANNELS.map((c) => officialChannelFormat(c, "ko"))).toEqual(["포스트", "피드 게시물", "페이지 게시"]);
+    expect(OFFICIAL_CHANNELS.map((c) => officialChannelLabel(c, "ja"))).toEqual(["X ポスト", "Instagram フィード投稿", "Facebook ページ投稿"]);
+    expect(OFFICIAL_CHANNELS.map((c) => officialChannelLabel(c, "ko"))).toEqual(["X 포스트", "인스타그램 피드 게시물", "페이스북 페이지 게시"]);
+  });
+
+  it("공식 계정 주소: Instagram 만 있고, X·Facebook 은 만드는 중이라 비어 있어요", () => {
+    expect(OFFICIAL_ACCOUNT_URLS).toEqual({ x: null, instagram: "https://www.instagram.com/sdgscompass_app/", facebook: null });
+    for (const url of Object.values(OFFICIAL_ACCOUNT_URLS)) if (url !== null) expect(isOfficialPostUrl(url)).toBe(true);
+  });
+
+  it("게시 상태는 예정·게시 완료 두 가지예요 (취소는 앱에 없어요)", () => {
+    expect([...OFFICIAL_STATUSES]).toEqual(["scheduled", "posted"]);
+    for (const value of ["scheduled", "posted"]) expect(isOfficialStatus(value)).toBe(true);
+    for (const value of ["cancelled", "Posted", "", null, undefined, 1]) expect(isOfficialStatus(value), String(value)).toBe(false);
+  });
+
+  it("게시글 주소는 https:// 로 시작하고 빈칸이 없어야 해요 (DB 의 검사와 같아요)", () => {
+    for (const url of ["https://www.instagram.com/p/abc123/", "https://x.com/sdgs/status/1", "https://a.b"]) expect(isOfficialPostUrl(url), url).toBe(true);
+    for (const url of ["http://www.instagram.com/p/abc/", "https://", "https:// x.com", "javascript:alert(1)", "www.instagram.com/p/abc", " https://x.com", "", null, 3, "https://例え.jp", "https://x.com/\u3000", "HTTPS://X.COM"]) {
+      expect(isOfficialPostUrl(url), String(url)).toBe(false);
+    }
+  });
+
+  it("링크: 게시 완료만 — 게시글 주소 → 없으면 그 채널의 공식 계정 주소 → 그것도 없으면 링크 없음", () => {
+    const share = (status: "scheduled" | "posted", channel: OfficialChannel, postUrl: string | null) => ({ status, channel, postUrl });
+    expect(officialShareLink(share("posted", "instagram", "https://www.instagram.com/p/abc123/"))).toBe("https://www.instagram.com/p/abc123/");
+    expect(officialShareLink(share("posted", "instagram", null))).toBe("https://www.instagram.com/sdgscompass_app/");
+    expect(officialShareLink(share("posted", "x", null))).toBeNull();
+    expect(officialShareLink(share("posted", "facebook", null))).toBeNull();
+    expect(officialShareLink(share("posted", "x", "https://x.com/sdgs/status/1"))).toBe("https://x.com/sdgs/status/1");
+    expect(officialShareLink(share("scheduled", "instagram", null))).toBeNull(); // 예정이면 아직 볼 곳이 없어요
   });
 });
 

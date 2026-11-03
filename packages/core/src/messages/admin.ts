@@ -63,7 +63,7 @@ export const admin = {
   "admin.usage.sub.scouts": { ja: "承諾 {accepted}・既読 {read}・辞退 {declined}", ko: "수락 {accepted}·읽음 {read}·거절 {declined}" },
   "admin.usage.sub.matches": { ja: "手数料 {fee}（うち寄付 {donation}）", ko: "수수료 {fee}(그중 기부 {donation})" },
   "admin.usage.sub.posts": { ja: "学生の実績 {brag}・企業PR {pr}", ko: "학생 자랑 {brag}·기업 홍보 {pr}" },
-  "admin.usage.sub.official": { ja: "審査前の「予定」の件数です", ko: "게시 “예정” 상태인 건수예요" },
+  "admin.usage.sub.official": { ja: "予定 {scheduled}・掲載済み {posted}", ko: "예정 {scheduled} · 게시됨 {posted}" },
 
   "admin.usage.insight.title": { ja: "ひとこと読み取り", ko: "한 줄 읽기" },
   "admin.usage.insight.topSdg": { ja: "応募者がいちばん多いSDGsは「{name}」で、{n}名です。", ko: "응모자가 가장 많은 SDGs는 “{name}”이고, {n}명이에요." },

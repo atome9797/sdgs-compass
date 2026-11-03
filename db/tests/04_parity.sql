@@ -183,9 +183,10 @@ SELECT pg_temp.none($q$SELECT g.case_no, g.label, g.months, g.remaining AS core,
                     'official_share_month_remaining 이 core 의 officialMonthRemaining 과 기간 안의 모든 달에서 같다');
 SELECT pg_temp.ok((SELECT count(*) FROM golden_official_choices WHERE earliest_on IS NULL) >= 2
               AND (SELECT count(*) FROM golden_official_choices WHERE 'cancelled' = ANY (taken_status)) >= 2
+              AND (SELECT count(*) FROM golden_official_choices WHERE 'posted' = ANY (taken_status)) >= 2
               AND (SELECT count(*) FROM golden_official_choices WHERE false = ANY (taken_mine)) >= 2
               AND (SELECT count(*) FROM golden_official_choices WHERE cardinality(months) = 3) >= 1,
-                  '고를 날이 없는 사례 · 취소가 섞인 사례 · 다른 회사가 섞인 사례 · 세 달에 걸친 사례가 모두 들어 있다');
+                  '고를 날이 없는 사례 · 취소·게시 완료가 섞인 사례 · 다른 회사가 섞인 사례 · 세 달에 걸친 사례가 모두 들어 있다');
 
 -- 6-4b) 채널 값: 앱(isOfficialChannel)이 받아들이는 글자만 DB 의 열거형도 받아들인다 (YouTube · 대소문자 · 공백 · 옛 이름은 모두 거절)
 CREATE FUNCTION pg_temp.accepts_channel(v text) RETURNS boolean LANGUAGE plpgsql AS $$
@@ -200,6 +201,24 @@ SELECT pg_temp.none($q$SELECT g.case_no, g.value, g.valid AS core, pg_temp.accep
                     '앱이 받아들이는 채널 값은 DB 도 받아들이고, 앱이 거절하는 값은 DB 도 거절한다');
 SELECT pg_temp.ok((SELECT count(*) FILTER (WHERE valid) FROM golden_official_channel_values) = (SELECT count(*) FROM golden_official_channels)
               AND (SELECT count(*) FILTER (WHERE NOT valid) FROM golden_official_channel_values) >= 8, '받아들이는 값(채널 전부)과 거절하는 값이 모두 충분히 들어 있다');
+
+-- 6-4c) 게시글 주소: 앱(isOfficialPostUrl)이 받아들이는 주소만 DB 의 official_share_post_url 검사도 받아들인다 (게시 완료한 신청에 넣어 봐요)
+SELECT pg_temp.mk_pr('90000000-0000-0000-0000-0000000000a2', 'b0000000-0000-0000-0000-000000000001', 'd0000000-0000-0000-0000-000000000001');
+INSERT INTO official_share_slots (post_id, scheduled_on) VALUES ('90000000-0000-0000-0000-0000000000a2', jst_date(now()) + 1);
+UPDATE official_share_slots SET status = 'posted' WHERE post_id = '90000000-0000-0000-0000-0000000000a2';
+CREATE FUNCTION pg_temp.accepts_post_url(v text) RETURNS boolean LANGUAGE plpgsql AS $$
+BEGIN
+  UPDATE official_share_slots SET post_url = v WHERE post_id = '90000000-0000-0000-0000-0000000000a2';
+  RETURN true;
+EXCEPTION WHEN check_violation THEN
+  RETURN false;
+END $$;
+SELECT pg_temp.none($q$SELECT g.case_no, g.value, g.valid AS core, pg_temp.accepts_post_url(g.value) AS db
+                         FROM golden_official_post_urls g WHERE g.valid <> pg_temp.accepts_post_url(g.value)$q$,
+                    '앱이 받아들이는 게시글 주소는 DB 도 받아들이고, 앱이 거절하는 주소는 DB 도 거절한다 (https:// · 빈칸 · 전각 · 대문자 · 한글 도메인)');
+SELECT pg_temp.ok((SELECT count(*) FILTER (WHERE valid) FROM golden_official_post_urls) >= 4 AND (SELECT count(*) FILTER (WHERE NOT valid) FROM golden_official_post_urls) >= 10,
+                  '받아들이는 주소와 거절하는 주소가 모두 충분히 들어 있다');
+DELETE FROM social_posts WHERE id = '90000000-0000-0000-0000-0000000000a2';
 
 -- 6-5) 입력 검사: 앱(validatePostDraft)이 받아들이는 글은 DB 도 받아들이고, 거절하는 글은 DB 도 거절한다 — 같은 이유로
 --      사례를 하나씩 실제 INSERT 로 옮겨요. 받아들여진 글도 곧바로 되돌려서 다음 사례에 영향을 주지 않아요.

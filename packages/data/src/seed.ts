@@ -563,7 +563,9 @@ function buildScouts(today: string): Scout[] {
 function buildPosts(today: string): SocialPost[] {
   const d = (n: number) => addDays(today, n);
   const at = (n: number, time: string) => `${d(n)}T${time}`;
-  const scheduled = (n: number, channel: OfficialChannel) => ({ on: d(n), channel, feeYen: OFFICIAL_SHARE_FEE_YEN, status: "scheduled" as const });
+  const scheduled = (n: number, channel: OfficialChannel) => ({ on: d(n), channel, feeYen: OFFICIAL_SHARE_FEE_YEN, status: "scheduled" as const, postUrl: null });
+  // 운영자가 이미 올린 신청: 가상의 회사 글이라 특정 게시글이 아니라 공식 계정 주소로 이어져요 (postUrl = null → OFFICIAL_ACCOUNT_URLS)
+  const posted = (n: number, channel: OfficialChannel) => ({ on: d(n), channel, feeYen: OFFICIAL_SHARE_FEE_YEN, status: "posted" as const, postUrl: null });
   const levelOfStudent = (id: string) => levelOf(talent.find((c) => c.id === id)?.points ?? 0);
   const minato = { ja: "みなと海洋フーズ株式会社", ko: "미나토 해양푸드(주)" };
   const hikari = { ja: "ひかりエナジー株式会社", ko: "히카리 에너지(주)" };
@@ -571,7 +573,8 @@ function buildPosts(today: string): SocialPost[] {
   const kotoba = { ja: "ことば教育サポート株式会社", ko: "코토바 교육 서포트(주)" };
   return [
     // 기업 홍보 글. 공식 SNS 게시 신청은 하루 제한이 없고 회사마다 한 달에 4번까지예요(채널 합계 — docs/sns-feed.md §3).
-    // 내일 Instagram 에는 세 회사(po-1 · po-3 · 우리 회사 po-4)가 함께 올라가고, X 는 모레(po-2)예요.
+    // po-1 은 사흘 전에 공식 Instagram 에 이미 올라갔어요(게시 완료) — 학생·다른 기업에게도 「公式SNSで見る ↗」 링크가 보여요.
+    // 내일 Instagram 에는 두 회사(po-3 · 우리 회사 po-4)가 함께 올라가고, X 는 모레(po-2)예요. 예정일·게시료는 쓴 회사에게만 보여요.
     // 우리 회사는 내일 1건을 이미 신청해 두어서, 새 글을 쓰면 기본 날짜(내일)가 속한 달의 남은 횟수가 「残り 3/4回」로 보여요.
     {
       id: "po-1", kind: "pr", companyId: "co-green", challengeId: "ch-foodloss", sdgIds: [12, 2],
@@ -580,7 +583,7 @@ function buildPosts(today: string): SocialPost[] {
         ja: "賞味期限が近い商品をどう見せれば、手に取ってもらえるか。店舗での実験データを公開して、学生のみなさんの提案を待っています。",
         ko: "유통기한이 가까운 상품을 어떻게 보여 주면 손이 갈까요? 매장 실험 데이터를 공개하고 학생 여러분의 제안을 기다리고 있어요.",
       },
-      official: scheduled(1, "instagram"), createdAt: at(-1, "09:30"), likes: 18, likedBy: [], mine: false,
+      official: posted(-3, "instagram"), createdAt: at(-4, "12:30"), likes: 18, likedBy: [], mine: false,
     },
     {
       id: "po-2", kind: "pr", companyId: "co-hikari", challengeId: "ch-solar", sdgIds: [7, 13],

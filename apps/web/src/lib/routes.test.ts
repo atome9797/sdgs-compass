@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { MESSAGES } from "@sdgs-compass/core/messages";
 import { activeTabId, ADMIN_TABS, B2B_TABS, B2C_TABS, tabsFor } from "./nav";
 import {
-  ADMIN_PATHS, areaOf, applicantsHref, buildHref, certificateHref, challengeHref, feedHref, guardRedirect, homeFor, impactSummaryHref, isAdminPath, normalizeBasePath, normalizePath,
+  ADMIN_PATHS, areaOf, applicantsHref, buildHref, certificateHref, challengeHref, feedHref, guardRedirect, homeFor, impactHref, impactSummaryHref, isAdminPath, normalizeBasePath, normalizePath,
   parseSdgParam, postNewHref, receiptHref, ROUTES, searchHref, shareHref, stripBasePath, submitHref, withBase,
 } from "./routes";
 
@@ -13,6 +13,13 @@ describe("신청 요약 (#22)", () => {
     expect(impactSummaryHref("all")).toBe("/impact/summary/");
     expect(impactSummaryHref("year")).toBe("/impact/summary/?period=year");
     expect(impactSummaryHref("half")).toBe("/impact/summary/?period=half");
+  });
+
+  it("마이 임팩트 주소: 방금 낸 과제(just)가 있으면 쿼리로 붙여요 (#28)", () => {
+    expect(impactHref()).toBe("/impact/");
+    expect(impactHref(null)).toBe("/impact/");
+    expect(impactHref("ch-plastic")).toBe("/impact/?just=ch-plastic");
+    expect(areaOf("/impact/")).toBe("b2c");
   });
 
   it("학생 화면이에요: 기업은 기업 홈으로 돌려보내고, 하단 탭은 Impact 가 켜져요", () => {

@@ -40,6 +40,11 @@ export function receiptHref(id: string): string {
   return `${submitHref(id)}?receipt=1`;
 }
 
+/** 마이 임팩트 탭. just = 방금 기획서를 낸 과제 id — 수령증의 「マイImpactを見る」로 오면 「応募中の課題」에서 그 과제를 강조해요(#28) */
+export function impactHref(just?: string | null): string {
+  return just ? `${ROUTES.impact}?just=${encodeURIComponent(just)}` : ROUTES.impact;
+}
+
 export function certificateHref(id: string): string {
   return `/certificate/${encodeURIComponent(id)}`;
 }

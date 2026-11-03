@@ -298,6 +298,14 @@ svg { display: block; }
 .activity__title { font-weight: 700; font-size: var(--fs-sm); line-height: 1.4; }
 .activity__meta { font-size: var(--fs-xs); color: var(--text-muted); }
 .activity__points { flex: none; font-weight: 800; color: var(--primary); font-size: var(--fs-sm); font-variant-numeric: tabular-nums; }
+/* #28 마이 임팩트 맨 위 「応募中の課題」: 기업(작게) · 과제 제목(굵게) · 상태 태그 · 마감 · SDG · 링크. 방금 낸 과제는 피드의 새 글과 같은 강조 */
+.applied { display: flex; flex-direction: column; gap: 6px; padding: 14px 16px; }
+.applied--new { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-soft), var(--shadow); }
+.applied__company { font-size: var(--fs-sm); font-weight: 700; color: var(--text-muted); }
+.applied__title { font-size: var(--fs-md); font-weight: 800; line-height: 1.4; }
+.applied__tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.applied__meta { font-size: var(--fs-sm); color: var(--text-muted); }
+.applied__links { display: flex; flex-wrap: wrap; gap: 4px 16px; margin-top: 2px; }
 
 /* ───────── 챌린지 상세·팀 게시판 ───────── */
 .hero { overflow: hidden; }

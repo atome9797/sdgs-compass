@@ -93,6 +93,8 @@ export const submitHref = (id: string): string => buildHref(ROUTES.submit, { id 
 /** 최종 제출 뒤 수령증 화면 (다시 열어도 같은 화면이 나와요) */
 export const receiptHref = (id: string): string => buildHref(ROUTES.submit, { id, receipt: 1 });
 export const certificateHref = (id?: string): string => buildHref(ROUTES.certificate, { id });
+/** 마이 임팩트. just = 방금 기획서를 낸 과제 id — 수령증의 「マイImpactを見る」로 오면 「応募中の課題」에서 그 과제를 강조해요(#28) */
+export const impactHref = (just?: string | null): string => buildHref(ROUTES.impact, { just });
 /** 신청 요약 주소 (기간 프리셋: all · year · half — 기본값이면 쿼리를 붙이지 않아요) */
 export const impactSummaryHref = (period?: string | null): string => buildHref(ROUTES.impactSummary, { period: period === "all" ? null : period });
 export const applicantsHref = (id?: string): string => buildHref(ROUTES.b2bApplicants, { id });

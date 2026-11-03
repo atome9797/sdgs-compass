@@ -101,6 +101,8 @@ export const b2c = {
   "receipt.title": { ja: "提出受領書", ko: "제출 수령증" },
   "receipt.thanks": { ja: "提出が完了しました", ko: "제출이 완료되었어요" },
   "receipt.no": { ja: "受付番号", ko: "접수 번호" },
+  // 어느 기업의 어느 과제에 냈는지 수령증에서 바로 보이게(#28)
+  "receipt.company": { ja: "企業", ko: "기업" },
   "receipt.at": { ja: "提出日時", ko: "제출 일시" },
   "receipt.version": { ja: "バージョン", ko: "버전" },
   "receipt.file": { ja: "ファイル", ko: "파일" },
@@ -115,6 +117,12 @@ export const b2c = {
   "impact.nextLevel": { ja: "次のLv.{level}への進み具合 {percent}%", ko: "다음 Lv.{level}까지 {percent}% 진행했어요" },
   "impact.levelHint": { ja: "参加・提出・受賞の実績でレベルが上がります。", ko: "참가·제출·수상 실적으로 레벨이 올라가요." },
   "impact.maxLevel": { ja: "最高レベルに到達しました", ko: "최고 레벨에 도달했어요" },
+  // #28 응모 중인 과제: 제출한 뒤 「マイImpactを見る」로 오면 맨 위(프로필 바로 아래)에서 어느 기업의 어느 과제에 냈는지 보여요
+  "impact.applications": { ja: "応募中の課題", ko: "지원 중인 챌린지" },
+  "impact.applicationsHint": { ja: "提出した企画書の状況です。締切までは再提出できます。", ko: "제출한 기획서의 상황이에요. 마감 전까지 다시 제출할 수 있어요." },
+  "impact.applicationDeadline": { ja: "締切 {date}（{dday}）", ko: "마감 {date} ({dday})" },
+  "impact.justSubmitted": { ja: "たった今提出", ko: "방금 제출" },
+  "impact.viewChallenge": { ja: "課題を見る", ko: "챌린지 보기" },
   "impact.radarTitle": { ja: "SDGs Impact レーダーチャート", ko: "SDGs Impact 레이더 차트" },
   "impact.radarHint": { ja: "17目標ごとの実績を0〜100で表示します", ko: "17개 목표별 실적을 0~100으로 표시해요" },
   "impact.top": { ja: "得意なSDGs", ko: "강점 SDGs" },

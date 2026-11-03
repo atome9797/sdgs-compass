@@ -10,7 +10,7 @@ import { charCount, LIMITS, validateProposalDraft, type ProposalError } from "@s
 import { selectChallengeDetail, selectReceipt } from "@sdgs-compass/core/selectors";
 import { Banner, Button, ButtonLink, Counter, ErrorList, Field, ScreenHead } from "@/components/ui";
 import { canLeaveStep, emptyDraftFields, errorsForStep, firstInvalidStep, pickFileInfo, SAMPLE_FILES, SUBMIT_STEPS, toProposalDraft, type DraftFields, type SubmitStep } from "@/lib/draft";
-import { buildHref, challengeHref, receiptHref, ROUTES } from "@/lib/routes";
+import { buildHref, challengeHref, impactHref, receiptHref, ROUTES } from "@/lib/routes";
 import { useSession } from "@/lib/session";
 import { nowIso } from "@/lib/time";
 
@@ -264,6 +264,9 @@ function ReceiptView({ id }: { id: string }) {
         </div>
         <div className="receipt__body">
           <dl className="kv">
+            {/* 어느 기업의 어느 과제에 냈는지 맨 위 두 줄에서 바로 보여요(#28) */}
+            <dt>{t("receipt.company")}</dt>
+            <dd>{receipt.companyName}</dd>
             <dt>{t("cert.challenge")}</dt>
             <dd>{receipt.challengeTitle}</dd>
             <dt>{t("submit.teamName")}</dt>
@@ -287,7 +290,8 @@ function ReceiptView({ id }: { id: string }) {
         </div>
       </section>
       <div className="stack">
-        <ButtonLink href={buildHref(ROUTES.impact)}>{t("receipt.toImpact")}</ButtonLink>
+        {/* 마이 임팩트 맨 위 「応募中の課題」에서 방금 낸 과제를 강조해요(#28) */}
+        <ButtonLink href={impactHref(id)}>{t("receipt.toImpact")}</ButtonLink>
         <ButtonLink href={challengeHref(id)} variant="secondary">
           {t("receipt.toChallenge")}
         </ButtonLink>

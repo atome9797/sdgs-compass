@@ -256,6 +256,8 @@ export function selectChallengeDetail(state: DemoState, id: string, locale: Loca
 // ───────── 제출 수령증(SCR-03) ─────────
 
 export interface ReceiptVM {
+  /** 과제를 낸 기업 — 어느 기업의 어느 과제에 냈는지 수령증에서 바로 보이게(#28) */
+  companyName: string;
   challengeTitle: string;
   teamName: string;
   title: string;
@@ -273,7 +275,9 @@ export function selectReceipt(state: DemoState, challengeId: string, locale: Loc
   const challenge = state.challenges.find((c) => c.id === challengeId);
   if (!proposal || !challenge) return null;
   const latest = proposal.versions[proposal.versions.length - 1];
+  const company = companyOf(state, challenge.companyId);
   return {
+    companyName: company ? pick(company.name, locale) : "",
     challengeTitle: pick(challenge.title, locale),
     teamName: proposal.teamName,
     title: proposal.title,
@@ -285,6 +289,63 @@ export function selectReceipt(state: DemoState, challengeId: string, locale: Loc
     fileSizeLabel: formatBytes(latest.fileSizeBytes),
     sha256: latest.sha256,
   };
+}
+
+// ───────── 응모 중인 과제(SCR-04 맨 위, #28) ─────────
+
+/** 내가 기획서를 낸 과제 중 아직 결과가 나오지 않은 것(모집 중·심사 중) 한 건 */
+export interface ApplicationVM {
+  challengeId: string;
+  companyName: string;
+  challengeTitle: string;
+  status: ChallengeStatus;
+  /** 「募集中」·「審査中」 */
+  statusLabel: string;
+  /** 모집 중이면 「締切 2026年11月11日（D-12）」, 심사 중이면 null (마감이 지났으니까요) */
+  deadlineLabel: string | null;
+  /** 최신 버전 번호 (다시 내면 올라가요) */
+  version: number;
+  /** 「提出済み（v2）」 */
+  versionLabel: string;
+  /** 최신 버전을 낸 시각 "YYYY-MM-DDTHH:mm" (정렬용) */
+  submittedAt: string;
+  sdgIds: SdgId[];
+}
+
+/**
+ * 마이 임팩트 맨 위의 「応募中の課題」: 내 기획서(mine) 중 과제가 모집 중·심사 중인 것을 최근에 낸 순서로.
+ * 마감(closed)된 과제는 결과가 나온 것이라 여기서 빠지고 참여 실적에만 남아요. 처음 상태(샘플)에는 내 기획서가 없어서 빈 목록이에요.
+ */
+export function selectApplications(state: DemoState, locale: Locale): ApplicationVM[] {
+  const rows: ApplicationVM[] = [];
+  for (const proposal of state.proposals) {
+    if (!proposal.mine) continue;
+    const challenge = state.challenges.find((c) => c.id === proposal.challengeId);
+    if (!challenge || challenge.status === "closed") continue;
+    const latest = proposal.versions[proposal.versions.length - 1];
+    if (!latest) continue;
+    const company = companyOf(state, challenge.companyId);
+    rows.push({
+      challengeId: challenge.id,
+      companyName: company ? pick(company.name, locale) : "",
+      challengeTitle: pick(challenge.title, locale),
+      status: challenge.status,
+      statusLabel: challengeStatusLabel(challenge.status, locale),
+      deadlineLabel:
+        challenge.status === "open"
+          ? translate("impact.applicationDeadline", locale, {
+              date: formatDate(challenge.closesOn, locale),
+              dday: dDayLabel(daysBetween(state.today, challenge.closesOn), locale),
+            })
+          : null,
+      version: latest.no,
+      versionLabel: translate("challenge.submitted", locale, { version: latest.no }),
+      submittedAt: latest.submittedAt,
+      sdgIds: challenge.sdgIds,
+    });
+  }
+  // 최근에 낸 것이 위로 (같은 시각이면 과제 id 순서로 고정)
+  return rows.sort((a, b) => (a.submittedAt === b.submittedAt ? a.challengeId.localeCompare(b.challengeId) : a.submittedAt < b.submittedAt ? 1 : -1));
 }
 
 // ───────── 마이 포트폴리오(SCR-04) ─────────

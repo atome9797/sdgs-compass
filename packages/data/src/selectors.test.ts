@@ -13,6 +13,7 @@ import { SDG_IDS } from "@sdgs-compass/core/sdg";
 import {
   certificateVM,
   selectApplicants,
+  selectApplications,
   selectB2bDashboard,
   selectCertificates,
   selectChallengeDetail,
@@ -92,6 +93,7 @@ function allViews(state: DemoState, locale: Locale) {
     detailJudging: selectChallengeDetail(state, "ch-bottle", locale),
     detailMissing: selectChallengeDetail(state, "없음", locale),
     receipt: selectReceipt(state, "ch-plastic", locale),
+    applications: selectApplications(state, locale),
     impact: selectImpact(state, locale),
     certificates: selectCertificates(state, locale),
     shareInstagram: selectShare(state, locale, "instagram", null),
@@ -277,8 +279,83 @@ describe("챌린지 상세", () => {
       expect(receipt?.sha256).toMatch(/^[0-9a-f]{64}$/);
       expect(receipt?.fileName).toBe("plan.pdf");
     }
+    // 어느 기업의 어느 과제에 냈는지 수령증에서 바로 보여요(#28)
+    expect(selectReceipt(busy, "ch-plastic", "ja")?.companyName).toBe("みなと海洋フーズ株式会社");
+    expect(selectReceipt(busy, "ch-plastic", "ko")?.companyName).toBe("미나토 해양푸드(주)");
     expect(selectChallengeDetail(busy, "ch-plastic", "ja")?.hasSubmitted).toBe(true);
     expect(selectChallengeDetail(busy, "ch-plastic", "ja")?.card.submittedVersion).toBe(1);
+  });
+});
+
+describe("응모 중인 과제 — 마이 임팩트 맨 위 (#28)", () => {
+  const withStatus = (state: DemoState, id: string, status: "open" | "judging" | "closed"): DemoState => ({
+    ...state,
+    challenges: state.challenges.map((c) => (c.id === id ? { ...c, status } : c)),
+  });
+
+  it("처음 상태(샘플)에는 내 기획서가 없어서 빈 목록이에요 — 다른 팀의 응모작은 들어오지 않아요", () => {
+    for (const locale of LOCALES) expect(selectApplications(initial, locale)).toEqual([]);
+    expect(initial.proposals.some((p) => !p.mine)).toBe(true);
+  });
+
+  it("제출하면 기업·과제 제목·모집 중·마감일(D-n)·버전이 두 언어로 나와요", () => {
+    const state = run(initial, { type: "submitProposal", challengeId: "ch-plastic", draft, at: AT });
+    const [ja] = selectApplications(state, "ja");
+    expect(ja).toMatchObject({
+      challengeId: "ch-plastic",
+      companyName: "みなと海洋フーズ株式会社",
+      challengeTitle: "海洋プラスチックを減らす新しい包装アイデア",
+      status: "open",
+      statusLabel: "募集中",
+      deadlineLabel: "締切 2026年11月11日（D-12）",
+      version: 1,
+      versionLabel: "提出済み（v1）",
+      submittedAt: AT,
+      sdgIds: [14, 12],
+    });
+    const [ko] = selectApplications(state, "ko");
+    expect(ko).toMatchObject({
+      companyName: "미나토 해양푸드(주)",
+      challengeTitle: "해양 플라스틱을 줄이는 새로운 포장 아이디어",
+      statusLabel: "모집 중",
+      deadlineLabel: "마감 2026년 11월 11일 (D-12)",
+      versionLabel: "제출 완료(v1)",
+    });
+  });
+
+  it("다시 내면 항목은 하나 그대로이고 버전만 올라가요", () => {
+    const state = run(
+      initial,
+      { type: "submitProposal", challengeId: "ch-plastic", draft, at: AT },
+      { type: "submitProposal", challengeId: "ch-plastic", draft: { ...draft, fileName: "plan_v2.pdf" }, at: "2026-10-30T15:30" },
+    );
+    const list = selectApplications(state, "ja");
+    expect(list).toHaveLength(1);
+    expect(list[0].version).toBe(2);
+    expect(list[0].versionLabel).toBe("提出済み（v2）");
+    expect(list[0].submittedAt).toBe("2026-10-30T15:30");
+  });
+
+  it("최근에 낸 과제가 위에 와요", () => {
+    const state = run(
+      initial,
+      { type: "submitProposal", challengeId: "ch-plastic", draft, at: AT },
+      { type: "submitProposal", challengeId: "ch-foodloss", draft, at: "2026-10-30T11:00" },
+    );
+    expect(selectApplications(state, "ja").map((a) => [a.challengeId, a.companyName])).toEqual([
+      ["ch-foodloss", "グリーンリテール株式会社"],
+      ["ch-plastic", "みなと海洋フーズ株式会社"],
+    ]);
+  });
+
+  it("심사 중이면 「審査中」이고 마감일 줄은 없어요, 마감(결과 발표)된 과제는 빠져요", () => {
+    const submitted = run(initial, { type: "submitProposal", challengeId: "ch-plastic", draft, at: AT });
+    const judging = selectApplications(withStatus(submitted, "ch-plastic", "judging"), "ja");
+    expect(judging).toHaveLength(1);
+    expect(judging[0].statusLabel).toBe("審査中");
+    expect(judging[0].deadlineLabel).toBeNull();
+    expect(selectApplications(withStatus(submitted, "ch-plastic", "judging"), "ko")[0].statusLabel).toBe("심사 중");
+    expect(selectApplications(withStatus(submitted, "ch-plastic", "closed"), "ja")).toEqual([]);
   });
 });
 

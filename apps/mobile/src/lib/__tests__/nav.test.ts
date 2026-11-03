@@ -6,6 +6,7 @@ import {
   composeHref,
   feedRoute,
   goBack,
+  impactHref,
   paramText,
   postedHref,
   receiptHref,
@@ -27,6 +28,14 @@ test("SNS 피드 경로: 학생은 /feed, 기업은 /b2b/feed (글쓰기는 그 
   expect(ROUTES.feedNew).toBe(`${ROUTES.feed}/new`);
   expect(ROUTES.b2bFeed).toBe(`${ROUTES.b2bDashboard}/feed`);
   expect(ROUTES.b2bFeedNew).toBe(`${ROUTES.b2bFeed}/new`);
+});
+
+test("마이 임팩트 경로: 방금 낸 과제(just)가 있으면 쿼리로 붙여요 (#28)", () => {
+  expect(impactHref()).toBe("/impact");
+  expect(impactHref(null)).toBe("/impact");
+  expect(impactHref("")).toBe("/impact");
+  expect(impactHref("ch-plastic")).toBe("/impact?just=ch-plastic");
+  expect(impactHref("a&b")).toBe("/impact?just=a%26b");
 });
 
 test("id 가 들어가는 경로는 특수 문자를 안전하게 인코딩해요", () => {

@@ -13,7 +13,7 @@ import { Screen } from "@/components/Screen";
 import { StepDots } from "@/components/StepDots";
 import { Button, Card, Field, KeyValue, Notice, Txt } from "@/components/ui";
 import { useApp } from "@/lib/AppProvider";
-import { challengeHref, paramText, receiptHref, ROUTES } from "@/lib/nav";
+import { challengeHref, impactHref, paramText, receiptHref, ROUTES } from "@/lib/nav";
 import {
   canAdvance,
   errorsForStep,
@@ -287,6 +287,8 @@ function ReceiptView({ id }: { id: string }) {
             {receipt.receiptNo}
           </Txt>
         </View>
+        {/* 어느 기업의 어느 과제에 냈는지 맨 위 두 줄에서 바로 보여요(#28) */}
+        <KeyValue label={t("receipt.company")} value={receipt.companyName} />
         <KeyValue label={t("cert.challenge")} value={receipt.challengeTitle} />
         <KeyValue label={t("submit.teamName")} value={receipt.teamName} />
         <KeyValue label={t("submit.proposalTitle")} value={receipt.title} />
@@ -303,7 +305,8 @@ function ReceiptView({ id }: { id: string }) {
           {t("receipt.note")}
         </Txt>
       </Card>
-      <Button label={t("receipt.toImpact")} onPress={() => router.navigate(ROUTES.impact)} />
+      {/* 마이 임팩트 맨 위 「応募中の課題」에서 방금 낸 과제를 강조해요(#28) */}
+      <Button label={t("receipt.toImpact")} onPress={() => router.navigate(impactHref(id))} />
       <Button variant="secondary" label={t("receipt.toChallenge")} onPress={back} />
     </Screen>
   );

@@ -1,18 +1,19 @@
-// SCR-04 마이 포트폴리오: 레벨·누적 지수 · 스카우트 수신 설정(따로 된 줄) · リワード残高 카드(#25 데모) · SDGs Impact 레이더 차트(17목표) · 강점 SDGs · 배지 · 참여 실적 · 증명서/카드뉴스 단추.
+// SCR-04 마이 포트폴리오: 레벨·누적 지수 · 스카우트 수신 설정(따로 된 줄) · 応募中の課題(#28, 낸 기획서가 있을 때만) · SDGs Impact 레이더 차트(17목표) · 강점 SDGs · 배지 · 참여 실적
+// · 증명서/요약/카드뉴스 단추 · 맨 아래 リワード残高 카드(#25 데모).
 // 레이더는 SVG 없이 View 로 그려요(components/RadarChart). 값은 모두 core 의 selectImpact 에서 와요.
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { useMemo } from "react";
 import { StyleSheet, View, useWindowDimensions } from "react-native";
-import { selectCertificates, selectImpact } from "@sdgs-compass/core/selectors";
+import { selectApplications, selectCertificates, selectImpact } from "@sdgs-compass/core/selectors";
 import { selectWallet } from "@sdgs-compass/core/walletView";
 import { ActivityRow } from "@/components/ActivityRow";
 import { RadarChart } from "@/components/RadarChart";
 import { Screen, ScreenTitle } from "@/components/Screen";
-import { SdgTile } from "@/components/SdgTile";
+import { SdgMiniRow, SdgTile } from "@/components/SdgTile";
 import { Badge, Button, Card, Empty, Notice, ProgressBar, Section, Txt } from "@/components/ui";
 import { useApp } from "@/lib/AppProvider";
 import { squareSizeFor } from "@/lib/geometry";
-import { certificateHref, ROUTES } from "@/lib/nav";
+import { certificateHref, challengeHref, paramText, receiptHref, ROUTES } from "@/lib/nav";
 import { COLORS, RADIUS, SPACE } from "@/theme";
 
 export function ImpactScreen() {
@@ -20,8 +21,11 @@ export function ImpactScreen() {
   const router = useRouter();
   const { width } = useWindowDimensions();
   const vm = useMemo(() => selectImpact(demo, locale), [demo, locale]);
+  const applications = useMemo(() => selectApplications(demo, locale), [demo, locale]);
   const certs = useMemo(() => selectCertificates(demo, locale), [demo, locale]);
   const wallet = useMemo(() => selectWallet(demo, locale), [demo, locale]);
+  // 수령증의 「マイImpactを見る」로 오면 경로에 방금 낸 과제(just)가 붙어 있어요 — 그 과제를 강조해요
+  const just = paramText(useLocalSearchParams().just);
   const radarSize = squareSizeFor(width);
   const firstCert = certs[0];
 
@@ -71,25 +75,42 @@ export function ImpactScreen() {
         </View>
       </Card>
 
-      {/* #25 リワード残高(데모): 돈은 레벨과 따로 — 레벨은 바꿀 수 없다는 고지 ④ 를 카드에 함께 보여요 */}
-      <Card>
-        <View style={styles.rowBetween} testID="impact-wallet">
-          <View style={styles.walletTitle}>
-            <Txt bold>💴 {t("wallet.title")}</Txt>
-            <Badge label={t("wallet.demo")} tone="warning" />
-          </View>
-          <Txt variant="title" bold>
-            {wallet.balanceLabel}
-          </Txt>
-        </View>
-        <Txt variant="small" tone="muted">
-          {t("wallet.cardNote")}
-        </Txt>
-        <Txt variant="small" tone="muted">
-          {wallet.notices.level}
-        </Txt>
-        <Button testID="open-wallet" variant="secondary" small label={t("wallet.more")} onPress={() => router.push(ROUTES.wallet)} />
-      </Card>
+
+      {/* #28 응모 중인 과제: 기획서를 낸 뒤 어느 기업의 어느 과제에 냈는지 첫 화면에서 보여요(낸 것이 없으면 칸째 숨겨요) */}
+      {applications.length > 0 ? (
+        <Section title={t("impact.applications")} hint={t("impact.applicationsHint")}>
+          {applications.map((app) => {
+            const fresh = app.challengeId === just;
+            return (
+              <Card key={app.challengeId} style={fresh ? styles.appliedNew : undefined}>
+                <View style={styles.applied} testID={`impact-application-${app.challengeId}`}>
+                  <Txt variant="small" tone="muted" bold numberOfLines={2}>
+                    {app.companyName}
+                  </Txt>
+                  <Txt bold numberOfLines={3}>
+                    {app.challengeTitle}
+                  </Txt>
+                  <View style={styles.appliedTags}>
+                    {fresh ? <Badge label={`✓ ${t("impact.justSubmitted")}`} tone="success" /> : null}
+                    <Badge label={app.statusLabel} tone={app.status === "open" ? "primary" : "warning"} />
+                    <Badge label={app.versionLabel} />
+                  </View>
+                  {app.deadlineLabel ? (
+                    <Txt variant="small" tone="muted">
+                      {app.deadlineLabel}
+                    </Txt>
+                  ) : null}
+                  <SdgMiniRow ids={app.sdgIds} size={20} />
+                  <View style={styles.appliedLinks}>
+                    <Button variant="ghost" small label={t("impact.viewChallenge")} onPress={() => router.push(challengeHref(app.challengeId))} />
+                    <Button variant="ghost" small label={t("challenge.viewReceipt")} onPress={() => router.push(receiptHref(app.challengeId))} />
+                  </View>
+                </View>
+              </Card>
+            );
+          })}
+        </Section>
+      ) : null}
 
       <Section title={t("impact.radarTitle")} hint={t("impact.radarHint")}>
         <Card style={styles.center}>
@@ -169,6 +190,27 @@ export function ImpactScreen() {
         <Button testID="open-summary" variant="secondary" icon="🗂" label={t("summary.entry")} onPress={() => router.push(ROUTES.summary)} />
         <Button testID="open-share" variant="secondary" icon="📣" label={t("impact.shareButton")} onPress={() => router.push(ROUTES.share)} />
       </View>
+
+      {/* #25 リワード残高(데모): 돈은 레벨과 따로 — 레벨은 바꿀 수 없다는 고지 ④ 를 카드에 함께 보여요.
+          맨 아래에 둬요(#28): 제출 직후 첫 화면에서 지난 샘플 상금이 방금 낸 기획서의 결과처럼 보이지 않게 */}
+      <Card>
+        <View style={styles.rowBetween} testID="impact-wallet">
+          <View style={styles.walletTitle}>
+            <Txt bold>💴 {t("wallet.title")}</Txt>
+            <Badge label={t("wallet.demo")} tone="warning" />
+          </View>
+          <Txt variant="title" bold>
+            {wallet.balanceLabel}
+          </Txt>
+        </View>
+        <Txt variant="small" tone="muted">
+          {t("wallet.cardNote")}
+        </Txt>
+        <Txt variant="small" tone="muted">
+          {wallet.notices.level}
+        </Txt>
+        <Button testID="open-wallet" variant="secondary" small label={t("wallet.more")} onPress={() => router.push(ROUTES.wallet)} />
+      </Card>
     </Screen>
   );
 }
@@ -177,6 +219,10 @@ const styles = StyleSheet.create({
   rowBetween: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: SPACE.sm },
   shrink: { flexShrink: 1 },
   walletTitle: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: SPACE.xs + 2, flexShrink: 1 },
+  applied: { gap: SPACE.xs + 2 },
+  appliedNew: { borderColor: COLORS.primary, borderWidth: 2 },
+  appliedTags: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: SPACE.xs + 2 },
+  appliedLinks: { flexDirection: "row", flexWrap: "wrap", gap: SPACE.sm },
   scoutRow: { flexDirection: "row", alignItems: "center", gap: SPACE.sm, paddingTop: SPACE.md, borderTopWidth: 1, borderTopColor: COLORS.border },
   scoutText: { flex: 1, minWidth: 0 },
   center: { alignItems: "center" },

@@ -54,6 +54,9 @@ export const common = {
   "proposalStatus.reviewed": { ja: "審査済み", ko: "심사 완료" },
   "proposalStatus.awarded": { ja: "受賞", ko: "수상" },
   "proposalStatus.adopted": { ja: "採用", ko: "채택" },
+  // #34 기획서 제출 버전: 맨 글자 「v1」 은 레벨(Lv.1)로 읽혀서 뜻이 드러나는 말로 써요 (마감 전에 다시 내면 第2版 / 2차 제출)
+  "proposal.version": { ja: "第{version}版", ko: "{version}차 제출" },
+  "proposal.versionA11y": { ja: "提出された企画書の第{version}版", ko: "제출한 기획서의 {version}번째 버전" },
 
   "participation.individual": { ja: "個人", ko: "개인" },
   "participation.team": { ja: "チーム", ko: "팀" },

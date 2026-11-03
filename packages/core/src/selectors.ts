@@ -311,6 +311,8 @@ export interface ReceiptVM {
   receiptNo: string;
   submittedAtLabel: string;
   version: number;
+  /** 「第1版」·「1차 제출」 (#34 — 맨 글자 v1 은 레벨로 읽혀서 쓰지 않아요) */
+  versionLabel: string;
   fileName: string;
   fileSizeLabel: string;
   sha256: string;
@@ -331,6 +333,7 @@ export function selectReceipt(state: DemoState, challengeId: string, locale: Loc
     receiptNo: proposal.receiptNo,
     submittedAtLabel: formatDateTime(latest.submittedAt, locale),
     version: latest.no,
+    versionLabel: translate("proposal.version", locale, { version: latest.no }),
     fileName: latest.fileName,
     fileSizeLabel: formatBytes(latest.fileSizeBytes),
     sha256: latest.sha256,
@@ -351,7 +354,7 @@ export interface ApplicationVM {
   deadlineLabel: string | null;
   /** 최신 버전 번호 (다시 내면 올라가요) */
   version: number;
-  /** 「提出済み（v2）」 */
+  /** 「提出済み（第2版）」·「2차 제출 완료」 (#34) */
   versionLabel: string;
   /** 최신 버전을 낸 시각 "YYYY-MM-DDTHH:mm" (정렬용) */
   submittedAt: string;
@@ -699,7 +702,10 @@ export interface ApplicantVM {
   teamName: string;
   title: string;
   summary: string;
+  /** 「第1版」·「1차 제출」 — 제출 버전(다시 내면 올라가요). 레벨(Lv.n)과 헷갈리지 않게 맨 글자 v1 은 쓰지 않아요 (#34) */
   versionLabel: string;
+  /** 버전 칩의 스크린 리더 이름: 「提出された企画書の第1版」 */
+  versionA11y: string;
   submittedLabel: string;
   receiptNo: string;
   fileName: string;
@@ -737,7 +743,8 @@ export function applicantVM(p: Proposal, locale: Locale): ApplicantVM {
     teamName: p.teamName,
     title: p.title,
     summary: p.summary,
-    versionLabel: translate("applicants.version", locale, { version: latest.no }),
+    versionLabel: translate("proposal.version", locale, { version: latest.no }),
+    versionA11y: translate("proposal.versionA11y", locale, { version: latest.no }),
     submittedLabel: formatDateTime(latest.submittedAt, locale),
     receiptNo: p.receiptNo,
     fileName: latest.fileName,

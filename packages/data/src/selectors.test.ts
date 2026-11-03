@@ -391,7 +391,7 @@ describe("응모 중인 과제 — 마이 임팩트 맨 위 (#28)", () => {
       statusLabel: "募集中",
       deadlineLabel: "締切 2026年11月11日（D-12）",
       version: 1,
-      versionLabel: "提出済み（v1）",
+      versionLabel: "提出済み（第1版）",
       submittedAt: AT,
       sdgIds: [14, 12],
     });
@@ -401,7 +401,7 @@ describe("응모 중인 과제 — 마이 임팩트 맨 위 (#28)", () => {
       challengeTitle: "해양 플라스틱을 줄이는 새로운 포장 아이디어",
       statusLabel: "모집 중",
       deadlineLabel: "마감 2026년 11월 11일 (D-12)",
-      versionLabel: "제출 완료(v1)",
+      versionLabel: "1차 제출 완료",
     });
   });
 
@@ -414,7 +414,8 @@ describe("응모 중인 과제 — 마이 임팩트 맨 위 (#28)", () => {
     const list = selectApplications(state, "ja");
     expect(list).toHaveLength(1);
     expect(list[0].version).toBe(2);
-    expect(list[0].versionLabel).toBe("提出済み（v2）");
+    expect(list[0].versionLabel).toBe("提出済み（第2版）");
+    expect(selectApplications(state, "ko")[0].versionLabel).toBe("2차 제출 완료");
     expect(list[0].submittedAt).toBe("2026-10-30T15:30");
   });
 
@@ -646,6 +647,28 @@ describe("B2B: 대시보드·응모자·ESG", () => {
     const reviewed = selectApplicants(busy, "ko", "ch-plastic").applicants.find((a) => a.id === "pp-1");
     expect(reviewed?.average).toBe(4.3);
     expect(reviewed?.status).toBe("reviewed");
+  });
+
+  it("응모자 카드의 제출 버전은 「第1版 / 1차 제출」이고 스크린 리더 이름에 몇 번째 버전인지 들어가요 (#34)", () => {
+    const state = run(
+      initial,
+      { type: "submitProposal", challengeId: "ch-plastic", draft, at: AT },
+      { type: "submitProposal", challengeId: "ch-plastic", draft: { ...draft, fileName: "plan_v2.pdf" }, at: "2026-10-30T15:30" },
+    );
+    const ja = selectApplicants(state, "ja", "ch-plastic").applicants;
+    expect(ja.find((a) => a.id === "pp-1")!.versionLabel).toBe("第1版");
+    expect(ja.find((a) => a.id === "pp-1")!.versionA11y).toBe("提出された企画書の第1版");
+    expect(ja.find((a) => a.mine)!.versionLabel).toBe("第2版");
+    const ko = selectApplicants(state, "ko", "ch-plastic").applicants;
+    expect(ko.find((a) => a.mine)!.versionLabel).toBe("2차 제출");
+    expect(ko.find((a) => a.mine)!.versionA11y).toBe("제출한 기획서의 2번째 버전");
+    // 레벨 표기(Lv.n)와 섞이지 않게, 버전 칩·수령증·응모 중 카드 어디에도 맨 글자 v1 이 없어요
+    for (const locale of LOCALES) {
+      const texts = [...selectApplicants(state, locale, "ch-plastic").applicants.map((a) => a.versionLabel), selectReceipt(state, "ch-plastic", locale)!.versionLabel, selectApplications(state, locale)[0].versionLabel];
+      for (const text of texts) expect(text).not.toMatch(/\bv\d/);
+    }
+    expect(selectReceipt(state, "ch-plastic", "ja")!.versionLabel).toBe("第2版");
+    expect(selectReceipt(state, "ch-plastic", "ko")!.versionLabel).toBe("2차 제출");
   });
 
   it("ESG: 점수·단계는 core 평가와 같고, 증빙이 없으면 안내가 나와요", () => {

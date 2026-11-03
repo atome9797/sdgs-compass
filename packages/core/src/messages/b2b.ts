@@ -39,7 +39,6 @@ export const b2b = {
   "applicants.pick": { ja: "課題を選択", ko: "챌린지 선택" },
   "applicants.empty": { ja: "応募はまだありません", ko: "아직 응모가 없어요" },
   "applicants.team": { ja: "チーム：{name}", ko: "팀: {name}" },
-  "applicants.version": { ja: "v{version}", ko: "v{version}" },
   "applicants.average": { ja: "総合 {score}/5.0", ko: "종합 {score}/5.0" },
   "applicants.notReviewed": { ja: "未審査", ko: "미심사" },
   "applicants.mine": { ja: "（デモ：あなたの提出）", ko: "(데모: 내가 제출한 기획서)" },

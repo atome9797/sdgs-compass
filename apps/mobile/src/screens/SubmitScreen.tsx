@@ -293,7 +293,7 @@ function ReceiptView({ id }: { id: string }) {
         <KeyValue label={t("submit.teamName")} value={receipt.teamName} />
         <KeyValue label={t("submit.proposalTitle")} value={receipt.title} />
         <KeyValue label={t("receipt.at")} value={receipt.submittedAtLabel} />
-        <KeyValue label={t("receipt.version")} value={`v${receipt.version}`} />
+        <KeyValue label={t("receipt.version")} value={receipt.versionLabel} />
         <KeyValue label={t("receipt.file")} value={`${receipt.fileName} (${receipt.fileSizeLabel})`} />
         <Txt variant="small" tone="muted" bold>
           {t("receipt.hash")}

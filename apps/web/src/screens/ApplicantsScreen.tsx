@@ -80,7 +80,11 @@ function ApplicantCard({ applicant, feeNote, challengeId }: { applicant: Applica
       <div className="row row--between">
         <div className="row">
           <Tag tone={statusTone}>{applicant.statusLabel}</Tag>
-          <Tag>{applicant.versionLabel}</Tag>
+          {/* #34 제출 버전 칩: 「第1版」 — 읽어 주는 도구에는 「提出された企画書の第1版」 */}
+          <Tag>
+            <span aria-hidden="true">{applicant.versionLabel}</span>
+            <span className="sr-only">{applicant.versionA11y}</span>
+          </Tag>
           {applicant.awardLabel ? <Tag tone="warning">🏆 {applicant.awardLabel}</Tag> : null}
           {applicant.mine ? <Tag tone="info">{t("applicants.mine")}</Tag> : null}
         </div>

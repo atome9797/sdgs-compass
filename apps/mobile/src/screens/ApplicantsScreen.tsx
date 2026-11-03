@@ -119,7 +119,8 @@ function ApplicantCard({ applicant, challengeId, feeNote }: { applicant: Applica
     <Card>
       <View style={styles.badges}>
         <Badge tone={STATUS_TONE[applicant.status]} label={applicant.statusLabel} />
-        <Badge label={applicant.versionLabel} />
+        {/* #34 제출 버전 칩: 「第1版」 — 읽어 주는 도구에는 「提出された企画書の第1版」 */}
+        <Badge label={applicant.versionLabel} accessibilityLabel={applicant.versionA11y} />
         {applicant.awardLabel ? <Badge tone="warning" label={`🏆 ${applicant.awardLabel}`} /> : null}
         {applicant.mine ? <Badge tone="primary" label={t("applicants.mine")} /> : null}
       </View>

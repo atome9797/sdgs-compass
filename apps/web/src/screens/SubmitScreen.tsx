@@ -276,7 +276,7 @@ function ReceiptView({ id }: { id: string }) {
             <dt>{t("receipt.at")}</dt>
             <dd>{receipt.submittedAtLabel}</dd>
             <dt>{t("receipt.version")}</dt>
-            <dd>v{receipt.version}</dd>
+            <dd>{receipt.versionLabel}</dd>
             <dt>{t("receipt.file")}</dt>
             <dd>
               {receipt.fileName} ({receipt.fileSizeLabel})

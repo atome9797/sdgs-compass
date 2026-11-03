@@ -52,6 +52,12 @@ export function tint(hex: string, amount: number): string {
   return `#${[1, 3, 5].map((i) => ch(i).toString(16).padStart(2, "0")).join("").toUpperCase()}`;
 }
 
+/**
+ * 홈 SDG 타일의 옅은 색 비율(tint 의 amount, 웹·앱 같은 값): 바탕 16%, 모집 중 과제가 0건인 타일은 바탕 6%·왼쪽 띠 45%로 흐리게(#29).
+ * 흐린 타일도 글자 대비(textMuted 4.5:1 이상)는 지켜요 — theme.test.ts 가 17색 모두 확인해요.
+ */
+export const SDG_TILE_TINT = { base: 0.16, zero: 0.06, zeroBar: 0.45 } as const;
+
 /** 챌린지 표지 색: hue(0~360) 하나로 위·아래 두 색을 만들어요 (CSS·React Native 모두 hsl() 문자열을 이해해요). 채도를 낮춰서 표지가 넓어도 차분해요 */
 export function coverColors(hue: number): { from: string; to: string } {
   const h = ((Math.round(hue) % 360) + 360) % 360;

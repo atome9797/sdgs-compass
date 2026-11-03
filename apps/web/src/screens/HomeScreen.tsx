@@ -1,6 +1,6 @@
 "use client";
 
-// SCR-01 메인 홈: 인사 · 검색 · SDGs 17 타일 · AI 추천 · 마감 임박 · 참여 실적
+// SCR-01 메인 홈: 인사 · 검색 · SDGs 17 타일(목표별 모집 중 과제 수) · 추천 · 마감 임박 · 참여 실적
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, type FormEvent } from "react";
@@ -59,7 +59,7 @@ export function HomeScreen() {
         </Button>
       </form>
 
-      <Section title={t("home.sdgTitle")}>
+      <Section title={t("home.sdgTitle")} hint={t("home.sdgHint")}>
         <SdgTileGrid tiles={vm.sdgTiles} />
       </Section>
 

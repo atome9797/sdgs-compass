@@ -39,8 +39,8 @@ export function HomeScreen() {
         submitLabel={t("common.search")}
       />
 
-      <Section title={t("home.sdgTitle")}>
-        <SdgGrid tiles={vm.sdgTiles} locale={locale} onPress={(id) => openSearch({ sdgIds: [id] })} />
+      <Section title={t("home.sdgTitle")} hint={t("home.sdgHint")}>
+        <SdgGrid tiles={vm.sdgTiles} onPress={(id) => openSearch({ sdgIds: [id] })} />
       </Section>
 
       <Section title={t("home.recommendedTitle")} hint={t("home.recommendedHint")}>

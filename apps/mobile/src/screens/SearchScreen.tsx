@@ -1,10 +1,11 @@
 // 검색 탭: 키워드 + SDGs 칩으로 챌린지를 거르고, 모집 중인 것을 매칭률 순으로 보여 줘요(core selectSearch).
+// 칩 옆 숫자는 지금 검색어에서 그 목표의 모집 중 과제 수예요(#29 — 홈 타일의 숫자와 같은 계산).
 // 홈에서 검색 칸·SDGs 타일을 누르면 경로 매개변수(q, sdg, n)로 조건을 채워서 열려요. n(nonce)이 바뀌면 새 요청이에요.
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useMemo, useState } from "react";
 import { StyleSheet, View } from "react-native";
 import type { SdgId } from "@sdgs-compass/core/sdg";
-import { selectSdgTiles, selectSearch } from "@sdgs-compass/core/selectors";
+import { searchResultsLabel, selectSdgCountTiles, selectSearch } from "@sdgs-compass/core/selectors";
 import { ChallengeCard } from "@/components/ChallengeCard";
 import { Screen, ScreenTitle } from "@/components/Screen";
 import { SdgPicker } from "@/components/SdgTile";
@@ -29,7 +30,7 @@ export function SearchScreen() {
     setSdgIds(request.sdgIds);
   }
 
-  const tiles = useMemo(() => selectSdgTiles(locale), [locale]);
+  const tiles = useMemo(() => selectSdgCountTiles(demo, locale, query), [demo, locale, query]);
   const results = useMemo(() => selectSearch(demo, locale, { query, sdgIds }), [demo, locale, query, sdgIds]);
   const hasFilter = query.trim() !== "" || sdgIds.length > 0;
   const toggleSdg = (id: SdgId) => setSdgIds((current) => (current.includes(id) ? current.filter((value) => value !== id) : [...current, id]));
@@ -60,7 +61,7 @@ export function SearchScreen() {
 
       <View style={styles.summary}>
         <Txt variant="heading" accessibilityLiveRegion="polite">
-          {t("search.results", { count: results.length })}
+          {searchResultsLabel(results, locale)}
         </Txt>
         <Txt variant="small" tone="muted">
           {t("search.sortNote")}

@@ -5,11 +5,11 @@ import { describe, expect, it } from "vitest";
 import { CERT_DISCLAIMER, evaluateCertification } from "@sdgs-compass/core/certification";
 import { verifyCertificate } from "@sdgs-compass/core/certificate";
 import type { DemoState } from "@sdgs-compass/core/domain";
-import { formatYen } from "@sdgs-compass/core/format";
+import { addDays, formatYen } from "@sdgs-compass/core/format";
 import { LOCALES, type Locale } from "@sdgs-compass/core/i18n";
 import type { ProposalDraft } from "@sdgs-compass/core/proposal";
 import { SCOUT_DAILY_LIMIT } from "@sdgs-compass/core/scout";
-import { SDG_IDS } from "@sdgs-compass/core/sdg";
+import { SDG_IDS, type SdgId } from "@sdgs-compass/core/sdg";
 import {
   certificateVM,
   selectApplicants,
@@ -25,6 +25,9 @@ import {
   selectScoutSetting,
   selectInbox,
   selectReceipt,
+  searchResultsLabel,
+  selectSdgCountTiles,
+  selectSdgOpenCounts,
   selectSdgTiles,
   selectSearch,
   selectShare,
@@ -89,6 +92,8 @@ function allViews(state: DemoState, locale: Locale) {
     home: selectHome(state, locale),
     search: selectSearch(state, locale, { query: "", sdgIds: [] }),
     searchSdg: selectSearch(state, locale, { query: "", sdgIds: [14] }),
+    searchSdgSummary: searchResultsLabel(selectSearch(state, locale, { query: "", sdgIds: [14] }), locale),
+    searchChips: selectSdgCountTiles(state, locale, "海"),
     detailOpen: selectChallengeDetail(state, "ch-plastic", locale),
     detailJudging: selectChallengeDetail(state, "ch-bottle", locale),
     detailMissing: selectChallengeDetail(state, "없음", locale),
@@ -204,6 +209,83 @@ describe("SDGs 타일·홈", () => {
     const card = (state: DemoState) => selectSearch(state, "ja", { query: "", sdgIds: [] }).find((c) => c.id === "ch-solar");
     expect(card(initial)?.bookmarked).toBe(false);
     expect(card(busy)?.bookmarked).toBe(true);
+  });
+});
+
+describe("홈 SDG 타일의 숫자 = 목표별 모집 중 과제 수 (#29)", () => {
+  /** 그 목표 하나로 검색했을 때 나오는 카드 중 모집 중인 것의 수 */
+  const openInSearch = (state: DemoState, id: SdgId, query = "") => selectSearch(state, "ja", { query, sdgIds: [id] }).filter((c) => c.isOpen).length;
+  const SAMPLE = { 1: 0, 2: 2, 3: 0, 4: 1, 5: 0, 6: 0, 7: 1, 8: 2, 9: 0, 10: 1, 11: 1, 12: 3, 13: 1, 14: 2, 15: 1, 16: 0, 17: 1 };
+
+  it("샘플: 목표 1·3·5·6·9·16 은 0건, 12 는 3건, 2·8·14 는 2건, 나머지는 1건 — 홈 타일도 두 언어에서 같은 숫자", () => {
+    expect(selectSdgOpenCounts(initial)).toEqual(SAMPLE);
+    for (const locale of LOCALES) {
+      const tiles = selectHome(initial, locale).sdgTiles;
+      expect(tiles.map((t) => t.id)).toEqual([...SDG_IDS]);
+      expect(Object.fromEntries(tiles.map((t) => [t.id, t.openCount]))).toEqual(SAMPLE);
+    }
+  });
+
+  it("타일의 숫자는 그 타일을 눌러 나오는 검색 결과의 모집 중 수와 같아요 (심사 중·종료는 세지 않아요)", () => {
+    for (const [, state] of STATES) {
+      for (const tile of selectHome(state, "ko").sdgTiles) expect([tile.id, tile.openCount]).toEqual([tile.id, openInSearch(state, tile.id)]);
+    }
+    // 목표 14 는 검색하면 5건(심사 중 1 · 종료 2 포함)이 나오지만 모집 중은 2건이에요
+    expect(selectSearch(initial, "ja", { query: "", sdgIds: [14] })).toHaveLength(5);
+    expect(selectSdgOpenCounts(initial)[14]).toBe(2);
+  });
+
+  it("검색 화면의 칩 숫자: 검색어가 있으면 그 검색어로도 걸러서, 칩 하나만 골랐을 때의 모집 중 수와 같아요", () => {
+    for (const query of ["", "海洋", "해양", "  SOLAR  ", "zzzz-없는-낱말"]) {
+      for (const locale of LOCALES) {
+        for (const chip of selectSdgCountTiles(initial, locale, query)) expect([query, chip.id, chip.openCount]).toEqual([query, chip.id, openInSearch(initial, chip.id, query)]);
+      }
+    }
+    expect(Object.values(selectSdgOpenCounts(initial, "zzzz-없는-낱말")).every((n) => n === 0)).toBe(true);
+  });
+
+  it("기업이 새 과제를 내면 그 과제의 목표 숫자가 1씩 늘어요 (다른 목표는 그대로)", () => {
+    const created = run(initial, { type: "createChallenge", draft: { title: "朝市×デジタル企画", summary: "朝市の魅力を発信する", sdgIds: [14, 3], prizeYen: 80_000, days: 14, participation: "both", internship: false } });
+    const before = selectSdgOpenCounts(initial);
+    const after = selectSdgOpenCounts(created);
+    expect([after[14], after[3]]).toEqual([before[14] + 1, before[3] + 1]);
+    for (const id of SDG_IDS.filter((x) => x !== 14 && x !== 3)) expect([id, after[id]]).toEqual([id, before[id]]);
+    expect(selectHome(created, "ja").sdgTiles.find((t) => t.id === 3)?.openCount).toBe(openInSearch(created, 3));
+  });
+
+  it("마감일이 지나면(마감 당일까지는 세요) 빠지고, 심사 중·종료가 되어도 빠져요", () => {
+    const foodloss = initial.challenges.find((c) => c.id === "ch-foodloss")!; // 목표 12·2, 가장 먼저 마감
+    const onDeadline = { ...initial, today: foodloss.closesOn };
+    const dayAfter = { ...initial, today: addDays(foodloss.closesOn, 1) };
+    expect([selectSdgOpenCounts(onDeadline)[12], selectSdgOpenCounts(onDeadline)[2]]).toEqual([3, 2]);
+    expect([selectSdgOpenCounts(dayAfter)[12], selectSdgOpenCounts(dayAfter)[2]]).toEqual([2, 1]);
+    expect(openInSearch(dayAfter, 12)).toBe(2);
+    for (const status of ["judging", "closed"] as const) {
+      const ended = { ...initial, challenges: initial.challenges.map((c) => (c.id === "ch-plastic" ? { ...c, status } : c)) }; // 목표 14·12
+      const counts = selectSdgOpenCounts(ended);
+      expect([status, counts[14], counts[12]]).toEqual([status, 1, 2]);
+      expect([openInSearch(ended, 14), openInSearch(ended, 12)]).toEqual([1, 2]);
+    }
+  });
+
+  it("문구: 단위는 件/개, 스크린 리더용 이름에 목표 번호·정식 이름·모집 중 개수가 다 들어가요", () => {
+    const ja = selectHome(initial, "ja").sdgTiles.find((t) => t.id === 14)!;
+    const ko = selectHome(initial, "ko").sdgTiles.find((t) => t.id === 14)!;
+    expect([ja.unit, ja.label, ja.short]).toEqual(["件", "目標14 海の豊かさを守ろう・募集中の課題 2件", "海"]);
+    expect([ko.unit, ko.label, ko.short]).toEqual(["개", "목표 14 해양 생태계 보전 · 모집 중인 챌린지 2개", "해양"]);
+    expect(selectHome(initial, "ja").sdgTiles.find((t) => t.id === 1)?.label).toBe("目標1 貧困をなくそう・募集中の課題 0件");
+  });
+
+  it("검색 결과 줄: 심사 중·종료가 섞이면 「うち募集中」 수를 함께, 모두 모집 중이면 그대로", () => {
+    const sdg14 = (locale: Locale) => searchResultsLabel(selectSearch(initial, locale, { query: "", sdgIds: [14] }), locale);
+    const sdg2 = (locale: Locale) => searchResultsLabel(selectSearch(initial, locale, { query: "", sdgIds: [2] }), locale);
+    expect([sdg14("ja"), sdg14("ko")]).toEqual(["5件の課題（うち募集中 2件）", "챌린지 5건 (모집 중 2건)"]);
+    expect([sdg2("ja"), sdg2("ko")]).toEqual(["2件の課題", "챌린지 2건"]);
+    expect(searchResultsLabel([], "ja")).toBe("0件の課題");
+  });
+
+  it("과제 만들기·인재 검색·글쓰기에서 고르는 타일(selectSdgTiles)에는 개수가 없어요", () => {
+    for (const tile of selectSdgTiles("ja")) expect(Object.keys(tile).sort()).toEqual(["color", "id", "name", "short", "textColor"]);
   });
 });
 

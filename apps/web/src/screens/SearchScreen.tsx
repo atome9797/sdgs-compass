@@ -1,10 +1,10 @@
 "use client";
 
-// 챌린지 검색: 키워드 + SDG 칩. 모집 중인 것이 위(매칭률 순), 마감된 것은 맨 아래.
+// 챌린지 검색: 키워드 + SDG 칩(칩 옆 숫자 = 지금 검색어에서 그 목표의 모집 중 과제 수, #29). 모집 중인 것이 위(매칭률 순), 마감된 것은 맨 아래.
 import { useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
 import type { SdgId } from "@sdgs-compass/core/sdg";
-import { selectSdgTiles, selectSearch } from "@sdgs-compass/core/selectors";
+import { searchResultsLabel, selectSdgCountTiles, selectSearch } from "@sdgs-compass/core/selectors";
 import { ChallengeCard } from "@/components/ChallengeCard";
 import { SdgChips } from "@/components/sdg";
 import { Button, Empty, ScreenHead } from "@/components/ui";
@@ -15,7 +15,7 @@ function SearchView({ initialQuery, initialSdgIds }: { initialQuery: string; ini
   const { demo, locale, t } = useSession();
   const [query, setQuery] = useState(initialQuery);
   const [sdgIds, setSdgIds] = useState<SdgId[]>(initialSdgIds);
-  const tiles = useMemo(() => selectSdgTiles(locale), [locale]);
+  const tiles = useMemo(() => selectSdgCountTiles(demo, locale, query), [demo, locale, query]);
   const results = useMemo(() => selectSearch(demo, locale, { query, sdgIds }), [demo, locale, query, sdgIds]);
   const filtered = query.trim() !== "" || sdgIds.length > 0;
   const clear = () => {
@@ -40,7 +40,7 @@ function SearchView({ initialQuery, initialSdgIds }: { initialQuery: string; ini
 
       <div className="row row--between">
         <p className="strong" role="status">
-          {t("search.results", { count: results.length })}
+          {searchResultsLabel(results, locale)}
         </p>
         {filtered ? (
           <Button size="sm" variant="ghost" onClick={clear}>

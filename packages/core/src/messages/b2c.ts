@@ -6,6 +6,10 @@ export const b2c = {
   "home.greeting": { ja: "こんにちは、{name}さん", ko: "안녕하세요, {name}님" },
   "home.searchPlaceholder": { ja: "関心目標、企業、課題を検索", ko: "관심 목표, 기업, 챌린지 검색" },
   "home.sdgTitle": { ja: "SDGs 17目標から探す", ko: "SDGs 17개 목표로 찾기" },
+  // 홈 SDG 타일의 큰 숫자 = 그 목표의 모집 중 과제 수(#29). 목표 번호는 이름 위에 작게 보여요
+  "home.sdgHint": { ja: "数字は募集中の課題の数です", ko: "숫자는 모집 중인 챌린지 수예요" },
+  "home.sdgUnit": { ja: "件", ko: "개" },
+  "home.sdgOpenLabel": { ja: "{goal}・募集中の課題 {count}件", ko: "{goal} · 모집 중인 챌린지 {count}개" },
   "home.recommendedTitle": { ja: "おすすめの課題", ko: "추천 챌린지" },
   "home.recommendedHint": { ja: "あなたの関心とスキルから選びました", ko: "내 관심사와 스킬을 바탕으로 골랐어요" },
   "home.matchRate": { ja: "マッチ度 {rate}%", ko: "매칭률 {rate}%" },
@@ -18,6 +22,8 @@ export const b2c = {
   "search.filterSdg": { ja: "SDGsで絞り込み", ko: "SDGs로 필터" },
   "search.clear": { ja: "条件をクリア", ko: "조건 지우기" },
   "search.results": { ja: "{count}件の課題", ko: "챌린지 {count}건" },
+  // 마감·심사 중인 과제가 섞여 있을 때: 홈 타일의 숫자(모집 중)와 바로 맞춰 볼 수 있게 모집 중 수도 함께
+  "search.resultsWithOpen": { ja: "{count}件の課題（うち募集中 {open}件）", ko: "챌린지 {count}건 (모집 중 {open}건)" },
   "search.empty": { ja: "条件に合う課題が見つかりません", ko: "조건에 맞는 챌린지가 없어요" },
   "search.sortNote": { ja: "募集中のものを、マッチ度の高い順に表示しています", ko: "모집 중인 챌린지를 매칭률이 높은 순으로 보여 줘요" },
 

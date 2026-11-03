@@ -128,12 +128,14 @@ export interface ChipProps {
   /** radio: 하나만 고름, checkbox: 여럿 고름, button: 그냥 누름 */
   kind?: "radio" | "checkbox" | "button";
   leading?: ReactNode;
+  /** 라벨 뒤에 작게 붙는 개수 (웹 .chip__count 처럼 흐린 색 — 예: 검색 화면 SDG 칩의 모집 중 과제 수) */
+  count?: number;
   disabled?: boolean;
   accessibilityLabel?: string;
   testID?: string;
 }
 
-export function Chip({ label, selected, onPress, kind = "button", leading, disabled = false, accessibilityLabel, testID }: ChipProps) {
+export function Chip({ label, selected, onPress, kind = "button", leading, count, disabled = false, accessibilityLabel, testID }: ChipProps) {
   const state = kind === "button" ? { selected, disabled } : { checked: selected, disabled };
   return (
     <Pressable
@@ -154,6 +156,7 @@ export function Chip({ label, selected, onPress, kind = "button", leading, disab
     >
       {leading}
       <Text style={[styles.chipLabel, { color: selected ? COLORS.primaryDark : COLORS.text }]}>{label}</Text>
+      {count !== undefined ? <Text style={[styles.chipCount, { color: selected ? COLORS.primaryDark : COLORS.textMuted }]}>{count}</Text> : null}
       {selected && kind !== "button" ? <Text style={[styles.chipCheck, { color: COLORS.primaryDark }]}>✓</Text> : null}
     </Pressable>
   );
@@ -522,6 +525,7 @@ const styles = StyleSheet.create({
     gap: SPACE.xs + 2,
   },
   chipLabel: { fontSize: FONT_SIZE.sm, fontWeight: "600" },
+  chipCount: { fontSize: FONT_SIZE.sm, fontWeight: "500" },
   chipCheck: { fontSize: FONT_SIZE.sm, fontWeight: "800" },
   badge: {
     alignSelf: "flex-start",

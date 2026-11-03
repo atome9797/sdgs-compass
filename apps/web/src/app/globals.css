@@ -258,10 +258,16 @@ svg { display: block; }
 
 /* ───────── SDG 타일 ───────── */
 .sdg-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); gap: 6px; }
-.sdg-tile { display: flex; flex-direction: column; justify-content: space-between; gap: 2px; min-height: 66px; padding: 6px 2px 7px 7px; border-radius: var(--radius-md); box-shadow: inset 3px 0 0 var(--sdg, var(--border)); color: var(--text); font-weight: 800; line-height: 1.1; }
+/* 홈 SDG 타일(#29): 큰 숫자 = 그 목표의 모집 중 과제 수(+작은 단위), 아래에 목표 번호(작게)와 짧은 이름. 0건은 옅게(누를 수는 있어요) */
+.sdg-tile { display: flex; flex-direction: column; justify-content: space-between; gap: 4px; min-height: 66px; padding: 6px 2px 7px 7px; border-radius: var(--radius-md); box-shadow: inset 3px 0 0 var(--sdg, var(--border)); color: var(--text); font-weight: 800; line-height: 1.1; }
 .sdg-tile:hover { text-decoration: none; filter: brightness(0.97); }
-.sdg-tile__no { font-size: var(--fs-xl); line-height: 1; }
+.sdg-tile__count { font-size: var(--fs-xl); line-height: 1; font-variant-numeric: tabular-nums; }
+.sdg-tile__unit { margin-left: 2px; font-size: var(--fs-xs); font-weight: 700; }
+.sdg-tile__label { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.sdg-tile__goal { font-size: var(--fs-xs); font-weight: 700; line-height: 1; color: var(--text-muted); font-variant-numeric: tabular-nums; }
 .sdg-tile__name { font-size: var(--fs-xs); line-height: 1.15; letter-spacing: -0.02em; word-break: normal; overflow-wrap: normal; }
+.sdg-tile--zero { color: var(--text-muted); }
+.sdg-tile--zero .sdg-tile__count { font-weight: 700; }
 .sdg-mini { display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: 7px; font-size: var(--fs-sm); font-weight: 800; flex: none; }
 .sdg-mini-row { display: flex; flex-wrap: wrap; gap: 4px; }
 

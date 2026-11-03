@@ -8,7 +8,7 @@ import { summarizeMatches, splitMatchFee } from "./fees";
 import { dDayLabel, daysBetween, formatBytes, formatDate, formatDateShort, formatDateTime, formatPeople, formatYen } from "./format";
 import { computeBadges, computeImpactIndex, BADGE_EMOJI, levelProgress, levelOf, type BadgeCode } from "./impact";
 import { pick, type Locale } from "./i18n";
-import { awardLabel, challengeStatusLabel, participationLabel, proposalStatusLabel, rewardLabel, scoutKindLabel, sdgShort, skillLabel } from "./labels";
+import { awardLabel, challengeStatusLabel, participationLabel, proposalStatusLabel, rewardLabel, scoutKindLabel, sdgLabel, sdgShort, skillLabel } from "./labels";
 import { makeT, translate, type TFunction } from "./messages";
 import { authorRole, bodyLimit, DEFAULT_OFFICIAL_CHANNEL, defaultPrSdgs, nextOfficialDate, OFFICIAL_CHANNELS, OFFICIAL_SHARE_FEE_YEN, officialChannelFormat, officialChannelLabel, officialChannelName, POST_LIMITS } from "./post";
 import { qrMatrix } from "./qr";
@@ -30,6 +30,16 @@ export interface SdgTileVM {
 
 export function selectSdgTiles(locale: Locale): SdgTileVM[] {
   return SDGS.map((sdg) => ({ id: sdg.id, color: sdg.color, textColor: sdgTextColor(sdg.id), short: sdg.short[locale], name: sdg.name[locale] }));
+}
+
+/** 개수가 붙은 SDG 타일·칩 (#29): 홈의 17개 타일과 검색 화면의 SDG 칩. 과제 만들기·인재 검색·글쓰기의 고르는 칩에는 개수가 없어요(SdgTileVM) */
+export interface SdgCountTileVM extends SdgTileVM {
+  /** 이 목표가 붙은 모집 중 과제 수 — 이 목표 하나로 검색했을 때 나오는 모집 중 카드 수와 같아요 */
+  openCount: number;
+  /** 숫자 뒤의 작은 단위 (件 / 개) */
+  unit: string;
+  /** 스크린 리더용 이름: 「目標14 海の豊かさを守ろう・募集中の課題 2件」 */
+  label: string;
 }
 
 export interface ActivityVM {
@@ -143,7 +153,7 @@ export function challengeCard(state: DemoState, challenge: Challenge, locale: Lo
 
 export interface HomeVM {
   nickname: string;
-  sdgTiles: SdgTileVM[];
+  sdgTiles: SdgCountTileVM[];
   recommended: ChallengeCardVM[];
   soon: ChallengeCardVM[];
   activities: ActivityVM[];
@@ -158,7 +168,7 @@ export function selectHome(state: DemoState, locale: Locale): HomeVM {
     .slice(0, 3)
     .map((c) => challengeCard(state, c, locale));
   const activities = deriveActivities(state).filter((a) => a.kind !== "share").slice(0, 3).map((a) => activityVM(a, locale));
-  return { nickname: state.me.nickname, sdgTiles: selectSdgTiles(locale), recommended, soon, activities };
+  return { nickname: state.me.nickname, sdgTiles: selectSdgCountTiles(state, locale), recommended, soon, activities };
 }
 
 function searchText(state: DemoState, challenge: Challenge): string {
@@ -172,13 +182,49 @@ export interface SearchQuery {
   sdgIds: readonly SdgId[];
 }
 
+/** 검색 조건: 검색어(needle, 이미 소문자·앞뒤 공백 없음)가 들어 있고, 고른 목표 중 하나라도 겹치면 나와요. 목표별 개수도 이 조건으로 세요 */
+function matchesSearch(state: DemoState, challenge: Challenge, needle: string, sdgIds: readonly SdgId[]): boolean {
+  if (needle !== "" && !searchText(state, challenge).includes(needle)) return false;
+  return sdgIds.length === 0 || challenge.sdgIds.some((id) => sdgIds.includes(id));
+}
+
 export function selectSearch(state: DemoState, locale: Locale, q: SearchQuery): ChallengeCardVM[] {
   const needle = q.query.trim().toLowerCase();
   return state.challenges
-    .filter((c) => (needle === "" ? true : searchText(state, c).includes(needle)))
-    .filter((c) => (q.sdgIds.length === 0 ? true : c.sdgIds.some((id) => q.sdgIds.includes(id))))
+    .filter((c) => matchesSearch(state, c, needle, q.sdgIds))
     .map((c) => challengeCard(state, c, locale))
     .sort((a, b) => Number(b.isOpen) - Number(a.isOpen) || (b.match ?? 0) - (a.match ?? 0) || a.id.localeCompare(b.id));
+}
+
+/**
+ * 목표별 「모집 중」 과제 수 (#29). 그 목표 하나로 검색했을 때(selectSearch) 나오는 카드 중 모집 중(isOpen)인 것의 수와 같아요 —
+ * 같은 조건(matchesSearch)과 같은 모집 중 판정(isOpenFor: 상태가 모집 중이고 마감일이 지나지 않음)을 써요.
+ * 검색어를 주면 그 검색어로도 걸러요(검색 화면의 칩 옆 숫자). 홈은 검색어 없이 불러요.
+ */
+export function selectSdgOpenCounts(state: DemoState, query = ""): Record<SdgId, number> {
+  const needle = query.trim().toLowerCase();
+  const open = state.challenges.filter((c) => isOpenFor(c, state.today));
+  const counts = {} as Record<SdgId, number>;
+  for (const id of SDG_IDS) counts[id] = open.filter((c) => matchesSearch(state, c, needle, [id])).length;
+  return counts;
+}
+
+/** 개수가 붙은 17개 타일·칩. 홈 타일은 query 없이, 검색 화면의 칩은 지금 검색어로 불러요 */
+export function selectSdgCountTiles(state: DemoState, locale: Locale, query = ""): SdgCountTileVM[] {
+  const counts = selectSdgOpenCounts(state, query);
+  const unit = translate("home.sdgUnit", locale);
+  return selectSdgTiles(locale).map((tile) => ({
+    ...tile,
+    openCount: counts[tile.id],
+    unit,
+    label: translate("home.sdgOpenLabel", locale, { goal: sdgLabel(tile.id, locale), count: counts[tile.id] }),
+  }));
+}
+
+/** 검색 결과 줄. 마감·심사 중 과제가 섞여 있으면 「うち募集中 n件」도 붙여서, 홈 타일의 숫자(모집 중)와 맞춰 볼 수 있게 해요 */
+export function searchResultsLabel(results: readonly ChallengeCardVM[], locale: Locale): string {
+  const open = results.filter((card) => card.isOpen).length;
+  return open === results.length ? translate("search.results", locale, { count: results.length }) : translate("search.resultsWithOpen", locale, { count: results.length, open });
 }
 
 // ───────── 챌린지 상세(SCR-02) ─────────

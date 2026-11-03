@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { CHART_COLORS, COLORS, coverColors, ESG_COLORS, PHONE_WIDTH, RADIUS, SPACE, tint } from "./theme";
+import { CHART_COLORS, COLORS, coverColors, ESG_COLORS, PHONE_WIDTH, RADIUS, SDG_TILE_TINT, SPACE, tint } from "./theme";
+import { SDGS } from "./sdg";
 import { pointsAttr, radarPolygon, radarRing, radarVertex, segmentsOf } from "./radar";
 
 function luminance(hex: string): number {
@@ -56,6 +57,16 @@ describe("디자인 토큰", () => {
     expect(tint("hsl(200, 30%, 47%)", 0.5)).toBe("hsl(200, 30%, 47%)");
     // SDG 타일 바탕(16%) 위의 본문 글자는 어느 목표 색이든 4.5:1 이상
     for (const hex of ["#FCC30B", "#E5243B", "#19486A", "#56C02B"]) expect(contrast(COLORS.text, tint(hex, 0.16))).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it("홈 SDG 타일(#29): 17색 모두 바탕 위 숫자·이름(본문)과 목표 번호(textMuted), 0건 타일의 더 옅은 바탕 위 흐린 글자가 4.5:1 이상", () => {
+    expect(SDG_TILE_TINT.zero).toBeLessThan(SDG_TILE_TINT.base);
+    expect(SDG_TILE_TINT.zeroBar).toBeLessThan(1);
+    for (const sdg of SDGS) {
+      const base = tint(sdg.color, SDG_TILE_TINT.base);
+      const zero = tint(sdg.color, SDG_TILE_TINT.zero);
+      expect([sdg.id, contrast(COLORS.text, base) >= 4.5, contrast(COLORS.textMuted, base) >= 4.5, contrast(COLORS.textMuted, zero) >= 4.5]).toEqual([sdg.id, true, true, true]);
+    }
   });
 
   it("그래프 색: 차분한 4색이 서로 다르고, ESG 막대는 그중에서 골라 흰 카드와 3:1 이상이에요", () => {

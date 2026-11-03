@@ -2,11 +2,12 @@
 
 // SCR-04 마이 포트폴리오: 임팩트 레벨·진행률(포인트 숫자는 보이지 않아요) · 스카우트 수신 설정(따로 된 줄) · 応募中の課題(#28, 낸 기획서가 있을 때만)
 // · 17개 SDGs 레이더 차트 · 강점 SDGs · 배지 · 참여 실적 · 증명서/요약/카드뉴스 단추 · 맨 아래 リワード残高 카드(#25 데모)
+// #30 기업이 내 기획서를 심사·표창하면 応募中の課題 카드에 「企業からの審査結果」(점수 3개 · 코멘트 · 반영 포인트 · 다음에 키울 점 · 수상)가 붙어요
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useMemo } from "react";
 import { sdgLabel } from "@sdgs-compass/core/labels";
-import { selectApplications, selectImpact } from "@sdgs-compass/core/selectors";
+import { selectApplications, selectImpact, type ApplicationReviewVM } from "@sdgs-compass/core/selectors";
 import { selectWallet } from "@sdgs-compass/core/walletView";
 import { RadarChart } from "@/components/RadarChart";
 import { SdgMiniRow } from "@/components/sdg";
@@ -14,6 +15,56 @@ import { ButtonLink, Empty, ScreenHead, Section, Tag } from "@/components/ui";
 import { buildHref, challengeHref, receiptHref, ROUTES } from "@/lib/routes";
 import { useSession } from "@/lib/session";
 import { ActivityItem } from "./HomeScreen";
+
+/** #30 기업의 심사 결과: 점수는 막대 + 「4/5」 글자로(색만으로 구분하지 않아요), 가장 낮은 항목은 「次に伸ばすポイント」 한 줄로도 알려요 */
+function ReviewResult({ review, id }: { review: ApplicationReviewVM; id: string }) {
+  const titleId = `review-result-${id}`;
+  return (
+    <div className="review-result" role="group" aria-labelledby={titleId}>
+      <div className="review-result__head">
+        <p className="review-result__title" id={titleId}>
+          {review.title}
+        </p>
+        {review.awardLabel ? (
+          <Tag tone="warning">
+            <span aria-hidden="true">🏆</span> {review.awardLabel}
+          </Tag>
+        ) : null}
+      </div>
+      {review.scores.length > 0 ? (
+        <ul className="review-scores">
+          {review.scores.map((score) => (
+            <li key={score.key} className={score.lowest ? "review-score review-score--low" : "review-score"}>
+              <span className="review-score__label">{score.label}</span>
+              <span className="review-score__bar" aria-hidden="true">
+                <span style={{ width: `${(score.value / score.max) * 100}%` }} />
+              </span>
+              <span className="review-score__value">{score.valueLabel}</span>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      {review.averageLabel || review.bonusLabel ? (
+        <p className="review-result__total">
+          {review.averageLabel ? <span className="strong">{review.averageLabel}</span> : null}
+          {review.bonusLabel ? <span className="review-result__bonus">{review.bonusLabel}</span> : null}
+        </p>
+      ) : null}
+      {review.improveLabel ? (
+        <p className="review-result__improve">
+          <span aria-hidden="true">🌱 </span>
+          {review.improveLabel}
+        </p>
+      ) : null}
+      {review.comment ? (
+        <figure className="review-result__comment">
+          <figcaption>{review.commentBy}</figcaption>
+          <blockquote>{review.comment}</blockquote>
+        </figure>
+      ) : null}
+    </div>
+  );
+}
 
 export function ImpactScreen() {
   const { demo, locale, t } = useSession();
@@ -83,6 +134,7 @@ export function ImpactScreen() {
                   </div>
                   {app.deadlineLabel ? <p className="applied__meta">{app.deadlineLabel}</p> : null}
                   <SdgMiniRow ids={app.sdgIds} />
+                  {app.review ? <ReviewResult review={app.review} id={app.challengeId} /> : null}
                   <div className="applied__links">
                     <Link className="link-more" href={challengeHref(app.challengeId)}>
                       {t("impact.viewChallenge")} →

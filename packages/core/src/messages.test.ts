@@ -81,6 +81,8 @@ describe("문구 사전 (일본어·한국어)", () => {
     for (const k of ["pr", "brag"]) wanted.push(`feed.chip.${k}`, `post.title.${k}`, `post.privacy.${k}`, `post.bodyPlaceholder.${k}`);
     for (const l of [0, 1, 2, 3]) wanted.push(`esg.certLevel${l}`);
     for (const r of ["sdg", "skill", "deadline", "prize", "internship"]) wanted.push(`reason.${r}`);
+    // #30 심사 결과의 항목 이름(기업 심사 화면과 같은 키)
+    for (const item of ["creativity", "feasibility", "sdgContribution"]) wanted.push(`review.${item}`);
     const missing = wanted.filter((key) => !(key in MESSAGES));
     expect(missing).toEqual([]);
   });

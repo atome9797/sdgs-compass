@@ -5,7 +5,9 @@ import { describe, expect, it } from "vitest";
 import { CERT_DISCLAIMER, evaluateCertification } from "@sdgs-compass/core/certification";
 import { verifyCertificate } from "@sdgs-compass/core/certificate";
 import type { DemoState } from "@sdgs-compass/core/domain";
+import { deriveActivities } from "@sdgs-compass/core/activities";
 import { addDays, formatYen } from "@sdgs-compass/core/format";
+import { REVIEW_BONUS_MAX, reviewBonus } from "@sdgs-compass/core/impact";
 import { LOCALES, type Locale } from "@sdgs-compass/core/i18n";
 import type { ProposalDraft } from "@sdgs-compass/core/proposal";
 import { SCOUT_DAILY_LIMIT } from "@sdgs-compass/core/scout";
@@ -80,10 +82,21 @@ const noScoutsLeft = run(
   { type: "sendScout", candidateId: "cand-ren", kind: "interview", message: "a", at: AT },
 );
 
+/** 데모 순서 그대로: 학생이 D2 에서 낸 기획서를 기업이 D5 에서 심사(점수·코멘트) → 최우수상 → 채택 (#30) */
+const mineId = run(initial, { type: "submitProposal", challengeId: "ch-plastic", draft, at: AT }).proposals.find((p) => p.mine)!.id;
+const reviewedMine = run(
+  initial,
+  { type: "submitProposal", challengeId: "ch-plastic", draft, at: AT },
+  { type: "reviewProposal", proposalId: mineId, review: { creativity: 4, feasibility: 3, sdgContribution: 5, comment: "回収まで考えた、現実的な提案です。" }, at: "2026-10-30T11:00" },
+  { type: "awardProposal", proposalId: mineId, award: "grand" },
+  { type: "adoptProposal", proposalId: mineId, at: "2026-10-30T11:05" },
+);
+
 const STATES: [string, DemoState][] = [
   ["처음 상태", initial],
   ["이것저것 해 본 상태", busy],
   ["스카우트 한도를 다 쓴 상태", noScoutsLeft],
+  ["내 기획서가 심사·표창·채택된 상태", reviewedMine],
 ];
 
 function allViews(state: DemoState, locale: Locale) {
@@ -442,11 +455,124 @@ describe("응모 중인 과제 — 마이 임팩트 맨 위 (#28)", () => {
   });
 });
 
+describe("심사 결과를 학생에게 — 「応募中の課題」 카드 (#30)", () => {
+  const submitted = run(initial, { type: "submitProposal", challengeId: "ch-plastic", draft, at: AT });
+  const review = (creativity: number, feasibility: number, sdgContribution: number, comment = "回収まで考えた、現実的な提案です。"): Action => ({
+    type: "reviewProposal",
+    proposalId: mineId,
+    review: { creativity, feasibility, sdgContribution, comment },
+    at: "2026-10-30T11:00",
+  });
+
+  it("심사 전이면 결과가 없어요 — 카드에는 지금처럼 상태만", () => {
+    for (const locale of LOCALES) expect(selectApplications(submitted, locale)[0].review).toBeNull();
+  });
+
+  it("심사하면 점수 3개(5점 만점)·평균·코멘트(기업 이름)·반영 포인트·다음에 키울 점이 두 언어로 나와요", () => {
+    const state = run(submitted, review(4, 3, 5));
+    const ja = selectApplications(state, "ja")[0].review!;
+    expect(ja.title).toBe("企業からの審査結果");
+    // 항목 이름은 기업 심사 화면과 같은 문구 키(review.*)예요
+    expect(ja.scores.map((s) => [s.key, s.label, s.value, s.max, s.valueLabel, s.lowest])).toEqual([
+      ["creativity", "創造性", 4, 5, "4/5", false],
+      ["feasibility", "実現可能性", 3, 5, "3/5", true],
+      ["sdgContribution", "SDGs貢献度", 5, 5, "5/5", false],
+    ]);
+    expect(ja.average).toBe(4);
+    expect(ja.averageLabel).toBe("総合 4.0/5.0");
+    expect(ja.comment).toBe("回収まで考えた、現実的な提案です。");
+    expect(ja.commentBy).toBe("みなと海洋フーズ株式会社のコメント");
+    expect(ja.bonusPoints).toBe(64);
+    expect(ja.bonusLabel).toBe("+64pt をマイImpactに反映");
+    expect(ja.improveLabel).toBe("次に伸ばすポイント：実現可能性");
+    expect(ja.award).toBeNull();
+    expect(ja.awardLabel).toBeNull();
+    expect(ja.summary).toBe("企業からの審査結果：創造性 4/5・実現可能性 3/5・SDGs貢献度 5/5、総合 4.0/5.0。+64pt をマイImpactに反映。次に伸ばすポイント：実現可能性。");
+    const ko = selectApplications(state, "ko")[0].review!;
+    expect(ko.title).toBe("기업의 심사 결과");
+    expect(ko.scores.map((s) => s.label)).toEqual(["창의성", "실현 가능성", "SDGs 기여도"]);
+    expect(ko.averageLabel).toBe("종합 4.0/5.0");
+    expect(ko.commentBy).toBe("미나토 해양푸드(주)의 코멘트");
+    expect(ko.bonusLabel).toBe("마이 임팩트에 +64pt 반영");
+    expect(ko.improveLabel).toBe("다음에 키울 점: 실현 가능성");
+    expect(ko.summary).toBe("기업의 심사 결과: 창의성 4/5・실현 가능성 3/5・SDGs 기여도 5/5, 종합 4.0/5.0. 마이 임팩트에 +64pt 반영. 다음에 키울 점: 실현 가능성.");
+  });
+
+  it("보너스는 reviewBonus 와 같고 제출 실적 포인트에 그대로 더해져요 — 심사를 고치면 바로 바뀌어요", () => {
+    const base = deriveActivities(submitted).find((a) => a.proposalId === mineId)!.points;
+    for (const [c, f, s] of [[4, 3, 5], [5, 5, 5], [1, 2, 1], [3, 3, 3]] as const) {
+      const state = run(submitted, review(c, f, s));
+      const result = selectApplications(state, "ja")[0].review!;
+      expect(result.bonusPoints).toBe(reviewBonus({ creativity: c, feasibility: f, sdgContribution: s }));
+      expect(result.bonusPoints).toBeLessThanOrEqual(REVIEW_BONUS_MAX);
+      expect(deriveActivities(state).find((a) => a.proposalId === mineId)!.points - base).toBe(result.bonusPoints);
+    }
+    // 같은 기획서를 다시 심사하면(점수 수정) 결과 카드의 숫자가 바로 바뀌어요
+    const first = run(submitted, review(4, 3, 5));
+    const revised = run(first, review(5, 5, 5, "さらに良くなりました"));
+    expect(selectApplications(first, "ja")[0].review!.bonusLabel).toBe("+64pt をマイImpactに反映");
+    expect(selectApplications(revised, "ja")[0].review!.bonusLabel).toBe("+80pt をマイImpactに反映");
+    expect(selectApplications(revised, "ja")[0].review!.comment).toBe("さらに良くなりました");
+  });
+
+  it("가장 낮은 점수가 여럿이면 「다음에 키울 점」은 생략하고, 코멘트가 비면 코멘트 줄도 없어요", () => {
+    const tie = selectApplications(run(submitted, review(3, 3, 5, "  ")), "ja")[0].review!;
+    expect(tie.scores.some((s) => s.lowest)).toBe(false);
+    expect(tie.improveLabel).toBeNull();
+    expect(tie.comment).toBeNull();
+    expect(tie.commentBy).toBeNull();
+    const flat = selectApplications(run(submitted, review(4, 4, 4)), "ko")[0].review!;
+    expect(flat.improveLabel).toBeNull();
+    expect(flat.bonusLabel).toBe("마이 임팩트에 +64pt 반영");
+  });
+
+  it("표창하면 같은 카드에 상 이름이 나오고, 점수 없이 표창만 해도 결과 칸이 생겨요", () => {
+    const ja = selectApplications(reviewedMine, "ja")[0].review!;
+    expect(ja.award).toBe("grand");
+    expect(ja.awardLabel).toBe("最優秀賞を受賞");
+    expect(ja.summary.endsWith("最優秀賞を受賞。")).toBe(true);
+    expect(selectApplications(reviewedMine, "ko")[0].review!.awardLabel).toBe("최우수상 수상");
+    const awardOnly = selectApplications(run(submitted, { type: "awardProposal", proposalId: mineId, award: "special" }), "ja")[0].review!;
+    expect(awardOnly.scores).toEqual([]);
+    expect([awardOnly.average, awardOnly.averageLabel, awardOnly.bonusLabel, awardOnly.improveLabel, awardOnly.comment]).toEqual([null, null, null, null, null]);
+    expect(awardOnly.bonusPoints).toBe(0);
+    expect(awardOnly.awardLabel).toBe("特別賞を受賞");
+    expect(awardOnly.summary).toBe("企業からの審査結果。特別賞を受賞。");
+  });
+
+  it("보이는 것은 내 기획서의 결과뿐이에요 — 다른 팀(pp-1)을 심사해도 내 카드는 그대로예요", () => {
+    const state = run(submitted, { type: "reviewProposal", proposalId: "pp-1", review: { creativity: 5, feasibility: 5, sdgContribution: 5, comment: "他チーム" }, at: AT }, { type: "awardProposal", proposalId: "pp-1", award: "grand" });
+    const list = selectApplications(state, "ja");
+    expect(list).toHaveLength(1);
+    expect(list[0].review).toBeNull();
+    expect(JSON.stringify(list)).not.toContain("他チーム");
+  });
+
+  it("데모 흐름: D2 에서 낸 내 기획서가 D5 의 응모자 화면에 「あなたの提出」로 있고, 심사·표창·채택 뒤 학생 카드에 결과가 보여요", () => {
+    const applicants = selectApplicants(submitted, "ja", "ch-plastic").applicants;
+    const mine = applicants.find((a) => a.mine)!;
+    expect(mine.id).toBe(mineId);
+    expect(mine.title).toBe(draft.title);
+    // 심사 전(점수가 같을 때)에는 내 기획서가 맨 위 — D5 에서 처음 누르는 「審査」가 D2 의 기획서예요
+    expect(applicants[0].id).toBe(mineId);
+    const after = selectApplications(reviewedMine, "ja");
+    expect(after).toHaveLength(1);
+    expect(after[0].challengeId).toBe("ch-plastic");
+    expect(after[0].review?.bonusLabel).toBe("+64pt をマイImpactに反映");
+    expect(after[0].review?.awardLabel).toBe("最優秀賞を受賞");
+  });
+});
+
 describe("Impact·증명서·카드뉴스", () => {
-  it("실적은 포인트 숫자 없이 레벨·진행률로 보여요 (어느 화면 모델에도 「… pt」 글자가 없어요)", () => {
+  it("실적은 포인트 숫자 없이 레벨·진행률로 보여요 (어느 화면 모델에도 「… pt」 글자가 없어요 — #30 의 심사 보너스 한 줄만 예외)", () => {
     for (const [, state] of STATES) {
       for (const locale of LOCALES) {
-        const text = JSON.stringify(allViews(state, locale));
+        const views = allViews(state, locale);
+        // #30 사용자 결정(2026-11-03): 기업 심사 보너스만은 「+64pt をマイImpactに反映」처럼 숫자로 보여요 — 그 줄(과 요약)만 빼고 그대로 검사해요
+        const bonusLines = views.applications.flatMap((a) => (a.review?.bonusLabel ? [a.review.bonusLabel] : []));
+        for (const line of bonusLines) expect(line).toMatch(locale === "ja" ? /^\+\d+pt をマイImpactに反映$/ : /^마이 임팩트에 \+\d+pt 반영$/);
+        const rest = { ...views, applications: views.applications.map((a) => ({ ...a, review: a.review ? { ...a.review, bonusLabel: null, summary: "" } : null })) };
+        const text = JSON.stringify(rest);
         expect(text).not.toMatch(/\d\s?pt\b/);
         const impact = selectImpact(state, locale);
         expect(Number.isInteger(impact.progressPercent)).toBe(true);

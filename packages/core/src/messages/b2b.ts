@@ -51,7 +51,12 @@ export const b2b = {
   "review.comment": { ja: "コメント", ko: "코멘트" },
   "review.commentPh": { ja: "良い点と改善点を一言で", ko: "좋은 점과 개선점을 한마디로" },
   "review.save": { ja: "審査を保存", ko: "심사 저장" },
-  "review.saved": { ja: "審査を保存しました", ko: "심사를 저장했어요" },
+  // #30 심사는 기업만 보는 메모가 아니에요 — 학생에게 공개되고 Impact 포인트에 더해진다는 걸 점수 입력 바로 위에서 알려요
+  "review.publicNote": {
+    ja: "点数とコメントは学生に公開され、3項目の平均に応じて学生のImpactポイント（最大{max}pt）に加算されます。",
+    ko: "점수와 코멘트는 학생에게 공개되고, 세 항목 평균에 따라 학생의 Impact 포인트(최대 {max}pt)에 더해져요.",
+  },
+  "review.saved": { ja: "審査を保存しました。学生の画面に結果が表示されます。", ko: "심사를 저장했어요. 학생 화면에 결과가 보여요." },
   "review.award": { ja: "表彰する", ko: "시상하기" },
   "review.adopt": { ja: "採用する（マッチング成立）", ko: "채택하기(매칭 성립)" },
   "review.adopted": { ja: "採用済み", ko: "채택 완료" },

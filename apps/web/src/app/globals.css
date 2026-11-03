@@ -312,6 +312,23 @@ svg { display: block; }
 .applied__tags { display: flex; flex-wrap: wrap; gap: 6px; }
 .applied__meta { font-size: var(--fs-sm); color: var(--text-muted); }
 .applied__links { display: flex; flex-wrap: wrap; gap: 4px 16px; margin-top: 2px; }
+/* #30 기업의 심사 결과(응모 중 카드 안): 점수 막대 + 「4/5」 글자, 가장 낮은 항목은 노란 막대 + 「次に伸ばすポイント」 글자로도 */
+.review-result { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; padding: 12px 14px; background: var(--bg); border-radius: var(--radius-md); }
+.review-result__head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 10px; }
+.review-result__title { font-size: var(--fs-sm); font-weight: 800; }
+.review-scores { display: flex; flex-direction: column; gap: 6px; }
+.review-score { display: grid; grid-template-columns: 7em minmax(40px, 1fr) auto; align-items: center; gap: 10px; font-size: var(--fs-sm); }
+.review-score__label { font-weight: 700; }
+.review-score__bar { height: 8px; border-radius: var(--radius-pill); background: var(--border); overflow: hidden; }
+.review-score__bar > span { display: block; height: 100%; border-radius: inherit; background: var(--primary); }
+.review-score--low .review-score__bar > span { background: var(--warning); }
+.review-score__value { min-width: 2.4em; text-align: right; font-weight: 800; font-variant-numeric: tabular-nums; }
+.review-result__total { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; font-size: var(--fs-sm); }
+.review-result__bonus { display: inline-flex; align-items: center; min-height: 24px; padding: 0 10px; border-radius: var(--radius-pill); background: var(--success-soft); color: var(--success); font-weight: 800; }
+.review-result__improve { font-size: var(--fs-sm); font-weight: 700; color: var(--warning); }
+.review-result__comment { display: flex; flex-direction: column; gap: 4px; font-size: var(--fs-sm); }
+.review-result__comment figcaption { font-size: var(--fs-xs); font-weight: 700; color: var(--text-muted); }
+.review-result__comment blockquote { margin: 0; padding: 6px 10px; background: var(--card); border-left: 3px solid var(--primary); border-radius: 0 var(--radius-sm) var(--radius-sm) 0; line-height: 1.55; }
 
 /* ───────── 챌린지 상세·팀 게시판 ───────── */
 .hero { overflow: hidden; }
@@ -456,6 +473,7 @@ svg { display: block; }
 .applicant__title { font-weight: 800; line-height: 1.4; font-size: var(--fs-md); }
 .applicant__score { font-size: var(--fs-xl); font-weight: 800; color: var(--primary); font-variant-numeric: tabular-nums; }
 .review-form { display: flex; flex-direction: column; gap: 12px; padding: 14px; background: var(--bg); border-radius: var(--radius-md); }
+.review-form__note { padding: 8px 12px; border-radius: var(--radius-sm); background: var(--primary-soft); color: var(--primary-dark); font-size: var(--fs-sm); line-height: 1.55; }
 .rate { display: flex; align-items: center; gap: 12px; }
 .rate__label { flex: 0 0 8.5em; font-size: var(--fs-sm); font-weight: 700; }
 .rate__value { flex: 0 0 3em; text-align: right; font-weight: 800; font-variant-numeric: tabular-nums; }

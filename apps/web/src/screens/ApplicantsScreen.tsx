@@ -2,9 +2,11 @@
 
 // 응모자·심사(F-303): 챌린지 선택 → 점수순 응모자 → 심사(3항목 1~5점 + 코멘트) → 시상 → 채택(매칭 성립: 수수료 ¥30,000 중 50% 기부)
 // #25 최우수상을 정하면 맡긴 상금이 수상자의 リワード残高로 송금돼요(데모) — 과제를 고르면 상금 상태를 안내해요
+// #30 심사 점수·코멘트는 학생에게 공개되고 Impact 포인트에 더해진다는 안내를 점수 입력 바로 위에 둬요
 import { useRouter, useSearchParams } from "next/navigation";
 import { useId, useMemo, useState } from "react";
 import type { AwardKind } from "@sdgs-compass/core/domain";
+import { REVIEW_BONUS_MAX } from "@sdgs-compass/core/impact";
 import { awardLabel } from "@sdgs-compass/core/labels";
 import { selectApplicants, type ApplicantVM } from "@sdgs-compass/core/selectors";
 import { prizeNotice } from "@sdgs-compass/core/walletView";
@@ -51,6 +53,10 @@ function ReviewForm({ applicant }: { applicant: ApplicantVM }) {
   return (
     <div className="review-form">
       <h4 className="strong">{t("review.title")}</h4>
+      <p className="review-form__note">
+        <span aria-hidden="true">👀 </span>
+        {t("review.publicNote", { max: REVIEW_BONUS_MAX })}
+      </p>
       <RateRow label={t("review.creativity")} value={creativity} onChange={(v) => edit(() => setCreativity(v))} />
       <RateRow label={t("review.feasibility")} value={feasibility} onChange={(v) => edit(() => setFeasibility(v))} />
       <RateRow label={t("review.sdgContribution")} value={sdgContribution} onChange={(v) => edit(() => setSdgContribution(v))} />

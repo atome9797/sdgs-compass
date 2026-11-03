@@ -15,11 +15,16 @@ export const AWARD_POINTS: Record<AwardKind, number> = { grand: 400, excellence:
 /** 한 SDG 점수가 약 63점이 되는 누적 포인트 (점수 = 100 × (1 − e^(−포인트/이 값))) */
 export const SDG_SATURATION = 300;
 
-/** 심사 점수(1~5)의 평균으로 주는 보너스 포인트 (최대 80) */
+/** 기업 심사 한 항목의 만점 (창의성·실현 가능성·SDGs 기여도 모두 1~5점) */
+export const REVIEW_SCORE_MAX = 5;
+/** 심사 보너스의 최대치 — 세 항목이 모두 만점이면 이만큼 제출 실적 포인트에 더해져요(#30: 기업 심사 화면 안내·학생 결과 카드가 이 값을 써요) */
+export const REVIEW_BONUS_MAX = 80;
+
+/** 심사 점수(1~5)의 평균으로 주는 보너스 포인트 (최대 REVIEW_BONUS_MAX) */
 export function reviewBonus(scores: { creativity: number; feasibility: number; sdgContribution: number } | undefined): number {
   if (!scores) return 0;
   const avg = (scores.creativity + scores.feasibility + scores.sdgContribution) / 3;
-  return Math.round((avg / 5) * 80);
+  return Math.round((avg / REVIEW_SCORE_MAX) * REVIEW_BONUS_MAX);
 }
 
 export function levelOf(points: number): Level {

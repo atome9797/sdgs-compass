@@ -1,10 +1,11 @@
 // SCR-04 마이 포트폴리오: 레벨·누적 지수 · 스카우트 수신 설정(따로 된 줄) · 応募中の課題(#28, 낸 기획서가 있을 때만) · SDGs Impact 레이더 차트(17목표) · 강점 SDGs · 배지 · 참여 실적
 // · 증명서/요약/카드뉴스 단추 · 맨 아래 リワード残高 카드(#25 데모).
 // 레이더는 SVG 없이 View 로 그려요(components/RadarChart). 값은 모두 core 의 selectImpact 에서 와요.
+// #30 기업이 내 기획서를 심사·표창하면 応募中の課題 카드에 「企業からの審査結果」(점수 3개 · 코멘트 · 반영 포인트 · 다음에 키울 점 · 수상)가 붙어요.
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useMemo } from "react";
 import { StyleSheet, View, useWindowDimensions } from "react-native";
-import { selectApplications, selectCertificates, selectImpact } from "@sdgs-compass/core/selectors";
+import { selectApplications, selectCertificates, selectImpact, type ApplicationReviewVM } from "@sdgs-compass/core/selectors";
 import { selectWallet } from "@sdgs-compass/core/walletView";
 import { ActivityRow } from "@/components/ActivityRow";
 import { RadarChart } from "@/components/RadarChart";
@@ -15,6 +16,61 @@ import { useApp } from "@/lib/AppProvider";
 import { squareSizeFor } from "@/lib/geometry";
 import { certificateHref, challengeHref, paramText, receiptHref, ROUTES } from "@/lib/nav";
 import { COLORS, RADIUS, SPACE } from "@/theme";
+
+/**
+ * #30 기업의 심사 결과: 점수는 막대 + 「4/5」 글자(색만으로 구분하지 않아요), 가장 낮은 항목은 「次に伸ばすポイント」 한 줄로도 알려요.
+ * 스크린 리더는 점수·평균·반영 포인트·다음에 키울 점·수상을 요약 한 문장(summary)으로, 코멘트는 따로 읽어요.
+ */
+function ReviewResult({ review, id }: { review: ApplicationReviewVM; id: string }) {
+  return (
+    <View style={styles.result} testID={`impact-review-${id}`}>
+      <View accessible accessibilityLabel={review.summary} style={styles.resultMain}>
+        <View style={styles.resultHead}>
+          <Txt variant="small" bold>
+            {review.title}
+          </Txt>
+          {review.awardLabel ? <Badge tone="warning" label={`🏆 ${review.awardLabel}`} /> : null}
+        </View>
+        {review.scores.map((score) => (
+          <View key={score.key} style={styles.scoreRow} testID={`review-score-${score.key}`}>
+            <Txt variant="small" bold style={styles.scoreLabel}>
+              {score.label}
+            </Txt>
+            <View style={styles.scoreTrack}>
+              <View style={[styles.scoreFill, { width: `${(score.value / score.max) * 100}%`, backgroundColor: score.lowest ? COLORS.warning : COLORS.primary }]} />
+            </View>
+            <Txt variant="small" bold style={styles.scoreValue}>
+              {score.valueLabel}
+            </Txt>
+          </View>
+        ))}
+        {review.averageLabel || review.bonusLabel ? (
+          <View style={styles.resultTotal}>
+            {review.averageLabel ? (
+              <Txt variant="small" bold>
+                {review.averageLabel}
+              </Txt>
+            ) : null}
+            {review.bonusLabel ? <Badge tone="success" label={review.bonusLabel} /> : null}
+          </View>
+        ) : null}
+        {review.improveLabel ? (
+          <Txt variant="small" bold tone="warning">
+            {`🌱 ${review.improveLabel}`}
+          </Txt>
+        ) : null}
+      </View>
+      {review.comment ? (
+        <View style={styles.comment} accessible accessibilityLabel={`${review.commentBy ?? ""} ${review.comment}`} testID={`impact-review-comment-${id}`}>
+          <Txt variant="caption" tone="muted" bold>
+            {review.commentBy}
+          </Txt>
+          <Txt variant="small">{review.comment}</Txt>
+        </View>
+      ) : null}
+    </View>
+  );
+}
 
 export function ImpactScreen() {
   const { demo, locale, t } = useApp();
@@ -101,6 +157,7 @@ export function ImpactScreen() {
                     </Txt>
                   ) : null}
                   <SdgMiniRow ids={app.sdgIds} size={20} />
+                  {app.review ? <ReviewResult review={app.review} id={app.challengeId} /> : null}
                   <View style={styles.appliedLinks}>
                     <Button variant="ghost" small label={t("impact.viewChallenge")} onPress={() => router.push(challengeHref(app.challengeId))} />
                     <Button variant="ghost" small label={t("challenge.viewReceipt")} onPress={() => router.push(receiptHref(app.challengeId))} />
@@ -223,6 +280,16 @@ const styles = StyleSheet.create({
   appliedNew: { borderColor: COLORS.primary, borderWidth: 2 },
   appliedTags: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: SPACE.xs + 2 },
   appliedLinks: { flexDirection: "row", flexWrap: "wrap", gap: SPACE.sm },
+  result: { gap: SPACE.sm, padding: SPACE.md, borderRadius: RADIUS.md, backgroundColor: COLORS.bg },
+  resultMain: { gap: SPACE.xs + 2 },
+  resultHead: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: SPACE.xs + 2 },
+  scoreRow: { flexDirection: "row", alignItems: "center", gap: SPACE.sm },
+  scoreLabel: { width: 96 },
+  scoreTrack: { flex: 1, height: 8, borderRadius: RADIUS.pill, backgroundColor: COLORS.border, overflow: "hidden" },
+  scoreFill: { height: 8, borderRadius: RADIUS.pill },
+  scoreValue: { minWidth: 32, textAlign: "right" },
+  resultTotal: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: SPACE.sm },
+  comment: { gap: 2, paddingVertical: SPACE.xs + 2, paddingHorizontal: SPACE.sm + 2, borderLeftWidth: 3, borderLeftColor: COLORS.primary, backgroundColor: COLORS.card },
   scoutRow: { flexDirection: "row", alignItems: "center", gap: SPACE.sm, paddingTop: SPACE.md, borderTopWidth: 1, borderTopColor: COLORS.border },
   scoutText: { flex: 1, minWidth: 0 },
   center: { alignItems: "center" },

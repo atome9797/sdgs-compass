@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Activity } from "./domain";
-import { AWARD_POINTS, computeBadges, computeImpactIndex, levelOf, levelProgress, LEVEL_THRESHOLDS, reviewBonus, SDG_SATURATION } from "./impact";
+import { AWARD_POINTS, computeBadges, computeImpactIndex, levelOf, levelProgress, LEVEL_THRESHOLDS, REVIEW_BONUS_MAX, REVIEW_SCORE_MAX, reviewBonus, SDG_SATURATION } from "./impact";
 import { SDG_IDS } from "./sdg";
 
 const activity = (overrides: Partial<Activity> = {}): Activity => ({
@@ -41,6 +41,14 @@ describe("심사 보너스", () => {
     expect(reviewBonus({ creativity: 4, feasibility: 4, sdgContribution: 4 })).toBe(64);
     expect(reviewBonus({ creativity: 1, feasibility: 1, sdgContribution: 1 })).toBe(16);
     expect(reviewBonus({ creativity: 4, feasibility: 3, sdgContribution: 4 })).toBe(59);
+  });
+
+  it("최대치·만점은 상수로 내보내요 — 기업 심사 안내(최대 80pt)와 학생 결과 카드가 같은 값을 써요 (#30)", () => {
+    expect(REVIEW_SCORE_MAX).toBe(5);
+    expect(REVIEW_BONUS_MAX).toBe(80);
+    const full = { creativity: REVIEW_SCORE_MAX, feasibility: REVIEW_SCORE_MAX, sdgContribution: REVIEW_SCORE_MAX };
+    expect(reviewBonus(full)).toBe(REVIEW_BONUS_MAX);
+    expect(reviewBonus({ creativity: 4, feasibility: 3, sdgContribution: 5 })).toBe(64);
   });
 });
 

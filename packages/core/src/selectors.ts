@@ -6,7 +6,7 @@ import { certificateFromActivity, certificateIdAt, qrPayload, verifyCode, type C
 import type { Activity, ActivityKind, AwardKind, Candidate, Challenge, ChallengeStatus, CertCriterionId, Company, DemoState, OfficialChannel, PostKind, Proposal, ProposalStatus, Review, Role, ScoutKind, ScoutStatus, SkillId, SocialPost } from "./domain";
 import { summarizeMatches, splitMatchFee } from "./fees";
 import { dDayLabel, daysBetween, formatBytes, formatDate, formatDateShort, formatDateTime, formatPeople, formatYen } from "./format";
-import { computeBadges, computeImpactIndex, BADGE_EMOJI, levelProgress, levelOf, type BadgeCode } from "./impact";
+import { computeBadges, computeImpactIndex, BADGE_EMOJI, levelProgress, levelOf, REVIEW_SCORE_MAX, reviewBonus, type BadgeCode } from "./impact";
 import { pick, type Locale } from "./i18n";
 import { awardLabel, challengeStatusLabel, participationLabel, proposalStatusLabel, rewardLabel, scoutKindLabel, sdgLabel, sdgShort, skillLabel } from "./labels";
 import { makeT, translate, type TFunction } from "./messages";
@@ -342,6 +342,104 @@ export function selectReceipt(state: DemoState, challengeId: string, locale: Loc
 
 // ───────── 응모 중인 과제(SCR-04 맨 위, #28) ─────────
 
+/** 기업 심사의 세 항목 — 기업 심사 화면(review.*)과 같은 이름·순서예요 */
+export type ReviewItemKey = "creativity" | "feasibility" | "sdgContribution";
+export const REVIEW_ITEMS: readonly ReviewItemKey[] = ["creativity", "feasibility", "sdgContribution"];
+
+/** 심사 결과의 한 항목 (#30) */
+export interface ReviewScoreVM {
+  key: ReviewItemKey;
+  /** 「創造性」 — 기업 심사 화면과 같은 문구 키(review.creativity …) */
+  label: string;
+  /** 1~5 */
+  value: number;
+  /** 만점 (REVIEW_SCORE_MAX = 5) */
+  max: number;
+  /** 「4/5」 */
+  valueLabel: string;
+  /** 가장 낮은 항목이 이것 하나뿐이면 true (= 「次に伸ばすポイント」) */
+  lowest: boolean;
+}
+
+/**
+ * 내 기획서에 기업이 낸 결과 (#30): 심사(점수·코멘트)했거나 표창했으면 「応募中の課題」 카드에 보여요.
+ * 점수의 평균은 지금도 reviewBonus 로 제출 실적 포인트에 더해져 레벨·레이더에 반영돼요 — 그 숫자를 학생이 볼 수 있게 해요.
+ */
+export interface ApplicationReviewVM {
+  /** 「企業からの審査結果」 */
+  title: string;
+  /** 점수 3개(5점 만점). 점수를 매기지 않고 표창만 했으면 빈 배열 */
+  scores: ReviewScoreVM[];
+  /** 평균(1~5, 소수 첫째 자리 — 기업 응모자 화면의 「総合」과 같은 값). 점수가 없으면 null */
+  average: number | null;
+  /** 「総合 4.0/5.0」 */
+  averageLabel: string | null;
+  /** 기업 코멘트 (비어 있으면 null) */
+  comment: string | null;
+  /** 「みなと海洋フーズ株式会社のコメント」 (코멘트가 없으면 null) */
+  commentBy: string | null;
+  /** 제출 실적에 더해진 보너스 = reviewBonus(점수) (0~REVIEW_BONUS_MAX, 점수가 없으면 0) */
+  bonusPoints: number;
+  /** 「+64pt をマイImpactに反映」 (점수가 없으면 null) */
+  bonusLabel: string | null;
+  /** 가장 낮은 항목이 하나뿐일 때만 「次に伸ばすポイント：実現可能性」 (같은 점수로 여럿이 가장 낮으면 null) */
+  improveLabel: string | null;
+  award: AwardKind | null;
+  /** 「最優秀賞を受賞」 */
+  awardLabel: string | null;
+  /** 스크린 리더용 요약: 「企業からの審査結果：創造性 4/5・実現可能性 3/5・SDGs貢献度 5/5、総合 4.0/5.0。+64pt をマイImpactに反映」 */
+  summary: string;
+}
+
+/** 내 기획서 하나의 심사 결과 화면 모델. 기업이 아직 아무 결과도 내지 않았으면 null (#30) */
+export function applicationReview(proposal: Proposal, companyName: string, locale: Locale): ApplicationReviewVM | null {
+  const review = proposal.review;
+  if (!review && !proposal.award) return null;
+  const title = translate("impact.reviewTitle", locale);
+  const scores: ReviewScoreVM[] = [];
+  if (review) {
+    const lowest = Math.min(...REVIEW_ITEMS.map((key) => review[key]));
+    const lowestKeys = REVIEW_ITEMS.filter((key) => review[key] === lowest);
+    for (const key of REVIEW_ITEMS) {
+      scores.push({
+        key,
+        label: translate(`review.${key}`, locale),
+        value: review[key],
+        max: REVIEW_SCORE_MAX,
+        valueLabel: translate("impact.reviewScore", locale, { score: review[key], max: REVIEW_SCORE_MAX }),
+        lowest: lowestKeys.length === 1 && lowestKeys[0] === key,
+      });
+    }
+  }
+  const average = averageScore(review);
+  const averageLabel = average === null ? null : translate("applicants.average", locale, { score: average.toFixed(1) });
+  const bonusPoints = review ? reviewBonus(review) : 0;
+  const bonusLabel = review ? translate("impact.reviewBonus", locale, { points: bonusPoints }) : null;
+  const weakest = scores.find((score) => score.lowest);
+  const improveLabel = weakest ? translate("impact.reviewImprove", locale, { item: weakest.label }) : null;
+  const comment = review && review.comment.trim() !== "" ? review.comment.trim() : null;
+  const awardText = proposal.award ? translate("impact.reviewAward", locale, { award: awardLabel(proposal.award, locale) }) : null;
+  // 요약: 점수·평균·반영 포인트 → 다음에 키울 점 → 수상 (문장 끝은 언어마다: 。 / .)
+  const head = average !== null && averageLabel && bonusLabel
+    ? translate("impact.reviewSummary", locale, { title, scores: scores.map((score) => `${score.label} ${score.valueLabel}`).join("・"), average: averageLabel, bonus: bonusLabel })
+    : title;
+  const summary = [head, improveLabel, awardText].filter((part): part is string => part !== null).map((part) => (locale === "ja" ? `${part}。` : `${part}.`)).join(locale === "ja" ? "" : " ");
+  return {
+    title,
+    scores,
+    average,
+    averageLabel,
+    comment,
+    commentBy: comment ? translate("impact.reviewCommentBy", locale, { company: companyName }) : null,
+    bonusPoints,
+    bonusLabel,
+    improveLabel,
+    award: proposal.award,
+    awardLabel: awardText,
+    summary,
+  };
+}
+
 /** 내가 기획서를 낸 과제 중 아직 결과가 나오지 않은 것(모집 중·심사 중) 한 건 */
 export interface ApplicationVM {
   challengeId: string;
@@ -359,6 +457,8 @@ export interface ApplicationVM {
   /** 최신 버전을 낸 시각 "YYYY-MM-DDTHH:mm" (정렬용) */
   submittedAt: string;
   sdgIds: SdgId[];
+  /** 기업이 심사·표창했으면 그 결과 (#30). 아직이면 null — 카드에는 지금처럼 상태만 보여요 */
+  review: ApplicationReviewVM | null;
 }
 
 /**
@@ -374,9 +474,10 @@ export function selectApplications(state: DemoState, locale: Locale): Applicatio
     const latest = proposal.versions[proposal.versions.length - 1];
     if (!latest) continue;
     const company = companyOf(state, challenge.companyId);
+    const companyName = company ? pick(company.name, locale) : "";
     rows.push({
       challengeId: challenge.id,
-      companyName: company ? pick(company.name, locale) : "",
+      companyName,
       challengeTitle: pick(challenge.title, locale),
       status: challenge.status,
       statusLabel: challengeStatusLabel(challenge.status, locale),
@@ -391,6 +492,7 @@ export function selectApplications(state: DemoState, locale: Locale): Applicatio
       versionLabel: translate("challenge.submitted", locale, { version: latest.no }),
       submittedAt: latest.submittedAt,
       sdgIds: challenge.sdgIds,
+      review: applicationReview(proposal, companyName, locale),
     });
   }
   // 최근에 낸 것이 위로 (같은 시각이면 과제 id 순서로 고정)
@@ -775,7 +877,8 @@ export function selectApplicants(state: DemoState, locale: Locale, challengeId: 
       ? state.proposals
           .filter((p) => p.challengeId === selectedChallenge.id)
           .map((p) => applicantVM(p, locale))
-          .sort((a, b) => (b.average ?? -1) - (a.average ?? -1) || a.id.localeCompare(b.id))
+          // 점수 높은 순(심사 전은 맨 뒤). 점수가 같으면 데모의 「あなたの提出」(학생 화면에서 낸 기획서)를 먼저 — 시연 D5 에서 처음 보이는 「審査」가 D2 에서 낸 그 기획서예요
+          .sort((a, b) => (b.average ?? -1) - (a.average ?? -1) || Number(b.mine) - Number(a.mine) || a.id.localeCompare(b.id))
       : [],
     feeNote: translate("review.feeNote", locale, { fee: formatYen(split.feeYen, locale), donation: formatYen(split.donationYen, locale) }),
   };

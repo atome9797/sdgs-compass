@@ -1,10 +1,12 @@
 // 응모자·심사(F-303): 챌린지 선택 → 점수순 응모자 → 심사(3항목 1~5점 + 코멘트) → 시상 → 채택(매칭 성립: 수수료 ¥30,000 중 50% 기부).
 // 대시보드의 "응모자 보기"는 ?id=챌린지 를 붙여 이 탭을 열고, 그 챌린지를 미리 골라요.
+// #30 심사 점수·코멘트는 학생에게 공개되고 Impact 포인트에 더해진다는 안내를 점수 입력 바로 위에 둬요.
 // 수상·채택된 응모 건에는 "홍보하기"가 붙어요 — 그 챌린지를 연결한 홍보 글쓰기(F-504)가 열려요.
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useMemo, useState } from "react";
 import { Linking, StyleSheet, View } from "react-native";
 import type { AwardKind, ProposalStatus } from "@sdgs-compass/core/domain";
+import { REVIEW_BONUS_MAX } from "@sdgs-compass/core/impact";
 import { awardLabel } from "@sdgs-compass/core/labels";
 import { selectApplicants, type ApplicantVM } from "@sdgs-compass/core/selectors";
 import { prizeNotice } from "@sdgs-compass/core/walletView";
@@ -56,6 +58,7 @@ function ReviewForm({ applicant }: { applicant: ApplicantVM }) {
       <Txt variant="heading" accessibilityRole="header">
         {t("review.title")}
       </Txt>
+      <Notice testID={`review-note-${applicant.id}`} tone="info" message={`👀 ${t("review.publicNote", { max: REVIEW_BONUS_MAX })}`} />
       <RateStepper label={t("review.creativity")} value={form.creativity} onChange={(creativity) => edit({ creativity })} />
       <RateStepper label={t("review.feasibility")} value={form.feasibility} onChange={(feasibility) => edit({ feasibility })} />
       <RateStepper label={t("review.sdgContribution")} value={form.sdgContribution} onChange={(sdgContribution) => edit({ sdgContribution })} />

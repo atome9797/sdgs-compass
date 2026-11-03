@@ -11,7 +11,7 @@
 | 원 기획의 생각 | 앱에서 |
 | --- | --- |
 | 수상 직후 **학생 자신의 실적 발신**과 **기업의 PR**을 함께 돕는다 | 학생은 자랑 글(F-503), 기업은 홍보 글(F-504)을 같은 피드에 올려요 |
-| 기업의 SDGs 활동 홍보(SNS 광고)가 수익원이다 | 홍보 글에는 항상 **PR 표시**가 붙고, 공식 SNS(**X · Instagram · Facebook** 중 하나) 게시를 **신청**할 수 있어요(**채널마다** 하루에 한 회사, 게시료는 샘플 값) |
+| 기업의 SDGs 활동 홍보(SNS 광고)가 수익원이다 | 홍보 글에는 항상 **PR 표시**가 붙고, 공식 SNS(**X · Instagram · Facebook** 중 하나) 게시를 **신청**할 수 있어요(하루 제한 없이 **회사당 월 4회**, 날짜는 기업이 골라요, 게시료는 샘플 값). 등록 기업이 늘면 공식 계정에 올라가는 소식도 늘어서, 학생이 공식 계정을 팔로우할 이유가 생기고 게시 수입도 함께 늘어요 |
 | SNS에 보이는 내용에는 개인정보를 넣지 않는다 | 학생은 **닉네임·레벨만** 보여요. 이메일·전화번호 같은 글은 올릴 수 없어요 |
 | 실적은 QR로 진위를 확인한다(F-502) | 자랑 글은 **플랫폼에 기록된 실적만** 붙일 수 있어요(가짜 실적 방지). 증명서 화면으로 이어져요 |
 | 투자자·기업·학생의 참여를 SNS로 알린다 | 홍보 글에 우리 회사 챌린지를 연결하면 학생이 피드에서 바로 챌린지를 볼 수 있어요 |
@@ -27,7 +27,7 @@
 | 본문 | 1~200자 | 1~400자 |
 | 첨부 | **내 실적 1건 필수** — 수상·제출·참가 중 하나(공유 기록 제외) | 우리 회사 챌린지 1건(선택) |
 | SDGs 태그 | 첨부한 실적의 SDGs(자동, 최대 3) | 1~3개 직접 선택(기본: 연결한 챌린지 → 없으면 기업의 SDGs) |
-| 공식 SNS 게시 | — | 신청(선택): 채널(X · Instagram · Facebook) 하나를 골라요. 채널마다 1일 1사, 게시료 ¥3,000(샘플) |
+| 공식 SNS 게시 | — | 신청(선택): 채널(X · Instagram · Facebook) 하나와 날짜(내일 ~ 30일 뒤)를 골라요. 회사당 월 4회(채널 합계), 게시료 ¥3,000(샘플) |
 | 포인트 | 없음(카드뉴스 공유의 포인트와 별개) | 없음 |
 
 **공통 규칙**
@@ -35,28 +35,38 @@
 - 글자 수는 이모지·한자도 1글자로 세요(`charCount`, 기획서 제출과 같은 방식).
 - 본문·제목에 **이메일 주소나 전화번호처럼 보이는 글자**가 있으면 올릴 수 없어요. 판별 규칙은 DB 의 `mask_contacts()`(메시지 연락처 가리기)와 같아요.
 - **좋아요**는 계정마다 따로 세요. 이 데모에는 학생 계정과 기업 계정이 있어서, 학생이 누른 좋아요와 기업이 누른 좋아요가 따로 기록돼요(`likedBy`). 내가 쓴 글에는 누를 수 없고, 다시 누르면 취소돼요. 학생이 쓴 내 자랑 글에 기업 계정으로 들어가 좋아요를 누르는 것은 돼요.
-- **삭제**는 내가 쓴 글만, 그 글을 쓴 계정(자랑 글은 학생, 홍보 글은 기업)에서만 해요. 공식 게시 날짜를 받았다면 그 날짜는 비워져요.
+- **삭제**는 내가 쓴 글만, 그 글을 쓴 계정(자랑 글은 학생, 홍보 글은 기업)에서만 해요. 공식 게시를 신청했다면 그 달의 횟수가 하나 돌아와요.
 - 피드는 최신순이고, `전체 / 기업 홍보 / 학생 자랑` 으로 걸러 볼 수 있어요.
 - 글은 쓴 언어 그대로 보여요(자동 번역 없음 — 실서비스에서는 `content_translations` 에 번역을 저장). 샘플 글은 일본어·한국어 두 가지가 다 있어요.
 
 ## 3. 공식 SNS 게시 신청 (기업 홍보 글)
 
-원 기획의 "공식 SNS 에는 하루에 한 기업"을 **채널별 규칙**으로 옮겼어요. 신청할 수 있는 채널은 **X · Instagram · Facebook** 세 가지예요(YouTube 는 영상 채널이라 신청 대상이 아니에요).
+원 기획의 "공식 SNS 에는 하루에 한 기업"을 **회사당 월 횟수 규칙**으로 바꿨어요(이슈 #32). 하루 한 회사만 단독으로 올리면 등록 기업이 많아질수록 기다림이 길고, 공식 계정은 채용 사이트처럼 흘러들어오는 소식이 많을수록 팔로우할 이유가 생기기 때문이에요. 회사 수가 늘면 게시 수입도 함께 늘 수 있어요(하루 1사 규칙은 채널 3개 × 365일이 상한이었어요). 신청할 수 있는 채널은 **X · Instagram · Facebook** 세 가지예요(YouTube 는 영상 채널이라 신청 대상이 아니에요).
 
 1. 글쓰기 화면에서 **공식 SNS 게시 신청**을 켜고 **채널을 하나** 골라요(글 하나에 채널 하나, 처음 골라 두는 채널은 Instagram). 채널마다 올라가는 모양이 달라서 이름 옆에 함께 보여요.
 
-   | 채널 | 올라가는 모양 |
-   | --- | --- |
-   | X | 포스트(ポスト) |
-   | Instagram | 스토리(ストーリー) |
-   | Facebook | 페이지 게시(ページ投稿) |
+   | 채널 | 올라가는 모양 | 공식 계정 |
+   | --- | --- | --- |
+   | X | 포스트(ポスト) | 만드는 중 |
+   | Instagram | 피드 게시물(フィード投稿) — 24시간이면 사라지는 스토리가 아니라 링크가 남는 게시물 | `https://www.instagram.com/sdgscompass_app/` |
+   | Facebook | 페이지 게시(ページ投稿) | 만드는 중 |
 
-2. 게시료는 어느 채널이나 ¥3,000(샘플 값)이고 정산은 하지 않아요.
-3. 앱이 고른 채널에서 **내일부터 가장 빠른 빈 날짜**를 배정해요(`nextOfficialDate(posts, today, channel)`). 같은 채널에서 이미 다른 기업이 받은 날짜만 건너뛰어요 — 같은 날 X 에는 A사, Instagram 에는 B사가 올라갈 수 있어요. 글쓰기 화면에는 채널마다 **지금 신청하면 배정될 날짜**가 보이고, 채널을 바꾸면 힌트·날짜·미리보기가 바로 바뀌어요.
-4. 글 카드에 `공식 SNS 게시 예정 · X · M/D` 처럼 채널 이름이 들어간 안내가 보여요. 데모에는 관리자 화면이 없어서 상태는 "예정"까지만 있어요(DB 에는 게시 완료·취소도 있어요).
-5. 글을 삭제하면 그 채널의 그 날짜는 다시 비어요.
+2. **게시 날짜는 기업이 골라요**: 내일부터 30일 뒤까지(`OFFICIAL_SHARE_WINDOW_DAYS = 30`). 채널 아래의 「◀ 날짜 ▶」 와 「最短の日に戻す」로 고르고(키보드·스크린 리더로도 쓸 수 있어요), 처음 골라 두는 날은 **고를 수 있는 가장 빠른 날**이에요. 날짜 옆에 그 날이 속한 달의 남은 횟수(「11月の残り 3/4回」)가 보여요.
+3. **하루 제한은 없어요** — 같은 날·같은 채널에 여러 회사가 올라가도 돼요. 대신 **한 회사는 게시일이 속한 달(일본 시간 달력 월)에 4번까지**예요(`OFFICIAL_SHARE_MONTHLY_LIMIT = 4`, 상수 하나라 바꾸기 쉬워요). 채널을 모두 합쳐 세고, 예정·게시 완료만 세요(취소·삭제한 신청은 세지 않아요).
+4. 한도를 다 쓴 달의 날짜는 「◀ ▶」가 건너뛰고 "12月は掲載枠（月4回）を使い切ったため選べません" 처럼 이유가 보여요. 고를 날이 하나도 없으면(기간 안의 모든 달이 찼으면) 신청 스위치가 꺼지고 이유가 보여요.
+5. 게시료는 어느 채널이나 ¥3,000(샘플 값)이고 정산은 하지 않아요.
+6. **보이는 사람이 달라요**(이슈 #31): 예정일·게시료는 **글을 쓴 회사에게만** 보여요(학생에게는 필요 없는 정보라서요).
 
-DB 에서는 `official_share_slots` 의 `(channel, scheduled_on)` 에 "예정·게시 완료 상태에서 중복 불가" 유일 인덱스(`official_share_slots_one_per_channel_day`)를 걸어 같은 규칙을 지켜요. `channel` 은 enum `official_channel`(`instagram` · `x` · `facebook`)이고 기본값은 `instagram` 이에요.
+   | 보는 사람 | 예정(scheduled) | 게시 완료(posted) |
+   | --- | --- | --- |
+   | 글을 쓴 회사(기업 화면 · 우리 회사 글) | `公式SNS掲載予定 · Instagram · 11/5` + `掲載料 ¥3,000（サンプル）` | `公式SNSに掲載済み · Instagram` + `投稿を見る ↗`(게시글 주소가 없으면 `公式SNSで見る ↗`) |
+   | 그 밖의 사람(학생 · 다른 기업) | **아무것도 안 보여요** | `公式SNSでも紹介中 · Instagram` + `公式SNSで見る ↗` |
+
+   링크는 게시글 주소(`postUrl`) → 없으면 그 채널의 **공식 계정 주소**(`OFFICIAL_ACCOUNT_URLS`)예요. 둘 다 없으면(X·Facebook 공식 계정을 만들기 전) 링크 없이 채널 이름만 보여요. 웹은 새 탭(`target="_blank" rel="noopener noreferrer"`, 읽어 주는 도구에는 「（新しいタブで開きます）」), 앱은 SNS 앱이나 브라우저(`Linking.openURL`, `accessibilityRole="link"`)로 열어요.
+7. 앱이 실제로 SNS 에 올리지는 않아요. 운영자가 올린 뒤 "게시 완료 + 게시글 주소"로 바꾸는 화면은 **서버 버전에서 만들 일**이에요 — 데모에는 그 화면이 없고, 샘플 글 하나(po-1)만 게시 완료로 들어 있어요.
+8. 글을 삭제하면 신청도 사라져서 그 달의 횟수가 하나 돌아와요.
+
+DB 에서는 `official_share_slots_guard` 트리거가 같은 규칙을 지켜요: ① 새 신청은 신청한 날의 내일 ~ 30일 뒤(예정 신청의 날짜를 옮길 때는 오늘 기준), ② 회사·달 4회 — 같은 회사의 신청이 동시에 들어와도 넘지 않게 **회사 단위 `pg_advisory_xact_lock`** 을 잡고 센 뒤 넣어요(새 신청 · 다른 달로 옮김 · 취소를 되살림 때 다시 세요). 예전의 채널·날짜 유일 인덱스(`official_share_slots_one_per_channel_day`)는 없앴어요. `channel` 은 enum `official_channel`(`instagram` · `x` · `facebook`, 기본값 `instagram`), 게시글 주소 `post_url` 은 게시 완료일 때만 `https://` 로 받아요(`official_share_post_url` 검사).
 
 ## 4. 화면과 진입점
 
@@ -65,7 +75,7 @@ DB 에서는 `official_share_slots` 의 `(channel, scheduled_on)` 에 "예정·�
 | 화면 | 학생(B2C) | 기업(B2B) |
 | --- | --- | --- |
 | 피드 | 탭 `피드`. 목록·필터·좋아요·삭제·실적/챌린지 보기·공유·`글쓰기` | 탭 `SNS 피드`. 같은 목록, `홍보 글 쓰기` |
-| 글쓰기 | 실적 고르기 → 글 쓰기 → 미리보기 → 올리기 | 제목·글 → SDGs → 챌린지 연결 → 공식 게시 신청(채널 고르기) → 올리기 |
+| 글쓰기 | 실적 고르기 → 글 쓰기 → 미리보기 → 올리기 | 제목·글 → SDGs → 챌린지 연결 → 공식 게시 신청(채널 · 날짜 고르기) → 올리기 |
 | 다른 화면에서 | **카드뉴스(SCR-05)** 의 `피드에도 올리기`(고른 실적을 미리 채움) | **응모자** 화면의 수상·채택 건 옆 `홍보하기`(그 챌린지를 미리 연결) |
 
 주소·경로
@@ -84,27 +94,33 @@ DB 에서는 `official_share_slots` 의 `(channel, scheduled_on)` 에 "예정·�
 | `SocialPost` (`DemoState.posts`) | `social_posts` | 글 한 건. `kind` 가 `brag`/`pr` |
 | `SocialPost.sdgIds` | `social_post_sdgs` | 글의 SDGs 태그(최대 3) |
 | `likes` / `likedBy` | `social_post_likes` | 좋아요(계정당 글 하나에 한 번). 앱은 두 계정(학생·기업)을 `likedBy: Role[]` 로 들고, DB 는 사용자마다 한 행 |
-| `SocialPost.official` | `official_share_slots` | 공식 SNS 게시 채널·날짜·요금·상태. 채널은 앱의 `OfficialChannel`(`"instagram" \| "x" \| "facebook"`)과 DB enum `official_channel`. 다음 날짜는 DB 함수 `next_official_share_date(오늘, 채널)` 가 앱의 `nextOfficialDate(posts, today, channel)` 와 같은 답을 내요 |
+| `SocialPost.official` | `official_share_slots` | 공식 SNS 게시 채널·날짜·요금·상태·게시글 주소. 채널은 앱의 `OfficialChannel`(`"instagram" \| "x" \| "facebook"`)과 DB enum `official_channel`, 상태는 앱 `"scheduled" \| "posted"`(DB 는 `cancelled` 도), 게시글 주소는 앱 `postUrl` · DB `post_url`(게시 완료일 때만 `https://`). 가장 빠른 날은 DB 함수 `earliest_official_share_date(회사, 오늘)` 가 앱의 `earliestOfficialDate(posts, companyId, today)` 와, 달마다 남은 횟수는 `official_share_month_remaining(회사, 그 달의 날)` 이 `officialMonthRemaining(usage, month)` 와 같은 답을 내요 |
 | `PostAchievement` | `social_posts.activity_id` → `activities` | 자랑 글에 붙은 실적(앱은 다른 학생의 샘플 글을 위해 스냅샷으로 들고 있어요). DB 는 복합 외래 키 `(activity_id, author_id) → activities(id, user_id)` 로 "내 실적만", 트리거로 "공유 기록 제외"를 지켜요 |
-| `selectFeed` | `feed_posts` 뷰 | 피드 한 화면용 뷰(블라인드 제외, 태그 배열·좋아요 수·공식 게시 채널·날짜 포함) |
+| `selectFeed` | `feed_posts` 뷰 | 피드 한 화면용 뷰(블라인드 제외, 태그 배열·좋아요 수·공식 게시 채널·날짜·상태·게시글 주소 포함). 누구에게 무엇을 보여 줄지(예정·게시료는 쓴 회사에게만)와 공식 계정 주소로 이어 주는 일은 앱(`PostVM.official`)·서버 계층이 해요 |
 | — | `reports` (`target_type='post'` 추가) | 신고(F-702). 앱 화면은 없어요 |
 
-규칙 코드: `packages/core/src/post.ts` (`validatePostDraft`, `containsContact`, `nextOfficialDate`, `OFFICIAL_CHANNELS`, `POST_LIMITS`, `OFFICIAL_SHARE_FEE_YEN`), 리듀서 액션 `createPost` · `togglePostLike` · `deletePost`, 화면용 값 `selectFeed` · `selectComposer`(selectors.ts), 문구 `feed.*` · `post.*`(messages).
+규칙 코드: `packages/core/src/post.ts` (`validatePostDraft`, `containsContact`, `earliestOfficialDate`, `officialDateChoices`, `officialShareLink`, `OFFICIAL_CHANNELS`, `OFFICIAL_ACCOUNT_URLS`, `POST_LIMITS`, `OFFICIAL_SHARE_FEE_YEN`, `OFFICIAL_SHARE_MONTHLY_LIMIT`, `OFFICIAL_SHARE_WINDOW_DAYS`), 리듀서 액션 `createPost` · `togglePostLike` · `deletePost`, 화면용 값 `selectFeed`(`officialShareVM`) · `selectComposer`(`officialDateNav`)(selectors.ts), 문구 `feed.*` · `post.*`(messages).
 
-예전에 저장된 데모 상태에는 `posts` 가 없어요. 불러올 때 샘플 글을 채워서 이어서 쓸 수 있게 해요(`packages/data/src/storage.ts`). 채널이 생기기 전에 저장된 공식 게시(`official.channel` 이 없는 것)는 그때 하나뿐이던 `instagram` 으로 읽어요.
+예전에 저장된 데모 상태에는 `posts` 가 없어요. 불러올 때 샘플 글을 채워서 이어서 쓸 수 있게 해요(`packages/data/src/storage.ts`). 채널이 생기기 전에 저장된 공식 게시(`official.channel` 이 없는 것)는 그때 하나뿐이던 `instagram` 으로, 상태가 없거나 모르는 값이면 예정(`scheduled`)으로 읽고, `postUrl` 은 게시 완료의 `https://` 주소만 남기고 나머지는 `null` 로 읽어요.
 
 **앱과 DB 가 달라지는 곳**
 
-- **글자 수·연락처 검출·채널별 공식 게시 날짜·입력 검사**는 같은 답이 나와야 해서 `db/tests/04_parity.sql` 이 앱의 계산과 하나씩 대조해요(글자 수는 `post_char_count()` 가 JS `trim()` 과 같은지 BMP 전체를 비교).
+- **글자 수·연락처 검출·공식 게시 날짜(가장 빠른 날 · 달마다 남은 횟수)·게시글 주소 규칙·입력 검사**는 같은 답이 나와야 해서 `db/tests/04_parity.sql` 이 앱의 계산과 하나씩 대조해요(글자 수는 `post_char_count()` 가 JS `trim()` 과 같은지 BMP 전체를 비교). 회사당 월 4회 · 30일은 앱의 상수와 DB 함수(`official_share_monthly_limit()` · `official_share_window_days()`)가 같은지도 봐요.
 - **레벨**: 앱은 글을 올린 때의 레벨(`authorLevel`)을 글에 저장하고, DB 는 저장하지 않고 `feed_posts` 가 `impact_totals` 의 **지금 값**을 보여 줘요.
 - **좋아요 수**: 앱의 `likes` 는 샘플의 다른 사람 좋아요까지 합친 숫자이고, DB 의 `like_count` 는 `social_post_likes` 행 수예요. DB 는 기업 글에 같은 기업의 담당자 전원이 못 눌러요(앱은 데모 기업 계정이 하나라서 같은 효과).
 - **SDGs 태그**: 앱은 실적 SDGs 의 앞 3개를 자동으로 붙이고, DB 는 "실적의 SDGs 중 1~3개"를 받아요. DB 는 태그 0개를 막지만, 앱은 SDGs 가 없는 실적에 자랑 글을 올리면 0개가 될 수 있어요(현재 데이터에는 그런 실적이 없어요).
-- **DB 에만 있는 것**: 블라인드(`blinded_at` → 피드에서 빠지고 좋아요·공식 게시 신청 불가), 공식 게시 상태 `posted`·`cancelled`(앱은 `scheduled` 만), 신고 대상 `post`, 번역 캐시. 글 수정은 본문·제목·연결 챌린지만 되지만 앱에는 수정 기능이 없어요.
-- **삭제 권한**(내 글만)은 DB 가 아니라 앱/서버 계층의 일이에요. DB 는 글을 지우면 태그·좋아요·공식 게시 신청을 함께 지우고 그 날짜가 다시 비는 것만 보장해요.
+- **DB 에만 있는 것**: 블라인드(`blinded_at` → 피드에서 빠지고 좋아요·공식 게시 신청 불가), 공식 게시 상태 `cancelled`(앱은 `scheduled`·`posted` 만 — 앱에서 새로 신청하면 늘 `scheduled`), 예정 신청의 날짜·채널 옮기기, 신고 대상 `post`, 번역 캐시. 글 수정은 본문·제목·연결 챌린지만 되지만 앱에는 수정 기능이 없어요.
+- **동시에 들어오는 신청**: 앱(데모)은 한 사람이 쓰니 순서대로 세면 되지만, DB 는 같은 회사의 담당자 여럿이 동시에 신청해도 월 4회를 넘지 않게 회사 단위 트랜잭션 자물쇠(`pg_advisory_xact_lock`)를 잡고 세요(기본 격리 수준 READ COMMITTED 기준).
+- **삭제 권한**(내 글만)은 DB 가 아니라 앱/서버 계층의 일이에요. DB 는 글을 지우면 태그·좋아요·공식 게시 신청을 함께 지우고 그 달의 횟수가 돌아오는 것만 보장해요.
 
 ## 6. 샘플 데이터
 
-가상의 글 8개: 기업 홍보 4(우리 회사 `みなと海洋フーズ` 1 포함) + 학생 자랑 4. 공식 게시 신청은 다른 기업 3곳의 글에 있고 채널이 흩어져 있어요 — Instagram 은 내일, X 는 모레, Facebook 은 내일이에요. 같은 날(내일)도 채널이 다르면 함께 받을 수 있고, 같은 채널에서만 하루에 한 회사예요. 그래서 우리 회사가 지금 신청하면 **X 는 내일, Instagram·Facebook 은 모레**가 배정돼요(채널을 바꾸면 날짜가 달라지는 모습이 보여요).
+가상의 글 8개: 기업 홍보 4(우리 회사 `みなと海洋フーズ` 1 포함) + 학생 자랑 4. 공식 게시 신청은 4건이에요.
+
+- **po-1**(다른 회사, Instagram): 사흘 전에 공식 SNS 에 올라간 **게시 완료** 신청이에요. 가상의 회사 글이라 특정 게시글이 아니라 공식 계정 주소로 이어져서, 학생·다른 기업에게도 `公式SNSでも紹介中 · Instagram` + `公式SNSで見る ↗` 가 보여요.
+- **po-3**(다른 회사)과 **po-4**(우리 회사)는 **내일 · Instagram** 에 함께 예정이에요 — 하루 제한이 없다는 것이 보여요. po-2(다른 회사)는 모레 · X 예정이에요. 다른 회사의 예정은 누구에게도 보이지 않고, po-4 의 예정·게시료는 기업 화면에서만 보여요.
+- 우리 회사는 그 달에 1건(po-4)을 이미 신청해 두어서, 글쓰기 화면을 열면 기본 날짜가 내일이고 「10月の残り 3/4回」처럼 남은 횟수가 3/4 로 보여요.
+
 학생 쪽에는 내가 쓴 글이 처음에는 없어서, 발표 때 직접 올려 보여 줄 수 있어요.
 DB 의 `seed.sql` 에는 샘플 글을 넣지 않아요(참조 데이터만 담고, 챌린지·기업 같은 데모 데이터도 DB 에는 없어요). 샘플 글이 규칙을 지키는지는 앱의 `seed.test.ts` 가, 앱과 DB 의 규칙이 같은지는 `db/tests/04_parity.sql` 이 따로 확인해요.
 
@@ -115,3 +131,4 @@ DB 의 `seed.sql` 에는 샘플 글을 넣지 않아요(참조 데이터만 담�
 - 댓글·팔로우·알림
 - 관리자 검수·신고 화면(DB 는 `reports` 로 자리만 있어요)
 - 광고료 정산(요금은 신청 때 보여 주는 샘플 값이에요)
+- 운영자가 공식 게시 신청을 "게시 완료 + 게시글 주소"로 바꾸는 화면 — 서버 버전에서 해요(DB 는 `status = 'posted'` · `post_url` 로 자리가 있어요)

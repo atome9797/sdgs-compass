@@ -277,9 +277,9 @@ describe("공식 SNS 채널", () => {
     expect(OFFICIAL_CHANNELS.map((c) => officialChannelLabel(c, "ko"))).toEqual(["X 포스트", "인스타그램 피드 게시물", "페이스북 페이지 게시"]);
   });
 
-  it("공식 계정 주소: X·Instagram 이 있고, Facebook 은 만드는 중이라 비어 있어요", () => {
-    expect(OFFICIAL_ACCOUNT_URLS).toEqual({ x: "https://x.com/SDGs3ab", instagram: "https://www.instagram.com/sdgscompass_app/", facebook: null });
-    for (const url of Object.values(OFFICIAL_ACCOUNT_URLS)) if (url !== null) expect(isOfficialPostUrl(url)).toBe(true);
+  it("공식 계정 주소: X·Instagram·Facebook 모두 있고, 게시글 주소 규칙을 지켜요", () => {
+    expect(OFFICIAL_ACCOUNT_URLS).toEqual({ x: "https://x.com/SDGs3ab", instagram: "https://www.instagram.com/sdgscompass_app/", facebook: "https://www.facebook.com/profile.php?id=61596222300663" });
+    for (const url of Object.values(OFFICIAL_ACCOUNT_URLS)) expect(url !== null && isOfficialPostUrl(url)).toBe(true);
   });
 
   it("게시 상태는 예정·게시 완료 두 가지예요 (취소는 앱에 없어요)", () => {
@@ -300,7 +300,7 @@ describe("공식 SNS 채널", () => {
     expect(officialShareLink(share("posted", "instagram", "https://www.instagram.com/p/abc123/"))).toBe("https://www.instagram.com/p/abc123/");
     expect(officialShareLink(share("posted", "instagram", null))).toBe("https://www.instagram.com/sdgscompass_app/");
     expect(officialShareLink(share("posted", "x", null))).toBe("https://x.com/SDGs3ab");
-    expect(officialShareLink(share("posted", "facebook", null))).toBeNull();
+    expect(officialShareLink(share("posted", "facebook", null))).toBe("https://www.facebook.com/profile.php?id=61596222300663");
     expect(officialShareLink(share("posted", "x", "https://x.com/sdgs/status/1"))).toBe("https://x.com/sdgs/status/1");
     expect(officialShareLink(share("scheduled", "instagram", null))).toBeNull(); // 예정이면 아직 볼 곳이 없어요
   });

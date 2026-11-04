@@ -1032,8 +1032,8 @@ describe("SNS 피드 (F-503 · F-504)", () => {
     });
     // 학생이 보면 같은 글도 「公式SNSでも紹介中」 + 「公式SNSで見る」(게시글 주소로)
     expect(find(selectFeed(withMine(base), "ja", "b2c").posts, "po-4").official).toMatchObject({ audience: "public", link: { url: "https://www.instagram.com/p/sample/", label: "公式SNSで見る" } });
-    // 공식 계정이 아직 없는 채널(Facebook)은 게시글 주소가 없으면 링크 없이 채널 이름만, X 는 공식 계정 주소로
-    expect(find(selectFeed(withMine({ ...base, channel: "facebook" as const, postUrl: null }), "ja", "b2c").posts, "po-4").official).toMatchObject({ link: null, channel: "facebook" });
+    // 게시글 주소가 없으면 그 채널의 공식 계정 주소로 (X·Facebook 도)
+    expect(find(selectFeed(withMine({ ...base, channel: "facebook" as const, postUrl: null }), "ja", "b2c").posts, "po-4").official).toMatchObject({ link: { url: "https://www.facebook.com/profile.php?id=61596222300663", label: "公式SNSで見る" }, channel: "facebook" });
     expect(find(selectFeed(withMine({ ...base, channel: "x" as const, postUrl: null }), "ja", "b2c").posts, "po-4").official).toMatchObject({ link: { url: "https://x.com/SDGs3ab", label: "公式SNSで見る" }, channel: "x" });
   });
 

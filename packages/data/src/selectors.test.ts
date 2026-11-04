@@ -1032,10 +1032,9 @@ describe("SNS 피드 (F-503 · F-504)", () => {
     });
     // 학생이 보면 같은 글도 「公式SNSでも紹介中」 + 「公式SNSで見る」(게시글 주소로)
     expect(find(selectFeed(withMine(base), "ja", "b2c").posts, "po-4").official).toMatchObject({ audience: "public", link: { url: "https://www.instagram.com/p/sample/", label: "公式SNSで見る" } });
-    // 공식 계정이 아직 없는 채널(X·Facebook)은 게시글 주소가 없으면 링크 없이 채널 이름만
-    for (const channel of ["x", "facebook"] as const) {
-      expect(find(selectFeed(withMine({ ...base, channel, postUrl: null }), "ja", "b2c").posts, "po-4").official).toMatchObject({ link: null, channel });
-    }
+    // 공식 계정이 아직 없는 채널(Facebook)은 게시글 주소가 없으면 링크 없이 채널 이름만, X 는 공식 계정 주소로
+    expect(find(selectFeed(withMine({ ...base, channel: "facebook" as const, postUrl: null }), "ja", "b2c").posts, "po-4").official).toMatchObject({ link: null, channel: "facebook" });
+    expect(find(selectFeed(withMine({ ...base, channel: "x" as const, postUrl: null }), "ja", "b2c").posts, "po-4").official).toMatchObject({ link: { url: "https://x.com/SDGs3ab", label: "公式SNSで見る" }, channel: "x" });
   });
 
   it("공식 SNS 게시 신청 라벨은 글을 올릴 때 고른 채널을 따라가요 (날짜를 비우면 고를 수 있는 가장 빠른 날)", () => {

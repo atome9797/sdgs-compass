@@ -45,10 +45,10 @@ export function isOfficialChannel(value: unknown): value is OfficialChannel {
 
 /**
  * 공식 계정 주소: 게시된 신청에 게시글 주소(postUrl)가 없을 때 대신 이어 줘요.
- * X·Facebook 공식 계정은 만드는 중이라 비워 뒀어요 — 만들면 채워요. 비어 있는 채널은 링크 없이 채널 이름만 보여요.
+ * Facebook 공식 계정은 만드는 중이라 비워 뒀어요 — 만들면 채워요. 비어 있는 채널은 링크 없이 채널 이름만 보여요.
  */
 export const OFFICIAL_ACCOUNT_URLS: Readonly<Record<OfficialChannel, string | null>> = {
-  x: null,
+  x: "https://x.com/SDGs3ab",
   instagram: "https://www.instagram.com/sdgscompass_app/",
   facebook: null,
 };

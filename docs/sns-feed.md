@@ -47,7 +47,7 @@
 
    | 채널 | 올라가는 모양 | 공식 계정 |
    | --- | --- | --- |
-   | X | 포스트(ポスト) | 만드는 중 |
+   | X | 포스트(ポスト) | `https://x.com/SDGs3ab` |
    | Instagram | 피드 게시물(フィード投稿) — 24시간이면 사라지는 스토리가 아니라 링크가 남는 게시물 | `https://www.instagram.com/sdgscompass_app/` |
    | Facebook | 페이지 게시(ページ投稿) | 만드는 중 |
 
@@ -62,7 +62,7 @@
    | 글을 쓴 회사(기업 화면 · 우리 회사 글) | `公式SNS掲載予定 · Instagram · 11/5` + `掲載料 ¥3,000（サンプル）` | `公式SNSに掲載済み · Instagram` + `投稿を見る ↗`(게시글 주소가 없으면 `公式SNSで見る ↗`) |
    | 그 밖의 사람(학생 · 다른 기업) | **아무것도 안 보여요** | `公式SNSでも紹介中 · Instagram` + `公式SNSで見る ↗` |
 
-   링크는 게시글 주소(`postUrl`) → 없으면 그 채널의 **공식 계정 주소**(`OFFICIAL_ACCOUNT_URLS`)예요. 둘 다 없으면(X·Facebook 공식 계정을 만들기 전) 링크 없이 채널 이름만 보여요. 웹은 새 탭(`target="_blank" rel="noopener noreferrer"`, 읽어 주는 도구에는 「（新しいタブで開きます）」), 앱은 SNS 앱이나 브라우저(`Linking.openURL`, `accessibilityRole="link"`)로 열어요.
+   링크는 게시글 주소(`postUrl`) → 없으면 그 채널의 **공식 계정 주소**(`OFFICIAL_ACCOUNT_URLS`)예요. 둘 다 없으면(Facebook 공식 계정을 만들기 전) 링크 없이 채널 이름만 보여요. 웹은 새 탭(`target="_blank" rel="noopener noreferrer"`, 읽어 주는 도구에는 「（新しいタブで開きます）」), 앱은 SNS 앱이나 브라우저(`Linking.openURL`, `accessibilityRole="link"`)로 열어요.
 7. 앱이 실제로 SNS 에 올리지는 않아요. 운영자가 올린 뒤 "게시 완료 + 게시글 주소"로 바꾸는 화면은 **서버 버전에서 만들 일**이에요 — 데모에는 그 화면이 없고, 샘플 글 하나(po-1)만 게시 완료로 들어 있어요.
 8. 글을 삭제하면 신청도 사라져서 그 달의 횟수가 하나 돌아와요.
 

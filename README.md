@@ -314,7 +314,7 @@ flowchart LR
     feed1 --> post1
     share -. "피드에도 올리기" .-> post1
   end
-  subgraph b2b["기업·기관 (B2B) — 하단 탭 6개"]
+  subgraph b2b["기업·기관 (B2B) — 하단 탭 7개(웹)"]
     direction TB
     dash["📋 대시보드 · SCR-06"]
     new["새 챌린지"]
@@ -324,12 +324,26 @@ flowchart LR
     set2["⚙️ 설정"]
     feed2["📣 SNS 피드 · F-504"]
     post2["홍보 글 쓰기<br/>(공식 SNS 게시 신청)"]
+    res["🔬 연구 의뢰 (웹)"]
+    resnew["연구 의뢰 쓰기"]
     dash --> new
     feed2 --> post2
     app -. "홍보하기" .-> post2
+    app -. "研究を依頼する" .-> resnew
+    res --> resnew
+  end
+  subgraph lab["연구자 (대학원생, 웹) — 하단 탭 3개"]
+    direction TB
+    find["🔎 의뢰 찾기"]
+    req["의뢰 상세<br/>(맡기 · 성과 보내기)"]
+    mine["🧪 내 연구"]
+    set3["⚙️ 설정"]
+    find --> req
+    mine --> req
   end
   g2 -- "B2C" --> b2c
   g2 -- "B2B" --> b2b
+  g2 -- "연구자" --> lab
 ```
 
 ### 8. SNS 피드 (F-503 · F-504)

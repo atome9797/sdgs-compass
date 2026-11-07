@@ -12,7 +12,8 @@ export type Gate = "language" | "role" | "b2c" | "b2b";
  */
 export function gateFor(locale: Locale | null, role: Role | null, languageForced = false): Gate {
   if (locale === null || languageForced) return "language";
-  if (role === null) return "role";
+  // 연구자(researcher)는 웹 데모에만 있는 역할이에요 — 앱에서는 고르지 않은 것과 같게 보고 이용 유형 선택(학생·기업)을 보여 줘요
+  if (role === null || role === "researcher") return "role";
   return role;
 }
 

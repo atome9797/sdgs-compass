@@ -7,6 +7,8 @@ test("저장된 언어·유형으로 보여 줄 화면 묶음을 정해요", () 
   expect(gateFor(null, "b2c")).toBe("language");
   expect(gateFor("ja", null)).toBe("role");
   expect(gateFor("ko", null)).toBe("role");
+  // 연구자는 웹 데모에만 있는 역할 — 앱에서는 이용 유형 선택을 다시 보여 줘요
+  expect(gateFor("ja", "researcher")).toBe("role");
   expect(gateFor("ja", "b2c")).toBe("b2c");
   expect(gateFor("ko", "b2b")).toBe("b2b");
 });

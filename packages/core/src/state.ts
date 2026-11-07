@@ -11,6 +11,7 @@ import { authorRole, DEFAULT_OFFICIAL_CHANNEL, OFFICIAL_SHARE_FEE_YEN, POST_LIMI
 import { fileFingerprint, makeReceiptNo, validateProposalDraft, type ProposalDraft } from "./proposal";
 import { canSendScout } from "./scout";
 import { isOpenFor } from "./recommend";
+import { acceptResearchRequest, completeResearchRequest, postResearchRequest, submitResearchResult, type ResearchDraft, type ResearchResultDraft } from "./research";
 import { depositFor, requestWithdrawal, settlePrize, verifyKyc } from "./wallet";
 
 /** 기업이 채택해서 매칭이 성립했을 때 수수료의 50%를 기부하는 곳(샘플) */
@@ -44,7 +45,15 @@ export type Action =
   /** #25 リワード残高(데모): 본인 확인 완료 버튼 (실제 eKYC 는 하지 않아요) */
   | { type: "verifyKyc"; at: string }
   /** #25 출금 신청: 본인 확인 완료 · 1엔 이상 · 1회 100만 엔 이하 · 잔액 이하가 아니면 아무것도 바뀌지 않아요 (실제 송금은 하지 않아요) */
-  | { type: "requestWithdrawal"; amountYen: number; at: string };
+  | { type: "requestWithdrawal"; amountYen: number; at: string }
+  /** 연구 의뢰(research.ts): 우리 회사가 표창·채택한 아이디어를 실현하려고 의뢰비를 정해 게재해요. 입력 검사를 통과하지 못하면 그대로 */
+  | { type: "postResearchRequest"; draft: ResearchDraft; at: string }
+  /** 연구자 계정이 모집 중인 의뢰를 맡아요 (데모: 누르면 바로 담당) */
+  | { type: "acceptResearchRequest"; requestId: string; at: string }
+  /** 맡은 연구자가 성과(요약 + 파일)를 보내요 */
+  | { type: "submitResearchResult"; requestId: string; draft: ResearchResultDraft; at: string }
+  /** 의뢰한 기업이 성과를 확인하고 완료로 — 의뢰비는 기업이 연구자에게 직접 지급(데모는 기록만) */
+  | { type: "completeResearchRequest"; requestId: string; at: string };
 
 const clampScore = (n: number) => Math.min(5, Math.max(1, Math.round(n)));
 
@@ -304,6 +313,18 @@ export function reducer(state: DemoState, action: Action): DemoState {
 
     case "requestWithdrawal":
       return requestWithdrawal(state, action.amountYen, action.at);
+
+    case "postResearchRequest":
+      return postResearchRequest(state, action.draft, action.at);
+
+    case "acceptResearchRequest":
+      return acceptResearchRequest(state, action.requestId, action.at);
+
+    case "submitResearchResult":
+      return submitResearchResult(state, action.requestId, action.draft, action.at);
+
+    case "completeResearchRequest":
+      return completeResearchRequest(state, action.requestId, action.at);
   }
 }
 
@@ -346,5 +367,13 @@ export function rebaseState(state: DemoState, today: string): DemoState {
       entries: state.wallet.entries.map((e) => ({ ...e, date: shift(e.date, delta) })),
     },
     prizeDeposits: state.prizeDeposits.map((d) => ({ ...d, depositedOn: shift(d.depositedOn, delta), settledOn: d.settledOn ? shift(d.settledOn, delta) : null })),
+    researchRequests: state.researchRequests.map((r) => ({
+      ...r,
+      postedOn: shift(r.postedOn, delta),
+      dueOn: shift(r.dueOn, delta),
+      acceptedOn: r.acceptedOn ? shift(r.acceptedOn, delta) : null,
+      result: r.result ? { ...r.result, submittedAt: shift(r.result.submittedAt, delta) } : null,
+      completedOn: r.completedOn ? shift(r.completedOn, delta) : null,
+    })),
   };
 }

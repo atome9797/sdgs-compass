@@ -31,6 +31,14 @@ export const ROUTES = {
   b2bFeed: "/b2b/feed",
   b2bFeedNew: "/b2b/feed/new",
   b2bSettings: "/b2b/settings",
+  /** 기업의 연구 의뢰: 목록(성과 확인·완료)과 새 의뢰(?proposal= 로 아이디어를 골라 둔 채 열어요) */
+  b2bResearch: "/b2b/research",
+  b2bResearchNew: "/b2b/research/new",
+  /** 연구자(대학원생, 웹 데모의 세 번째 역할): 의뢰 찾기(?field=) · 내 연구 · 의뢰 상세(?id=) · 설정 */
+  lab: "/lab",
+  labMine: "/lab/mine",
+  labRequest: "/lab/request",
+  labSettings: "/lab/settings",
   /** 운영자 화면(웹 전용 데모, 설계는 docs/admin.md): 이용 현황 · SNS 지표 · 수지·자금 */
   admin: "/admin",
   adminSns: "/admin/sns",
@@ -117,6 +125,12 @@ export const postNewHref = (role: Role, presetId?: string | null): string =>
 /** 카드뉴스 화면 (실적 하나를 미리 골라 두고 열 수 있어요) */
 export const shareHref = (activityId?: string | null): string => buildHref(ROUTES.share, { activity: activityId });
 
+/** 연구 의뢰 주소: 연구자의 의뢰 상세, 의뢰 찾기(분야 필터 — 전체면 쿼리 없음), 기업의 목록(posted = 방금 낸 의뢰를 강조)·새 의뢰(아이디어를 골라 둔 채) */
+export const labRequestHref = (id: string): string => buildHref(ROUTES.labRequest, { id });
+export const labHref = (field?: string | null): string => buildHref(ROUTES.lab, { field: field === "all" ? null : field });
+export const b2bResearchHref = (posted?: string | null): string => buildHref(ROUTES.b2bResearch, { posted });
+export const researchNewHref = (proposalId?: string | null): string => buildHref(ROUTES.b2bResearchNew, { proposal: proposalId });
+
 /** "14,12,abc,99,14" → [14, 12] (숫자가 아니거나 1~17 밖이거나 겹치면 버려요) */
 export function parseSdgParam(raw: string | null | undefined): SdgId[] {
   const ids: SdgId[] = [];
@@ -129,7 +143,10 @@ export function parseSdgParam(raw: string | null | undefined): SdgId[] {
 
 // ───────── 역할별 영역과 경로 가드 ─────────
 
-export type Area = "b2c" | "b2b" | "admin" | "neutral";
+export type Area = "b2c" | "b2b" | "lab" | "admin" | "neutral";
+
+/** 역할마다 들어갈 수 있는 영역 (학생 = 학생 화면, 기업 = /b2b/*, 연구자 = /lab/*) */
+const AREA_OF_ROLE: Record<Role, Area> = { b2c: "b2c", b2b: "b2b", researcher: "lab" };
 
 const B2C_PATHS: readonly string[] = [ROUTES.home, ROUTES.search, ROUTES.challenge, ROUTES.submit, ROUTES.impact, ROUTES.impactSummary, ROUTES.wallet, ROUTES.certificate, ROUTES.share, ROUTES.messages, ROUTES.feed, ROUTES.feedNew, ROUTES.settings];
 
@@ -144,15 +161,16 @@ export function isAdminPath(pathname: string, basePath = ""): boolean {
 export function areaOf(path: string): Area {
   const p = normalizePath(path);
   if (p === ROUTES.b2b || p.startsWith(`${ROUTES.b2b}/`)) return "b2b";
+  if (p === ROUTES.lab || p.startsWith(`${ROUTES.lab}/`)) return "lab";
   if (ADMIN_PATHS.includes(p)) return "admin";
   return B2C_PATHS.includes(p) ? "b2c" : "neutral";
 }
 
-export const homeFor = (role: Role): string => (role === "b2b" ? buildHref(ROUTES.b2b) : buildHref(ROUTES.home));
+export const homeFor = (role: Role): string => buildHref(role === "b2b" ? ROUTES.b2b : role === "researcher" ? ROUTES.lab : ROUTES.home);
 
 /**
  * 지금 주소(usePathname 값)와 역할로 "옮겨야 할 주소"를 정해요. 옮길 필요가 없으면 null.
- * b2c ⇒ 학생 화면만, b2b ⇒ /b2b/* 만. 루트(/)는 역할의 홈으로. 역할을 아직 안 골랐으면 게이트가 화면을 가리므로 그대로 둬요.
+ * b2c ⇒ 학생 화면만, b2b ⇒ /b2b/* 만, researcher ⇒ /lab/* 만. 루트(/)는 역할의 홈으로. 역할을 아직 안 골랐으면 게이트가 화면을 가리므로 그대로 둬요.
  * 운영자 화면(/admin/*)은 어느 역할이든 그대로 열려요 — 운영자는 학생도 기업도 아니라서 옮기지 않아요.
  * pathname 은 basePath 가 빠진 값(Next 의 usePathname)이어도, 붙은 값이어도 돼요.
  */
@@ -161,7 +179,6 @@ export function guardRedirect(pathname: string, role: Role | null, basePath = ""
   const path = normalizePath(stripBasePath(pathname, basePath));
   if (path === "/") return homeFor(role);
   const area = areaOf(path);
-  if (area === "b2c" && role === "b2b") return homeFor("b2b");
-  if (area === "b2b" && role === "b2c") return homeFor("b2c");
+  if ((area === "b2c" || area === "b2b" || area === "lab") && area !== AREA_OF_ROLE[role]) return homeFor(role);
   return null;
 }

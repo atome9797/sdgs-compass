@@ -1,6 +1,6 @@
 "use client";
 
-// 앱 입구: 스플래시(불러오는 중) → 언어 선택(처음 한 번) → 역할 선택(학생/기업) → 화면.
+// 앱 입구: 스플래시(불러오는 중) → 언어 선택(처음 한 번) → 역할 선택(학생/기업/연구자) → 화면.
 // 고른 값은 저장돼서 다음부터는 건너뛰고, 설정이나 헤더에서 언제든 바꿀 수 있어요.
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -87,6 +87,8 @@ function RoleGate({ locale }: { locale: Locale }) {
   const choices: { role: Role; icon: string; label: string; desc: string; persona: string }[] = [
     { role: "b2c", icon: "🎓", label: t("role.b2c"), desc: t("role.b2cDesc"), persona: demo ? t("role.persona", { name: demo.me.nickname }) : "" },
     { role: "b2b", icon: "🏢", label: t("role.b2b"), desc: t("role.b2bDesc"), persona: company ? t("role.persona", { name: pick(company.name, locale) }) : "" },
+    // 연구자(대학원생): 기업의 연구 의뢰를 맡아요 (웹 데모 전용 — 모바일 앱의 역할 선택은 두 가지)
+    { role: "researcher", icon: "🔬", label: t("role.researcher"), desc: t("role.researcherDesc"), persona: demo ? t("role.persona", { name: demo.researcher.name }) : "" },
   ];
   return (
     <main className="gate" id="main">

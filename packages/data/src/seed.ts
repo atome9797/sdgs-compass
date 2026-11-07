@@ -2,17 +2,21 @@
 // 실서비스에서는 이 모양의 데이터를 서버(PostgreSQL, db/schema.sql)가 돌려줘요.
 import { emptyCertAnswers } from "@sdgs-compass/core/certification";
 import type {
-  Activity, Candidate, Challenge, Company, DemoState, Match, OfficialChannel, PrizeDeposit, Proposal, Scout, SocialPost, StudentProfile, TeamPost, Wallet,
+  Activity, Candidate, Challenge, Company, DemoState, Match, OfficialChannel, PrizeDeposit, Proposal, ResearcherProfile, ResearchRequest, ResearchResult, Scout, SocialPost,
+  StudentProfile, TeamPost, Wallet,
 } from "@sdgs-compass/core/domain";
 import { splitMatchFee } from "@sdgs-compass/core/fees";
 import { addDays } from "@sdgs-compass/core/format";
 import { sha256Hex } from "@sdgs-compass/core/hash";
 import { levelOf } from "@sdgs-compass/core/impact";
 import { OFFICIAL_SHARE_FEE_YEN } from "@sdgs-compass/core/post";
+import { resultFingerprint } from "@sdgs-compass/core/research";
 import { DONATION_RECIPIENT } from "@sdgs-compass/core/state";
 
 export const DEMO_STUDENT_ID = "stu-mina";
 export const DEMO_COMPANY_ID = "co-minato";
+/** 데모의 연구자 계정(대학원생, 웹 데모의 세 번째 역할) */
+export const DEMO_RESEARCHER_ID = "res-sora";
 
 const companies: Company[] = [
   {
@@ -703,6 +707,150 @@ function buildPrizeDeposits(challenges: readonly Challenge[], today: string): Pr
     });
 }
 
+/** 데모의 연구자 계정(대학원생). 이름·소속은 가상의 샘플이에요 */
+const researcher: ResearcherProfile = {
+  id: DEMO_RESEARCHER_ID,
+  name: "Sora",
+  affiliation: { ja: "サンプル大学大学院 環境科学研究科", ko: "샘플대학교 대학원 환경과학연구과" },
+  degree: "master",
+  year: 1,
+  fields: ["environment", "materials", "data"],
+  bio: {
+    ja: "海洋プラスチックの劣化と、回収した素材の再利用を研究しています。統計の分析も得意です。",
+    ko: "해양 플라스틱의 열화와 회수한 소재의 재활용을 연구하고 있어요. 통계 분석도 잘해요.",
+  },
+};
+
+/**
+ * 연구 의뢰 샘플 5건 (회사·아이디어·금액 모두 가상):
+ * - 우리 회사(rr-1)는 성과가 도착해 확인 대기 — 기업 데모에서 「成果を確認して完了にする」를 눌러 볼 수 있어요.
+ *   출발점은 지난 과제(ch-old1, 漁港清掃ポスター)에서 표창된 아이디어예요(피드의 Yuna 글과 같은 과제).
+ * - 다른 회사 2건(rr-2 · rr-3)은 모집 중 — 연구자 데모에서 맡아 볼 수 있어요.
+ * - 연구자(Sora)가 연구 중 1건(rr-4) · 완료 1건(rr-5).
+ * 의뢰비는 샘플 값이에요(실제 기준과 운영 수수료는 대학원생 설문 뒤에 정해요 — docs/research.md).
+ */
+function buildResearchRequests(today: string): ResearchRequest[] {
+  const d = (n: number) => addDays(today, n);
+  const result = (requestId: string, summary: string, fileName: string, fileSizeBytes: number, day: number, time: string): ResearchResult => ({
+    summary,
+    fileName,
+    fileSizeBytes,
+    sha256: resultFingerprint(requestId, { summary, fileName, fileSizeBytes }),
+    submittedAt: `${d(day)}T${time}`,
+  });
+  const none = { researcherId: null, acceptedOn: null, result: null, completedOn: null } as const;
+  return [
+    {
+      id: "rr-1",
+      companyId: "co-minato",
+      origin: { proposalId: null, challengeId: "ch-old1", ideaTitle: "海の青で呼びかける漁港清掃ポスター", teamName: "ブルーポスターズ" },
+      title: { ja: "漁港清掃で集めた釣り糸・漁網を、再生素材にできるかの調査", ko: "어항 청소로 모은 낚싯줄·어망을 재생 소재로 쓸 수 있는지 조사" },
+      detail: {
+        ja: "清掃活動で集めた釣り糸・漁網の種類と量を記録し、洗浄・分別の手間と劣化の程度から、再生素材として使えるかを文献と簡単な試験で調べてください。",
+        ko: "청소 활동으로 모은 낚싯줄·어망의 종류와 양을 기록하고, 세척·분별의 수고와 열화 정도로 보아 재생 소재로 쓸 수 있는지 문헌과 간단한 시험으로 조사해 주세요.",
+      },
+      deliverable: { ja: "調査報告書（PDF・10ページ程度）と記録データ（CSV）", ko: "조사 보고서(PDF·10쪽 정도)와 기록 데이터(CSV)" },
+      fields: ["environment", "materials"],
+      feeYen: 80_000,
+      postedOn: d(-26),
+      dueOn: d(6),
+      status: "delivered",
+      researcherId: DEMO_RESEARCHER_ID,
+      acceptedOn: d(-22),
+      result: result(
+        "rr-1",
+        "3回の清掃で集めた釣り糸・漁網12.4kgを種類別に記録しました。ナイロンの釣り糸は洗浄すれば再生材料にできる見込みが高く、漁網は金具の取り外しに手間がかかることが分かりました。",
+        "harbor_line_report.pdf",
+        4_200_000,
+        -2,
+        "18:30",
+      ),
+      completedOn: null,
+    },
+    {
+      id: "rr-2",
+      companyId: "co-green",
+      origin: { proposalId: null, challengeId: null, ideaTitle: "閉店前の見切り品をアプリで予約", teamName: "もったいないキッチン" },
+      title: { ja: "値引きを始める時間と売れ残りの関係を、販売データで分析", ko: "할인을 시작하는 시간과 남는 상품의 관계를 판매 데이터로 분석" },
+      detail: {
+        ja: "3店舗・半年分の販売データ（個人情報は含みません）から、値引きを始める時間と売れ残りの量の関係を分析してください。アプリで予約を受けた場合の効果も試算してください。",
+        ko: "3개 매장·반년 치 판매 데이터(개인정보는 포함하지 않아요)로 할인을 시작하는 시간과 남는 양의 관계를 분석해 주세요. 앱으로 예약을 받는 경우의 효과도 추정해 주세요.",
+      },
+      deliverable: { ja: "分析レポート（PDF）と、分析に使ったコード・集計表", ko: "분석 보고서(PDF)와 분석에 쓴 코드·집계표" },
+      fields: ["data", "food"],
+      feeYen: 60_000,
+      postedOn: d(-3),
+      dueOn: d(42),
+      status: "open",
+      ...none,
+    },
+    {
+      id: "rr-3",
+      companyId: "co-hikari",
+      origin: { proposalId: null, challengeId: null, ideaTitle: "家族で競う省エネチャレンジ", teamName: "ワットウォッチ" },
+      title: { ja: "省エネを続けてもらう仕掛けの効果を、アンケートで確かめる", ko: "에너지 절약을 계속하게 하는 장치의 효과를 설문으로 확인" },
+      detail: {
+        ja: "家庭向けの省エネ企画に参加した約200世帯に、続けられた理由・やめた理由を聞くアンケートを設計し、結果を分析してください。",
+        ko: "가정 대상 에너지 절약 기획에 참가한 약 200가구에 계속한 이유·그만둔 이유를 묻는 설문을 설계하고 결과를 분석해 주세요.",
+      },
+      deliverable: { ja: "アンケート票・集計結果・考察のまとめ（PDF）", ko: "설문지·집계 결과·고찰 정리(PDF)" },
+      fields: ["social", "energy", "data"],
+      feeYen: 120_000,
+      postedOn: d(-6),
+      dueOn: d(60),
+      status: "open",
+      ...none,
+    },
+    {
+      id: "rr-4",
+      companyId: "co-yasai",
+      origin: { proposalId: null, challengeId: null, ideaTitle: "規格外野菜のピクルスを駅ナカで販売", teamName: "ベジリンク" },
+      title: { ja: "出荷の記録から、規格外野菜の廃棄を減らせる量を試算する", ko: "출하 기록으로 규격 외 채소의 폐기를 줄일 수 있는 양을 추정" },
+      detail: {
+        ja: "1年分の収穫・出荷の記録（表計算）から、規格外で廃棄している野菜の量を品目別に集計し、ピクルスに加工した場合に減らせる量と費用の目安を試算してください。",
+        ko: "1년 치 수확·출하 기록(스프레드시트)으로 규격 외라서 폐기하는 채소의 양을 품목별로 집계하고, 피클로 가공하면 줄일 수 있는 양과 비용의 기준을 추정해 주세요.",
+      },
+      deliverable: { ja: "集計と試算のまとめ（PDF）と、計算に使った表（XLSX）", ko: "집계와 추정 정리(PDF)와 계산에 쓴 표(XLSX)" },
+      fields: ["food", "data"],
+      feeYen: 50_000,
+      postedOn: d(-15),
+      dueOn: d(18),
+      status: "inProgress",
+      researcherId: DEMO_RESEARCHER_ID,
+      acceptedOn: d(-12),
+      result: null,
+      completedOn: null,
+    },
+    {
+      id: "rr-5",
+      companyId: "co-machi",
+      origin: { proposalId: null, challengeId: null, ideaTitle: "空き店舗でリペアカフェを開く", teamName: "まちのなおし屋" },
+      title: { ja: "商店街の通行量を、曜日・時間帯別に調べる", ko: "상점가 통행량을 요일·시간대별로 조사" },
+      detail: {
+        ja: "平日と休日の各3日、商店街の4か所で通行量を数え、空き店舗の前を通る人の数と時間帯の特徴をまとめてください。",
+        ko: "평일과 휴일 각 3일, 상점가 네 곳에서 통행량을 세고 빈 점포 앞을 지나는 사람 수와 시간대 특징을 정리해 주세요.",
+      },
+      deliverable: { ja: "調査報告書（PDF）と集計データ（CSV）", ko: "조사 보고서(PDF)와 집계 데이터(CSV)" },
+      fields: ["social", "data"],
+      feeYen: 40_000,
+      postedOn: d(-80),
+      dueOn: d(-40),
+      status: "completed",
+      researcherId: DEMO_RESEARCHER_ID,
+      acceptedOn: d(-76),
+      result: result(
+        "rr-5",
+        "平日と休日の各3日、4か所で通行量を数えました。休日の午後は平日の約2倍でした。空き店舗の前は通行量が少なく、入口の見せ方に工夫の余地があります。",
+        "shotengai_traffic.pdf",
+        2_800_000,
+        -45,
+        "20:10",
+      ),
+      completedOn: d(-41),
+    },
+  ];
+}
+
 /** 처음 상태 (today = "YYYY-MM-DD") */
 export function createInitialState(today: string): DemoState {
   const cert = emptyCertAnswers();
@@ -734,5 +882,7 @@ export function createInitialState(today: string): DemoState {
     esgGeneratedOn: null,
     wallet: buildWallet(today),
     prizeDeposits: buildPrizeDeposits(challenges, today),
+    researcher,
+    researchRequests: buildResearchRequests(today),
   };
 }

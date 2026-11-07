@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { MESSAGES } from "@sdgs-compass/core/messages";
-import { activeTabId, ADMIN_TABS, B2B_TABS, B2C_TABS, tabsFor } from "./nav";
+import { activeTabId, ADMIN_TABS, B2B_TABS, B2C_TABS, LAB_TABS, tabsFor } from "./nav";
 import { ALL_CHALLENGES, APPLICANT_FILTERS, KPI_TARGETS, parseApplicantFilter } from "@sdgs-compass/core/selectors";
 import {
-  ADMIN_PATHS, areaOf, applicantsHref, buildHref, certificateHref, challengeHref, DASHBOARD_ANCHORS, feedHref, guardRedirect, homeFor, impactHref, impactSummaryHref, isAdminPath, normalizeBasePath, normalizePath,
-  parseSdgParam, postNewHref, receiptHref, ROUTES, searchHref, shareHref, stripBasePath, submitHref, withBase,
+  ADMIN_PATHS, areaOf, applicantsHref, b2bResearchHref, buildHref, certificateHref, challengeHref, DASHBOARD_ANCHORS, feedHref, guardRedirect, homeFor, impactHref, impactSummaryHref, isAdminPath, labHref,
+  labRequestHref, normalizeBasePath, normalizePath, parseSdgParam, postNewHref, receiptHref, researchNewHref, ROUTES, searchHref, shareHref, stripBasePath, submitHref, withBase,
 } from "./routes";
 
 describe("대시보드 숫자 카드 → 응모자 화면의 필터 (#33)", () => {
@@ -66,6 +66,72 @@ describe("リワード残高 (#25)", () => {
     expect(guardRedirect("/wallet/", "b2b")).toBe("/b2b/");
     expect(guardRedirect("/sdgs-compass/wallet/", "b2b", "/sdgs-compass")).toBe("/b2b/");
     expect(activeTabId(B2C_TABS, "/wallet/")).toBe("impact");
+  });
+});
+
+describe("연구 의뢰 · 연구자(세 번째 역할) 화면", () => {
+  it("주소: 연구자는 /lab/*, 기업의 연구 의뢰는 /b2b/research/* — 상세·필터·게재 표시·아이디어는 쿼리로", () => {
+    expect(labHref()).toBe("/lab/");
+    expect(labHref("all")).toBe("/lab/");
+    expect(labHref("data")).toBe("/lab/?field=data");
+    expect(labRequestHref("rr-1")).toBe("/lab/request/?id=rr-1");
+    expect(buildHref(ROUTES.labMine)).toBe("/lab/mine/");
+    expect(buildHref(ROUTES.labSettings)).toBe("/lab/settings/");
+    expect(b2bResearchHref()).toBe("/b2b/research/");
+    expect(b2bResearchHref("rr100")).toBe("/b2b/research/?posted=rr100");
+    expect(researchNewHref()).toBe("/b2b/research/new/");
+    expect(researchNewHref("pb-1")).toBe("/b2b/research/new/?proposal=pb-1");
+  });
+
+  it("영역: /lab/* 는 연구자 영역, /b2b/research/* 는 기업 영역", () => {
+    for (const path of ["/lab/", "/lab", "/lab/mine/", "/lab/request/?id=rr-1", "/lab/settings/"]) expect(areaOf(path), path).toBe("lab");
+    expect(areaOf("/lab/nope/")).toBe("lab");
+    expect(areaOf("/labx/")).toBe("neutral");
+    expect(areaOf("/b2b/research/")).toBe("b2b");
+    expect(areaOf("/b2b/research/new/")).toBe("b2b");
+  });
+
+  it("연구자는 /lab/* 만 — 학생·기업 화면으로 가면 /lab/ 으로, 루트도 /lab/ 으로", () => {
+    expect(homeFor("researcher")).toBe("/lab/");
+    expect(guardRedirect("/", "researcher")).toBe("/lab/");
+    expect(guardRedirect("/lab/", "researcher")).toBeNull();
+    expect(guardRedirect("/lab/request/?id=rr-2", "researcher")).toBeNull();
+    expect(guardRedirect("/lab/settings/", "researcher")).toBeNull();
+    expect(guardRedirect("/home/", "researcher")).toBe("/lab/");
+    expect(guardRedirect("/settings/", "researcher")).toBe("/lab/");
+    expect(guardRedirect("/b2b/", "researcher")).toBe("/lab/");
+    expect(guardRedirect("/b2b/research/", "researcher")).toBe("/lab/");
+    expect(guardRedirect("/sdgs-compass/home/", "researcher", "/sdgs-compass")).toBe("/lab/");
+    expect(guardRedirect("/admin/", "researcher")).toBeNull();
+    expect(guardRedirect("/nope/", "researcher")).toBeNull();
+  });
+
+  it("학생·기업은 연구자 화면에 들어가지 않아요", () => {
+    expect(guardRedirect("/lab/", "b2c")).toBe("/home/");
+    expect(guardRedirect("/lab/request/?id=rr-1", "b2c")).toBe("/home/");
+    expect(guardRedirect("/lab/", "b2b")).toBe("/b2b/");
+    expect(guardRedirect("/lab/mine/", "b2b")).toBe("/b2b/");
+    expect(guardRedirect("/b2b/research/", "b2b")).toBeNull();
+    expect(guardRedirect("/b2b/research/new/?proposal=pb-1", "b2b")).toBeNull();
+    expect(guardRedirect("/b2b/research/", "b2c")).toBe("/home/");
+  });
+
+  it("연구자 탭: 의뢰 찾기(상세 포함) · 내 연구 · 설정 / 기업 탭의 「研究」는 목록과 새 의뢰에서 켜져요", () => {
+    const routes: readonly string[] = Object.values(ROUTES);
+    expect(LAB_TABS.map((t) => t.id)).toEqual(["find", "mine", "settings"]);
+    for (const tab of LAB_TABS) {
+      expect(routes).toContain(tab.path);
+      expect(MESSAGES[tab.labelKey]).toBeDefined();
+      for (const p of tab.match) expect(areaOf(p), p).toBe("lab");
+    }
+    expect(tabsFor("researcher")).toBe(LAB_TABS);
+    expect(activeTabId(LAB_TABS, "/lab/")).toBe("find");
+    expect(activeTabId(LAB_TABS, "/lab/request/")).toBe("find");
+    expect(activeTabId(LAB_TABS, "/lab/mine/")).toBe("mine");
+    expect(activeTabId(LAB_TABS, "/lab/settings/")).toBe("settings");
+    expect(activeTabId(LAB_TABS, "/sdgs-compass/lab/mine/", "/sdgs-compass")).toBe("mine");
+    expect(activeTabId(B2B_TABS, "/b2b/research/")).toBe("research");
+    expect(activeTabId(B2B_TABS, "/b2b/research/new/")).toBe("research");
   });
 });
 
@@ -266,7 +332,8 @@ describe("탭 정의", () => {
     }
     // 피드는 두 번째 탭이에요 (6개 — 390px 폭에 들어가도록 짧은 이름을 써요)
     expect(B2C_TABS.map((t) => t.id)).toEqual(["home", "feed", "search", "impact", "messages", "settings"]);
-    expect(B2B_TABS.map((t) => t.id)).toEqual(["dashboard", "feed", "applicants", "talent", "esg", "settings"]);
+    // 기업 탭은 7개 — 연구 의뢰(研究)가 응모자 다음이에요(하단 탭에서는 짧은 이름)
+    expect(B2B_TABS.map((t) => t.id)).toEqual(["dashboard", "feed", "applicants", "research", "talent", "esg", "settings"]);
     expect(tabsFor("b2c")).toBe(B2C_TABS);
     expect(tabsFor("b2b")).toBe(B2B_TABS);
   });

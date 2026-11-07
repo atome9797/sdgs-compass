@@ -13,7 +13,7 @@ export default function NotFound() {
           🧭
         </div>
         <h1 className="gate__title">{t("error.notFound")}</h1>
-        <ButtonLink href={homeFor(role)}>{role === "b2b" ? t("nav.dashboard") : t("nav.home")}</ButtonLink>
+        <ButtonLink href={homeFor(role)}>{role === "b2b" ? t("nav.dashboard") : role === "researcher" ? t("lab.nav.find") : t("nav.home")}</ButtonLink>
       </div>
     </main>
   );

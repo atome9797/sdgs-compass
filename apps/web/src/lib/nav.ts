@@ -24,16 +24,25 @@ export const B2C_TABS: readonly NavItem[] = [
 ];
 
 export const B2B_TABS: readonly NavItem[] = [
-  // 하단 탭이 6개라서 "ダッシュボード" 는 칸에 들어가지 않아요 → 하단 탭에서는 "ホーム" 로, 사이드바에서는 그대로 보여요
+  // 하단 탭이 7개라서 "ダッシュボード" 는 칸에 들어가지 않아요 → 하단 탭에서는 "ホーム" 로, 사이드바에서는 그대로 보여요
   { id: "dashboard", path: ROUTES.b2b, icon: "📋", labelKey: "nav.dashboard", tabLabelKey: "nav.home", match: [ROUTES.b2b, ROUTES.b2bNew] },
   { id: "feed", path: ROUTES.b2bFeed, icon: "📣", labelKey: "nav.feed", match: [ROUTES.b2bFeed, ROUTES.b2bFeedNew] },
   { id: "applicants", path: ROUTES.b2bApplicants, icon: "👥", labelKey: "nav.applicants", match: [ROUTES.b2bApplicants] },
+  // 표창·채택한 아이디어를 실현하려고 대학원생에게 연구를 의뢰해요 (하단 탭이 7개라서 짧은 이름 「研究」)
+  { id: "research", path: ROUTES.b2bResearch, icon: "🔬", labelKey: "nav.research", tabLabelKey: "nav.researchShort", match: [ROUTES.b2bResearch, ROUTES.b2bResearchNew] },
   { id: "talent", path: ROUTES.b2bTalent, icon: "🧭", labelKey: "nav.talent", match: [ROUTES.b2bTalent] },
   { id: "esg", path: ROUTES.b2bEsg, icon: "🌱", labelKey: "nav.esg", match: [ROUTES.b2bEsg] },
   { id: "settings", path: ROUTES.b2bSettings, icon: "⚙️", labelKey: "nav.settings", match: [ROUTES.b2bSettings] },
 ];
 
-export const tabsFor = (role: Role): readonly NavItem[] => (role === "b2b" ? B2B_TABS : B2C_TABS);
+/** 연구자(대학원생) 화면의 하단 탭: 의뢰 찾기(상세 포함) · 내 연구 · 설정 */
+export const LAB_TABS: readonly NavItem[] = [
+  { id: "find", path: ROUTES.lab, icon: "🔎", labelKey: "lab.nav.find", match: [ROUTES.lab, ROUTES.labRequest] },
+  { id: "mine", path: ROUTES.labMine, icon: "🧪", labelKey: "lab.nav.mine", match: [ROUTES.labMine] },
+  { id: "settings", path: ROUTES.labSettings, icon: "⚙️", labelKey: "nav.settings", match: [ROUTES.labSettings] },
+];
+
+export const tabsFor = (role: Role): readonly NavItem[] => (role === "b2b" ? B2B_TABS : role === "researcher" ? LAB_TABS : B2C_TABS);
 
 /** 운영자 화면(/admin/*)의 위쪽 탭. 학생·기업의 하단 탭·사이드바와는 따로 두고, 켜진 탭을 정하는 방법(activeTabId)만 같이 써요 */
 export const ADMIN_TABS: readonly NavItem[] = [

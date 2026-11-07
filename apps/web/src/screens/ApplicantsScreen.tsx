@@ -4,15 +4,17 @@
 // #25 최우수상을 정하면 맡긴 상금이 수상자의 リワード残高로 송금돼요(데모) — 과제를 고르면 상금 상태를 안내해요
 // #33 「すべての課題」와 상태 필터(?id=all&status=submitted 처럼 주소에 남아요) — 대시보드 숫자 카드가 여기로 와요
 // #30 심사 점수·코멘트는 학생에게 공개되고 Impact 포인트에 더해진다는 안내를 점수 입력 바로 위에 둬요
+// 표창·채택한 아이디어에는 「研究を依頼する」(대학원생 연구자에게 연구 의뢰 — /b2b/research/new/?proposal=)와 이미 낸 의뢰 수가 보여요
 import { useRouter, useSearchParams } from "next/navigation";
 import { useId, useMemo, useState } from "react";
 import type { AwardKind } from "@sdgs-compass/core/domain";
 import { REVIEW_BONUS_MAX } from "@sdgs-compass/core/impact";
 import { awardLabel } from "@sdgs-compass/core/labels";
 import { parseApplicantFilter, selectApplicants, type ApplicantFilter, type ApplicantVM } from "@sdgs-compass/core/selectors";
+import { proposalResearchLabel } from "@sdgs-compass/core/researchView";
 import { prizeNotice } from "@sdgs-compass/core/walletView";
 import { Banner, Button, ButtonLink, Empty, Field, ScreenHead, Tag } from "@/components/ui";
-import { applicantsHref, postNewHref } from "@/lib/routes";
+import { applicantsHref, b2bResearchHref, postNewHref, researchNewHref } from "@/lib/routes";
 import { useSession } from "@/lib/session";
 import { nowIso } from "@/lib/time";
 
@@ -76,7 +78,8 @@ function ReviewForm({ applicant, onTouched }: { applicant: ApplicantVM; onTouche
 }
 
 function ApplicantCard({ applicant, feeNote, showChallenge, onTouched }: { applicant: ApplicantVM; feeNote: string; showChallenge: boolean; onTouched: () => void }) {
-  const { t, locale, dispatch } = useSession();
+  const { t, locale, demo, dispatch } = useSession();
+  const research = proposalResearchLabel(demo, applicant.id, locale);
   const [open, setOpen] = useState(false);
   const [award, setAward] = useState<AwardKind>(applicant.award ?? "excellence");
   const [confirming, setConfirming] = useState(false);
@@ -130,6 +133,17 @@ function ApplicantCard({ applicant, feeNote, showChallenge, onTouched }: { appli
         {applicant.status === "awarded" || applicant.status === "adopted" ? (
           <ButtonLink href={postNewHref("b2b", applicant.challengeId)} size="sm" variant="secondary">
             <span aria-hidden="true">📣</span> {t("applicants.promote")}
+          </ButtonLink>
+        ) : null}
+        {/* 표창·채택한 아이디어를 실현하려고 대학원생에게 연구를 의뢰해요 */}
+        {applicant.status === "awarded" || applicant.status === "adopted" ? (
+          <ButtonLink href={researchNewHref(applicant.id)} size="sm" variant="secondary">
+            <span aria-hidden="true">🔬</span> {t("research.b2b.new")}
+          </ButtonLink>
+        ) : null}
+        {research ? (
+          <ButtonLink href={b2bResearchHref()} size="sm" variant="ghost">
+            {research} ›
           </ButtonLink>
         ) : null}
       </div>

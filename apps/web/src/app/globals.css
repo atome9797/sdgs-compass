@@ -140,6 +140,8 @@ svg { display: block; }
 .tab[aria-current="page"] { color: var(--primary); }
 .tab[aria-current="page"] .tab__icon { background: var(--primary-soft); }
 .tab:not([aria-current="page"]) .tab__icon { filter: grayscale(1); opacity: 0.6; }
+/* 기업 하단 탭은 7개(연구 의뢰 포함)라서 320px 폭에서도 넘치지 않게 아이콘 좌우 여백을 줄여요 */
+.tabbar--b2b .tab__icon { padding: 3px 8px; }
 /* 하단 탭은 학생·기업 모두 6개라서 칸이 좁아요 → 글자를 줄여서 언제나 한 줄로 둬요(320px 같은 아주 좁은 화면에서는 "メッセー/ジ" 처럼 꺾이는 것보다 더 줄이는 게 나아요).
    기업의 "ダッシュボード" 는 칸에 안 들어가서 하단 탭에서만 "ホーム" 로 보여요(lib/nav.ts 의 tabLabelKey) */
 .tab__label { font-size: 9.5px; letter-spacing: -0.05em; white-space: nowrap; }
@@ -646,3 +648,31 @@ button.fcard__action:hover, a.fcard__action:hover { background: var(--bg); color
 .wallet-card__row { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 .wallet-card__balance { font-size: var(--fs-xl); font-weight: 800; font-variant-numeric: tabular-nums; }
 .prize-kpis { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+
+/* ───────── 연구 의뢰 (연구자 /lab/* · 기업 /b2b/research/*) ───────── */
+.rcard { display: flex; flex-direction: column; gap: 8px; padding: 14px; }
+.rcard__head { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.rcard__logo { flex: none; width: 40px; height: 40px; border-radius: var(--radius-md); border: 1.5px solid transparent; display: grid; place-items: center; font-size: 22px; }
+.rcard__company { font-size: var(--fs-sm); font-weight: 700; color: var(--text-muted); overflow-wrap: anywhere; }
+.rcard__title { font-weight: 800; line-height: 1.45; text-wrap: balance; }
+.rcard__idea { font-size: var(--fs-sm); color: var(--text-muted); overflow-wrap: anywhere; }
+.rcard__facts { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; font-size: var(--fs-sm); }
+.rcard__fee { font-weight: 800; font-variant-numeric: tabular-nums; }
+.rrow--new > .rcard { border-color: var(--primary); box-shadow: 0 0 0 2px var(--primary-soft); }
+.rrow__result { display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; border-radius: var(--radius-md); background: var(--bg); }
+.rrow__result > summary { min-height: var(--tap); display: flex; align-items: center; cursor: pointer; }
+/* 아이디어를 형태로 만들기까지의 흐름 · 기업이 돈을 내는 때: 번호 원 + 한 줄. here = 지금 화면이 맡는 단계, outside = 앱 밖(제조·판로) */
+.flowlist { list-style: none; counter-reset: flow; display: flex; flex-direction: column; gap: 8px; }
+.flowlist > li { counter-increment: flow; display: flex; gap: 10px; align-items: flex-start; font-size: var(--fs-sm); line-height: 1.5; }
+.flowlist > li::before { content: counter(flow); flex: none; width: 24px; height: 24px; margin-top: -1px; border-radius: 50%; display: grid; place-items: center; background: var(--primary-soft); color: var(--primary-dark); font-weight: 800; font-size: var(--fs-xs); }
+.flowlist > li.flowlist__here { font-weight: 800; }
+.flowlist > li.flowlist__here::before { background: var(--primary); color: var(--on-primary); }
+.flowlist > li.flowlist__outside { color: var(--text-muted); }
+.flowlist > li.flowlist__outside::before { background: var(--bg); color: var(--text-muted); border: 1px dashed var(--border); }
+.flow-title { font-size: var(--fs-md); font-weight: 800; line-height: 1.4; }
+.stat-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+.research-top { display: flex; flex-direction: column; gap: 12px; }
+@media (min-width: 1024px) {
+  .b2b-shell .stat-grid { grid-template-columns: repeat(5, 1fr); }
+  .research-top { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
+}

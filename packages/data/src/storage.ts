@@ -4,6 +4,7 @@ import { CERT_CRITERIA } from "@sdgs-compass/core/certification";
 import type { DemoState, Role } from "@sdgs-compass/core/domain";
 import { isLocale, type Locale } from "@sdgs-compass/core/i18n";
 import { DEFAULT_OFFICIAL_CHANNEL, isOfficialChannel, isOfficialPostUrl, isOfficialStatus } from "@sdgs-compass/core/post";
+import { isResearchField, isResearchStatus } from "@sdgs-compass/core/research";
 import { SDG_IDS, type SdgId } from "@sdgs-compass/core/sdg";
 import { rebaseState } from "@sdgs-compass/core/state";
 import { createInitialState } from "./seed";
@@ -84,8 +85,9 @@ export interface Prefs {
 
 export const EMPTY_PREFS: Prefs = { locale: null, role: null };
 
+/** researcher(연구자 · 대학원생)는 웹 데모의 세 번째 역할이에요 — 모바일 앱은 고르게 하지 않지만 저장 모양은 같이 써요 */
 export function isRole(value: unknown): value is Role {
-  return value === "b2c" || value === "b2b";
+  return value === "b2c" || value === "b2b" || value === "researcher";
 }
 
 export function parsePrefs(raw: string | null): Prefs {
@@ -187,6 +189,39 @@ function isPrizeDeposit(value: unknown): boolean {
   );
 }
 
+const isFieldList = (value: unknown): boolean => Array.isArray(value) && value.length > 0 && value.every(isResearchField);
+
+function isResearcher(value: unknown): boolean {
+  return (
+    isObject(value) && typeof value.id === "string" && typeof value.name === "string" && isText(value.affiliation) && (value.degree === "master" || value.degree === "doctor") &&
+    typeof value.year === "number" && isFieldList(value.fields) && isText(value.bio)
+  );
+}
+
+function isResearchResult(value: unknown): boolean {
+  return (
+    isObject(value) && typeof value.summary === "string" && typeof value.fileName === "string" && typeof value.fileSizeBytes === "number" &&
+    typeof value.sha256 === "string" && isDateTime(value.submittedAt)
+  );
+}
+
+/** 연구 의뢰 한 건: 모양 + 상태와 맞는 값(모집 중이면 담당자 없음, 성과는 확인 대기·완료일 때만, 완료일은 완료일 때만) */
+function isResearchRequest(value: unknown): boolean {
+  if (!isObject(value) || typeof value.id !== "string" || typeof value.companyId !== "string") return false;
+  const o = value.origin;
+  if (!isObject(o) || !(o.proposalId === null || typeof o.proposalId === "string") || !(o.challengeId === null || typeof o.challengeId === "string")) return false;
+  if (typeof o.ideaTitle !== "string" || typeof o.teamName !== "string") return false;
+  if (!isText(value.title) || !isText(value.detail) || !isText(value.deliverable) || !isFieldList(value.fields) || !isYen(value.feeYen)) return false;
+  if (!isDay(value.postedOn) || !isDay(value.dueOn) || !isResearchStatus(value.status)) return false;
+  if (!(value.researcherId === null || typeof value.researcherId === "string") || !(value.acceptedOn === null || isDay(value.acceptedOn))) return false;
+  if (!(value.result === null || isResearchResult(value.result)) || !(value.completedOn === null || isDay(value.completedOn))) return false;
+  const open = value.status === "open";
+  const hasResult = value.status === "delivered" || value.status === "completed";
+  return (
+    open === (value.researcherId === null) && open === (value.acceptedOn === null) && hasResult === (value.result !== null) && (value.status === "completed") === (value.completedOn !== null)
+  );
+}
+
 /** 저장돼 있던 값이 지금 앱이 이해하는 모양인지 확인해요 (다르면 샘플 데이터로 새로 시작해요) */
 export function isDemoState(value: unknown): value is DemoState {
   if (!isObject(value) || value.version !== 1) return false;
@@ -198,6 +233,7 @@ export function isDemoState(value: unknown): value is DemoState {
   for (const key of lists) if (!Array.isArray(value[key])) return false;
   if (!(value.posts as unknown[]).every(isSocialPost)) return false;
   if (!isWallet(value.wallet) || !Array.isArray(value.prizeDeposits) || !value.prizeDeposits.every(isPrizeDeposit)) return false;
+  if (!isResearcher(value.researcher) || !Array.isArray(value.researchRequests) || !value.researchRequests.every(isResearchRequest)) return false;
   if (!(value.challenges as unknown[]).every((c) => isObject(c) && typeof c.id === "string" && isDay(c.opensOn) && isDay(c.closesOn))) return false;
   if (!(value.companies as unknown[]).every((c) => isObject(c) && typeof c.id === "string" && isCertScore(c.certScore))) return false;
   if (!(value.proposals as unknown[]).every((p) => isObject(p) && typeof p.id === "string" && Array.isArray(p.versions) && typeof p.submittedAt === "string")) return false;
@@ -241,6 +277,7 @@ function normalizeOfficial(post: unknown): unknown {
  * - #25 リワード残高가 생기기 전의 상태에는 wallet·prizeDeposits 가 없어요 → 저장했을 때의 "오늘" 기준 샘플(잔액·상금 예치)을 채워 넣어요.
  *   데모에서 새로 낸 과제(샘플에 없는 과제)는 예치 기록 없이 열려요.
  * - #35 실천 마크가 생기기 전의 상태에는 회사의 certScore 가 없어요 → 샘플 회사는 샘플 값으로, 샘플에 없는 회사는 null(마크 없음)로 채워요.
+ * - 연구 의뢰(세 번째 역할 · 연구자)가 생기기 전의 상태에는 researcher · researchRequests 가 없어요 → 저장했을 때의 "오늘" 기준 샘플을 채워요.
  */
 function upgradeSaved(data: unknown): unknown {
   if (!isObject(data) || data.version !== 1) return data;
@@ -253,6 +290,8 @@ function upgradeSaved(data: unknown): unknown {
     const ids = new Set(Array.isArray(next.challenges) ? next.challenges.map((c) => (isObject(c) ? c.id : null)) : []);
     next = { ...next, prizeDeposits: sample().prizeDeposits.filter((d) => ids.has(d.challengeId)) };
   }
+  if (next.researcher === undefined && isDay(data.today)) next = { ...next, researcher: sample().researcher };
+  if (next.researchRequests === undefined && isDay(data.today)) next = { ...next, researchRequests: sample().researchRequests };
   if (Array.isArray(next.companies) && next.companies.some((c) => isObject(c) && c.certScore === undefined) && isDay(data.today)) {
     const scores = new Map(sample().companies.map((c) => [c.id, c.certScore]));
     next = { ...next, companies: next.companies.map((c) => (isObject(c) && c.certScore === undefined ? { ...c, certScore: scores.get(String(c.id)) ?? null } : c)) };

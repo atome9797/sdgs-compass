@@ -55,6 +55,9 @@ export const common = {
   "role.b2cDesc": { ja: "課題に挑戦して、実績とキャリアをつくる", ko: "챌린지에 참여해 실적과 커리어를 만들어요" },
   "role.b2b": { ja: "企業・団体", ko: "기업·단체" },
   "role.b2bDesc": { ja: "SDGs課題を出題して、若い発想と人材に出会う", ko: "SDGs 과제를 출제하고 젊은 아이디어와 인재를 만나요" },
+  // 연구자(대학원생)는 웹 데모에만 있어요 (모바일 앱의 역할 선택은 학생·기업 두 가지)
+  "role.researcher": { ja: "研究者（大学院生）", ko: "연구자(대학원생)" },
+  "role.researcherDesc": { ja: "企業の研究依頼を引き受けて、成果を届ける", ko: "기업의 연구 의뢰를 맡아 성과를 전해요" },
   "role.persona": { ja: "デモ用アカウント：{name}", ko: "데모 계정: {name}" },
 
   "status.open": { ja: "募集中", ko: "모집 중" },

@@ -1,9 +1,9 @@
 "use client";
 
-// 역할별 화면 틀: 학생 = 휴대폰 폭 한 줄 + 하단 탭, 기업 = 1024px 이상이면 왼쪽 사이드바 + 넓은 본문, 그보다 좁으면 하단 탭.
+// 역할별 화면 틀: 학생·연구자 = 휴대폰 폭 한 줄 + 하단 탭, 기업 = 1024px 이상이면 왼쪽 사이드바 + 넓은 본문, 그보다 좁으면 하단 탭.
 import type { ReactNode } from "react";
 import { selectInbox } from "@sdgs-compass/core/selectors";
-import { B2B_TABS, B2C_TABS } from "@/lib/nav";
+import { B2B_TABS, B2C_TABS, LAB_TABS } from "@/lib/nav";
 import { useSession } from "@/lib/session";
 import { Brand, TopBar } from "./TopBar";
 import { SideNav, TabBar } from "./TabBar";
@@ -28,6 +28,20 @@ export function StudentShell({ children }: { children: ReactNode }) {
         {children}
       </main>
       <TabBar items={B2C_TABS} badges={{ messages: unread }} />
+    </div>
+  );
+}
+
+/** 연구자(대학원생) 화면: 학생과 같은 휴대폰 폭 틀에 연구자용 하단 탭(의뢰 찾기 · 내 연구 · 설정) */
+export function LabShell({ children }: { children: ReactNode }) {
+  return (
+    <div className="phone">
+      <SkipLink />
+      <TopBar />
+      <main id="main" className="main" tabIndex={-1}>
+        {children}
+      </main>
+      <TabBar items={LAB_TABS} />
     </div>
   );
 }

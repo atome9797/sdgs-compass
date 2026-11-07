@@ -9,7 +9,10 @@ export const extraWeb = {
   "web.lang.label": { ja: "言語", ko: "언어" },
   "web.roleShort.b2c": { ja: "学生", ko: "학생" },
   "web.roleShort.b2b": { ja: "企業", ko: "기업" },
-  "web.role.switchTo": { ja: "{role}の画面に切り替える", ko: "{role} 화면으로 전환" },
+  "web.roleShort.researcher": { ja: "研究者", ko: "연구자" },
+  // 역할 칩: 누르면 역할 선택 화면(학생·기업·연구자)으로 가요
+  "web.role.switch": { ja: "利用タイプを切り替える（いまは{role}）", ko: "이용 유형 전환(지금은 {role})" },
+  "web.settings.roleNote": { ja: "学生・企業・研究者（大学院生）の画面を切り替えて、一連の流れを確認できます。", ko: "학생·기업·연구자(대학원생) 화면을 바꿔 가며 전체 흐름을 확인할 수 있어요." },
 
   // 챌린지 상세
   "web.challenge.detail": { ja: "課題の詳細", ko: "챌린지 상세" },

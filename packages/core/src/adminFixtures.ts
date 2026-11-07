@@ -183,6 +183,8 @@ export function makeUsageState(overrides: Partial<DemoState> = {}): DemoState {
     esgGeneratedOn: null,
     wallet: { kyc: "none", kycVerifiedOn: null, entries: [] },
     prizeDeposits: [],
+    researcher: { id: "res1", name: "researcher", affiliation: "Test Graduate School", degree: "master", year: 1, fields: ["data"], bio: "" },
+    researchRequests: [],
     ...overrides,
   };
 }

@@ -2,13 +2,15 @@
 
 // B2B 관리자(SCR-06) 대시보드: 환영 · KPI 5개 · 챌린지 관리 · 상금 예치(#25 데모) · 결제와 기부 내역(¥30,000 = 기업의 기부 50% + 중개 수수료 50%)
 // #33 KPI 카드는 링크예요: 응모자·심사(모든 과제 + 상태 필터 — 주소에 남아요) 또는 이 화면 안의 칸(#b2b-challenges · #b2b-fees)으로 가요.
+// 연구 의뢰: 과제 관리 아래에 한 줄 요약(모집 중 · 연구 중 · 확인 대기)과 「研究依頼を見る」 — 확인 대기가 있으면 노란 안내예요.
 import Link from "next/link";
 import { useMemo, type ReactNode } from "react";
 import { coverColors, tint } from "@sdgs-compass/core/theme";
 import { ALL_CHALLENGES, selectB2bDashboard, type ChallengeCardVM, type FeeVM, type KpiVM } from "@sdgs-compass/core/selectors";
+import { selectB2bResearch } from "@sdgs-compass/core/researchView";
 import { selectPrizeDeposits, type PrizeDepositsVM } from "@sdgs-compass/core/walletView";
 import { Banner, ButtonLink, Empty, Section, Tag } from "@/components/ui";
-import { applicantsHref, buildHref, DASHBOARD_ANCHORS, ROUTES } from "@/lib/routes";
+import { applicantsHref, b2bResearchHref, buildHref, DASHBOARD_ANCHORS, ROUTES } from "@/lib/routes";
 import { useSession } from "@/lib/session";
 
 /** 숫자 카드 하나: 카드 전체가 링크(키보드·스크린 리더는 「숫자 + 갈 곳」 이름으로), 오른쪽의 › 가 누를 수 있다는 표시예요 */
@@ -206,6 +208,7 @@ export function DashboardScreen() {
   const { demo, locale, t } = useSession();
   const vm = useMemo(() => selectB2bDashboard(demo, locale), [demo, locale]);
   const prize = useMemo(() => selectPrizeDeposits(demo, locale), [demo, locale]);
+  const research = useMemo(() => selectB2bResearch(demo, locale), [demo, locale]);
   return (
     <>
       <div className="row row--between">
@@ -236,6 +239,15 @@ export function DashboardScreen() {
             ))}
           </ul>
         )}
+      </Section>
+
+      <Section title={t("research.b2b.title")} hint={t("research.b2b.intro")}>
+        <div className="card card--pad row row--between">
+          <p className="strong">🔬 {research.summary}</p>
+          <ButtonLink href={b2bResearchHref()} variant={research.needsAction > 0 ? "primary" : "secondary"} size="sm">
+            {t("research.b2b.go")} ›
+          </ButtonLink>
+        </div>
       </Section>
 
       <PrizeSection prize={prize} />

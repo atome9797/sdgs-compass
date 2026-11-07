@@ -3,8 +3,11 @@
 import type { LocalizedText, Text } from "./i18n";
 import type { SdgId } from "./sdg";
 
-/** 사용자 역할 (기능명세 3장: B2C 일반회원 / B2B 기업·기관 / Admin 은 데모 범위 밖) */
-export type Role = "b2c" | "b2b";
+/**
+ * 사용자 역할 (기능명세 3장: B2C 일반회원 / B2B 기업·기관 / Admin 은 데모 범위 밖).
+ * researcher = 기업의 연구 의뢰를 맡는 대학원생 — 웹 데모에만 있어요(모바일 앱은 학생·기업 두 역할 그대로). 아래 ResearchRequest 참고.
+ */
+export type Role = "b2c" | "b2b" | "researcher";
 
 export const SKILL_IDS = ["design", "marketing", "programming", "data", "research", "writing", "video", "planning", "languages", "finance"] as const;
 export type SkillId = (typeof SKILL_IDS)[number];
@@ -323,6 +326,81 @@ export interface PrizeDeposit {
   proposalId: string | null;
 }
 
+// ───────── 연구 의뢰 (대학원생 연구자) ─────────
+// 흐름: ① 기업이 SDGs 과제와 상금을 내요 → ② 학생이 아이디어를 내고 심사·표창(채택)돼요 → ③ 기업이 그 아이디어를 실현하려고
+// 「연구 의뢰」(두 번째 과제)를 의뢰비와 함께 내요 → ④ 대학원생 연구자가 맡아 연구하고 성과(보고서·데이터)를 기업에 보내요 → 기업이 확인하면 의뢰비를 받아요.
+// 공장·판로는 은행의 비즈니스 매칭이 맡아서 앱에서는 다루지 않아요. 운영 수수료는 대학원생 설문 뒤에 정해서(화면에는 「予定」), 금액은 아직 코드에 없어요.
+// 웹 데모 전용이고 DB 표는 아직 없어요 — 설계와 열린 질문은 docs/research.md.
+
+export const RESEARCH_FIELDS = ["environment", "materials", "food", "energy", "data", "social"] as const;
+/** 연구 분야 (의뢰마다 1~3개, 연구자 프로필에도 써요) */
+export type ResearchField = (typeof RESEARCH_FIELDS)[number];
+
+/** open = 연구자를 찾는 중 · inProgress = 연구 중 · delivered = 성과가 도착해서 기업 확인 대기 · completed = 기업이 확인(의뢰비 지급) */
+export type ResearchRequestStatus = "open" | "inProgress" | "delivered" | "completed";
+
+/** 연구의 출발점이 된 학생 아이디어(표창·채택된 기획서). 기획서의 제목·팀 이름 사본을 들고 있어서, 데모 밖의 샘플 아이디어도 보여 줄 수 있어요 */
+export interface ResearchOrigin {
+  /** 데모 안의 기획서 id. 데모에 기획서가 없는 샘플은 null */
+  proposalId: string | null;
+  /** 아이디어가 나온 과제 (데모에 과제가 없는 샘플은 null) */
+  challengeId: string | null;
+  /** 학생이 쓴 글 그대로(한 가지 언어) */
+  ideaTitle: string;
+  teamName: string;
+}
+
+/** 연구자가 보낸 성과: 요약 + 파일 1개 (데모는 파일 이름·크기만 읽어요 — 내용은 읽거나 보내지 않아요) */
+export interface ResearchResult {
+  /** 연구자가 쓴 글 그대로(한 가지 언어) */
+  summary: string;
+  fileName: string;
+  fileSizeBytes: number;
+  /** 파일 지문 (데모에서는 의뢰 id·파일 이름·크기·요약으로 만든 SHA-256 — research.ts 의 resultFingerprint) */
+  sha256: string;
+  /** YYYY-MM-DDTHH:mm */
+  submittedAt: string;
+}
+
+/** 연구 의뢰 1건. 의뢰비(feeYen)는 기업이 정하고, 성과를 확인한 뒤 기업이 연구자에게 직접 지급해요(데모는 기록만) */
+export interface ResearchRequest {
+  id: string;
+  companyId: string;
+  origin: ResearchOrigin;
+  title: Text;
+  /** 연구해 주었으면 하는 것 */
+  detail: Text;
+  /** 받고 싶은 성과물 (예: 보고서 PDF와 데이터) */
+  deliverable: Text;
+  fields: ResearchField[];
+  feeYen: number;
+  /** YYYY-MM-DD */
+  postedOn: string;
+  /** 성과를 보내는 기한 (YYYY-MM-DD) */
+  dueOn: string;
+  status: ResearchRequestStatus;
+  /** 맡은 연구자 (open 이면 null) */
+  researcherId: string | null;
+  acceptedOn: string | null;
+  /** delivered · completed 일 때만 */
+  result: ResearchResult | null;
+  /** completed 일 때만 — 기업이 성과를 확인하고 의뢰비를 지급한 날 */
+  completedOn: string | null;
+}
+
+/** 데모의 연구자 계정(대학원생). 소속은 가상의 샘플이에요 */
+export interface ResearcherProfile {
+  id: string;
+  /** 닉네임 (학생 프로필과 같이 실명이 아니에요) */
+  name: string;
+  affiliation: Text;
+  degree: "master" | "doctor";
+  /** 학년 (석사 1~2, 박사 1~3) */
+  year: number;
+  fields: ResearchField[];
+  bio: Text;
+}
+
 /** 앱 하나가 들고 있는 데모 상태 전체 (state.ts 의 reducer 가 바꿔요) */
 export interface DemoState {
   version: 1;
@@ -352,6 +430,10 @@ export interface DemoState {
   wallet: Wallet;
   /** #25 과제마다 기업이 맡긴 상금 (데모) */
   prizeDeposits: PrizeDeposit[];
+  /** 이 데모의 연구자 계정 (역할 researcher) */
+  researcher: ResearcherProfile;
+  /** 연구 의뢰 (우리 회사가 낸 것 + 다른 회사의 샘플). 화면에서는 날짜순으로 정렬해요 */
+  researchRequests: ResearchRequest[];
 }
 
 export type { LocalizedText };

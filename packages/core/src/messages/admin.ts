@@ -61,7 +61,7 @@ export const admin = {
   "admin.usage.sub.proposals": { ja: "審査済み {reviewed}・採用 {adopted}", ko: "심사 완료 {reviewed}·채택 {adopted}" },
   "admin.usage.sub.certificates": { ja: "デモ学生の分", ko: "데모 학생 기준" },
   "admin.usage.sub.scouts": { ja: "承諾 {accepted}・既読 {read}・辞退 {declined}", ko: "수락 {accepted}·읽음 {read}·거절 {declined}" },
-  "admin.usage.sub.matches": { ja: "手数料 {fee}（うち寄付 {donation}）", ko: "수수료 {fee}(그중 기부 {donation})" },
+  "admin.usage.sub.matches": { ja: "お支払い {fee}（うち企業の寄付 {donation}）", ko: "결제 {fee}(그중 기업의 기부 {donation})" },
   "admin.usage.sub.posts": { ja: "学生の実績 {brag}・企業PR {pr}", ko: "학생 자랑 {brag}·기업 홍보 {pr}" },
   "admin.usage.sub.official": { ja: "予定 {scheduled}・掲載済み {posted}", ko: "예정 {scheduled} · 게시됨 {posted}" },
 
@@ -72,7 +72,10 @@ export const admin = {
     ja: "フィードには{posts}件の投稿があり（学生の実績{brag}件・企業PR{pr}件）、いいねは合計{likes}です。",
     ko: "피드에는 글이 {posts}건 있고(학생 자랑 {brag}건·기업 홍보 {pr}건), 좋아요는 합계 {likes}개예요.",
   },
-  "admin.usage.insight.matches": { ja: "マッチングは{matches}件で、手数料{fee}のうち{donation}を寄付に充てています。", ko: "매칭은 {matches}건이고, 수수료 {fee} 가운데 {donation}을 기부에 써요." },
+  "admin.usage.insight.matches": {
+    ja: "マッチングは{matches}件で、企業のお支払い{fee}のうち{donation}は企業ご自身の寄付です（当社は受け取りを代行）。",
+    ko: "매칭은 {matches}건이고, 기업 결제 {fee} 가운데 {donation}은 기업 자신의 기부예요(우리는 수령만 대행).",
+  },
   "admin.usage.insight.scouts": { ja: "スカウト{total}件のうち、承諾は{accepted}件、既読は{read}件です。", ko: "스카우트 {total}건 가운데 수락은 {accepted}건, 읽음은 {read}건이에요." },
   "admin.usage.insight.official": { ja: "公式SNS掲載の申請は{n}件です。", ko: "공식 SNS 게시 신청은 {n}건이에요." },
   "admin.usage.insight.busy": { ja: "{range}でいちばん動きがあったのは「{label}」ごろで、{n}件でした。", ko: "{range} 중 움직임이 가장 많았던 때는 “{label}” 무렵이고, {n}건이었어요." },

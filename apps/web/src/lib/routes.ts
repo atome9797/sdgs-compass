@@ -104,7 +104,7 @@ export const impactSummaryHref = (period?: string | null): string => buildHref(R
  */
 export const applicantsHref = (id?: string | null, status?: ApplicantFilter | null): string =>
   buildHref(ROUTES.b2bApplicants, { id, status: status === "all" ? null : status });
-/** 대시보드 안의 칸 앵커 (#33: 숫자 카드 「募集中の課題」 → 課題の管理, 「寄付累計」 → 仲介手数料と寄付) */
+/** 대시보드 안의 칸 앵커 (#33: 숫자 카드 「募集中の課題」 → 課題の管理, 「寄付累計」 → お支払いと寄付) */
 export const DASHBOARD_ANCHORS: Record<DashboardSection, string> = { challenges: "b2b-challenges", fees: "b2b-fees" };
 export function searchHref(opts: { q?: string; sdgIds?: readonly SdgId[] } = {}): string {
   return buildHref(ROUTES.search, { q: opts.q, sdg: opts.sdgIds && opts.sdgIds.length > 0 ? opts.sdgIds.join(",") : undefined });

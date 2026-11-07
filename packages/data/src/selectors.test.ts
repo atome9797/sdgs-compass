@@ -842,7 +842,7 @@ describe("대시보드 숫자 카드 → 해당 목록, 응모자 상태 필터 
     ]);
     const label = (id: string) => ja.kpis.find((k) => k.id === id)!;
     expect(label("pending").actionLabel).toBe(`審査待ち ${label("pending").value}（審査待ちの応募者を見る）`);
-    expect(label("donation").actionLabel).toBe(`寄付累計（貴社名義） ${formatYen(30_000, "ja")}（仲介手数料と寄付の内訳を見る）`);
+    expect(label("donation").actionLabel).toBe(`寄付累計（貴社の寄付） ${formatYen(30_000, "ja")}（お支払いと寄付の内訳を見る）`);
     for (const kpi of ja.kpis) expect(kpi.actionLabel.startsWith(`${kpi.label} ${kpi.value}`)).toBe(true);
     const ko = selectB2bDashboard(submitted, "ko");
     expect(ko.kpis.find((k) => k.id === "matches")!.actionLabel).toBe(`매칭 성립 ${ko.kpis.find((k) => k.id === "matches")!.value} (채택한 응모자 보기)`);
@@ -892,7 +892,7 @@ describe("대시보드 숫자 카드 → 해당 목록, 응모자 상태 필터 
     // 내 기획서를 채택하면 매칭 3건 중 1건이 목록에 보여요
     const after = selectApplicants(reviewedMine, "ko", ALL_CHALLENGES, "adopted");
     expect(after.applicants.map((a) => a.id)).toEqual([mineId]);
-    expect(after.countNote).toBe("매칭 성립 3건에는 기획서 데이터가 없는 지난 채택(샘플 · 내역은 대시보드의 「중개 수수료와 기부」)도 포함돼요. 여기에는 1건을 보여 줘요.");
+    expect(after.countNote).toBe("매칭 성립 3건에는 기획서 데이터가 없는 지난 채택(샘플 · 내역은 대시보드의 「결제와 기부」)도 포함돼요. 여기에는 1건을 보여 줘요.");
     // 한 과제만 볼 때: 응모자 수와 기획서 수가 같으면 안내가 없어요
     expect(selectApplicants(submitted, "ja", "ch-plastic").countNote).toBeNull();
     // 응모자 수(샘플)만 있고 기획서가 없는 지난 과제는 안내 + 「表示できる企画書はありません」

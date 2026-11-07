@@ -1,6 +1,6 @@
-// SCR-06 기업 대시보드: 환영 · KPI 5개 · 챌린지 관리 · 상금 예치(#25 데모) · 중개 수수료와 기부 내역(1건 ¥30,000 → 50% 기부).
+// SCR-06 기업 대시보드: 환영 · KPI 5개 · 챌린지 관리 · 상금 예치(#25 데모) · 결제와 기부 내역(1건 ¥30,000 = 기업의 기부 50% + 중개 수수료 50%).
 // 숫자는 모두 core 의 selectB2bDashboard 에서 와요. 챌린지 카드의 "응모자 보기"는 그 챌린지를 고른 채로 응모자 탭을 열어요.
-// #33 KPI 카드를 누르면: 응모자 탭(모든 과제 + 상태 필터) 또는 이 화면 안의 칸(課題の管理 · 仲介手数料と寄付)으로 스크롤해요.
+// #33 KPI 카드를 누르면: 응모자 탭(모든 과제 + 상태 필터) 또는 이 화면 안의 칸(課題の管理 · お支払いと寄付)으로 스크롤해요.
 import { useRouter } from "expo-router";
 import { useMemo, useRef, type ComponentRef } from "react";
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";
@@ -53,7 +53,7 @@ function FeeCell({ label, value, donation = false }: { label: string; value: str
   );
 }
 
-/** 중개 수수료와 기부 내역: 1건당 내역(수수료 = 기부 50% + 운영 수익 50%) · 누계 · 건별 목록 */
+/** 결제와 기부 내역: 1건당 내역(결제 ¥30,000 = 기업의 기부 50% + 중개 수수료 50%) · 누계 · 건별 목록 */
 export function FeeSection({ fee }: { fee: FeeVM }) {
   const { t } = useApp();
   return (

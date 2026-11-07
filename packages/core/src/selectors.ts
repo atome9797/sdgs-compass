@@ -786,7 +786,7 @@ export function selectInbox(state: DemoState, locale: Locale): InboxVM {
 // ───────── B2B 대시보드(SCR-06) ─────────
 
 export type KpiId = "open" | "applicants" | "pending" | "matches" | "donation";
-/** 대시보드 안에서 숫자 카드가 가리키는 칸 (#33): 課題の管理 · 仲介手数料と寄付 */
+/** 대시보드 안에서 숫자 카드가 가리키는 칸 (#33): 課題の管理 · お支払いと寄付 */
 export type DashboardSection = "challenges" | "fees";
 /** 숫자 카드를 누르면 가는 곳 (#33): 대시보드의 칸, 또는 상태 필터가 켜진 응모자 화면(모든 과제) */
 export type KpiTarget = { kind: "section"; section: DashboardSection } | { kind: "applicants"; filter: ApplicantFilter };

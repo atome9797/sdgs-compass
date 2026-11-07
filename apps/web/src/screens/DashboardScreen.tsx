@@ -1,6 +1,6 @@
 "use client";
 
-// B2B 관리자(SCR-06) 대시보드: 환영 · KPI 5개 · 챌린지 관리 · 상금 예치(#25 데모) · 중개 수수료와 기부 내역(¥30,000 → 50% 기부)
+// B2B 관리자(SCR-06) 대시보드: 환영 · KPI 5개 · 챌린지 관리 · 상금 예치(#25 데모) · 결제와 기부 내역(¥30,000 = 기업의 기부 50% + 중개 수수료 50%)
 // #33 KPI 카드는 링크예요: 응모자·심사(모든 과제 + 상태 필터 — 주소에 남아요) 또는 이 화면 안의 칸(#b2b-challenges · #b2b-fees)으로 가요.
 import Link from "next/link";
 import { useMemo, type ReactNode } from "react";

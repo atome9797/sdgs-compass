@@ -4,7 +4,7 @@ import type { LocalizedText } from "../i18n";
 
 export const common = {
   "app.name": { ja: "SDGsコンパス", ko: "SDGs 컴파스" },
-  "app.tagline": { ja: "企業と学生をつなぐSDGs特化型マッチング", ko: "기업과 학생을 잇는 SDGs 특화 매칭" },
+  "app.tagline": { ja: "提案で選ばれるSDGsインターン", ko: "제안으로 뽑히는 SDGs 인턴십" },
   "app.demoBadge": { ja: "デモ版", ko: "데모 버전" },
   "app.demoNote": { ja: "サンプルデータで動作する試作版です", ko: "샘플 데이터로 동작하는 시제품입니다" },
   // 앱 전체 고지(#19): 웹 사이드바 아래·첫 화면·설정, 모바일 설정에 작게 항상 보여요

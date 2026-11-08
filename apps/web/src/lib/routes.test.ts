@@ -3,7 +3,7 @@ import { MESSAGES } from "@sdgs-compass/core/messages";
 import { activeTabId, ADMIN_TABS, B2B_TABS, B2C_TABS, LAB_TABS, tabsFor } from "./nav";
 import { ALL_CHALLENGES, APPLICANT_FILTERS, KPI_TARGETS, parseApplicantFilter } from "@sdgs-compass/core/selectors";
 import {
-  ADMIN_PATHS, areaOf, applicantsHref, b2bResearchHref, buildHref, certificateHref, challengeHref, DASHBOARD_ANCHORS, feedHref, guardRedirect, homeFor, impactHref, impactSummaryHref, isAdminPath, labHref,
+  ADMIN_PATHS, areaOf, applicantsHref, b2bResearchHref, networkCompanyHref, networkHref, networkNewHref, workRequestHref, buildHref, certificateHref, challengeHref, DASHBOARD_ANCHORS, feedHref, guardRedirect, homeFor, impactHref, impactSummaryHref, isAdminPath, labHref,
   labRequestHref, normalizeBasePath, normalizePath, parseSdgParam, postNewHref, receiptHref, researchNewHref, ROUTES, searchHref, shareHref, stripBasePath, submitHref, withBase,
 } from "./routes";
 
@@ -79,6 +79,14 @@ describe("연구 의뢰 · 연구자(세 번째 역할) 화면", () => {
     expect(buildHref(ROUTES.labSettings)).toBe("/lab/settings/");
     expect(b2bResearchHref()).toBe("/b2b/research/");
     expect(b2bResearchHref("rr100")).toBe("/b2b/research/?posted=rr100");
+    expect(networkHref()).toBe("/b2b/network/");
+    expect(networkHref({ tab: "find", sort: "rating", q: "" })).toBe("/b2b/network/");
+    expect(networkHref({ tab: "mine" })).toBe("/b2b/network/?tab=mine");
+    expect(networkHref({ category: "prototype", sort: "deals", q: "静岡" })).toBe(`/b2b/network/?category=prototype&sort=deals&q=${encodeURIComponent("静岡")}`);
+    expect(networkCompanyHref("co-sakura")).toBe("/b2b/network/company/?id=co-sakura");
+    expect(networkNewHref({ to: "co-sakura" })).toBe("/b2b/network/new/?to=co-sakura");
+    expect(networkNewHref({ mode: "open" })).toBe("/b2b/network/new/?mode=open");
+    expect(workRequestHref("wr-2")).toBe("/b2b/network/request/?id=wr-2");
     expect(researchNewHref()).toBe("/b2b/research/new/");
     expect(researchNewHref("pb-1")).toBe("/b2b/research/new/?proposal=pb-1");
   });
@@ -114,6 +122,8 @@ describe("연구 의뢰 · 연구자(세 번째 역할) 화면", () => {
     expect(guardRedirect("/b2b/research/", "b2b")).toBeNull();
     expect(guardRedirect("/b2b/research/new/?proposal=pb-1", "b2b")).toBeNull();
     expect(guardRedirect("/b2b/research/", "b2c")).toBe("/home/");
+    expect(guardRedirect("/b2b/network/request/?id=wr-2", "b2b")).toBeNull();
+    expect(guardRedirect("/b2b/network/", "researcher")).toBe("/lab/");
   });
 
   it("연구자 탭: 의뢰 찾기(상세 포함) · 내 연구 · 설정 / 기업 탭의 「研究」는 목록과 새 의뢰에서 켜져요", () => {
@@ -130,8 +140,10 @@ describe("연구 의뢰 · 연구자(세 번째 역할) 화면", () => {
     expect(activeTabId(LAB_TABS, "/lab/mine/")).toBe("mine");
     expect(activeTabId(LAB_TABS, "/lab/settings/")).toBe("settings");
     expect(activeTabId(LAB_TABS, "/sdgs-compass/lab/mine/", "/sdgs-compass")).toBe("mine");
-    expect(activeTabId(B2B_TABS, "/b2b/research/")).toBe("research");
-    expect(activeTabId(B2B_TABS, "/b2b/research/new/")).toBe("research");
+    expect(activeTabId(B2B_TABS, "/b2b/research/")).toBe("requests");
+    expect(activeTabId(B2B_TABS, "/b2b/research/new/")).toBe("requests");
+    // 기업 네트워크도 같은 「依頼」 탭이에요
+    for (const path of ["/b2b/network/", "/b2b/network/company/", "/b2b/network/new/", "/b2b/network/request/"]) expect(activeTabId(B2B_TABS, path), path).toBe("requests");
   });
 });
 
@@ -333,7 +345,7 @@ describe("탭 정의", () => {
     // 피드는 두 번째 탭이에요 (6개 — 390px 폭에 들어가도록 짧은 이름을 써요)
     expect(B2C_TABS.map((t) => t.id)).toEqual(["home", "feed", "search", "impact", "messages", "settings"]);
     // 기업 탭은 7개 — 연구 의뢰(研究)가 응모자 다음이에요(하단 탭에서는 짧은 이름)
-    expect(B2B_TABS.map((t) => t.id)).toEqual(["dashboard", "feed", "applicants", "research", "talent", "esg", "settings"]);
+    expect(B2B_TABS.map((t) => t.id)).toEqual(["dashboard", "feed", "applicants", "requests", "talent", "esg", "settings"]);
     expect(tabsFor("b2c")).toBe(B2C_TABS);
     expect(tabsFor("b2b")).toBe(B2B_TABS);
   });

@@ -1,12 +1,14 @@
 "use client";
 
 // 연구 의뢰 상세 /lab/request/?id=: 진행 단계 · 연구해 주었으면 하는 것 · 성과물 · 출발점 아이디어 · 거래 조건 · 맡기 전에 확인할 것 · 상태별 동작
-// 모집 중 → 「この依頼を引き受ける」(데모: 바로 담당) / 연구 중(내 것) → 성과 보내기(요약 + 파일 이름·크기만) / 확인 대기 → 기다림 / 완료 → 받은 의뢰비
+// 모집 중 → 「この依頼を引き受ける」(데모: 바로 담당) / 연구 중(내 것) → 성과 보내기(요약 + 파일 이름·크기만) / 확인 대기 → 기다림 / 완료 → 받은 의뢰비 · 기업 평가
 import { useSearchParams } from "next/navigation";
 import { useMemo, useState, type ChangeEvent, type FormEvent } from "react";
 import { formatBytes } from "@sdgs-compass/core/format";
+import { ratingReceived } from "@sdgs-compass/core/networkView";
 import { RESEARCH_LIMITS, RESULT_EXTENSIONS, validateResearchResult, type ResearchResultError } from "@sdgs-compass/core/research";
 import { researchResultErrorText, selectResearchDetail, type ResearchDetailVM } from "@sdgs-compass/core/researchView";
+import { RatingBlock, RatingItem } from "@/components/Network";
 import { ResearchResultBox, ResearchSteps, ResearchTerms } from "@/components/Research";
 import { Banner, Button, ButtonLink, Card, Counter, Empty, Field, ScreenHead, Section, Tag } from "@/components/ui";
 import { buildHref, ROUTES } from "@/lib/routes";
@@ -79,6 +81,17 @@ function ResultForm({ vm }: { vm: ResearchDetailVM }) {
   );
 }
 
+/** 끝난 내 의뢰: 의뢰한 기업을 평가해요 (약속대로 지급했는지 — 기업의 신뢰 실적이 돼요) */
+function CompanyRating({ vm }: { vm: ResearchDetailVM }) {
+  const { demo, locale, t } = useSession();
+  const theirs = ratingReceived(demo, "researcher", "research", vm.id, locale);
+  return (
+    <RatingBlock role="researcher" target={{ kind: "research", refId: vm.id, toRole: "company", toId: vm.companyId }} title={t("rating.rateFor", { name: vm.companyName })}>
+      {theirs ? <RatingItem vm={theirs} title={t("rating.theirs")} /> : null}
+    </RatingBlock>
+  );
+}
+
 function Actions({ vm }: { vm: ResearchDetailVM }) {
   const { t, dispatch } = useSession();
   if (vm.canAccept) {
@@ -120,6 +133,7 @@ function Actions({ vm }: { vm: ResearchDetailVM }) {
       <Card>
         <ResearchResultBox vm={vm} />
       </Card>
+      {vm.mine && vm.status === "completed" ? <CompanyRating vm={vm} /> : null}
     </Section>
   );
 }

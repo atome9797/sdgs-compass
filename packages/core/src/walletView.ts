@@ -6,6 +6,7 @@ import { formatDate, formatYen } from "./format";
 import { pick, type Locale } from "./i18n";
 import { awardLabel } from "./labels";
 import { makeT, translate, type MessageKey } from "./messages";
+import { prizeRefOf } from "./network";
 import { walletTotals } from "./wallet";
 
 export const WALLET_KIND_EMOJI: Record<WalletEntryKind, string> = { prize: "🏆", return: "🤝" };
@@ -22,6 +23,8 @@ export interface WalletEntryVM {
   amountLabel: string;
   /** 상금을 지급한 기업 (특별상이면 null) — 받은 뒤 그 기업을 평가할 때 써요 */
   companyId: string | null;
+  /** 그 평가의 대상 거래(network.ts prizeRefOf: 과제 id · 활동 id · 기록 id), 특별상이면 null */
+  ratingRef: string | null;
 }
 
 export interface WalletVM {
@@ -61,6 +64,7 @@ export function walletEntryVM(state: DemoState, entry: WalletEntry, locale: Loca
     dateLabel: formatDate(entry.date, locale),
     amountLabel: `+${formatYen(entry.amountYen, locale)}`,
     companyId: entry.source.kind === "prize" ? entry.source.companyId : null,
+    ratingRef: entry.source.kind === "prize" ? prizeRefOf(entry.source, entry.id) : null,
   };
 }
 

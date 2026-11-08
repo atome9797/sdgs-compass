@@ -40,6 +40,9 @@ export function researchPayTimings(locale: Locale): { items: string[]; note: str
 export interface ResearchCardVM {
   id: string;
   title: string;
+  /** 의뢰한 기업 · 맡은 연구자 (아직 없으면 null) — 끝난 뒤 서로 평가할 때 써요 */
+  companyId: string;
+  researcherId: string | null;
   companyName: string;
   companyEmoji: string;
   companyAccent: string;
@@ -120,6 +123,8 @@ function cardVM(state: DemoState, request: ResearchRequest, locale: Locale): Res
   return {
     id: request.id,
     title: pick(request.title, locale),
+    companyId: request.companyId,
+    researcherId: request.researcherId,
     companyName: company ? pick(company.name, locale) : "—",
     companyEmoji: company?.emoji ?? "🏢",
     companyAccent: company?.accent ?? "#6B7C75",

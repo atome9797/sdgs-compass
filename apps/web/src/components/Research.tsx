@@ -65,7 +65,7 @@ export function ResearchSteps({ vm }: { vm: ResearchDetailVM }) {
 }
 
 /**
- * 아이디어를 형태로 만들기까지의 흐름(5단계). here = 지금 화면이 맡는 단계(강조), 마지막 단계(제조·판로)는 앱 밖이라 흐리게 보여요.
+ * 아이디어를 형태로 만들기까지의 흐름(5단계). here = 지금 화면이 맡는 단계(강조). 마지막 단계(제조·판로)는 기업 네트워크(신뢰 기업끼리의 의뢰)예요.
  * 기업이 돈을 내는 때(상금 · 의뢰비)가 단계에 들어 있어서 「언제 무엇에 돈을 내는지」가 한눈에 보여요.
  */
 export function ResearchFlow({ here }: { here: readonly number[] }) {
@@ -78,7 +78,7 @@ export function ResearchFlow({ here }: { here: readonly number[] }) {
       </h2>
       <ol className="flowlist">
         {steps.map((text, i) => (
-          <li key={text} className={here.includes(i + 1) ? "flowlist__here" : i === steps.length - 1 ? "flowlist__outside" : undefined}>
+          <li key={text} className={here.includes(i + 1) ? "flowlist__here" : undefined}>
             {text}
           </li>
         ))}

@@ -1153,7 +1153,7 @@ describe("SDGs 실천 마크 — ★5 만점 · 0.5 단위, 학생에게도 회�
 
   it("샘플 회사의 마크: 우리 회사는 ESG 입력값(53점 ★2.5), 다른 회사는 가상의 샘플 값, 마크 없는 회사(未取得)는 null", () => {
     for (const locale of LOCALES) {
-      expect(starsOf(initial, locale)).toEqual({ "co-minato": "★2.5", "co-green": "★4.0", "co-hikari": "★4.5", "co-machi": "★1.5", "co-yasai": null, "co-kotoba": "★3.5" });
+      expect(starsOf(initial, locale)).toEqual({ "co-minato": "★2.5", "co-green": "★4.0", "co-hikari": "★4.5", "co-machi": "★1.5", "co-yasai": null, "co-kotoba": "★3.5", "co-sakura": "★3.0" });
     }
     expect(selectCompanyMark(initial, "없는-회사", "ja")).toBeNull();
   });

@@ -3,9 +3,10 @@
 import { deriveActivities, showableActivities } from "./activities";
 import { buildChallenge, validateChallengeDraft, type ChallengeDraft } from "./challenge";
 import { clampCertValue } from "./certification";
-import type { AwardKind, BragPost, CertCriterionId, DemoState, Match, PrPost, Proposal, Review, Role, Scout, ScoutKind, SkillId, TeamPost } from "./domain";
+import type { AwardKind, BragPost, CertCriterionId, DemoState, Match, PrPost, Proposal, RaterRole, Review, Role, Scout, ScoutKind, SkillId, TeamPost } from "./domain";
 import { addDays, daysBetween } from "./format";
 import { levelOf } from "./impact";
+import { applyWorkRequest, chooseWorkApplicant, completeWork, deliverWork, postWorkRequest, rate, respondWorkRequest, type RatingDraft, type WorkDraft } from "./network";
 import { authorRole, DEFAULT_OFFICIAL_CHANNEL, OFFICIAL_SHARE_FEE_YEN, POST_LIMITS, postContext, resolveOfficialDate, uniqueSdgs, validatePostDraft, type PostDraft } from "./post";
 import { fileFingerprint, makeReceiptNo, validateProposalDraft, type ProposalDraft } from "./proposal";
 import { canSendScout } from "./scout";
@@ -45,7 +46,21 @@ export type Action =
   /** 맡은 연구자가 성과(요약 + 파일)를 보내요 */
   | { type: "submitResearchResult"; requestId: string; draft: ResearchResultDraft; at: string }
   /** 의뢰한 기업이 성과를 확인하고 완료로 — 의뢰비는 기업이 연구자에게 직접 지급(데모는 기록만) */
-  | { type: "completeResearchRequest"; requestId: string; at: string };
+  | { type: "completeResearchRequest"; requestId: string; at: string }
+  /** 기업 네트워크(network.ts): 신뢰 기업인 우리 회사가 업무를 지명 의뢰하거나 공개 모집해요. 입력 검사를 통과하지 못하면 그대로 */
+  | { type: "postWorkRequest"; draft: WorkDraft; at: string }
+  /** 우리 회사가 지명받은 의뢰를 맡거나(accept) 거절해요 */
+  | { type: "respondWorkRequest"; requestId: string; accept: boolean; at: string }
+  /** 다른 기업의 공개 모집에 한 줄로 응모해요 */
+  | { type: "applyWorkRequest"; requestId: string; message: string; at: string }
+  /** 우리 회사의 공개 모집에 응모한 기업 한 곳에 맡겨요 */
+  | { type: "chooseWorkApplicant"; requestId: string; companyId: string; at: string }
+  /** 우리 회사가 맡은 의뢰의 납품을 알려요 */
+  | { type: "deliverWork"; requestId: string; note: string; at: string }
+  /** 우리 회사가 의뢰한 일의 납품을 확인하고 끝내요 — 의뢰비는 직접 지급(데모는 기록만) */
+  | { type: "completeWork"; requestId: string; at: string }
+  /** 끝난 거래의 상대를 평가해요 (role = 지금 화면의 계정: 학생 · 연구자 · 기업) */
+  | { type: "rate"; role: RaterRole; draft: RatingDraft; at: string };
 
 const clampScore = (n: number) => Math.min(5, Math.max(1, Math.round(n)));
 
@@ -302,6 +317,27 @@ export function reducer(state: DemoState, action: Action): DemoState {
 
     case "completeResearchRequest":
       return completeResearchRequest(state, action.requestId, action.at);
+
+    case "postWorkRequest":
+      return postWorkRequest(state, action.draft, action.at);
+
+    case "respondWorkRequest":
+      return respondWorkRequest(state, action.requestId, action.accept, action.at);
+
+    case "applyWorkRequest":
+      return applyWorkRequest(state, action.requestId, action.message, action.at);
+
+    case "chooseWorkApplicant":
+      return chooseWorkApplicant(state, action.requestId, action.companyId, action.at);
+
+    case "deliverWork":
+      return deliverWork(state, action.requestId, action.note, action.at);
+
+    case "completeWork":
+      return completeWork(state, action.requestId, action.at);
+
+    case "rate":
+      return rate(state, action.role, action.draft, action.at);
   }
 }
 
@@ -348,5 +384,15 @@ export function rebaseState(state: DemoState, today: string): DemoState {
       result: r.result ? { ...r.result, submittedAt: shift(r.result.submittedAt, delta) } : null,
       completedOn: r.completedOn ? shift(r.completedOn, delta) : null,
     })),
+    workRequests: state.workRequests.map((w) => ({
+      ...w,
+      postedOn: shift(w.postedOn, delta),
+      dueOn: shift(w.dueOn, delta),
+      applications: w.applications.map((a) => ({ ...a, appliedOn: shift(a.appliedOn, delta) })),
+      acceptedOn: w.acceptedOn ? shift(w.acceptedOn, delta) : null,
+      deliveredOn: w.deliveredOn ? shift(w.deliveredOn, delta) : null,
+      completedOn: w.completedOn ? shift(w.completedOn, delta) : null,
+    })),
+    ratings: state.ratings.map((r) => ({ ...r, createdOn: shift(r.createdOn, delta) })),
   };
 }

@@ -136,12 +136,12 @@ describe("샘플 데이터", () => {
 
   it("다른 샘플 회사들도 가상의 마크 값을 가져요 (#35) — 서로 다른 별, 하나는 未取得", () => {
     const scores = Object.fromEntries(state.companies.map((c) => [c.id, c.certScore]));
-    expect(scores).toEqual({ "co-minato": null, "co-green": 84, "co-hikari": 93, "co-machi": 36, "co-yasai": null, "co-kotoba": 71 });
+    expect(scores).toEqual({ "co-minato": null, "co-green": 84, "co-hikari": 93, "co-machi": 36, "co-yasai": null, "co-kotoba": 71, "co-sakura": 62 });
     const others = state.companies.filter((c) => c.id !== state.myCompanyId);
     const stars = others.map((c) => (c.certScore === null ? 0 : certStarsOf(c.certScore)));
-    expect(stars).toEqual([4, 4.5, 1.5, 0, 3.5]);
+    expect(stars).toEqual([4, 4.5, 1.5, 0, 3.5, 3]);
     // 우리 회사(★2.5)까지 모두 다른 값이고, 마크가 없는 회사(未取得)는 하나뿐이에요
-    expect(new Set([...stars, evaluateCertification(state.cert).stars]).size).toBe(6);
+    expect(new Set([...stars, evaluateCertification(state.cert).stars]).size).toBe(7);
     expect(stars.filter((s) => s === 0)).toHaveLength(1);
     for (const c of state.companies) expect(c.certScore === null || (Number.isInteger(c.certScore) && c.certScore >= 0 && c.certScore <= 100), c.id).toBe(true);
   });

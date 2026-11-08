@@ -2,17 +2,30 @@
 
 // 기업의 연구 의뢰 /b2b/research/: 아이디어를 형태로 만들기까지의 흐름(③ 강조) · 기업이 돈을 내는 때 · 숫자 · 우리 회사의 의뢰 목록
 // 확인 대기(성과 도착) → 「成果を確認して完了にする」(확인 한 번 더) → 완료 · 의뢰비는 연구자에게 직접 지급(데모는 기록만)
-// ?posted=<id> 로 오면 방금 게재한 의뢰를 알려 줘요.
+// ?posted=<id> 로 오면 방금 게재한 의뢰를 알려 줘요. 끝난 의뢰는 맡은 연구자를 평가해요(기업 네트워크의 신뢰 실적과 같은 평가).
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
+import { ratingReceived } from "@sdgs-compass/core/networkView";
 import { researchPayTimings, selectB2bResearch, type ResearchDetailVM } from "@sdgs-compass/core/researchView";
 import { ALL_CHALLENGES } from "@sdgs-compass/core/selectors";
+import { RatingBlock, RatingItem, RequestsHub } from "@/components/Network";
 import { ResearchCard, ResearchFlow, ResearchResultBox, StatGrid } from "@/components/Research";
 import { Banner, Button, ButtonLink, Card, Empty, ScreenHead, Section } from "@/components/ui";
 import { applicantsHref, researchNewHref } from "@/lib/routes";
 import { useSession } from "@/lib/session";
 import { nowIso } from "@/lib/time";
+
+/** 끝난 의뢰: 맡은 연구자를 평가해요 (연구자가 남긴 평가도 보여요) */
+function ResearcherRating({ vm, researcherId }: { vm: ResearchDetailVM; researcherId: string }) {
+  const { demo, locale, t } = useSession();
+  const theirs = ratingReceived(demo, "company", "research", vm.id, locale);
+  return (
+    <RatingBlock role="company" target={{ kind: "research", refId: vm.id, toRole: "researcher", toId: researcherId }} title={t("rating.rateResearcher")} fold>
+      {theirs ? <RatingItem vm={theirs} title={t("rating.theirs")} /> : null}
+    </RatingBlock>
+  );
+}
 
 function RequestRow({ vm, highlight }: { vm: ResearchDetailVM; highlight: boolean }) {
   const { t, dispatch } = useSession();
@@ -60,6 +73,7 @@ function RequestRow({ vm, highlight }: { vm: ResearchDetailVM; highlight: boolea
         <div className="live" aria-live="polite">
           {done && vm.status === "completed" ? <Banner tone="success">{t("research.b2b.completed", { fee: vm.feeLabel, platformFee: vm.platformFeeLabel })}</Banner> : null}
         </div>
+        {vm.status === "completed" && vm.researcherId ? <ResearcherRating vm={vm} researcherId={vm.researcherId} /> : null}
       </ResearchCard>
     </li>
   );
@@ -83,6 +97,7 @@ export function B2bResearchScreen() {
           ) : null
         }
       />
+      <RequestsHub current="research" />
       <p className="small muted">{t("research.b2b.intro")}</p>
       {justPosted ? (
         <div className="live" aria-live="polite">

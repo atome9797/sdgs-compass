@@ -1,26 +1,34 @@
 "use client";
 
-// 「受け取った賞金」(데모): 받은 합계 · 받은 기록(기업 상금 · 운영사 특별상) · 받을 수 있는 돈의 구조 · 고지 ①~③ (늘 보여요)
+// 「受け取った賞金」(데모): 받은 합계 · 받은 기록(기업 상금 · 운영사 특별상, 기업 상금은 지급한 기업을 평가) · 받을 수 있는 돈의 구조 · 고지 ①~③ (늘 보여요)
 // 상금은 기업이 수상 팀에 직접 전액 지급하고, 운영사는 돈을 맡지 않아요(2026-11-08 직접 지급 모델) — 그래서 잔액·출금은 없어요. 설계는 docs/fees.md.
 import { useMemo } from "react";
 import { selectWallet, type WalletEntryVM } from "@sdgs-compass/core/walletView";
+import { RatingBlock } from "@/components/Network";
 import { Banner, Empty, ScreenHead, Section, Tag } from "@/components/ui";
 import { buildHref, ROUTES } from "@/lib/routes";
 import { useSession } from "@/lib/session";
 
+/** 받은 기록 한 건 + (기업 상금이면) 지급한 기업 평가 — 약속대로 받았는지가 그 기업의 신뢰 실적이 돼요 */
 function EntryItem({ entry }: { entry: WalletEntryVM }) {
+  const { t } = useSession();
   return (
-    <li className="card activity">
-      <span className="activity__icon" aria-hidden="true">
-        {entry.emoji}
-      </span>
-      <div className="activity__main">
-        <p className="activity__title">{entry.title}</p>
-        <p className="activity__meta">
-          {entry.kindLabel} · {entry.dateLabel}
-        </p>
+    <li className="stack stack--sm">
+      <div className="card activity">
+        <span className="activity__icon" aria-hidden="true">
+          {entry.emoji}
+        </span>
+        <div className="activity__main">
+          <p className="activity__title">{entry.title}</p>
+          <p className="activity__meta">
+            {entry.kindLabel} · {entry.dateLabel}
+          </p>
+        </div>
+        <span className="wallet-amount wallet-amount--in">{entry.amountLabel}</span>
       </div>
-      <span className="wallet-amount wallet-amount--in">{entry.amountLabel}</span>
+      {entry.companyId && entry.ratingRef ? (
+        <RatingBlock role="student" target={{ kind: "prize", refId: entry.ratingRef, toRole: "company", toId: entry.companyId }} title={t("rating.rateCompany")} fold />
+      ) : null}
     </li>
   );
 }

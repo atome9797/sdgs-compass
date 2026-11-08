@@ -28,8 +28,15 @@ export const B2B_TABS: readonly NavItem[] = [
   { id: "dashboard", path: ROUTES.b2b, icon: "📋", labelKey: "nav.dashboard", tabLabelKey: "nav.home", match: [ROUTES.b2b, ROUTES.b2bNew] },
   { id: "feed", path: ROUTES.b2bFeed, icon: "📣", labelKey: "nav.feed", match: [ROUTES.b2bFeed, ROUTES.b2bFeedNew] },
   { id: "applicants", path: ROUTES.b2bApplicants, icon: "👥", labelKey: "nav.applicants", match: [ROUTES.b2bApplicants] },
-  // 표창·채택한 아이디어를 실현하려고 대학원생에게 연구를 의뢰해요 (하단 탭이 7개라서 짧은 이름 「研究」)
-  { id: "research", path: ROUTES.b2bResearch, icon: "🔬", labelKey: "nav.research", tabLabelKey: "nav.researchShort", match: [ROUTES.b2bResearch, ROUTES.b2bResearchNew] },
+  // 「依頼」: 대학원생에게 맡기는 연구 의뢰와 신뢰 기업끼리의 업무 의뢰(기업 네트워크)를 한 탭에 — 두 화면 맨 위의 전환으로 오가요 (하단 탭이 7개라서 짧은 이름)
+  {
+    id: "requests",
+    path: ROUTES.b2bResearch,
+    icon: "🤝",
+    labelKey: "nav.requests",
+    tabLabelKey: "nav.requestsShort",
+    match: [ROUTES.b2bResearch, ROUTES.b2bResearchNew, ROUTES.b2bNetwork, ROUTES.b2bNetworkCompany, ROUTES.b2bNetworkNew, ROUTES.b2bNetworkRequest],
+  },
   { id: "talent", path: ROUTES.b2bTalent, icon: "🧭", labelKey: "nav.talent", match: [ROUTES.b2bTalent] },
   { id: "esg", path: ROUTES.b2bEsg, icon: "🌱", labelKey: "nav.esg", match: [ROUTES.b2bEsg] },
   { id: "settings", path: ROUTES.b2bSettings, icon: "⚙️", labelKey: "nav.settings", match: [ROUTES.b2bSettings] },

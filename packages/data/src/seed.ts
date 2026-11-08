@@ -2,8 +2,8 @@
 // 실서비스에서는 이 모양의 데이터를 서버(PostgreSQL, db/schema.sql)가 돌려줘요.
 import { emptyCertAnswers } from "@sdgs-compass/core/certification";
 import type {
-  Activity, Candidate, Challenge, Company, DemoState, Match, OfficialChannel, PrizePayment, Proposal, ResearcherProfile, ResearchRequest, ResearchResult, Scout, SocialPost,
-  StudentProfile, TeamPost, Wallet,
+  Activity, Candidate, Challenge, Company, DemoState, Match, OfficialChannel, PrizePayment, Proposal, Rating, ResearcherProfile, ResearchRequest, ResearchResult, Scout, SocialPost,
+  StudentProfile, TeamPost, Wallet, WorkRequest,
 } from "@sdgs-compass/core/domain";
 import { addDays } from "@sdgs-compass/core/format";
 import { sha256Hex } from "@sdgs-compass/core/hash";
@@ -31,6 +31,8 @@ const companies: Company[] = [
     certScore: null, // #35 SDGs 실천 마크 달성도 — 우리 회사(데모의 기업 계정): ESG 화면의 입력(cert)에서 계산해요 — 처음 53점 ★2.5
     emoji: "🐟",
     accent: "#0A97D9",
+    offers: ["prototype", "manufacturing", "logistics"],
+    offerNote: { ja: "水産加工品の試作・小ロット製造と、冷凍での保管", ko: "수산 가공품 시제품 · 소량 제조와 냉동 보관" },
   },
   {
     id: "co-green",
@@ -46,6 +48,8 @@ const companies: Company[] = [
     certScore: 84, // #35 SDGs 실천 마크 달성도 — 가상의 샘플 값: ★4.0
     emoji: "🛒",
     accent: "#3F7E44",
+    offers: ["sales", "logistics"],
+    offerNote: { ja: "店頭での販売テストと、首都圏の店舗への配送", ko: "매장 판매 테스트와 수도권 매장 배송" },
   },
   {
     id: "co-hikari",
@@ -61,6 +65,8 @@ const companies: Company[] = [
     certScore: 93, // #35 SDGs 실천 마크 달성도 — 가상의 샘플 값: ★4.5
     emoji: "☀️",
     accent: "#F5B700",
+    offers: ["research", "other"],
+    offerNote: { ja: "工場・店舗の省エネ診断と、再生可能エネルギーの電力", ko: "공장 · 매장 에너지 절약 진단과 재생에너지 전력" },
   },
   {
     id: "co-machi",
@@ -76,6 +82,8 @@ const companies: Company[] = [
     certScore: 36, // #35 SDGs 실천 마크 달성도 — 가상의 샘플 값: ★1.5
     emoji: "🏘️",
     accent: "#FD9D24",
+    offers: ["sales", "other"],
+    offerNote: { ja: "空き店舗の短期の貸し出しと、地域イベントでの販売", ko: "빈 점포 단기 대여와 지역 행사 판매" },
   },
   {
     id: "co-yasai",
@@ -91,6 +99,8 @@ const companies: Company[] = [
     certScore: null, // #35 SDGs 실천 마크 달성도 — 아직 마크 없음(未取得) — 학생 화면에 마크가 보이지 않아요
     emoji: "🥬",
     accent: "#56C02B",
+    offers: ["materials", "prototype"],
+    offerNote: { ja: "規格外野菜の提供と、食品の試作", ko: "규격 외 채소 제공과 식품 시제품" },
   },
   {
     id: "co-kotoba",
@@ -106,6 +116,26 @@ const companies: Company[] = [
     certScore: 71, // #35 SDGs 실천 마크 달성도 — 가상의 샘플 값: ★3.5
     emoji: "📚",
     accent: "#C5192D",
+    offers: ["design", "research"],
+    offerNote: { ja: "多言語の資料づくりと、アンケート調査", ko: "다국어 자료 제작과 설문 조사" },
+  },
+  {
+    // 기업 네트워크의 시제품 · 제조 상대(가상). 과제는 아직 내지 않았고, 다른 기업의 의뢰로 신뢰를 쌓았어요
+    id: "co-sakura",
+    name: { ja: "さくらパック工業株式会社", ko: "사쿠라팩 공업(주)" },
+    industry: { ja: "包装資材の製造", ko: "포장재 제조" },
+    region: { ja: "静岡県", ko: "시즈오카현" },
+    about: {
+      ja: "紙とバイオマス素材の容器・トレーをつくる町工場。小ロットの試作が得意です。",
+      ko: "종이와 바이오매스 소재 용기 · 트레이를 만드는 작은 공장. 소량 시제품을 잘 만들어요.",
+    },
+    sdgIds: [12, 9],
+    verified: true,
+    certScore: 62, // #35 SDGs 실천 마크 달성도 — 가상의 샘플 값: ★3.0
+    emoji: "📦",
+    accent: "#BF8B2E",
+    offers: ["prototype", "manufacturing", "materials"],
+    offerNote: { ja: "紙・バイオマス素材の容器とトレーの試作（20個から）と製造", ko: "종이 · 바이오매스 소재 용기와 트레이 시제품(20개부터)과 제조" },
   },
 ];
 
@@ -706,6 +736,187 @@ function buildPrizePayments(challenges: readonly Challenge[], today: string): Pr
     });
 }
 
+/**
+ * 기업 간 업무 의뢰 (기업 네트워크 — 모두 가상). 우리 회사(みなと)는
+ * 받은 지명 의뢰 1건(답하기) · 낸 지명 의뢰 1건(납품 도착 → 확인하고 완료 · 평가) · 낸 공개 모집 1건(응모 2곳 → 고르기) · 끝난 거래 1건이 있고,
+ * 다른 기업의 공개 모집 1건에 응모할 수 있어요. 나머지는 다른 기업끼리의 끝난 거래(신뢰 실적)예요.
+ */
+function buildWorkRequests(today: string): WorkRequest[] {
+  const d = (n: number) => addDays(today, n);
+  const base: Pick<WorkRequest, "applications" | "acceptedOn" | "deliveredOn" | "deliveryNote" | "completedOn"> = { applications: [], acceptedOn: null, deliveredOn: null, deliveryNote: null, completedOn: null };
+  const done = (accepted: number, delivered: number, completed: number, note: { ja: string; ko: string }) =>
+    ({ status: "completed", acceptedOn: d(accepted), deliveredOn: d(delivered), deliveryNote: note, completedOn: d(completed) }) as const;
+  return [
+    {
+      ...base,
+      id: "wr-1",
+      mode: "direct",
+      fromCompanyId: "co-green",
+      toCompanyId: "co-minato",
+      category: "manufacturing",
+      title: { ja: "店頭テスト用の干物ギフト（簡易包装）100セット", ko: "매장 테스트용 건어물 선물(간이 포장) 100세트" },
+      detail: {
+        ja: "首都圏の3店舗で、プラスチックを減らした簡易包装の干物ギフトを試験販売します。紙の外箱は当社で用意します。中身の製造と箱詰めをお願いします。",
+        ko: "수도권 3개 매장에서 플라스틱을 줄인 간이 포장 건어물 선물을 시험 판매해요. 종이 외상자는 저희가 준비해요. 내용물 제조와 포장을 부탁해요.",
+      },
+      budgetYen: 150_000,
+      postedOn: d(-2),
+      dueOn: d(30),
+      status: "requested",
+    },
+    {
+      ...base,
+      id: "wr-2",
+      mode: "direct",
+      fromCompanyId: "co-minato",
+      toCompanyId: "co-sakura",
+      category: "prototype",
+      title: { ja: "紙と生分解樹脂のトレーを2種類、20個ずつ試作", ko: "종이와 생분해 수지 트레이 2종을 20개씩 시제품으로" },
+      detail: {
+        ja: "干物の包装に使うトレーを、紙と生分解樹脂の2種類で試作してください。冷凍・解凍で形が崩れないかを当社で試します。",
+        ko: "건어물 포장에 쓸 트레이를 종이와 생분해 수지 두 가지로 시제품을 만들어 주세요. 냉동 · 해동에서 모양이 무너지지 않는지 저희가 시험해요.",
+      },
+      budgetYen: 120_000,
+      postedOn: d(-20),
+      dueOn: d(10),
+      status: "delivered",
+      acceptedOn: d(-18),
+      deliveredOn: d(-1),
+      deliveryNote: {
+        ja: "2種類のトレーを20個ずつお送りしました。紙のトレーは水分に弱いので、内側のコーティングを2案用意しています。",
+        ko: "두 종류의 트레이를 20개씩 보냈어요. 종이 트레이는 수분에 약해서 안쪽 코팅을 두 가지 안으로 준비했어요.",
+      },
+    },
+    {
+      ...base,
+      id: "wr-3",
+      mode: "open",
+      fromCompanyId: "co-hikari",
+      toCompanyId: null,
+      category: "manufacturing",
+      title: { ja: "社員食堂向け、地元の魚の加工品（試験導入・月200食分）", ko: "사내 식당용 지역 생선 가공품(시험 도입 · 월 200식분)" },
+      detail: {
+        ja: "千葉の発電所の社員食堂で、地元の魚を使ったメニューを3か月試します。骨を取った切り身や総菜を、月200食分届けられる企業を探しています。",
+        ko: "지바 발전소 사내 식당에서 지역 생선 메뉴를 3개월 시험해요. 뼈를 바른 토막이나 반찬을 월 200식분 보내 줄 수 있는 기업을 찾고 있어요.",
+      },
+      budgetYen: 200_000,
+      postedOn: d(-5),
+      dueOn: d(40),
+      status: "open",
+    },
+    {
+      ...base,
+      id: "wr-4",
+      mode: "open",
+      fromCompanyId: "co-minato",
+      toCompanyId: null,
+      category: "logistics",
+      title: { ja: "回収した漁網の運搬と一時保管（月2回・3か月）", ko: "회수한 어망 운반과 임시 보관(월 2회 · 3개월)" },
+      detail: {
+        ja: "漁港の清掃で回収した漁網を、月2回、港から保管場所まで運び、再生業者に渡すまで保管してください。1回あたり約200kgです。",
+        ko: "어항 청소로 회수한 어망을 월 2회 항구에서 보관 장소까지 옮기고, 재생 업체에 넘길 때까지 보관해 주세요. 1회에 약 200kg이에요.",
+      },
+      budgetYen: 90_000,
+      postedOn: d(-7),
+      dueOn: d(45),
+      status: "open",
+      applications: [
+        { companyId: "co-green", message: { ja: "港から当社の倉庫まで、月2回の運搬と保管ができます。", ko: "항구에서 저희 창고까지 월 2회 운반과 보관을 할 수 있어요." }, appliedOn: d(-6) },
+        { companyId: "co-sakura", message: { ja: "工場の空きスペースで保管できます（運搬は提携先に頼みます）。", ko: "공장의 빈 공간에 보관할 수 있어요(운반은 협력 업체에 맡겨요)." }, appliedOn: d(-4) },
+      ],
+    },
+    {
+      ...base,
+      id: "wr-5",
+      mode: "direct",
+      fromCompanyId: "co-minato",
+      toCompanyId: "co-green",
+      category: "sales",
+      title: { ja: "干物の店頭販売テスト（2週間）", ko: "건어물 매장 판매 테스트(2주)" },
+      detail: { ja: "学生のアイデアから生まれた干物の新しい包装を、2店舗で2週間売ってみてください。", ko: "학생 아이디어에서 나온 건어물 새 포장을 2개 매장에서 2주 동안 팔아 봐 주세요." },
+      budgetYen: 100_000,
+      postedOn: d(-60),
+      dueOn: d(-30),
+      ...done(-58, -35, -33, { ja: "2店舗で2週間販売し、売れ行きと売り場の写真をまとめました。", ko: "2개 매장에서 2주 동안 팔고 판매 추이와 매장 사진을 정리했어요." }),
+    },
+    {
+      ...base,
+      id: "wr-6",
+      mode: "direct",
+      fromCompanyId: "co-kotoba",
+      toCompanyId: "co-machi",
+      category: "other",
+      title: { ja: "空き店舗を使った多言語ワークショップの会場（3日間）", ko: "빈 점포를 쓴 다국어 워크숍 장소(3일)" },
+      detail: { ja: "親子向けの多言語ワークショップを、商店街の空き店舗で3日間開きます。会場の準備をお願いします。", ko: "부모와 아이를 위한 다국어 워크숍을 상점가 빈 점포에서 3일 열어요. 장소 준비를 부탁해요." },
+      budgetYen: 60_000,
+      postedOn: d(-40),
+      dueOn: d(-22),
+      ...done(-38, -23, -20, { ja: "3日間の会場を用意し、片付けまで終えました。", ko: "3일간 장소를 준비하고 정리까지 마쳤어요." }),
+    },
+    {
+      ...base,
+      id: "wr-7",
+      mode: "direct",
+      fromCompanyId: "co-hikari",
+      toCompanyId: "co-kotoba",
+      category: "design",
+      title: { ja: "工場見学パンフレットの英語・韓国語版", ko: "공장 견학 팸플릿 영어 · 한국어판" },
+      detail: { ja: "発電所の見学パンフレット（8ページ）を、英語と韓国語に翻訳してレイアウトしてください。", ko: "발전소 견학 팸플릿(8쪽)을 영어와 한국어로 번역하고 레이아웃해 주세요." },
+      budgetYen: 80_000,
+      postedOn: d(-65),
+      dueOn: d(-45),
+      ...done(-63, -48, -45, { ja: "英語版・韓国語版のデータ（PDF）をお送りしました。", ko: "영어판 · 한국어판 데이터(PDF)를 보냈어요." }),
+    },
+    {
+      ...base,
+      id: "wr-8",
+      mode: "direct",
+      fromCompanyId: "co-green",
+      toCompanyId: "co-sakura",
+      category: "prototype",
+      title: { ja: "量り売り用の紙容器の試作（3サイズ）", ko: "무게 판매용 종이 용기 시제품(3가지 크기)" },
+      detail: { ja: "店頭の量り売りに使う紙の容器を、3サイズで試作してください。", ko: "매장 무게 판매에 쓸 종이 용기를 세 가지 크기로 시제품을 만들어 주세요." },
+      budgetYen: 150_000,
+      postedOn: d(-95),
+      dueOn: d(-70),
+      ...done(-93, -74, -70, { ja: "3サイズを各30個お送りしました。", ko: "세 가지 크기를 30개씩 보냈어요." }),
+    },
+  ];
+}
+
+/**
+ * 상호 평가 (모두 가상). 신뢰 실적: みなと(상금 지급 + 끝난 거래 · ★5.0) · グリーンリテール · さくらパック · ひかり · ことば · まちづくり 는 신뢰 기업이고,
+ * やさい未来ファーム 는 아직 거래가 없어서 「これから」예요.
+ */
+function buildRatings(today: string): Rating[] {
+  const d = (n: number) => addDays(today, n);
+  const company = (id: string, refId: string, fromId: string, toId: string, stars: number, comment: { ja: string; ko: string }, on: number): Rating => ({
+    id, kind: "work", refId, fromRole: "company", fromId, toRole: "company", toId, stars, comment, createdOn: d(on),
+  });
+  return [
+    {
+      id: "ra-1", kind: "prize", refId: "ch-old1", fromRole: "student", fromId: "stu-sample-blue", toRole: "company", toId: "co-minato", stars: 5,
+      comment: { ja: "審査のコメントが具体的で、賞金もすぐに届きました。", ko: "심사 코멘트가 구체적이었고 상금도 바로 받았어요." }, createdOn: d(-56),
+    },
+    company("ra-2", "wr-5", "co-green", "co-minato", 5, { ja: "支払いが早く、商品の説明も丁寧でした。", ko: "지급이 빠르고 상품 설명도 친절했어요." }, -32),
+    company("ra-3", "wr-5", "co-minato", "co-green", 5, { ja: "売り場の写真と売れ行きの記録まで共有してもらえました。", ko: "매장 사진과 판매 기록까지 공유해 주었어요." }, -32),
+    company("ra-4", "wr-6", "co-kotoba", "co-machi", 4, { ja: "会場の準備がスムーズでした。", ko: "장소 준비가 매끄러웠어요." }, -19),
+    company("ra-5", "wr-6", "co-machi", "co-kotoba", 5, { ja: "参加者の案内まで手伝ってもらえました。", ko: "참가자 안내까지 도와주었어요." }, -19),
+    company("ra-6", "wr-7", "co-hikari", "co-kotoba", 5, { ja: "専門用語もわかりやすく訳してもらえました。", ko: "전문 용어도 알기 쉽게 번역해 주었어요." }, -44),
+    company("ra-7", "wr-7", "co-kotoba", "co-hikari", 4, { ja: "資料の提供が早く、進めやすかったです。", ko: "자료를 빨리 주어서 진행하기 쉬웠어요." }, -44),
+    company("ra-8", "wr-8", "co-green", "co-sakura", 4, { ja: "試作が早く、改良にも柔軟に対応してもらえました。", ko: "시제품이 빨랐고 개선에도 유연하게 대응해 주었어요." }, -69),
+    company("ra-9", "wr-8", "co-sakura", "co-green", 5, { ja: "仕様が明確で、支払いも予定どおりでした。", ko: "사양이 명확했고 지급도 예정대로였어요." }, -69),
+    {
+      id: "ra-10", kind: "research", refId: "rr-5", fromRole: "researcher", fromId: DEMO_RESEARCHER_ID, toRole: "company", toId: "co-machi", stars: 5,
+      comment: { ja: "調査の目的と条件が明確で、確認も早かったです。", ko: "조사 목적과 조건이 명확했고 확인도 빨랐어요." }, createdOn: d(-40),
+    },
+    {
+      id: "ra-11", kind: "research", refId: "rr-5", fromRole: "company", fromId: "co-machi", toRole: "researcher", toId: DEMO_RESEARCHER_ID, stars: 5,
+      comment: { ja: "データの整理が丁寧で、すぐに使えました。", ko: "데이터 정리가 꼼꼼해서 바로 쓸 수 있었어요." }, createdOn: d(-40),
+    },
+  ];
+}
+
 /** 데모의 연구자 계정(대학원생). 이름·소속은 가상의 샘플이에요 */
 const researcher: ResearcherProfile = {
   id: DEMO_RESEARCHER_ID,
@@ -883,5 +1094,7 @@ export function createInitialState(today: string): DemoState {
     prizePayments: buildPrizePayments(challenges, today),
     researcher,
     researchRequests: buildResearchRequests(today),
+    workRequests: buildWorkRequests(today),
+    ratings: buildRatings(today),
   };
 }

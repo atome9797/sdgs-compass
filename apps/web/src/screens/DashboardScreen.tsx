@@ -7,10 +7,11 @@ import Link from "next/link";
 import { useMemo, type ReactNode } from "react";
 import { coverColors, tint } from "@sdgs-compass/core/theme";
 import { ALL_CHALLENGES, selectB2bDashboard, type ChallengeCardVM, type FeeVM, type KpiVM } from "@sdgs-compass/core/selectors";
+import { selectNetworkSummary } from "@sdgs-compass/core/networkView";
 import { selectB2bResearch } from "@sdgs-compass/core/researchView";
 import { selectPrizePayments, type PrizePaymentsVM } from "@sdgs-compass/core/walletView";
 import { Banner, ButtonLink, Empty, Section, Tag } from "@/components/ui";
-import { applicantsHref, b2bResearchHref, buildHref, DASHBOARD_ANCHORS, ROUTES } from "@/lib/routes";
+import { applicantsHref, b2bResearchHref, buildHref, DASHBOARD_ANCHORS, networkHref, ROUTES } from "@/lib/routes";
 import { useSession } from "@/lib/session";
 
 /** 숫자 카드 하나: 카드 전체가 링크(키보드·스크린 리더는 「숫자 + 갈 곳」 이름으로), 오른쪽의 › 가 누를 수 있다는 표시예요 */
@@ -204,6 +205,7 @@ export function DashboardScreen() {
   const vm = useMemo(() => selectB2bDashboard(demo, locale), [demo, locale]);
   const prize = useMemo(() => selectPrizePayments(demo, locale), [demo, locale]);
   const research = useMemo(() => selectB2bResearch(demo, locale), [demo, locale]);
+  const network = useMemo(() => selectNetworkSummary(demo, locale), [demo, locale]);
   return (
     <>
       <div className="row row--between">
@@ -241,6 +243,22 @@ export function DashboardScreen() {
           <p className="strong">🔬 {research.summary}</p>
           <ButtonLink href={b2bResearchHref()} variant={research.needsAction > 0 ? "primary" : "secondary"} size="sm">
             {t("research.b2b.go")} ›
+          </ButtonLink>
+        </div>
+      </Section>
+
+      <Section title={t("network.dashboard.title")} hint={t("network.intro")}>
+        <div className="card card--pad row row--between">
+          <div className="stack stack--sm">
+            <p className="strong">🤝 {network.text}</p>
+            {network.todo > 0 ? (
+              <p>
+                <Tag tone="warning">{t("network.todo", { count: network.todo })}</Tag>
+              </p>
+            ) : null}
+          </div>
+          <ButtonLink href={networkHref({ tab: network.todo > 0 ? "mine" : "find" })} variant={network.todo > 0 ? "primary" : "secondary"} size="sm">
+            {t("network.dashboard.go")} ›
           </ButtonLink>
         </div>
       </Section>

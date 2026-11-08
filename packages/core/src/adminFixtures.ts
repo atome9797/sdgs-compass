@@ -14,6 +14,8 @@ const company = (id: string, verified: boolean): Company => ({
   certScore: null,
   emoji: "🌊",
   accent: "#0A97D9",
+  offers: [],
+  offerNote: "",
 });
 
 const candidate = (id: string, scoutable: boolean, sdgInterests: Candidate["sdgInterests"]): Candidate => ({
@@ -183,6 +185,8 @@ export function makeUsageState(overrides: Partial<DemoState> = {}): DemoState {
     prizePayments: [{ challengeId: "chA", companyId: "co1", amountYen: 100_000, status: "paid", promisedOn: "2026-09-01", paidOn: "2026-10-20", proposalId: "p5" }],
     researcher: { id: "res1", name: "researcher", affiliation: "Test Graduate School", degree: "master", year: 1, fields: ["data"], bio: "" },
     researchRequests: [],
+    workRequests: [],
+    ratings: [],
     ...overrides,
   };
 }

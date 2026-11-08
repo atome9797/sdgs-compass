@@ -33,6 +33,10 @@ export interface Company {
   /** 데모용 로고 대신 쓰는 이모지와 배경색 */
   emoji: string;
   accent: string;
+  /** 기업 네트워크에서 「할 수 있는 일」(다른 기업의 업무 의뢰를 받을 수 있는 분야, 없으면 빈 배열) */
+  offers: WorkCategory[];
+  /** 할 수 있는 일 한 줄 (기업이 쓴 글) */
+  offerNote: Text;
 }
 
 /** F-201 챌린지 (기업이 출제하는 SDGs 과제) */
@@ -401,6 +405,80 @@ export interface ResearcherProfile {
   bio: Text;
 }
 
+// ───────── 기업 네트워크 (신뢰를 쌓은 기업끼리의 업무 의뢰 · 상호 평가) ─────────
+// 이 플랫폼에서 약속대로 돈을 낸 거래(상금 · 연구 의뢰비 · 업무 의뢰비)와 거래 상대의 평가가 쌓이면 「신뢰 기업」이 되고(network.ts 의 TRUST_RULE),
+// 신뢰 기업끼리는 시제품·제조·물류 같은 업무를 지명하거나 공개 모집해서 의뢰할 수 있어요. 수수료는 없어요(신뢰 기업의 특전 — fees.ts).
+// 의뢰비는 의뢰한 기업이 맡은 기업에 직접 지급해요(데모는 기록만). 웹 데모 전용이고 DB 표는 아직 없어요 — 설계는 docs/network.md.
+
+export const WORK_CATEGORIES = ["prototype", "manufacturing", "materials", "logistics", "sales", "design", "research", "other"] as const;
+/** 업무 분야: 시제품 · 제조·가공 · 소재·자재 · 물류·보관 · 판로·판매 · 디자인·홍보 · 조사·분석 · 그 밖 */
+export type WorkCategory = (typeof WORK_CATEGORIES)[number];
+
+/** direct = 신뢰 기업 목록에서 골라 그 기업에 직접(지명) · open = 신뢰 기업 모두에게 공개 모집 */
+export type WorkMode = "direct" | "open";
+/**
+ * open = 공개 모집 중 · requested = 지명 의뢰를 상대가 확인 중 · inProgress = 진행 중 · delivered = 맡은 기업이 납품을 알렸어요(의뢰한 기업의 확인 대기)
+ * · completed = 의뢰한 기업이 확인하고 의뢰비를 지급했어요 · declined = 지명받은 기업이 거절했어요
+ */
+export type WorkStatus = "open" | "requested" | "inProgress" | "delivered" | "completed" | "declined";
+
+/** 공개 모집에 응모한 기업과 한 줄 */
+export interface WorkApplication {
+  companyId: string;
+  message: Text;
+  /** YYYY-MM-DD */
+  appliedOn: string;
+}
+
+/** 기업 간 업무 의뢰 1건 */
+export interface WorkRequest {
+  id: string;
+  mode: WorkMode;
+  /** 의뢰한 기업 */
+  fromCompanyId: string;
+  /** 맡은(지명된) 기업 — 공개 모집에서 아직 고르지 않았으면 null */
+  toCompanyId: string | null;
+  category: WorkCategory;
+  title: Text;
+  detail: Text;
+  /** 의뢰비(엔) — 맡은 기업에 직접 지급해요 */
+  budgetYen: number;
+  postedOn: string;
+  /** 납기 (YYYY-MM-DD) */
+  dueOn: string;
+  status: WorkStatus;
+  applications: WorkApplication[];
+  /** 맡기로 한 날 (진행 중부터) */
+  acceptedOn: string | null;
+  /** 납품을 알린 날과 한 줄 (확인 대기부터) */
+  deliveredOn: string | null;
+  deliveryNote: Text | null;
+  /** 의뢰한 기업이 확인하고 의뢰비를 지급한 날 (완료) */
+  completedOn: string | null;
+}
+
+/** 평가가 붙는 거래: prize = 받은 상금(학생 → 기업) · research = 연구 의뢰(연구자 ↔ 기업) · work = 기업 간 업무 의뢰(기업 ↔ 기업) */
+export type RatingKind = "prize" | "research" | "work";
+export type RaterRole = "student" | "researcher" | "company";
+
+/** 상호 평가 1건: 거래가 끝나면 서로 별점(1~5)과 한 줄을 남겨요. 기업이 받은 평가가 신뢰 실적이 돼요 */
+export interface Rating {
+  id: string;
+  kind: RatingKind;
+  /** 과제 id(상금 — 과제가 없는 지난 실적은 활동 id) · 연구 의뢰 id · 업무 의뢰 id */
+  refId: string;
+  fromRole: RaterRole;
+  /** 평가한 사람·기업의 id (샘플의 다른 학생은 샘플 id) */
+  fromId: string;
+  toRole: "company" | "researcher";
+  toId: string;
+  /** 1~5 */
+  stars: number;
+  comment: Text;
+  /** YYYY-MM-DD */
+  createdOn: string;
+}
+
 /** 앱 하나가 들고 있는 데모 상태 전체 (state.ts 의 reducer 가 바꿔요) */
 export interface DemoState {
   version: 1;
@@ -434,6 +512,10 @@ export interface DemoState {
   researcher: ResearcherProfile;
   /** 연구 의뢰 (우리 회사가 낸 것 + 다른 회사의 샘플). 화면에서는 날짜순으로 정렬해요 */
   researchRequests: ResearchRequest[];
+  /** 기업 간 업무 의뢰 (우리 회사가 내거나 받은 것 + 다른 회사끼리의 샘플) */
+  workRequests: WorkRequest[];
+  /** 상호 평가 (학생·연구자·기업이 남긴 것 + 샘플) */
+  ratings: Rating[];
 }
 
 export type { LocalizedText };

@@ -1,7 +1,7 @@
 // 연구 의뢰의 규칙 (순수 함수): 의뢰할 수 있는 아이디어 · 입력 검사 · 성과 파일 지문 · 상태 바꾸기(state.ts 의 reducer 가 불러요).
 // 흐름: 기업이 표창·채택한 학생 아이디어를 실현하려고 연구를 의뢰(open) → 대학원생 연구자가 맡아요(inProgress) → 성과를 보내요(delivered)
 // → 기업이 확인하면 끝(completed)이고, 의뢰비는 기업이 연구자에게 직접 지급해요(데모는 기록만 — 운영사가 돈을 맡지 않아요).
-// 운영 수수료와 「의뢰를 받는 방법」은 대학원생 설문 뒤에 정해요(docs/research.md). 그래서 수수료 금액은 여기에 없어요.
+// 운영 수수료(의뢰비의 10%, 최저 ¥9,000 — 기업이 따로)는 fees.ts, 「의뢰를 받는 방법」은 대학원생 설문 뒤에 정해요(docs/research.md).
 import { RESEARCH_FIELDS, type DemoState, type Proposal, type ResearchField, type ResearchRequest, type ResearchRequestStatus, type ResearchResult } from "./domain";
 import { addDays, daysBetween } from "./format";
 import { sha256Hex } from "./hash";

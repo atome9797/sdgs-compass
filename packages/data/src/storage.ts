@@ -4,6 +4,7 @@ import { CERT_CRITERIA } from "@sdgs-compass/core/certification";
 import type { DemoState, Role } from "@sdgs-compass/core/domain";
 import { isLocale, type Locale } from "@sdgs-compass/core/i18n";
 import { DEFAULT_OFFICIAL_CHANNEL, isOfficialChannel, isOfficialPostUrl, isOfficialStatus } from "@sdgs-compass/core/post";
+import { isWorkCategory, isWorkStatus } from "@sdgs-compass/core/network";
 import { isResearchField, isResearchStatus } from "@sdgs-compass/core/research";
 import { SDG_IDS, type SdgId } from "@sdgs-compass/core/sdg";
 import { rebaseState } from "@sdgs-compass/core/state";
@@ -219,6 +220,35 @@ function isResearchRequest(value: unknown): boolean {
   );
 }
 
+/** 기업 간 업무 의뢰 한 건: 모양 + 상태와 맞는 값(맡은 기업은 공개 모집 중이 아니면 있고, 날짜는 그 단계부터) */
+function isWorkRequest(value: unknown): boolean {
+  if (!isObject(value) || typeof value.id !== "string" || !(value.mode === "direct" || value.mode === "open") || typeof value.fromCompanyId !== "string") return false;
+  if (!(value.toCompanyId === null || typeof value.toCompanyId === "string") || !isWorkCategory(value.category)) return false;
+  if (!isText(value.title) || !isText(value.detail) || !isYen(value.budgetYen) || !isDay(value.postedOn) || !isDay(value.dueOn) || !isWorkStatus(value.status)) return false;
+  if (!Array.isArray(value.applications) || !value.applications.every((a) => isObject(a) && typeof a.companyId === "string" && isText(a.message) && isDay(a.appliedOn))) return false;
+  if (!(value.acceptedOn === null || isDay(value.acceptedOn)) || !(value.deliveredOn === null || isDay(value.deliveredOn)) || !(value.completedOn === null || isDay(value.completedOn))) return false;
+  if (!(value.deliveryNote === null || isText(value.deliveryNote))) return false;
+  const started = value.status === "inProgress" || value.status === "delivered" || value.status === "completed";
+  const delivered = value.status === "delivered" || value.status === "completed";
+  return (
+    (value.status === "open") === (value.toCompanyId === null) && (value.mode === "open" || value.status !== "open") && started === (value.acceptedOn !== null) &&
+    delivered === (value.deliveredOn !== null) && delivered === (value.deliveryNote !== null) && (value.status === "completed") === (value.completedOn !== null)
+  );
+}
+
+/** 상호 평가 한 건: 별 1~5 정수 */
+function isRating(value: unknown): boolean {
+  return (
+    isObject(value) && typeof value.id === "string" && (value.kind === "prize" || value.kind === "research" || value.kind === "work") && typeof value.refId === "string" &&
+    (value.fromRole === "student" || value.fromRole === "researcher" || value.fromRole === "company") && typeof value.fromId === "string" &&
+    (value.toRole === "company" || value.toRole === "researcher") && typeof value.toId === "string" &&
+    typeof value.stars === "number" && Number.isInteger(value.stars) && value.stars >= 1 && value.stars <= 5 && isText(value.comment) && isDay(value.createdOn)
+  );
+}
+
+/** 회사의 기업 네트워크 정보: 할 수 있는 일(분야 목록)과 한 줄 */
+const isCompanyOffers = (c: Record<string, unknown>): boolean => Array.isArray(c.offers) && c.offers.every(isWorkCategory) && isText(c.offerNote);
+
 /** 저장돼 있던 값이 지금 앱이 이해하는 모양인지 확인해요 (다르면 샘플 데이터로 새로 시작해요) */
 export function isDemoState(value: unknown): value is DemoState {
   if (!isObject(value) || value.version !== 1) return false;
@@ -231,8 +261,9 @@ export function isDemoState(value: unknown): value is DemoState {
   if (!(value.posts as unknown[]).every(isSocialPost)) return false;
   if (!isWallet(value.wallet) || !Array.isArray(value.prizePayments) || !value.prizePayments.every(isPrizePayment)) return false;
   if (!isResearcher(value.researcher) || !Array.isArray(value.researchRequests) || !value.researchRequests.every(isResearchRequest)) return false;
+  if (!Array.isArray(value.workRequests) || !value.workRequests.every(isWorkRequest) || !Array.isArray(value.ratings) || !value.ratings.every(isRating)) return false;
   if (!(value.challenges as unknown[]).every((c) => isObject(c) && typeof c.id === "string" && isDay(c.opensOn) && isDay(c.closesOn))) return false;
-  if (!(value.companies as unknown[]).every((c) => isObject(c) && typeof c.id === "string" && isCertScore(c.certScore))) return false;
+  if (!(value.companies as unknown[]).every((c) => isObject(c) && typeof c.id === "string" && isCertScore(c.certScore) && isCompanyOffers(c))) return false;
   if (!(value.proposals as unknown[]).every((p) => isObject(p) && typeof p.id === "string" && Array.isArray(p.versions) && typeof p.submittedAt === "string")) return false;
   if (!isObject(value.cert)) return false;
   const cert = value.cert;
@@ -277,6 +308,8 @@ function normalizeOfficial(post: unknown): unknown {
  *   matches 의 수수료·기부 열은 버려요(채택은 무료).
  * - #35 실천 마크가 생기기 전의 상태에는 회사의 certScore 가 없어요 → 샘플 회사는 샘플 값으로, 샘플에 없는 회사는 null(마크 없음)로 채워요.
  * - 연구 의뢰(세 번째 역할 · 연구자)가 생기기 전의 상태에는 researcher · researchRequests 가 없어요 → 저장했을 때의 "오늘" 기준 샘플을 채워요.
+ * - 기업 네트워크가 생기기 전의 상태에는 workRequests · ratings 와 회사의 offers · offerNote 가 없어요 → 샘플(업무 의뢰 · 평가)을 채우고,
+ *   샘플에만 있는 회사(포장 제조 등 — 샘플 의뢰의 상대)를 더하고, 회사의 할 수 있는 일은 샘플 값(샘플에 없는 회사는 비어 있게)으로 채워요.
  */
 /** 이전 돈의 모양(리워드 잔액 · 상금 예치 · 채택 수수료)을 직접 지급 모델의 모양으로 (모르는 값은 그대로 두고 isDemoState 가 판단해요) */
 function upgradeMoney(state: Record<string, unknown>): Record<string, unknown> {
@@ -327,6 +360,17 @@ function upgradeSaved(data: unknown): unknown {
   }
   if (next.researcher === undefined && isDay(data.today)) next = { ...next, researcher: sample().researcher };
   if (next.researchRequests === undefined && isDay(data.today)) next = { ...next, researchRequests: sample().researchRequests };
+  if (next.workRequests === undefined && isDay(data.today)) {
+    const fresh = sample();
+    const known = new Set(Array.isArray(next.companies) ? next.companies.map((c) => (isObject(c) ? c.id : null)) : []);
+    const companies = Array.isArray(next.companies) ? [...next.companies, ...fresh.companies.filter((c) => !known.has(c.id))] : next.companies;
+    next = { ...next, companies, workRequests: fresh.workRequests, ratings: next.ratings === undefined ? fresh.ratings : next.ratings };
+  }
+  if (next.ratings === undefined && isDay(data.today)) next = { ...next, ratings: sample().ratings };
+  if (Array.isArray(next.companies) && next.companies.some((c) => isObject(c) && c.offers === undefined) && isDay(data.today)) {
+    const offers = new Map(sample().companies.map((c) => [c.id, { offers: c.offers, offerNote: c.offerNote }]));
+    next = { ...next, companies: next.companies.map((c) => (isObject(c) && c.offers === undefined ? { ...c, ...(offers.get(String(c.id)) ?? { offers: [], offerNote: "" }) } : c)) };
+  }
   if (Array.isArray(next.companies) && next.companies.some((c) => isObject(c) && c.certScore === undefined) && isDay(data.today)) {
     const scores = new Map(sample().companies.map((c) => [c.id, c.certScore]));
     next = { ...next, companies: next.companies.map((c) => (isObject(c) && c.certScore === undefined ? { ...c, certScore: scores.get(String(c.id)) ?? null } : c)) };

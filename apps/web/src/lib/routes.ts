@@ -14,7 +14,7 @@ export const ROUTES = {
   certificate: "/certificate",
   /** 학생용 신청 요약(#22): 기간을 골라 활동·증명서를 A4 한 장으로 (인쇄·PDF) */
   impactSummary: "/impact/summary",
-  /** #25 リワード残高(데모): 잔액·내역·본인 확인·출금 신청 */
+  /** 「受け取った賞金」(데모): 받은 상금(기업이 직접 지급)과 운영사 특별상의 기록 · 받은 상금의 기업 평가 */
   wallet: "/wallet",
   share: "/share",
   messages: "/messages",
@@ -34,6 +34,11 @@ export const ROUTES = {
   /** 기업의 연구 의뢰: 목록(성과 확인·완료)과 새 의뢰(?proposal= 로 아이디어를 골라 둔 채 열어요) */
   b2bResearch: "/b2b/research",
   b2bResearchNew: "/b2b/research/new",
+  /** 기업 네트워크(신뢰 기업끼리의 업무 의뢰): 첫 화면(?tab=find|open|mine &category= &sort= &q=) · 기업 프로필(?id=) · 새 의뢰(?to= 또는 ?mode=open) · 의뢰 상세(?id=) */
+  b2bNetwork: "/b2b/network",
+  b2bNetworkCompany: "/b2b/network/company",
+  b2bNetworkNew: "/b2b/network/new",
+  b2bNetworkRequest: "/b2b/network/request",
   /** 연구자(대학원생, 웹 데모의 세 번째 역할): 의뢰 찾기(?field=) · 내 연구 · 의뢰 상세(?id=) · 설정 */
   lab: "/lab",
   labMine: "/lab/mine",
@@ -130,6 +135,11 @@ export const labRequestHref = (id: string): string => buildHref(ROUTES.labReques
 export const labHref = (field?: string | null): string => buildHref(ROUTES.lab, { field: field === "all" ? null : field });
 export const b2bResearchHref = (posted?: string | null): string => buildHref(ROUTES.b2bResearch, { posted });
 export const researchNewHref = (proposalId?: string | null): string => buildHref(ROUTES.b2bResearchNew, { proposal: proposalId });
+export const networkHref = (opts: { tab?: string | null; category?: string | null; sort?: string | null; q?: string | null } = {}): string =>
+  buildHref(ROUTES.b2bNetwork, { tab: opts.tab === "find" ? null : opts.tab, category: opts.category, sort: opts.sort === "rating" ? null : opts.sort, q: opts.q ? opts.q : null });
+export const networkCompanyHref = (id: string): string => buildHref(ROUTES.b2bNetworkCompany, { id });
+export const networkNewHref = (opts: { to?: string | null; mode?: "open" | null } = {}): string => buildHref(ROUTES.b2bNetworkNew, { to: opts.to, mode: opts.mode });
+export const workRequestHref = (id: string): string => buildHref(ROUTES.b2bNetworkRequest, { id });
 
 /** "14,12,abc,99,14" → [14, 12] (숫자가 아니거나 1~17 밖이거나 겹치면 버려요) */
 export function parseSdgParam(raw: string | null | undefined): SdgId[] {

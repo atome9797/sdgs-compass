@@ -1,7 +1,7 @@
 // 연구 의뢰 화면용 데이터(뷰 모델): 연구자(대학원생) 화면 /lab/* 과 기업 화면 /b2b/research/* 이 그대로 그리면 되는 글자·숫자.
 // 규칙(입력 검사·상태 바꾸기)은 research.ts, 문구는 messages/research.ts 에 있어요.
 import { RESEARCH_FIELDS, type DemoState, type ResearcherProfile, type ResearchField, type ResearchRequest, type ResearchRequestStatus } from "./domain";
-import { splitMatchFee } from "./fees";
+import { PLATFORM_FEE_MIN_YEN, platformFeeFor } from "./fees";
 import { daysBetween, dDayLabel, formatBytes, formatDate, formatDateTime, formatYen } from "./format";
 import { pick, type Locale } from "./i18n";
 import { proposalStatusLabel } from "./labels";
@@ -21,13 +21,15 @@ export const RESEARCH_STATUS_TONE: Record<ResearchRequestStatus, ResearchTone> =
 
 export const researchFlow = (locale: Locale): string[] => [1, 2, 3, 4, 5].map((n) => translate(`research.flow.${n as 1 | 2 | 3 | 4 | 5}`, locale));
 
-/** 기업이 돈을 내는 때 세 가지(상금 · 인턴 채용 수수료 · 연구 의뢰비)와 운영 수수료가 아직 예정이라는 한 줄 */
+/** 기업이 돈을 내는 때(상금 · 연구 의뢰비 — 상대에게 직접, 수수료 10%는 따로)와 무료인 것(인턴 채용 · 기업 간 업무 의뢰), 돈을 맡지 않는다는 한 줄 */
 export function researchPayTimings(locale: Locale): { items: string[]; note: string } {
+  const min = formatYen(PLATFORM_FEE_MIN_YEN, locale);
   return {
     items: [
-      translate("research.pay.prize", locale),
-      translate("research.pay.match", locale, { fee: formatYen(splitMatchFee().feeYen, locale) }),
-      translate("research.pay.research", locale),
+      translate("research.pay.prize", locale, { min }),
+      translate("research.pay.match", locale),
+      translate("research.pay.research", locale, { min }),
+      translate("research.pay.network", locale),
     ],
     note: translate("research.pay.note", locale),
   };
@@ -45,6 +47,8 @@ export interface ResearchCardVM {
   statusLabel: string;
   statusTone: ResearchTone;
   feeLabel: string;
+  /** 운영 수수료(의뢰비의 10%, 최저 ¥9,000) — 기업이 의뢰비와 따로 내요 */
+  platformFeeLabel: string;
   /** 「2026年12月20日まで」 */
   dueLabel: string;
   /** D-40 · D-DAY · 「納期を過ぎています」 — 성과가 이미 도착했거나 끝난 의뢰는 null */
@@ -87,7 +91,7 @@ export interface ResearchDetailVM extends ResearchCardVM {
   completedLabel: string | null;
   result: ResearchResultVM | null;
   steps: ResearchStepVM[];
-  /** 맡기 전에 보여 주는 거래 조건: 의뢰비 · 기한 · 지급 · 운영 수수료(예정) */
+  /** 맡기 전에 보여 주는 거래 조건: 의뢰비 · 기한 · 지급 · 운영 수수료(기업이 따로 내요) */
   terms: { label: string; value: string }[];
   /** 연구자 화면: 맡을 수 있어요 (모집 중 · 기한 전) */
   canAccept: boolean;
@@ -123,6 +127,7 @@ function cardVM(state: DemoState, request: ResearchRequest, locale: Locale): Res
     statusLabel: researchStatusLabel(request.status, locale),
     statusTone: RESEARCH_STATUS_TONE[request.status],
     feeLabel: formatYen(request.feeYen, locale),
+    platformFeeLabel: formatYen(platformFeeFor(request.feeYen), locale),
     dueLabel: translate("research.dueOn", locale, { date: formatDate(request.dueOn, locale) }),
     dDay: waiting ? (daysLeft < 0 ? translate("research.overdue", locale) : dDayLabel(daysLeft, locale)) : null,
     overdue: waiting && daysLeft < 0,
@@ -167,7 +172,7 @@ function detailVM(state: DemoState, request: ResearchRequest, locale: Locale): R
       { label: translate("research.fee", locale), value: card.feeLabel },
       { label: translate("research.due", locale), value: card.dueLabel },
       { label: translate("research.payment", locale), value: translate("research.paymentValue", locale) },
-      { label: translate("research.platformFee", locale), value: translate("research.platformFeeValue", locale) },
+      { label: translate("research.platformFee", locale), value: translate("research.platformFeeValue", locale, { fee: card.platformFeeLabel, min: formatYen(PLATFORM_FEE_MIN_YEN, locale) }) },
     ],
     canAccept: isAcceptable(request, state.today),
     expired: request.status === "open" && !isAcceptable(request, state.today),
@@ -313,7 +318,7 @@ export function selectB2bResearch(state: DemoState, locale: Locale): B2bResearch
     requests: ours.map((r) => detailVM(state, r, locale)),
     canCreate: researchableProposals(state).length > 0,
     emptyLabel: translate("research.b2b.empty", locale),
-    feeNote: translate("research.b2b.feeNote", locale),
+    feeNote: translate("research.b2b.feeNote", locale, { min: formatYen(PLATFORM_FEE_MIN_YEN, locale) }),
     summary: translate("research.b2b.summary", locale, { open: totals.open, active: totals.inProgress, delivered: totals.delivered }),
     needsAction: totals.delivered,
   };
@@ -369,7 +374,7 @@ export function selectResearchForm(state: DemoState, locale: Locale, requestedPr
     minDays: RESEARCH_MIN_DAYS,
     maxDays: RESEARCH_MAX_DAYS,
     fieldsLabel: translate("research.new.fields", locale, { max: RESEARCH_LIMITS.maxFields }),
-    feeHint: translate("research.new.feeHint", locale, { min: formatYen(RESEARCH_FEE_MIN_YEN, locale), max: formatYen(RESEARCH_FEE_MAX_YEN, locale) }),
+    feeHint: translate("research.new.feeHint", locale, { min: formatYen(RESEARCH_FEE_MIN_YEN, locale), max: formatYen(RESEARCH_FEE_MAX_YEN, locale), feeMin: formatYen(PLATFORM_FEE_MIN_YEN, locale) }),
     daysHint: translate("research.new.daysHint", locale, { min: RESEARCH_MIN_DAYS, max: RESEARCH_MAX_DAYS }),
   };
 }

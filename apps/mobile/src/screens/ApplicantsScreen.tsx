@@ -96,7 +96,7 @@ function AwardAndAdopt({ applicant, feeNote, onTouched }: { applicant: Applicant
       />
       {confirming ? (
         <View style={styles.stack}>
-          <Notice tone="info" message={`💗 ${feeNote}`} />
+          <Notice tone="info" message={`🎁 ${feeNote}`} />
           <Button
             testID={`adopt-confirm-${applicant.id}`}
             label={t("common.confirm")}

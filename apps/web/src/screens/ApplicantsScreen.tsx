@@ -179,7 +179,7 @@ function ApplicantCard({ applicant, feeNote, showChallenge, onTouched }: { appli
               </div>
               {confirming ? (
                 <div className="stack">
-                  <Banner tone="info" icon="💗">
+                  <Banner tone="info" icon="🎁">
                     {feeNote}
                   </Banner>
                   <div className="row">
@@ -217,7 +217,7 @@ function ApplicantsView({ requestedId, filter }: { requestedId: string | null; f
   const [kept, setKept] = useState<readonly string[]>([]);
   const keep = (id: string) => setKept((list) => (list.includes(id) ? list : [...list, id]));
   const vm = useMemo(() => selectApplicants(demo, locale, requestedId, filter, kept), [demo, locale, requestedId, filter, kept]);
-  // #25 고른 과제의 상금: 예치 중이면 "최우수상을 정하면 송금", 보냈으면 "송금했어요" (데모)
+  // 고른 과제의 상금: 표창 전이면 "최우수상 팀에 직접 지급해 주세요(수수료는 따로)", 지급했으면 "지급한 것으로 기록했어요" (데모)
   const prize = useMemo(() => prizeNotice(demo, vm.selectedId, locale), [demo, vm.selectedId, locale]);
   return (
     <>

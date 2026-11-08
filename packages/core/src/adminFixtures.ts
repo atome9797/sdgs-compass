@@ -61,10 +61,7 @@ const match = (id: string, matchedOn: string): Match => ({
   challengeId: "chA",
   proposalId: "p5",
   companyId: "co1",
-  feeYen: 30_000,
-  donationYen: 15_000,
   matchedOn,
-  recipient: { ja: "団体", ko: "단체" },
 });
 
 const teamPost = (id: string, createdOn: string): TeamPost => ({
@@ -181,8 +178,9 @@ export function makeUsageState(overrides: Partial<DemoState> = {}): DemoState {
     ],
     cert: CERT,
     esgGeneratedOn: null,
-    wallet: { kyc: "none", kycVerifiedOn: null, entries: [] },
-    prizeDeposits: [],
+    wallet: { entries: [] },
+    // 최우수상 팀에 직접 지급한 상금 1건 → 수수료 ¥10,000 (상금의 10%)
+    prizePayments: [{ challengeId: "chA", companyId: "co1", amountYen: 100_000, status: "paid", promisedOn: "2026-09-01", paidOn: "2026-10-20", proposalId: "p5" }],
     researcher: { id: "res1", name: "researcher", affiliation: "Test Graduate School", degree: "master", year: 1, fields: ["data"], bio: "" },
     researchRequests: [],
     ...overrides,

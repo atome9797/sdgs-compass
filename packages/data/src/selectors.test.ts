@@ -735,28 +735,28 @@ describe("메시지·인재", () => {
 });
 
 describe("B2B: 대시보드·응모자·ESG", () => {
-  it("대시보드: KPI 5개(순서 고정), 수수료·기부 합계", () => {
+  it("대시보드: KPI 5개(순서 고정), 수수료 = 지급한 상금·완료한 연구의 10%(최저 ¥9,000)", () => {
     for (const locale of LOCALES) {
       const dash = selectB2bDashboard(initial, locale);
-      expect(dash.kpis.map((k) => k.id)).toEqual(["open", "applicants", "pending", "matches", "donation"]);
+      expect(dash.kpis.map((k) => k.id)).toEqual(["open", "applicants", "pending", "matches", "fees"]);
       expect(dash.challenges.length).toBeGreaterThan(0);
       expect(dash.challenges.every((c) => c.companyName === dash.companyName)).toBe(true);
-      expect(dash.fee.perMatch.gross).toBe(formatYen(30_000, locale));
-      expect(dash.fee.perMatch.donation).toBe(formatYen(15_000, locale));
-      expect(dash.fee.perMatch.revenue).toBe(formatYen(15_000, locale));
-      expect(dash.fee.totals.count).toBe(2);
-      expect(dash.fee.totals.donation).toBe(formatYen(30_000, locale));
-      expect(dash.fee.rows).toHaveLength(2);
+      expect(dash.fee.rule).toContain(formatYen(9_000, locale));
+      // 우리 회사(みなと): 끝난 과제 ch-old1 의 상금 ¥30,000 을 지급 → 수수료 ¥9,000 (최저액)
+      expect(dash.fee.totals).toEqual({ count: 1, base: formatYen(30_000, locale), fee: formatYen(9_000, locale) });
+      expect(dash.fee.rows.map((r) => [r.kind, r.baseLabel, r.feeLabel])).toEqual([["prize", formatYen(30_000, locale), formatYen(9_000, locale)]]);
+      expect(dash.kpis.find((k) => k.id === "fees")?.value).toBe(formatYen(9_000, locale));
     }
+    expect(selectB2bDashboard(initial, "ja").fee.free).toContain("インターンの採用");
   });
 
-  it("채용하면 매칭·기부 합계가 한 건 늘어요", () => {
+  it("채택(인턴)은 무료: 채택 수만 늘고, 최우수상 상금을 지급하면 그 수수료가 늘어요", () => {
     const before = selectB2bDashboard(initial, "ja");
     const after = selectB2bDashboard(busy, "ja");
-    expect(after.fee.totals.count).toBe(before.fee.totals.count + 1);
+    expect(after.kpis.find((k) => k.id === "matches")?.value).toBe(String(Number(before.kpis.find((k) => k.id === "matches")?.value) + 1));
+    // busy 는 pb-1(ch-bottle, 상금 ¥50,000)에 최우수상 → 수수료 ¥9,000 이 더해져요
+    expect(after.fee.totals).toEqual({ count: 2, base: formatYen(80_000, "ja"), fee: formatYen(18_000, "ja") });
     expect(after.fee.rows).toHaveLength(before.fee.rows.length + 1);
-    expect(after.kpis.find((k) => k.id === "matches")?.value).toBe(String(before.fee.totals.count + 1));
-    expect(after.fee.totals.donation).toBe(formatYen(45_000, "ja"));
   });
 
   it("응모자: 기본은 응모작이 있는 첫 챌린지, 점수 높은 순(심사 전은 맨 뒤)이고 수수료 안내가 나와요", () => {
@@ -767,8 +767,8 @@ describe("B2B: 대시보드·응모자·ESG", () => {
       expect(view.applicants.length).toBeGreaterThan(0);
       const averages = view.applicants.map((a) => a.average ?? -1);
       expect([...averages].sort((a, b) => b - a)).toEqual(averages);
-      expect(view.feeNote).toContain(formatYen(30_000, locale));
-      expect(view.feeNote).toContain(formatYen(15_000, locale));
+      expect(view.feeNote).toContain(locale === "ja" ? "無料" : "무료");
+      expect(view.feeNote).toContain(formatYen(9_000, locale));
       const unknown = selectApplicants(initial, locale, "없는-챌린지");
       expect(unknown.selectedId).toBe(view.selectedId);
     }
@@ -838,14 +838,14 @@ describe("대시보드 숫자 카드 → 해당 목록, 응모자 상태 필터 
       ["applicants", { kind: "applicants", filter: "all" }],
       ["pending", { kind: "applicants", filter: "submitted" }],
       ["matches", { kind: "applicants", filter: "adopted" }],
-      ["donation", { kind: "section", section: "fees" }],
+      ["fees", { kind: "section", section: "fees" }],
     ]);
     const label = (id: string) => ja.kpis.find((k) => k.id === id)!;
     expect(label("pending").actionLabel).toBe(`審査待ち ${label("pending").value}（審査待ちの応募者を見る）`);
-    expect(label("donation").actionLabel).toBe(`寄付累計（貴社の寄付） ${formatYen(30_000, "ja")}（お支払いと寄付の内訳を見る）`);
+    expect(label("fees").actionLabel).toBe(`手数料の累計 ${formatYen(9_000, "ja")}（お支払い（手数料）の内訳を見る）`);
     for (const kpi of ja.kpis) expect(kpi.actionLabel.startsWith(`${kpi.label} ${kpi.value}`)).toBe(true);
     const ko = selectB2bDashboard(submitted, "ko");
-    expect(ko.kpis.find((k) => k.id === "matches")!.actionLabel).toBe(`매칭 성립 ${ko.kpis.find((k) => k.id === "matches")!.value} (채택한 응모자 보기)`);
+    expect(ko.kpis.find((k) => k.id === "matches")!.actionLabel).toBe(`채택(인턴) ${ko.kpis.find((k) => k.id === "matches")!.value} (채택한 응모자 보기)`);
     expect(ko.kpis.find((k) => k.id === "open")!.actionLabel).toContain("챌린지 관리 보기");
   });
 
@@ -887,12 +887,12 @@ describe("대시보드 숫자 카드 → 해당 목록, 응모자 상태 필터 
     expect(all.countNote).toBe(`応募者 ${people}には、企画書データのない過去の応募（サンプル）も含まれます。ここに表示しているのは企画書 ${all.applicants.length}件です。`);
     const adopted = selectApplicants(submitted, "ja", ALL_CHALLENGES, "adopted");
     expect(adopted.applicants).toHaveLength(0);
-    expect(adopted.countNote).toContain("マッチング成立 2件");
+    expect(adopted.countNote).toContain("採用 2件");
     expect(adopted.emptyLabel).toBe("この条件の応募はありません");
     // 내 기획서를 채택하면 매칭 3건 중 1건이 목록에 보여요
     const after = selectApplicants(reviewedMine, "ko", ALL_CHALLENGES, "adopted");
     expect(after.applicants.map((a) => a.id)).toEqual([mineId]);
-    expect(after.countNote).toBe("매칭 성립 3건에는 기획서 데이터가 없는 지난 채택(샘플 · 내역은 대시보드의 「결제와 기부」)도 포함돼요. 여기에는 1건을 보여 줘요.");
+    expect(after.countNote).toBe("채택 3건에는 기획서 데이터가 없는 지난 채택(샘플)도 포함돼요. 여기에는 1건을 보여 줘요.");
     // 한 과제만 볼 때: 응모자 수와 기획서 수가 같으면 안내가 없어요
     expect(selectApplicants(submitted, "ja", "ch-plastic").countNote).toBeNull();
     // 응모자 수(샘플)만 있고 기획서가 없는 지난 과제는 안내 + 「表示できる企画書はありません」

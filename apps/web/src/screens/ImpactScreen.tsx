@@ -211,14 +211,14 @@ export function ImpactScreen() {
         </ButtonLink>
       </div>
 
-      {/* #25 リワード残高(데모): 돈은 레벨과 따로 — 레벨은 바꿀 수 없다는 고지 ④ 를 카드에 함께 보여요.
+      {/* 받은 상금(데모): 돈은 레벨과 따로 — 레벨은 바꿀 수 없다는 고지 ③ 을 카드에 함께 보여요.
           맨 아래에 둬요(#28): 제출 직후 첫 화면에서 지난 샘플 상금이 방금 낸 기획서의 결과처럼 보이지 않게 */}
       <section className="card card--pad wallet-card" aria-label={t("wallet.title")}>
         <div className="wallet-card__row">
           <p className="strong">
             <span aria-hidden="true">💴</span> {t("wallet.title")} <Tag tone="warning">{t("wallet.demo")}</Tag>
           </p>
-          <span className="wallet-card__balance">{wallet.balanceLabel}</span>
+          <span className="wallet-card__balance">{wallet.totalLabel}</span>
         </div>
         <p className="small muted">{t("wallet.cardNote")}</p>
         <p className="small muted">{wallet.notices.level}</p>

@@ -257,7 +257,7 @@ export function ImpactScreen() {
             <Badge label={t("wallet.demo")} tone="warning" />
           </View>
           <Txt variant="title" bold>
-            {wallet.balanceLabel}
+            {wallet.totalLabel}
           </Txt>
         </View>
         <Txt variant="small" tone="muted">

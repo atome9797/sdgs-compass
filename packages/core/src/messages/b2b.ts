@@ -1,5 +1,5 @@
 // 기업·기관(B2B) 화면 문구: 대시보드(SCR-06), 챌린지 출제, 응모자·심사(F-303), 인재 스카우트(F-601·602),
-// ESG 리포트(F-403)·SDGs 인증마크, 결제와 기부 내역(1건 ¥30,000 = 기업 자신의 기부 50%(수령은 우리가 대행) + 중개 수수료 50%).
+// ESG 리포트(F-403)·SDGs 인증마크, 수수료 내역(상금·연구 의뢰비의 10%(최저 ¥9,000)를 기업이 따로 내요 — 인턴 채용은 무료, 기부는 임의. docs/fees.md).
 import type { LocalizedText } from "../i18n";
 
 export const b2b = {
@@ -8,21 +8,21 @@ export const b2b = {
   "b2b.kpiOpen": { ja: "募集中の課題", ko: "진행 중 챌린지" },
   "b2b.kpiApplicants": { ja: "総応募者数", ko: "총 응모자 수" },
   "b2b.kpiPending": { ja: "審査待ち", ko: "심사 대기" },
-  "b2b.kpiMatches": { ja: "マッチング成立", ko: "매칭 성립" },
-  "b2b.kpiDonation": { ja: "寄付累計（貴社の寄付）", ko: "기부 누계(귀사의 기부)" },
+  "b2b.kpiMatches": { ja: "採用（インターン）", ko: "채택(인턴)" },
+  "b2b.kpiFees": { ja: "手数料の累計", ko: "수수료 누계" },
   // #33 숫자 카드를 누르면 그 숫자의 내용이 있는 곳으로 가요 — 스크린 리더 이름은 「숫자 + 어디로 가는지」
   "b2b.kpiAction": { ja: "{label} {value}（{go}）", ko: "{label} {value} ({go})" },
   "b2b.kpiGo.open": { ja: "課題の管理を見る", ko: "챌린지 관리 보기" },
   "b2b.kpiGo.applicants": { ja: "応募者の一覧を見る", ko: "응모자 목록 보기" },
   "b2b.kpiGo.pending": { ja: "審査待ちの応募者を見る", ko: "심사 대기 응모자 보기" },
   "b2b.kpiGo.matches": { ja: "採用した応募者を見る", ko: "채택한 응모자 보기" },
-  "b2b.kpiGo.donation": { ja: "お支払いと寄付の内訳を見る", ko: "결제와 기부 내역 보기" },
+  "b2b.kpiGo.fees": { ja: "お支払い（手数料）の内訳を見る", ko: "수수료 내역 보기" },
   "b2b.challenges": { ja: "課題の管理", ko: "챌린지 관리" },
   "b2b.newChallenge": { ja: "新しい課題を出題", ko: "신규 챌린지 출제" },
   "b2b.noChallenges": { ja: "まだ出題がありません", ko: "아직 출제한 챌린지가 없어요" },
   "b2b.applicantsCount": { ja: "応募者 {count}名", ko: "응모자 {count}명" },
   "b2b.viewApplicants": { ja: "応募者を見る", ko: "응모자 보기" },
-  "b2b.fees": { ja: "お支払いと寄付", ko: "결제와 기부" },
+  "b2b.fees": { ja: "お支払い（手数料）", ko: "수수료" },
 
   "new.title": { ja: "新しい課題を出題", ko: "신규 챌린지 출제" },
   "new.challengeTitle": { ja: "タイトル", ko: "제목" },
@@ -67,8 +67,8 @@ export const b2b = {
     ko: "응모자 {people}에는 기획서 데이터가 없는 지난 응모(샘플)도 포함돼요. 여기에는 기획서 {count}건을 보여 줘요.",
   },
   "applicants.matchNote": {
-    ja: "マッチング成立 {matches}件には、企画書データのない過去の採用（サンプル・内訳はダッシュボードの「お支払いと寄付」）も含まれます。ここに表示しているのは {count}件です。",
-    ko: "매칭 성립 {matches}건에는 기획서 데이터가 없는 지난 채택(샘플 · 내역은 대시보드의 「결제와 기부」)도 포함돼요. 여기에는 {count}건을 보여 줘요.",
+    ja: "採用 {matches}件には、企画書データのない過去の採用（サンプル）も含まれます。ここに表示しているのは {count}件です。",
+    ko: "채택 {matches}건에는 기획서 데이터가 없는 지난 채택(샘플)도 포함돼요. 여기에는 {count}건을 보여 줘요.",
   },
 
   "review.title": { ja: "審査", ko: "심사" },
@@ -86,9 +86,12 @@ export const b2b = {
   },
   "review.saved": { ja: "審査を保存しました。学生の画面に結果が表示されます。", ko: "심사를 저장했어요. 학생 화면에 결과가 보여요." },
   "review.award": { ja: "表彰する", ko: "시상하기" },
-  "review.adopt": { ja: "採用する（マッチング成立）", ko: "채택하기(매칭 성립)" },
+  "review.adopt": { ja: "採用する（インターン）", ko: "채택하기(인턴)" },
   "review.adopted": { ja: "採用済み", ko: "채택 완료" },
-  "review.feeNote": { ja: "採用が決まると {fee} をお支払いいただきます。うち{donation}は貴社ご自身の寄付で、当社が受け取りを代行して寄付先へ届けます。", ko: "채택이 확정되면 {fee}를 결제해요. 그중 {donation}은 귀사의 기부이고, 저희가 수령을 대행해 기부처에 전달해요." },
+  "review.feeNote": {
+    ja: "インターンの採用は無料です（成果報酬はいただきません）。当社の手数料は、賞金・研究依頼費の10%（最低{min}）だけです。",
+    ko: "인턴 채용은 무료예요(성과 보수는 받지 않아요). 운영사 수수료는 상금·연구 의뢰비의 10%(최저 {min})뿐이에요.",
+  },
 
   "talent.title": { ja: "人材スカウト", ko: "인재 스카우트" },
   "talent.searchPlaceholder": { ja: "SDGs、スキル、実績で検索", ko: "SDGs, 스킬, 실적으로 검색" },
@@ -121,7 +124,7 @@ export const b2b = {
   "esg.highlights": { ja: "ハイライト", ko: "하이라이트" },
   "esg.hlChallenges": { ja: "出題した課題 {count}件", ko: "출제한 챌린지 {count}건" },
   "esg.hlApplicants": { ja: "集まった応募者 {count}名", ko: "모인 응모자 {count}명" },
-  "esg.hlDonation": { ja: "貴社からの寄付 {amount}", ko: "귀사의 기부 {amount}" },
+  "esg.hlPaid": { ja: "学生・研究者への賞金・研究費 {amount}", ko: "학생·연구자에게 지급한 상금·연구비 {amount}" },
   "esg.hlCert": { ja: "SDGs取組みマーク：{mark}", ko: "SDGs 실천 마크: {mark}" },
 
   "esg.certTitle": { ja: "SDGs取組みマーク", ko: "SDGs 실천 마크" },
@@ -147,12 +150,26 @@ export const b2b = {
   "esg.unitFlag": { ja: "0/1", ko: "0/1" },
   "esg.disclaimer": { ja: "※この取組みマークは独自の目安です。国・自治体・国連の認証ではありません。", ko: "※이 실천 마크는 자체 기준이에요. 국가·지자체·유엔의 인증이 아니에요." },
 
-  "fee.title": { ja: "お支払いと寄付の内訳", ko: "결제와 기부 내역" },
-  "fee.perMatch": { ja: "1件あたり", ko: "1건당" },
-  "fee.gross": { ja: "お支払い（成果報酬）", ko: "결제(성과 보수)" },
-  "fee.donation": { ja: "うち寄付（貴社から寄付先へ）", ko: "그중 기부(귀사 → 기부처)" },
-  "fee.revenue": { ja: "うち仲介手数料", ko: "그중 중개 수수료" },
-  "fee.matches": { ja: "成立件数", ko: "성립 건수" },
-  "fee.recipient": { ja: "寄付先", ko: "기부처" },
-  "fee.note": { ja: "お支払いの50%は貴社ご自身の寄付です。当社が受け取りを代行して寄付先へ届け、公式SNSでご報告します。", ko: "결제 금액의 50%는 귀사의 기부예요. 저희가 수령을 대행해 기부처에 전달하고, 공식 SNS로 알려요." },
+  "fee.title": { ja: "賞金・研究依頼費の10%だけ", ko: "상금·연구 의뢰비의 10%만" },
+  "fee.rule": {
+    ja: "手数料は、賞金・研究依頼費の10%（最低{min}）を賞金・依頼費とは別にお支払いいただきます。学生・研究者は満額を受け取ります。",
+    ko: "수수료는 상금·연구 의뢰비의 10%(최저 {min})를 상금·의뢰비와 따로 내요. 학생·연구자는 전액을 받아요.",
+  },
+  "fee.free": {
+    ja: "無料：インターンの採用・信頼を積んだ企業どうしの業務依頼。寄付は任意です（上乗せした寄付は公式SNSでご報告します）。",
+    ko: "무료: 인턴 채용 · 신뢰를 쌓은 기업끼리의 업무 의뢰. 기부는 임의예요(더한 기부는 공식 SNS로 알려요).",
+  },
+  "fee.count": { ja: "対象の件数", ko: "대상 건수" },
+  "fee.base": { ja: "賞金・研究依頼費（直接払い）", ko: "상금·연구 의뢰비(직접 지급)" },
+  "fee.fee": { ja: "手数料", ko: "수수료" },
+  "fee.kind": { ja: "種類", ko: "종류" },
+  "fee.item": { ja: "課題・研究", ko: "과제·연구" },
+  "fee.date": { ja: "日付", ko: "날짜" },
+  "fee.kind.prize": { ja: "賞金", ko: "상금" },
+  "fee.kind.research": { ja: "研究依頼", ko: "연구 의뢰" },
+  "fee.empty": { ja: "まだ手数料の対象になった取引はありません", ko: "아직 수수료 대상 거래가 없어요" },
+  "fee.note": {
+    ja: "賞金・依頼費は貴社から学生・研究者へ直接お支払いいただきます（当社はお金を預かりません）。手数料は当社から別にご請求します（デモでは記録だけ）。",
+    ko: "상금·의뢰비는 귀사가 학생·연구자에게 직접 지급해요(운영사는 돈을 맡지 않아요). 수수료는 운영사가 따로 청구해요(데모에서는 기록만).",
+  },
 } as const satisfies Record<string, LocalizedText>;

@@ -10,7 +10,7 @@ import type {
   Activity, ActivityKind, AwardKind, Candidate, Challenge, ChallengeStatus, CertCriterionId, Company, DemoState, OfficialChannel, OfficialShare, PostKind, Proposal, ProposalStatus, Review,
   Role, ScoutKind, ScoutStatus, SkillId, SocialPost,
 } from "./domain";
-import { summarizeMatches, splitMatchFee } from "./fees";
+import { feeItems, PLATFORM_FEE_MIN_YEN, summarizeFees, type FeeKind } from "./fees";
 import { dDayLabel, daysBetween, formatBytes, formatDate, formatDateShort, formatDateTime, formatMonthDayWeekday, formatPeople, formatYen } from "./format";
 import { computeBadges, computeImpactIndex, BADGE_EMOJI, levelProgress, levelOf, REVIEW_SCORE_MAX, reviewBonus, type BadgeCode } from "./impact";
 import { pick, type Locale } from "./i18n";
@@ -785,8 +785,8 @@ export function selectInbox(state: DemoState, locale: Locale): InboxVM {
 
 // ───────── B2B 대시보드(SCR-06) ─────────
 
-export type KpiId = "open" | "applicants" | "pending" | "matches" | "donation";
-/** 대시보드 안에서 숫자 카드가 가리키는 칸 (#33): 課題の管理 · お支払いと寄付 */
+export type KpiId = "open" | "applicants" | "pending" | "matches" | "fees";
+/** 대시보드 안에서 숫자 카드가 가리키는 칸 (#33): 課題の管理 · お支払い（手数料） */
 export type DashboardSection = "challenges" | "fees";
 /** 숫자 카드를 누르면 가는 곳 (#33): 대시보드의 칸, 또는 상태 필터가 켜진 응모자 화면(모든 과제) */
 export type KpiTarget = { kind: "section"; section: DashboardSection } | { kind: "applicants"; filter: ApplicantFilter };
@@ -796,7 +796,7 @@ export const KPI_TARGETS: Record<KpiId, KpiTarget> = {
   applicants: { kind: "applicants", filter: "all" },
   pending: { kind: "applicants", filter: "submitted" },
   matches: { kind: "applicants", filter: "adopted" },
-  donation: { kind: "section", section: "fees" },
+  fees: { kind: "section", section: "fees" },
 };
 
 export interface KpiVM {
@@ -809,10 +809,14 @@ export interface KpiVM {
   actionLabel: string;
 }
 
+/** 대시보드 「お支払い（手数料）」: 수수료 규칙 · 무료인 것 · 합계 · 수수료가 생긴 거래(상금 지급 · 연구 완료) */
 export interface FeeVM {
-  perMatch: { gross: string; donation: string; revenue: string };
-  totals: { count: number; gross: string; donation: string; revenue: string };
-  rows: { id: string; title: string; dateLabel: string; feeLabel: string; donationLabel: string; recipient: string }[];
+  /** 상금·연구 의뢰비의 10%(최저 ¥9,000)를 기업이 따로 낸다는 한 줄 */
+  rule: string;
+  /** 무료인 것(인턴 채용 · 기업 간 업무 의뢰)과 기부(임의) 한 줄 */
+  free: string;
+  totals: { count: number; base: string; fee: string };
+  rows: { id: string; kind: FeeKind; kindLabel: string; title: string; dateLabel: string; baseLabel: string; feeLabel: string }[];
   note: string;
 }
 
@@ -827,26 +831,21 @@ export interface B2bDashboardVM {
 }
 
 export function selectFees(state: DemoState, locale: Locale): FeeVM {
-  const mine = state.matches.filter((m) => m.companyId === state.myCompanyId);
-  const total = summarizeMatches(mine);
-  const split = splitMatchFee();
+  const items = feeItems(state, state.myCompanyId);
+  const total = summarizeFees(items);
   return {
-    perMatch: { gross: formatYen(split.feeYen, locale), donation: formatYen(split.donationYen, locale), revenue: formatYen(split.revenueYen, locale) },
-    totals: { count: total.count, gross: formatYen(total.feeYen, locale), donation: formatYen(total.donationYen, locale), revenue: formatYen(total.revenueYen, locale) },
-    rows: mine
-      .slice()
-      .sort((a, b) => b.matchedOn.localeCompare(a.matchedOn))
-      .map((m) => {
-        const challenge = state.challenges.find((c) => c.id === m.challengeId);
-        return {
-          id: m.id,
-          title: challenge ? pick(challenge.title, locale) : m.challengeId,
-          dateLabel: formatDate(m.matchedOn, locale),
-          feeLabel: formatYen(m.feeYen, locale),
-          donationLabel: formatYen(m.donationYen, locale),
-          recipient: pick(m.recipient, locale),
-        };
-      }),
+    rule: translate("fee.rule", locale, { min: formatYen(PLATFORM_FEE_MIN_YEN, locale) }),
+    free: translate("fee.free", locale),
+    totals: { count: total.count, base: formatYen(total.baseYen, locale), fee: formatYen(total.feeYen, locale) },
+    rows: items.map((item) => ({
+      id: item.id,
+      kind: item.kind,
+      kindLabel: translate(`fee.kind.${item.kind}`, locale),
+      title: pick(item.title, locale),
+      dateLabel: formatDate(item.date, locale),
+      baseLabel: formatYen(item.baseYen, locale),
+      feeLabel: formatYen(item.feeYen, locale),
+    })),
     note: translate("fee.note", locale),
   };
 }
@@ -857,8 +856,8 @@ export function selectB2bDashboard(state: DemoState, locale: Locale): B2bDashboa
   const mine = state.challenges.filter((c) => c.companyId === state.myCompanyId);
   const mineIds = new Set(mine.map((c) => c.id));
   const pending = state.proposals.filter((p) => mineIds.has(p.challengeId) && p.status === "submitted").length;
-  const matches = state.matches.filter((m) => m.companyId === state.myCompanyId);
-  const total = summarizeMatches(matches);
+  const matches = state.matches.filter((m) => m.companyId === state.myCompanyId).length;
+  const fees = summarizeFees(feeItems(state, state.myCompanyId));
   const name = company ? pick(company.name, locale) : "";
   const kpi = (id: KpiId, label: string, value: string): KpiVM => ({ id, label, value, target: KPI_TARGETS[id], actionLabel: t("b2b.kpiAction", { label, value, go: t(`b2b.kpiGo.${id}`) }) });
   return {
@@ -870,8 +869,8 @@ export function selectB2bDashboard(state: DemoState, locale: Locale): B2bDashboa
       kpi("open", t("b2b.kpiOpen"), String(mine.filter((c) => isOpenFor(c, state.today)).length)),
       kpi("applicants", t("b2b.kpiApplicants"), formatPeople(mine.reduce((sum, c) => sum + c.applicants, 0), locale)),
       kpi("pending", t("b2b.kpiPending"), String(pending)),
-      kpi("matches", t("b2b.kpiMatches"), String(total.count)),
-      kpi("donation", t("b2b.kpiDonation"), formatYen(total.donationYen, locale)),
+      kpi("matches", t("b2b.kpiMatches"), String(matches)),
+      kpi("fees", t("b2b.kpiFees"), formatYen(fees.feeYen, locale)),
     ],
     challenges: mine
       .map((c) => challengeCard(state, c, locale))
@@ -1007,7 +1006,6 @@ export function selectApplicants(state: DemoState, locale: Locale, challengeId: 
   } else if (filter === "adopted" && allChallenges && matches !== count("adopted")) {
     countNote = t("applicants.matchNote", { matches, count: count("adopted") });
   }
-  const split = splitMatchFee();
   return {
     challengeOptions: [
       ...(mine.length > 0 ? [{ id: ALL_CHALLENGES, title: t("applicants.allChallenges"), statusLabel: t("applicants.allChallengesHint", { count: mine.length }), all: true }] : []),
@@ -1022,7 +1020,7 @@ export function selectApplicants(state: DemoState, locale: Locale, challengeId: 
     countNote,
     // 응모가 하나도 없으면 「応募はまだありません」, 응모자 수(샘플)만 있고 기획서가 없으면 「表示できる企画書はありません」, 필터에 맞는 것이 없으면 「この条件の…」
     emptyLabel: inScope.length > 0 ? t("applicants.filterEmpty") : people > 0 ? t("applicants.noProposals") : t("applicants.empty"),
-    feeNote: translate("review.feeNote", locale, { fee: formatYen(split.feeYen, locale), donation: formatYen(split.donationYen, locale) }),
+    feeNote: translate("review.feeNote", locale, { min: formatYen(PLATFORM_FEE_MIN_YEN, locale) }),
   };
 }
 
@@ -1195,7 +1193,7 @@ export function selectEsg(state: DemoState, locale: Locale): EsgVM {
   const t: TFunction = makeT(locale);
   const result = evaluateCertification(state.cert);
   const mine = state.challenges.filter((c) => c.companyId === state.myCompanyId);
-  const matches = summarizeMatches(state.matches.filter((m) => m.companyId === state.myCompanyId));
+  const paid = summarizeFees(feeItems(state, state.myCompanyId));
   const starsLabel = result.stars > 0 ? t("mark.stars", { stars: formatStars(result.stars) }) : t("esg.certNone");
   const items: CertItemVM[] = result.items.map((item) => {
     const criterion = criterionOf(item.id);
@@ -1231,7 +1229,7 @@ export function selectEsg(state: DemoState, locale: Locale): EsgVM {
     highlights: [
       t("esg.hlChallenges", { count: mine.length }),
       t("esg.hlApplicants", { count: formatPeople(mine.reduce((sum, c) => sum + c.applicants, 0), locale) }),
-      t("esg.hlDonation", { amount: formatYen(matches.donationYen, locale) }),
+      t("esg.hlPaid", { amount: formatYen(paid.baseYen, locale) }),
       t("esg.hlCert", { mark: starsLabel }),
     ],
     generated: state.esgGeneratedOn !== null,

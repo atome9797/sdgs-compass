@@ -3,7 +3,7 @@
 // 날짜가 없거나 의미 있게 나눌 수 없는 것(학생 수, 챌린지 상태 …)은 "지금 값"으로만 보여 줘요. 설계는 docs/admin.md.
 import { showableActivities } from "./activities";
 import type { ChallengeStatus, DemoState, OfficialChannel, PrPost, ProposalStatus, ScoutStatus } from "./domain";
-import { summarizeMatches } from "./fees";
+import { feeItems, summarizeFees } from "./fees";
 import { addDays, daysBetween, formatDateShort, formatYen } from "./format";
 import type { Locale, Text } from "./i18n";
 import { sdgName } from "./labels";
@@ -146,9 +146,12 @@ export interface UsageTotals {
   certificates: number;
   scouts: number;
   scoutsByStatus: Record<ScoutStatus, number>;
+  /** 채택(인턴 참가 결정) 수 — 무료 */
   matches: number;
+  /** 운영 수수료의 합: 지급한 상금 + 완료한 연구 의뢰의 10%(최저 ¥9,000) (fees.ts) */
   feeYen: number;
-  donationYen: number;
+  /** 수수료의 근거가 된 상금·연구 의뢰비의 합 (기업이 학생·연구자에게 직접 지급) */
+  feeBaseYen: number;
   teamPosts: number;
   posts: number;
   bragPosts: number;
@@ -175,7 +178,7 @@ function countOfficialByChannel(prPosts: readonly PrPost[]): Record<OfficialChan
 
 export function summarizeTotals(state: DemoState): UsageTotals {
   const students = [state.me, ...state.talent];
-  const fees = summarizeMatches(state.matches);
+  const fees = summarizeFees(feeItems(state));
   const challengesByStatus: Record<ChallengeStatus, number> = { open: 0, judging: 0, closed: 0 };
   for (const challenge of state.challenges) challengesByStatus[challenge.status] += 1;
   const proposalsByStatus: Record<ProposalStatus, number> = { submitted: 0, reviewed: 0, awarded: 0, adopted: 0 };
@@ -198,9 +201,9 @@ export function summarizeTotals(state: DemoState): UsageTotals {
     certificates: showableActivities(state).length,
     scouts: state.scouts.length,
     scoutsByStatus,
-    matches: fees.count,
+    matches: state.matches.length,
     feeYen: fees.feeYen,
-    donationYen: fees.donationYen,
+    feeBaseYen: fees.baseYen,
     teamPosts: state.teamPosts.length,
     posts: state.posts.length,
     bragPosts,
@@ -306,15 +309,8 @@ export function usageCurrentInsights(summary: UsageSummary, locale: Locale): str
   if (totals.posts > 0) {
     lines.push(translate("admin.usage.insight.feed", locale, { posts: totals.posts, brag: totals.bragPosts, pr: totals.prPosts, likes: totals.likes }));
   }
-  if (totals.matches > 0) {
-    lines.push(
-      translate("admin.usage.insight.matches", locale, {
-        matches: totals.matches,
-        fee: formatYen(totals.feeYen, locale),
-        donation: formatYen(totals.donationYen, locale),
-      }),
-    );
-  }
+  if (totals.matches > 0) lines.push(translate("admin.usage.insight.matches", locale, { matches: totals.matches }));
+  if (totals.feeYen > 0) lines.push(translate("admin.usage.insight.fees", locale, { fee: formatYen(totals.feeYen, locale), base: formatYen(totals.feeBaseYen, locale) }));
   if (totals.scouts > 0) {
     lines.push(translate("admin.usage.insight.scouts", locale, { total: totals.scouts, accepted: totals.scoutsByStatus.accepted, read: totals.scoutsByStatus.read }));
   }

@@ -447,7 +447,7 @@ svg { display: block; }
 .kpi__go { position: absolute; top: 50%; right: 12px; transform: translateY(-50%); font-size: 26px; font-weight: 700; line-height: 1; color: var(--primary); }
 .kpi__label { font-size: var(--fs-sm); color: var(--text-muted); font-weight: 700; }
 .kpi__value { font-size: var(--fs-xxl); font-weight: 800; line-height: 1.15; font-variant-numeric: tabular-nums; }
-.kpi--donation .kpi__value { color: var(--donation); }
+.kpi--fees .kpi__value { color: var(--primary); }
 @media (min-width: 1024px) { .kpi-grid { grid-template-columns: repeat(5, 1fr); } .kpi:last-child { grid-column: auto; } }
 .welcome { display: flex; align-items: center; gap: 14px; }
 .welcome__logo { flex: none; width: 56px; height: 56px; border-radius: var(--radius-lg); border: 1.5px solid transparent; display: grid; place-items: center; font-size: 30px; }
@@ -464,6 +464,8 @@ svg { display: block; }
 .fee-split__label { font-size: var(--fs-xs); font-weight: 700; color: var(--text-muted); }
 .fee-split__value { font-size: var(--fs-lg); font-weight: 800; font-variant-numeric: tabular-nums; }
 .fee-split__cell--donation .fee-split__value { color: var(--donation-ink); }
+.fee-split__cell--fee { background: var(--primary-soft); }
+.fee-split__cell--fee .fee-split__value { color: var(--primary); }
 .table-wrap { overflow-x: auto; }
 .table { width: 100%; border-collapse: collapse; font-size: var(--fs-sm); }
 .table th, .table td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--border); vertical-align: top; }

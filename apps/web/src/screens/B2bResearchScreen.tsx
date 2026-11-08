@@ -34,7 +34,7 @@ function RequestRow({ vm, highlight }: { vm: ResearchDetailVM; highlight: boolea
           confirming ? (
             <div className="stack">
               <Banner tone="info" icon="💴">
-                {t("research.b2b.completeConfirm", { fee: vm.feeLabel })}
+                {t("research.b2b.completeConfirm", { fee: vm.feeLabel, platformFee: vm.platformFeeLabel })}
               </Banner>
               <div className="row">
                 <Button
@@ -58,7 +58,7 @@ function RequestRow({ vm, highlight }: { vm: ResearchDetailVM; highlight: boolea
           )
         ) : null}
         <div className="live" aria-live="polite">
-          {done && vm.status === "completed" ? <Banner tone="success">{t("research.b2b.completed", { fee: vm.feeLabel })}</Banner> : null}
+          {done && vm.status === "completed" ? <Banner tone="success">{t("research.b2b.completed", { fee: vm.feeLabel, platformFee: vm.platformFeeLabel })}</Banner> : null}
         </div>
       </ResearchCard>
     </li>

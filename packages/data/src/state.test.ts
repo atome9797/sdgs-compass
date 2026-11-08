@@ -117,19 +117,19 @@ describe("기업(B2B) 동작", () => {
     expect(run(initial, { type: "reviewProposal", proposalId: "없음", review: { creativity: 3, feasibility: 3, sdgContribution: 3, comment: "" }, at: AT })).toBe(initial);
   });
 
-  it("채택하면 매칭 수수료 ¥30,000 중 ¥15,000 이 기부로 기록돼요", () => {
+  it("채택(인턴)은 무료라서 돈 없이 기록되고, 최우수상 상금을 지급하면 그 수수료(10%, 최저 ¥9,000)가 생겨요", () => {
     const before = selectB2bDashboard(initial, "ja");
     const next = run(initial, { type: "awardProposal", proposalId: "pb-1", award: "grand" }, { type: "adoptProposal", proposalId: "pb-1", at: AT });
     const p = next.proposals.find((x) => x.id === "pb-1")!;
     expect(p.status).toBe("adopted");
     expect(p.award).toBe("grand");
     const added = next.matches[next.matches.length - 1];
-    expect(added).toMatchObject({ proposalId: "pb-1", companyId: "co-minato", feeYen: 30_000, donationYen: 15_000, matchedOn: TODAY });
+    expect(added).toEqual({ id: added.id, challengeId: "ch-bottle", proposalId: "pb-1", companyId: "co-minato", matchedOn: TODAY });
     const after = selectB2bDashboard(next, "ja");
-    expect(before.kpis.find((k) => k.id === "donation")?.value).toBe("¥30,000");
-    expect(after.kpis.find((k) => k.id === "donation")?.value).toBe("¥45,000");
+    expect(before.kpis.find((k) => k.id === "fees")?.value).toBe("¥9,000");
+    expect(after.kpis.find((k) => k.id === "fees")?.value).toBe("¥18,000");
     expect(after.kpis.find((k) => k.id === "matches")?.value).toBe("3");
-    expect(after.fee.rows).toHaveLength(3);
+    expect(after.fee.rows).toHaveLength(2);
   });
 
   it("같은 응모작을 두 번 채택해도 한 번만 기록돼요, 채택된 건 수상 변경 불가", () => {
@@ -312,8 +312,8 @@ describe("발표 시나리오 한 바퀴 (학생 ↔ 기업)", () => {
     for (const c of certs) expect(verifyCertificate(c.cert)).toBe(true);
     expect(certs[0].awardLabel).not.toBeNull();
 
-    // 5) 기업 대시보드에는 기부가 늘어남
-    expect(selectB2bDashboard(store.getState(), "ja").kpis.find((k) => k.id === "donation")?.value).toBe("¥45,000");
+    // 5) 기업 대시보드: 최우수상 상금(¥80,000)을 직접 지급 → 수수료 ¥9,000(최저액)이 더해지고, 채택(인턴)은 무료
+    expect(selectB2bDashboard(store.getState(), "ja").kpis.find((k) => k.id === "fees")?.value).toBe("¥18,000");
   });
 });
 

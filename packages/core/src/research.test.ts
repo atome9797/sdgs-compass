@@ -242,7 +242,7 @@ describe("화면용 데이터", () => {
     expect(vm.canCreate).toBe(true);
   });
 
-  it("상세: 진행 단계 · 할 수 있는 일 · 거래 조건(운영 수수료는 금액 없이 「予定」)", () => {
+  it("상세: 진행 단계 · 할 수 있는 일 · 거래 조건(운영 수수료는 의뢰비의 10%·최저 ¥9,000 — 기업이 따로)", () => {
     const open = selectResearchDetail(s, "a", "ja");
     expect(open?.steps.map((st) => st.state)).toEqual(["current", "todo", "todo", "todo"]);
     expect(open).toMatchObject({ canAccept: true, canSubmit: false, takenByOther: false, expired: false, canComplete: false });
@@ -259,8 +259,8 @@ describe("화면용 데이터", () => {
       const terms = selectResearchDetail(s, "a", locale)?.terms ?? [];
       expect(terms).toHaveLength(4);
       const fee = terms[3].value;
-      expect(fee).toMatch(locale === "ja" ? /予定/ : /예정/);
-      expect(fee).not.toMatch(/\d/);
+      expect(fee).toMatch(locale === "ja" ? /企業が別に支払います。依頼費は満額/ : /기업이 따로 내요\. 의뢰비는 전액/);
+      expect(fee).toContain(locale === "ja" ? "¥9,000" : "9,000엔");
     }
   });
 
@@ -268,21 +268,24 @@ describe("화면용 데이터", () => {
     expect(selectResearchForm(s, "ja", "p5").selectedId).toBe("p5");
     expect(selectResearchForm(s, "ja", "p1").selectedId).toBe("p4");
     expect(selectResearchForm(s, "ja", null).ideas.map((i) => i.id)).toEqual(["p4", "p5"]);
-    expect(selectResearchForm(s, "ja", null).feeHint).toBe("研究者に支払う金額です（¥10,000〜¥1,000,000）。");
+    expect(selectResearchForm(s, "ja", null).feeHint).toBe("研究者に満額支払う金額です（¥10,000〜¥1,000,000）。当社の手数料は、この10%（最低¥9,000）を別にご請求します。");
     const none = makeUsageState({ myCompanyId: "co2", researcher: RESEARCHER, researchRequests: [] });
     expect(selectResearchForm(none, "ja", null)).toMatchObject({ ideas: [], selectedId: null });
   });
 
-  it("응모자 카드의 「研究依頼 n件」, 흐름 5단계, 돈을 내는 때 3가지", () => {
+  it("응모자 카드의 「研究依頼 n件」, 흐름 5단계, 돈을 내는 때(상금 · 연구비 + 수수료 10%)와 무료인 것(인턴 · 기업 간 의뢰)", () => {
     const posted = reducer(state(), { type: "postResearchRequest", draft: draft(), at: AT });
     expect(proposalResearchLabel(posted, "p4", "ja")).toBe("研究依頼 1件");
     expect(proposalResearchLabel(posted, "p5", "ja")).toBeNull();
     expect(researchFlow("ja")).toHaveLength(5);
     expect(researchFlow("ko")[4]).toContain("은행");
     const pay = researchPayTimings("ja");
-    expect(pay.items).toHaveLength(3);
-    expect(pay.items[1]).toContain("¥30,000");
-    expect(pay.note).toContain("予定");
+    expect(pay.items).toHaveLength(4);
+    expect(pay.items[0]).toContain("最低¥9,000");
+    expect(pay.items[1]).toContain("無料");
+    expect(pay.items[3]).toContain("手数料なし");
+    expect(pay.note).toContain("預かりません");
+    expect(pay.items.join("")).not.toMatch(/30,000|寄付/);
   });
 });
 
@@ -312,12 +315,12 @@ describe("문구", () => {
     expect(researchResultErrorText("file_too_large", "ko")).toBe("파일은 50MB까지예요");
   });
 
-  it("운영 수수료는 금액 없이 「予定」으로만 보여요 (대학원생 설문 뒤에 정해요)", () => {
-    const keys: MessageKey[] = ["research.platformFeeValue", "research.b2b.feeNote", "research.pay.note"];
+  it("운영 수수료는 기업이 따로 내고, 연구자는 의뢰비를 전액 받아요 (「予定」은 더 없어요)", () => {
+    const keys: MessageKey[] = ["research.platformFeeValue", "research.b2b.feeNote", "research.pay.note", "research.new.feeHint"];
     for (const key of keys) {
-      expect(MESSAGES[key].ja, key).toContain("予定");
-      expect(MESSAGES[key].ko, key).toContain("예정");
-      expect(MESSAGES[key].ja + MESSAGES[key].ko, key).not.toMatch(/[0-9０-９]|円|¥|엔/);
+      expect(MESSAGES[key].ja + MESSAGES[key].ko, key).not.toMatch(/予定|예정/);
     }
+    expect(MESSAGES["research.platformFeeValue"].ja).toContain("満額");
+    expect(MESSAGES["research.platformFeeValue"].ko).toContain("전액");
   });
 });

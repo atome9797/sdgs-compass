@@ -81,7 +81,7 @@ describe("문구 사전 (일본어·한국어)", () => {
     for (const k of ["pr", "brag"]) wanted.push(`feed.chip.${k}`, `post.title.${k}`, `post.privacy.${k}`, `post.bodyPlaceholder.${k}`);
     for (const r of ["sdg", "skill", "deadline", "prize", "internship"]) wanted.push(`reason.${r}`);
     // #33 대시보드 숫자 카드의 「어디로 가는지」와 응모자 상태 필터, #30 심사 결과의 항목 이름(기업 심사 화면과 같은 키)
-    for (const id of ["open", "applicants", "pending", "matches", "donation"]) wanted.push(`b2b.kpiGo.${id}`);
+    for (const id of ["open", "applicants", "pending", "matches", "fees"]) wanted.push(`b2b.kpiGo.${id}`);
     for (const f of ["all", "submitted", "reviewed", "awarded", "adopted"]) wanted.push(`applicants.filter.${f}`);
     for (const item of ["creativity", "feasibility", "sdgContribution"]) wanted.push(`review.${item}`);
     const missing = wanted.filter((key) => !(key in MESSAGES));

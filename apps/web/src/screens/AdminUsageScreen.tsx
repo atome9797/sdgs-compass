@@ -67,7 +67,7 @@ export function AdminUsageScreen() {
       id: "matches",
       label: t("admin.usage.kpi.matches"),
       value: totals.matches,
-      sub: t("admin.usage.sub.matches", { fee: formatYen(totals.feeYen, locale), donation: formatYen(totals.donationYen, locale) }),
+      sub: t("admin.usage.sub.matches", { fee: formatYen(totals.feeYen, locale), base: formatYen(totals.feeBaseYen, locale) }),
     },
     { id: "posts", label: t("admin.usage.kpi.posts"), value: totals.posts, sub: t("admin.usage.sub.posts", { brag: totals.bragPosts, pr: totals.prPosts }) },
     { id: "likes", label: t("admin.usage.kpi.likes"), value: totals.likes, sub: null },

@@ -173,17 +173,16 @@ export interface Candidate {
   bio: Text;
 }
 
-/** 매칭 성립 1건: 중개 수수료와 그 중 기부 (fees.ts) */
+/**
+ * 채택 1건 = 기업이 고른 학생 팀의 인턴 참가가 정해졌어요. 인턴 채용은 무료라서 돈은 오가지 않아요(2026-11-08 — 수수료는 fees.ts 의 상금·연구 의뢰비만).
+ * (DB 의 matches 표에는 이전 모델의 수수료 열이 아직 있어요 — docs/fees.md)
+ */
 export interface Match {
   id: string;
   challengeId: string;
   proposalId: string;
   companyId: string;
-  feeYen: number;
-  donationYen: number;
   matchedOn: string;
-  /** 기업 이름으로 기부한 곳 */
-  recipient: Text;
 }
 
 /** SNS 피드 글의 종류: brag = 학생이 올리는 실적 자랑(F-503), pr = 기업이 올리는 홍보(F-504). 설계는 docs/sns-feed.md */
@@ -269,14 +268,13 @@ export interface CertAnswer {
 export type CertAnswers = Record<CertCriterionId, CertAnswer>;
 
 /**
- * #25 リワード残高(데모)의 원장 항목 종류: prize = 기업 상금 입금, return = 운영 환원 입금, withdrawal = 은행 계좌로 출금.
- * 운영사가 第二種資金移動業 등록을 받은 뒤에 제공할 기능이에요(설계는 docs/rewards.md, 규칙은 wallet.ts, DB 는 wallet_entries).
+ * 학생이 받은 돈의 기록(「受け取った賞金」) 항목 종류: prize = 기업이 최우수상 팀에 직접 지급한 상금, return = 흑자 뒤 운영사가 내는 학생 특별상(운영 환원).
+ * 운영사는 돈을 맡지 않아서(2026-11-08 직접 지급 모델) 잔액·출금·본인 확인은 없어요 — 설계는 docs/fees.md, 규칙은 wallet.ts.
+ * (DB 의 wallet_* 표는 이전 リワード残高 설계 그대로예요 — docs/rewards.md)
  */
-export type WalletEntryKind = "prize" | "return" | "withdrawal";
-/** 입금(prize·return)은 바로 completed. 출금은 신청하면 requested — 데모는 실제로 보내지 않아서 그대로 머물러요 */
-export type WalletEntryStatus = "completed" | "requested";
+export type WalletEntryKind = "prize" | "return";
 
-/** 돈이 어디서 왔는지: 상금은 과제·기업·상(賞), 환원은 회차 이름. 출금에는 없어요(null) */
+/** 돈이 어디서 왔는지: 상금은 과제·기업·상(賞), 특별상은 회차 이름 */
 export type WalletSource =
   | {
       kind: "prize";
@@ -291,7 +289,7 @@ export type WalletSource =
     }
   | { kind: "return"; round: Text };
 
-/** 원장 한 줄. 금액은 언제나 양수(엔)이고, 잔액 = 입금(prize·return) − 출금(withdrawal) */
+/** 받은 돈 한 줄. 금액은 언제나 양수(엔) */
 export interface WalletEntry {
   id: string;
   studentId: string;
@@ -299,37 +297,39 @@ export interface WalletEntry {
   amountYen: number;
   /** YYYY-MM-DD */
   date: string;
-  source: WalletSource | null;
-  status: WalletEntryStatus;
+  source: WalletSource;
 }
 
-/** 학생 한 명의 リワード残高. 본인 확인(eKYC)은 데모에서 버튼 하나로 완료돼요(실제 확인은 하지 않아요) */
+/** 학생 한 명이 받은 상금·특별상의 기록 */
 export interface Wallet {
-  kyc: "none" | "verified";
-  /** 본인 확인을 마친 날 (YYYY-MM-DD) */
-  kycVerifiedOn: string | null;
   /** 최신순이 아니어도 돼요 — 화면이 날짜순으로 정렬해요 */
   entries: WalletEntry[];
 }
 
-/** 과제를 낼 때 기업이 운영사에 맡긴 상금 (과제당 1건). 최우수상이 정해지면 그 팀에 송금(paid), 수상 없이 끝나면 기업에 반환(refunded) */
-export type PrizeDepositStatus = "deposited" | "paid" | "refunded";
-export interface PrizeDeposit {
+/**
+ * 과제의 상금 지급 (과제당 1건). 상금은 기업이 최우수상 팀에 직접 지급하고, 운영사는 맡지 않아요(수수료만 따로 — fees.ts).
+ * promised = 과제에 상금을 걸었어요(표창 전) · paid = 최우수상 팀에 지급했어요(데모는 표창할 때 기록) · noWinner = 최우수상 없이 끝나서 지급할 상금이 없어요.
+ * 기업의 신뢰 실적(network.ts)에서 「약속대로 지급한 상금」으로 세요.
+ */
+export type PrizePaymentStatus = "promised" | "paid" | "noWinner";
+export interface PrizePayment {
   challengeId: string;
   companyId: string;
   amountYen: number;
-  status: PrizeDepositStatus;
-  depositedOn: string;
-  /** 송금하거나 반환한 날 (deposited 이면 null) */
-  settledOn: string | null;
-  /** 상금을 받은 기획서 (paid 일 때만) */
+  status: PrizePaymentStatus;
+  /** 상금을 건 날(과제를 낸 날) */
+  promisedOn: string;
+  /** 지급한 날 (paid 일 때만) */
+  paidOn: string | null;
+  /** 상금을 받은 기획서 (paid 일 때만, 데모 밖의 샘플 팀이면 null) */
   proposalId: string | null;
 }
 
 // ───────── 연구 의뢰 (대학원생 연구자) ─────────
 // 흐름: ① 기업이 SDGs 과제와 상금을 내요 → ② 학생이 아이디어를 내고 심사·표창(채택)돼요 → ③ 기업이 그 아이디어를 실현하려고
 // 「연구 의뢰」(두 번째 과제)를 의뢰비와 함께 내요 → ④ 대학원생 연구자가 맡아 연구하고 성과(보고서·데이터)를 기업에 보내요 → 기업이 확인하면 의뢰비를 받아요.
-// 공장·판로는 은행의 비즈니스 매칭이 맡아서 앱에서는 다루지 않아요. 운영 수수료는 대학원생 설문 뒤에 정해서(화면에는 「予定」), 금액은 아직 코드에 없어요.
+// 운영 수수료는 의뢰비의 10%(최저 ¥9,000)를 기업이 따로 내고, 연구자는 의뢰비를 전액 받아요(fees.ts, 2026-11-08).
+// 시제품·제조·판로는 은행의 비즈니스 매칭 등이 맡아요(앱 밖).
 // 웹 데모 전용이고 DB 표는 아직 없어요 — 설계와 열린 질문은 docs/research.md.
 
 export const RESEARCH_FIELDS = ["environment", "materials", "food", "energy", "data", "social"] as const;
@@ -426,10 +426,10 @@ export interface DemoState {
   posts: SocialPost[];
   cert: CertAnswers;
   esgGeneratedOn: string | null;
-  /** #25 이 데모의 학생(me)의 リワード残高 (데모) */
+  /** 이 데모의 학생(me)이 받은 상금·특별상의 기록 */
   wallet: Wallet;
-  /** #25 과제마다 기업이 맡긴 상금 (데모) */
-  prizeDeposits: PrizeDeposit[];
+  /** 과제마다 건 상금과 그 지급 (기업이 학생에게 직접 지급) */
+  prizePayments: PrizePayment[];
   /** 이 데모의 연구자 계정 (역할 researcher) */
   researcher: ResearcherProfile;
   /** 연구 의뢰 (우리 회사가 낸 것 + 다른 회사의 샘플). 화면에서는 날짜순으로 정렬해요 */

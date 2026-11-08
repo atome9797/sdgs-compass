@@ -13,8 +13,8 @@ import { CERT_CRITERIA, CERT_MAX_STARS, CERT_POINTS_PER_STAR_STEP, CERT_STAR_STE
 import { splitMatchFee } from "../packages/core/src/fees";
 import { issueCertificate, qrPayload, verifyCode } from "../packages/core/src/certificate";
 import type {
-  ActivityKind, AwardKind, CertAnswers, CertCriterionId, ChallengeStatus, OfficialChannel, OfficialShare, Participation, PostKind, PrizeDepositStatus, ProposalStatus, RewardKind, Role, ScoutKind,
-  ScoutStatus, SocialPost, Wallet, WalletEntryKind,
+  ActivityKind, AwardKind, CertAnswers, CertCriterionId, ChallengeStatus, OfficialChannel, OfficialShare, Participation, PostKind, ProposalStatus, RewardKind, Role, ScoutKind,
+  ScoutStatus, SocialPost,
 } from "../packages/core/src/domain";
 import { PRIZE_AWARD, RETURN_RESERVE_MONTHS, returnPoolYen, WITHDRAWAL_MAX_YEN, WITHDRAWAL_MIN_YEN } from "../packages/core/src/wallet";
 import {
@@ -27,6 +27,11 @@ import { LOCALES } from "../packages/core/src/i18n";
 import { CARD_TEMPLATES } from "../packages/core/src/shareCard";
 import type { Certificate } from "../packages/core/src/certificate";
 import type { SdgId } from "../packages/core/src/sdg";
+
+/** 이전 リワード残高 설계(DB 에 남아 있어요)의 열거형 — 앱의 domain.ts 에는 더 없어요 */
+type LegacyWalletEntryKind = "prize" | "return" | "withdrawal";
+type LegacyPrizeDepositStatus = "deposited" | "paid" | "refunded";
+type LegacyKycStatus = "none" | "verified";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const check = process.argv.includes("--check");
@@ -213,10 +218,11 @@ const ENUMS: Array<{ name: string; labels: string[]; exact: boolean }> = [
   { name: "locale_code", labels: [...LOCALES], exact: true },
   { name: "esg_category", labels: ["E", "S", "G"], exact: true },
   { name: "cert_unit", labels: [...new Set(CERT_CRITERIA.map((c) => c.unit))].sort(), exact: true },
-  // #25 リワード残高: 원장 종류·상금 예치 상태는 정확히 같고, 본인 확인은 DB 에 심사 중(pending)이 더 있어요
-  { name: "wallet_entry_kind", labels: keysOf<WalletEntryKind>({ prize: true, return: true, withdrawal: true }), exact: true },
-  { name: "prize_deposit_status", labels: keysOf<PrizeDepositStatus>({ deposited: true, paid: true, refunded: true }), exact: true },
-  { name: "wallet_kyc_status", labels: keysOf<Wallet["kyc"]>({ none: true, verified: true }), exact: false },
+  // #25 リワード残高(이전 설계): 앱은 2026-11-08 부터 직접 지급 모델(받은 기록 prize·return, 상금 지급 promised·paid·noWinner)이지만,
+  // DB 는 아직 이전 설계라서 그 열거형을 그대로 대조해요 — DB 를 옮길 때 앱의 타입과 다시 맞춰요 (docs/fees.md 「남은 일」)
+  { name: "wallet_entry_kind", labels: keysOf<LegacyWalletEntryKind>({ prize: true, return: true, withdrawal: true }), exact: true },
+  { name: "prize_deposit_status", labels: keysOf<LegacyPrizeDepositStatus>({ deposited: true, paid: true, refunded: true }), exact: true },
+  { name: "wallet_kyc_status", labels: keysOf<LegacyKycStatus>({ none: true, verified: true }), exact: false },
 ];
 
 function blankAnswers(): CertAnswers {

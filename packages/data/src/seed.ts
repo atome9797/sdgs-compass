@@ -2,16 +2,14 @@
 // 실서비스에서는 이 모양의 데이터를 서버(PostgreSQL, db/schema.sql)가 돌려줘요.
 import { emptyCertAnswers } from "@sdgs-compass/core/certification";
 import type {
-  Activity, Candidate, Challenge, Company, DemoState, Match, OfficialChannel, PrizeDeposit, Proposal, ResearcherProfile, ResearchRequest, ResearchResult, Scout, SocialPost,
+  Activity, Candidate, Challenge, Company, DemoState, Match, OfficialChannel, PrizePayment, Proposal, ResearcherProfile, ResearchRequest, ResearchResult, Scout, SocialPost,
   StudentProfile, TeamPost, Wallet,
 } from "@sdgs-compass/core/domain";
-import { splitMatchFee } from "@sdgs-compass/core/fees";
 import { addDays } from "@sdgs-compass/core/format";
 import { sha256Hex } from "@sdgs-compass/core/hash";
 import { levelOf } from "@sdgs-compass/core/impact";
 import { OFFICIAL_SHARE_FEE_YEN } from "@sdgs-compass/core/post";
 import { resultFingerprint } from "@sdgs-compass/core/research";
-import { DONATION_RECIPIENT } from "@sdgs-compass/core/state";
 
 export const DEMO_STUDENT_ID = "stu-mina";
 export const DEMO_COMPANY_ID = "co-minato";
@@ -520,11 +518,11 @@ function buildProposals(today: string): Proposal[] {
   ];
 }
 
+/** 지난 채택(인턴 참가 결정) 2건 — 인턴 채용은 무료라서 돈은 오가지 않았어요 */
 function buildMatches(today: string): Match[] {
-  const split = splitMatchFee();
   return [
-    { id: "m-1", challengeId: "ch-old1", proposalId: "pp-old-1", companyId: "co-minato", feeYen: split.feeYen, donationYen: split.donationYen, matchedOn: addDays(today, -58), recipient: DONATION_RECIPIENT },
-    { id: "m-2", challengeId: "ch-old2", proposalId: "pp-old-2", companyId: "co-minato", feeYen: split.feeYen, donationYen: split.donationYen, matchedOn: addDays(today, -88), recipient: DONATION_RECIPIENT },
+    { id: "m-1", challengeId: "ch-old1", proposalId: "pp-old-1", companyId: "co-minato", matchedOn: addDays(today, -58) },
+    { id: "m-2", challengeId: "ch-old2", proposalId: "pp-old-2", companyId: "co-minato", matchedOn: addDays(today, -88) },
   ];
 }
 
@@ -675,35 +673,36 @@ function buildPosts(today: string): SocialPost[] {
 }
 
 /**
- * #25 リワード残高(데모): Mina 의 잔액 — 수상 실적(h-5b 優秀賞)에 이어진 기업 상금 1건 + 운영 환원(샘플) 1건, 출금 0건. 본인 확인은 아직.
- * 모두 가상의 금액이에요. 운영 환원은 실제로는 기 말에 이익이 남을 때만 생겨요(docs/rewards.md).
+ * Mina 가 받은 돈의 기록 — 수상 실적(h-5b 優秀賞)에 이어진 기업 상금 1건(기업이 직접 지급) + 운영사 특별상(샘플) 1건.
+ * 모두 가상의 금액이에요. 운영사 특별상은 실제로는 흑자가 된 뒤 기 말에 이익이 남을 때만 생겨요(docs/fees.md).
  */
 function buildWallet(today: string): Wallet {
   const d = (n: number) => addDays(today, n);
   return {
-    kyc: "none",
-    kycVerifiedOn: null,
     entries: [
       {
-        id: "w-1", studentId: DEMO_STUDENT_ID, kind: "prize", amountYen: 30_000, date: d(-27), status: "completed",
+        id: "w-1", studentId: DEMO_STUDENT_ID, kind: "prize", amountYen: 30_000, date: d(-27),
         source: { kind: "prize", challengeId: null, activityId: "h-5b", companyId: "co-minato", title: { ja: "プラスチックごみ削減ハッカソン", ko: "플라스틱 쓰레기 감축 해커톤" }, award: "excellence" },
       },
-      { id: "w-2", studentId: DEMO_STUDENT_ID, kind: "return", amountYen: 1_500, date: d(-10), status: "completed", source: { kind: "return", round: { ja: "運営からの還元（サンプル）", ko: "운영 환원(샘플)" } } },
+      { id: "w-2", studentId: DEMO_STUDENT_ID, kind: "return", amountYen: 1_500, date: d(-10), source: { kind: "return", round: { ja: "運営からの特別賞（サンプル）", ko: "운영사 특별상(샘플)" } } },
     ],
   };
 }
 
-/** #25 상금이 걸린 샘플 과제는 예치 상태(과제를 연 날 예치). 끝난 과제 2건은 송금(ch-old1)·기업에 반환(ch-old2)으로 — 모두 가상 */
-function buildPrizeDeposits(challenges: readonly Challenge[], today: string): PrizeDeposit[] {
-  const settled: Record<string, Pick<PrizeDeposit, "status" | "settledOn" | "proposalId">> = {
-    "ch-old1": { status: "paid", settledOn: addDays(today, -58), proposalId: "pp-old-1" },
-    "ch-old2": { status: "refunded", settledOn: addDays(today, -85), proposalId: null },
+/**
+ * 상금이 걸린 샘플 과제는 「표창 전」(과제를 연 날 상금을 걸었어요). 끝난 과제는 최우수상 팀에 지급(paid)했거나, 최우수상 없이 끝났어요(noWinner).
+ * 상금은 기업이 팀에 직접 지급했어요 — 기업의 신뢰 실적(약속대로 지급한 상금)에 들어가요. 모두 가상.
+ */
+function buildPrizePayments(challenges: readonly Challenge[], today: string): PrizePayment[] {
+  const settled: Record<string, Pick<PrizePayment, "status" | "paidOn" | "proposalId">> = {
+    "ch-old1": { status: "paid", paidOn: addDays(today, -58), proposalId: "pp-old-1" },
+    "ch-old2": { status: "noWinner", paidOn: null, proposalId: null },
   };
   return challenges
     .filter((c) => c.prizeYen > 0)
-    .map((c): PrizeDeposit => {
-      const open: Pick<PrizeDeposit, "status" | "settledOn" | "proposalId"> = { status: "deposited", settledOn: null, proposalId: null };
-      return { challengeId: c.id, companyId: c.companyId, amountYen: c.prizeYen, depositedOn: c.opensOn, ...(settled[c.id] ?? open) };
+    .map((c): PrizePayment => {
+      const open: Pick<PrizePayment, "status" | "paidOn" | "proposalId"> = { status: "promised", paidOn: null, proposalId: null };
+      return { challengeId: c.id, companyId: c.companyId, amountYen: c.prizeYen, promisedOn: c.opensOn, ...(settled[c.id] ?? open) };
     });
 }
 
@@ -881,7 +880,7 @@ export function createInitialState(today: string): DemoState {
     cert,
     esgGeneratedOn: null,
     wallet: buildWallet(today),
-    prizeDeposits: buildPrizeDeposits(challenges, today),
+    prizePayments: buildPrizePayments(challenges, today),
     researcher,
     researchRequests: buildResearchRequests(today),
   };

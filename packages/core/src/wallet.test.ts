@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import type { Wallet, WalletEntry } from "./domain";
-import { parseYenInput, PRIZE_AWARD, RETURN_RESERVE_MONTHS, returnPoolYen, validateWithdrawal, walletBalance, walletTotals, WITHDRAWAL_MAX_YEN } from "./wallet";
+import type { WalletEntry } from "./domain";
+import { parseYenInput, PRIZE_AWARD, promisePrize, RETURN_RESERVE_MONTHS, returnPoolYen, walletTotals, WITHDRAWAL_MAX_YEN, WITHDRAWAL_MIN_YEN } from "./wallet";
 
 const entry = (kind: WalletEntry["kind"], amountYen: number, id = `${kind}-${amountYen}`): WalletEntry => ({
   id,
@@ -8,26 +8,33 @@ const entry = (kind: WalletEntry["kind"], amountYen: number, id = `${kind}-${amo
   kind,
   amountYen,
   date: "2026-11-01",
-  source: kind === "withdrawal" ? null : kind === "return" ? { kind: "return", round: "第4期" } : { kind: "prize", challengeId: "ch", activityId: null, companyId: "co", title: "課題", award: "grand" },
-  status: kind === "withdrawal" ? "requested" : "completed",
+  source: kind === "return" ? { kind: "return", round: "第4期" } : { kind: "prize", challengeId: "ch", activityId: null, companyId: "co", title: "課題", award: "grand" },
 });
-const wallet = (entries: WalletEntry[], kyc: Wallet["kyc"] = "verified"): Wallet => ({ kyc, kycVerifiedOn: kyc === "verified" ? "2026-11-01" : null, entries });
 
-describe("リワード残高의 잔액", () => {
-  it("잔액 = 입금(상금·환원) − 출금(신청 중 포함)", () => {
-    const entries = [entry("prize", 30_000), entry("return", 1_500), entry("withdrawal", 10_000)];
-    expect(walletTotals(entries)).toEqual({ prizeYen: 30_000, returnYen: 1_500, withdrawnYen: 10_000, balanceYen: 21_500 });
-    expect(walletBalance([])).toBe(0);
+describe("받은 상금의 합계 (운영사는 돈을 맡지 않아서 잔액·출금은 없어요)", () => {
+  it("합계 = 기업 상금 + 운영사 특별상", () => {
+    expect(walletTotals([entry("prize", 30_000), entry("return", 1_500)])).toEqual({ prizeYen: 30_000, returnYen: 1_500, totalYen: 31_500 });
+    expect(walletTotals([])).toEqual({ prizeYen: 0, returnYen: 0, totalYen: 0 });
   });
 
-  it("상수: 출금 1회 100만 엔(第二種), 상금은 최우수상, 운전자금 3개월분", () => {
-    expect(WITHDRAWAL_MAX_YEN).toBe(1_000_000);
+  it("상수: 상금은 최우수상, 운전자금 3개월분 (출금 한도는 DB 대조용 레거시)", () => {
     expect(PRIZE_AWARD).toBe("grand");
     expect(RETURN_RESERVE_MONTHS).toBe(3);
+    expect([WITHDRAWAL_MIN_YEN, WITHDRAWAL_MAX_YEN]).toEqual([1, 1_000_000]);
   });
 });
 
-describe("출금 금액 입력 읽기", () => {
+describe("상금 걸기 (돈은 오가지 않아요)", () => {
+  const challenge = { id: "ch-x", companyId: "co-x", prizeYen: 100_000 } as Parameters<typeof promisePrize>[0];
+  it("상금이 있으면 「표창 전」으로 걸어요", () => {
+    expect(promisePrize(challenge, "2026-11-08")).toEqual({ challengeId: "ch-x", companyId: "co-x", amountYen: 100_000, status: "promised", promisedOn: "2026-11-08", paidOn: null, proposalId: null });
+  });
+  it("상금이 0엔이면 없어요", () => {
+    expect(promisePrize({ ...challenge, prizeYen: 0 }, "2026-11-08")).toBeNull();
+  });
+});
+
+describe("금액 입력 읽기", () => {
   it("쉼표·공백·円·엔·¥·전각 숫자를 받아요", () => {
     expect(parseYenInput("10000")).toBe(10_000);
     expect(parseYenInput(" 12,000円 ")).toBe(12_000);
@@ -40,27 +47,6 @@ describe("출금 금액 입력 읽기", () => {
 
   it("숫자가 아니거나 소수·지수·빈 글자는 null", () => {
     for (const raw of ["", "  ", "abc", "1.5", "1e4", "10,000ドル", "１万", "99999999999999999999"]) expect(parseYenInput(raw), raw).toBeNull();
-  });
-});
-
-describe("출금 검사 (본인 확인 → 금액 → 1회 상한 → 잔액)", () => {
-  const rich = wallet([entry("prize", 1_500_000)]);
-  it("본인 확인 전에는 어떤 금액도 안 돼요", () => {
-    expect(validateWithdrawal(wallet([entry("prize", 30_000)], "none"), 1_000)).toBe("kyc_required");
-  });
-  it("1엔 이상의 정수만", () => {
-    for (const amount of [null, 0, -1, 1.5, Number.NaN, Number.POSITIVE_INFINITY]) expect(validateWithdrawal(rich, amount), String(amount)).toBe("invalid_amount");
-    expect(validateWithdrawal(rich, 1)).toBeNull();
-  });
-  it("1회 100만 엔까지 (잔액이 많아도)", () => {
-    expect(validateWithdrawal(rich, 1_000_000)).toBeNull();
-    expect(validateWithdrawal(rich, 1_000_001)).toBe("over_limit");
-  });
-  it("잔액을 넘으면 안 돼요 (신청 중인 출금도 잔액에서 빠져요)", () => {
-    const w = wallet([entry("prize", 30_000), entry("withdrawal", 20_000)]);
-    expect(validateWithdrawal(w, 10_000)).toBeNull();
-    expect(validateWithdrawal(w, 10_001)).toBe("over_balance");
-    expect(validateWithdrawal(wallet([]), 1)).toBe("over_balance");
   });
 });
 

@@ -159,12 +159,10 @@ const isYen = (value: unknown): value is number => typeof value === "number" && 
 /** #35 회사의 실천 마크 달성도: null(마크 없음) 또는 0~100 */
 const isCertScore = (value: unknown): boolean => value === null || (typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= 100);
 
-/** #25 リワード残高 원장 한 줄 (rebase 와 화면이 깨지지 않을 만큼만 확인해요) */
+/** 받은 상금·특별상 기록 한 줄 (rebase 와 화면이 깨지지 않을 만큼만 확인해요) */
 function isWalletEntry(value: unknown): boolean {
   if (!isObject(value) || typeof value.id !== "string" || typeof value.studentId !== "string" || !isYen(value.amountYen) || !isDay(value.date)) return false;
-  if (!(value.status === "completed" || value.status === "requested")) return false;
   const s = value.source;
-  if (value.kind === "withdrawal") return s === null;
   if (value.kind === "return") return isObject(s) && s.kind === "return" && isText(s.round);
   if (value.kind === "prize") {
     return (
@@ -176,16 +174,15 @@ function isWalletEntry(value: unknown): boolean {
 }
 
 function isWallet(value: unknown): boolean {
-  if (!isObject(value) || !(value.kyc === "none" || value.kyc === "verified")) return false;
-  if (!(value.kycVerifiedOn === null || isDay(value.kycVerifiedOn))) return false;
-  return Array.isArray(value.entries) && value.entries.every(isWalletEntry);
+  return isObject(value) && Array.isArray(value.entries) && value.entries.every(isWalletEntry);
 }
 
-function isPrizeDeposit(value: unknown): boolean {
+/** 과제의 상금 지급: 지급일은 지급했을 때(paid)만 */
+function isPrizePayment(value: unknown): boolean {
   return (
     isObject(value) && typeof value.challengeId === "string" && typeof value.companyId === "string" && isYen(value.amountYen) &&
-    (value.status === "deposited" || value.status === "paid" || value.status === "refunded") && isDay(value.depositedOn) &&
-    (value.settledOn === null || isDay(value.settledOn)) && (value.proposalId === null || typeof value.proposalId === "string")
+    (value.status === "promised" || value.status === "paid" || value.status === "noWinner") && isDay(value.promisedOn) &&
+    (value.paidOn === null || isDay(value.paidOn)) && (value.status === "paid") === (value.paidOn !== null) && (value.proposalId === null || typeof value.proposalId === "string")
   );
 }
 
@@ -232,7 +229,7 @@ export function isDemoState(value: unknown): value is DemoState {
   const lists = ["companies", "challenges", "teamPosts", "bookmarks", "proposals", "history", "talent", "scouts", "matches", "posts"] as const;
   for (const key of lists) if (!Array.isArray(value[key])) return false;
   if (!(value.posts as unknown[]).every(isSocialPost)) return false;
-  if (!isWallet(value.wallet) || !Array.isArray(value.prizeDeposits) || !value.prizeDeposits.every(isPrizeDeposit)) return false;
+  if (!isWallet(value.wallet) || !Array.isArray(value.prizePayments) || !value.prizePayments.every(isPrizePayment)) return false;
   if (!isResearcher(value.researcher) || !Array.isArray(value.researchRequests) || !value.researchRequests.every(isResearchRequest)) return false;
   if (!(value.challenges as unknown[]).every((c) => isObject(c) && typeof c.id === "string" && isDay(c.opensOn) && isDay(c.closesOn))) return false;
   if (!(value.companies as unknown[]).every((c) => isObject(c) && typeof c.id === "string" && isCertScore(c.certScore))) return false;
@@ -274,21 +271,59 @@ function normalizeOfficial(post: unknown): unknown {
  * 예전 버전에서 저장된 상태를 지금 모양으로 이어 줘요(버리지 않고 이어서 쓸 수 있게):
  * - SNS 피드(posts)가 생기기 전의 상태에는 posts 가 없어요 → 저장했을 때의 "오늘" 기준 샘플 글을 채워 넣어요(날짜는 불러올 때 rebase 가 옮겨요).
  * - 공식 SNS 게시 신청: channel 이 없으면 instagram, 상태가 없거나 모르는 값이면 예정, postUrl 은 게시 완료의 https:// 주소만 (normalizeOfficial).
- * - #25 リワード残高가 생기기 전의 상태에는 wallet·prizeDeposits 가 없어요 → 저장했을 때의 "오늘" 기준 샘플(잔액·상금 예치)을 채워 넣어요.
- *   데모에서 새로 낸 과제(샘플에 없는 과제)는 예치 기록 없이 열려요.
+ * - 상금 기록(wallet)·상금 지급(prizePayments)이 없으면 저장했을 때의 "오늘" 기준 샘플을 채워 넣어요. 데모에서 새로 낸 과제(샘플에 없는 과제)는 상금 기록 없이 열려요.
+ * - 2026-11-08 직접 지급 모델 이전(리워드 잔액 · 상금 예치)의 상태는 이어서 써요 (upgradeMoney):
+ *   wallet 의 본인 확인·출금은 버리고 받은 기록만, prizeDeposits(예치 중·송금·반환)는 prizePayments(표창 전·지급·최우수상 없음)로,
+ *   matches 의 수수료·기부 열은 버려요(채택은 무료).
  * - #35 실천 마크가 생기기 전의 상태에는 회사의 certScore 가 없어요 → 샘플 회사는 샘플 값으로, 샘플에 없는 회사는 null(마크 없음)로 채워요.
  * - 연구 의뢰(세 번째 역할 · 연구자)가 생기기 전의 상태에는 researcher · researchRequests 가 없어요 → 저장했을 때의 "오늘" 기준 샘플을 채워요.
  */
+/** 이전 돈의 모양(리워드 잔액 · 상금 예치 · 채택 수수료)을 직접 지급 모델의 모양으로 (모르는 값은 그대로 두고 isDemoState 가 판단해요) */
+function upgradeMoney(state: Record<string, unknown>): Record<string, unknown> {
+  let next = state;
+  const wallet = next.wallet;
+  if (isObject(wallet) && Array.isArray(wallet.entries) && ("kyc" in wallet || wallet.entries.some((e) => isObject(e) && "status" in e))) {
+    const entries = wallet.entries.filter((e) => isObject(e) && e.kind !== "withdrawal").map((e) => {
+      const { status: _status, ...rest } = e as Record<string, unknown>;
+      return rest;
+    });
+    next = { ...next, wallet: { entries } };
+  }
+  if (Array.isArray(next.prizeDeposits) && next.prizePayments === undefined) {
+    const STATUS: Record<string, string> = { deposited: "promised", paid: "paid", refunded: "noWinner" };
+    const prizePayments = next.prizeDeposits.map((d) => {
+      if (!isObject(d)) return d;
+      const { depositedOn, settledOn, status, ...rest } = d;
+      const mapped = typeof status === "string" ? (STATUS[status] ?? status) : status;
+      return { ...rest, status: mapped, promisedOn: depositedOn, paidOn: mapped === "paid" ? (settledOn ?? null) : null };
+    });
+    const { prizeDeposits: _old, ...rest } = next;
+    next = { ...rest, prizePayments };
+  }
+  if (Array.isArray(next.matches) && next.matches.some((m) => isObject(m) && ("feeYen" in m || "donationYen" in m || "recipient" in m))) {
+    next = {
+      ...next,
+      matches: next.matches.map((m) => {
+        if (!isObject(m)) return m;
+        const { feeYen: _fee, donationYen: _donation, recipient: _recipient, ...rest } = m;
+        return rest;
+      }),
+    };
+  }
+  return next;
+}
+
 function upgradeSaved(data: unknown): unknown {
   if (!isObject(data) || data.version !== 1) return data;
   let next: Record<string, unknown> = data;
   const sample = () => createInitialState(String(data.today));
   if (next.posts === undefined && isDay(data.today)) next = { ...next, posts: sample().posts };
   else if (Array.isArray(next.posts)) next = { ...next, posts: next.posts.map(normalizeOfficial) };
+  next = upgradeMoney(next);
   if (next.wallet === undefined && isDay(data.today)) next = { ...next, wallet: sample().wallet };
-  if (next.prizeDeposits === undefined && isDay(data.today)) {
+  if (next.prizePayments === undefined && isDay(data.today)) {
     const ids = new Set(Array.isArray(next.challenges) ? next.challenges.map((c) => (isObject(c) ? c.id : null)) : []);
-    next = { ...next, prizeDeposits: sample().prizeDeposits.filter((d) => ids.has(d.challengeId)) };
+    next = { ...next, prizePayments: sample().prizePayments.filter((p) => ids.has(p.challengeId)) };
   }
   if (next.researcher === undefined && isDay(data.today)) next = { ...next, researcher: sample().researcher };
   if (next.researchRequests === undefined && isDay(data.today)) next = { ...next, researchRequests: sample().researchRequests };

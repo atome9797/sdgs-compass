@@ -45,9 +45,10 @@ describe("이용 현황: 지금 값", () => {
   it("스카우트·매칭·팀원 모집", () => {
     expect(totals.scouts).toBe(3);
     expect(totals.scoutsByStatus).toEqual({ sent: 1, read: 1, accepted: 1, declined: 0 });
+    // 채택(인턴)은 무료 — 수수료는 지급한 상금 ¥100,000 의 10%
     expect(totals.matches).toBe(2);
-    expect(totals.feeYen).toBe(60_000);
-    expect(totals.donationYen).toBe(30_000);
+    expect(totals.feeYen).toBe(10_000);
+    expect(totals.feeBaseYen).toBe(100_000);
     expect(totals.teamPosts).toBe(2);
   });
 
@@ -95,7 +96,7 @@ describe("이용 현황: 지금 값", () => {
 
   it("아무것도 없는 상태에서도 0 으로 나와요", () => {
     const empty = summarizeTotals(
-      makeUsageState({ talent: [], companies: [], challenges: [], proposals: [], history: [], scouts: [], matches: [], teamPosts: [], posts: [] }),
+      makeUsageState({ talent: [], companies: [], challenges: [], proposals: [], history: [], scouts: [], matches: [], prizePayments: [], teamPosts: [], posts: [] }),
     );
     expect(empty.students).toBe(1);
     expect(empty.companies).toBe(0);
@@ -241,7 +242,8 @@ describe("이용 현황: 한 번에 · 한 줄 읽기", () => {
       "応募者がいちばん多いSDGsは「海の豊かさを守ろう」で、15名です。",
       "募集中の課題は2件で、応募者は合計25名です。",
       "フィードには4件の投稿があり（学生の実績2件・企業PR2件）、いいねは合計20です。",
-      "マッチングは2件で、企業のお支払い¥60,000のうち¥30,000は企業ご自身の寄付です（当社は受け取りを代行）。",
+      "インターンの採用は2件です（採用は無料）。",
+      "手数料は¥10,000です（企業が学生・研究者へ直接支払った賞金・研究依頼費¥100,000に対して）。",
       "スカウト3件のうち、承諾は1件、既読は1件です。",
       "公式SNS掲載の申請は1件です。",
       "直近30日でいちばん動きがあったのは「10/26」ごろで、9件でした。",
@@ -251,7 +253,8 @@ describe("이용 현황: 한 번에 · 한 줄 읽기", () => {
   it("한국어 한 줄 읽기", () => {
     const lines = usageInsights(summarizeUsage(makeUsageState(), 7), "ko");
     expect(lines[0]).toBe("응모자가 가장 많은 SDGs는 “해양 생태계 보전”이고, 15명이에요.");
-    expect(lines[3]).toBe("매칭은 2건이고, 기업 결제 60,000엔 가운데 30,000엔은 기업 자신의 기부예요(우리는 수령만 대행).");
+    expect(lines[3]).toBe("인턴 채택은 2건이에요(채택은 무료).");
+    expect(lines[4]).toBe("수수료는 10,000엔이에요(기업이 학생·연구자에게 직접 지급한 상금·연구 의뢰비 100,000엔에 대해).");
     expect(lines.at(-1)).toBe("최근 7일 중 움직임이 가장 많았던 때는 “10/29” 무렵이고, 4건이었어요.");
   });
 
@@ -266,13 +269,13 @@ describe("이용 현황: 한 번에 · 한 줄 읽기", () => {
   });
 
   it("기간 안에 움직임이 없으면 기간 문장은 없어요 (전체에도 안 들어가요)", () => {
-    const quiet = summarizeUsage(makeUsageState({ challenges: [], proposals: [], history: [], scouts: [], matches: [], teamPosts: [], posts: [] }), 7);
+    const quiet = summarizeUsage(makeUsageState({ challenges: [], proposals: [], history: [], scouts: [], matches: [], prizePayments: [], teamPosts: [], posts: [] }), 7);
     expect(usagePeriodInsight(quiet, "ko")).toBeNull();
     expect(usageInsights(quiet, "ko")).toEqual(usageCurrentInsights(quiet, "ko"));
   });
 
   it("값이 0 인 항목은 말하지 않아요 (지어내지 않기)", () => {
-    const empty = makeUsageState({ challenges: [], proposals: [], history: [], scouts: [], matches: [], teamPosts: [], posts: [] });
+    const empty = makeUsageState({ challenges: [], proposals: [], history: [], scouts: [], matches: [], prizePayments: [], teamPosts: [], posts: [] });
     const lines = usageInsights(summarizeUsage(empty), "ja");
     expect(lines).toEqual(["募集中の課題は0件で、応募者は合計0名です。"]);
   });

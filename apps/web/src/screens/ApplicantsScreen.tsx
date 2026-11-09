@@ -98,12 +98,20 @@ function ApplicantCard({ applicant, feeNote, showChallenge, onTouched }: { appli
           </Tag>
           {applicant.awardLabel ? <Tag tone="warning">🏆 {applicant.awardLabel}</Tag> : null}
           {applicant.mine ? <Tag tone="info">{t("applicants.mine")}</Tag> : null}
+          {/* 대학 수업 · 세미나에서 준비한 팀(응모할 때 세미나 · 수업 이름을 적은 팀) */}
+          {applicant.seminarLabel ? (
+            <Tag tone="info">
+              <span aria-hidden="true">🎓 </span>
+              {t("applicants.seminarBadge")}
+            </Tag>
+          ) : null}
         </div>
         <span className="applicant__score">{applicant.scoreLabel}</span>
       </div>
       {showChallenge ? <p className="applicant__challenge">{applicant.challengeLabel}</p> : null}
       <h3 className="applicant__title">{applicant.title}</h3>
-      <p className="small muted">{t("applicants.team", { name: applicant.teamName })}</p>
+      <p className="small muted">{applicant.teamLabel}</p>
+      {applicant.seminarLabel ? <p className="small muted">{applicant.seminarLabel}</p> : null}
       <p className="small">{applicant.summary}</p>
       <dl className="kv">
         <dt>{t("web.applicants.file")}</dt>

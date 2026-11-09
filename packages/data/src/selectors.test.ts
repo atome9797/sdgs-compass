@@ -365,6 +365,29 @@ describe("챌린지 상세", () => {
     expect(selectChallengeDetail(initial, closed!.id, "ja")?.canApply).toBe(false);
   });
 
+  it("응모 조건: 한 팀 3~5명(대학생 · 대학원생) · 권장 기간 1~2개월(이 과제의 모집 기간) · 수업 · 세미나", () => {
+    const ja = selectChallengeDetail(initial, "ch-plastic", "ja")!;
+    expect(ja.conditions).toEqual([
+      { label: "チーム", value: "1チーム3〜5人（大学生・大学院生）" },
+      { label: "期間の目安", value: "1〜2か月（この課題の募集期間は44日）" },
+      { label: "授業・ゼミ", value: "大学の授業・ゼミで取り組むチームは、応募のときにゼミ・授業名と指導教員を書けます（書かなくても応募できます）。" },
+    ]);
+    expect(ja.card.teamRuleLabel).toBe("3〜5人チーム");
+    const ko = selectChallengeDetail(initial, "ch-plastic", "ko")!;
+    expect(ko.conditions.map((c) => c.value).slice(0, 2)).toEqual(["한 팀 3~5명(대학생 · 대학원생)", "1~2개월(이 챌린지의 모집 기간은 44일)"]);
+    expect(ko.card.teamRuleLabel).toBe("3~5명 팀");
+  });
+
+  it("응모자 카드: 팀 인원, 그리고 세미나 · 수업에서 준비한 팀은 그 이름(「ゼミで参加」)", () => {
+    const list = selectApplicants(initial, "ja", "ch-plastic").applicants;
+    const pp1 = list.find((a) => a.id === "pp-1")!;
+    expect([pp1.teamSize, pp1.teamLabel]).toEqual([4, "チーム：クリーンシーサイド（4人）"]);
+    expect(pp1.seminarLabel).toBe("ゼミ・授業：海洋環境ゼミ（指導：山田先生）");
+    expect(list.find((a) => a.id === "pp-2")?.seminarLabel).toBeNull();
+    expect(list.filter((a) => a.seminarLabel !== null).map((a) => a.id).sort()).toEqual(["pp-1", "pp-3"]);
+    expect(selectApplicants(initial, "ko", "ch-plastic").applicants.find((a) => a.id === "pp-1")?.teamLabel).toBe("팀: クリーンシーサイド(4명)");
+  });
+
   it("팀 모집 글: 내 글에는 참여 요청 단추가 없고, 요청한 글에도 다시 못 해요", () => {
     const detail = selectChallengeDetail(busy, "ch-plastic", "ja");
     expect(detail?.teamPosts[0].mine).toBe(true);

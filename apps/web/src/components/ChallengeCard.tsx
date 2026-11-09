@@ -43,7 +43,7 @@ export function ChallengeCard({ vm, showReasons = false }: { vm: ChallengeCardVM
               {label}
             </Tag>
           ))}
-          <Tag>{vm.participationLabel}</Tag>
+          <Tag>👥 {vm.teamRuleLabel}</Tag>
         </div>
         {showReasons && vm.reasons.length > 0 ? (
           <ul className="ccard__reasons">

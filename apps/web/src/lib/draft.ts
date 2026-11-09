@@ -1,6 +1,6 @@
 // 기획서 제출 화면(4단계)의 입력 모으기: 파일 → 초안 변환, 단계별 오류 나누기. 순수 함수라서 브라우저 없이 테스트해요.
 // 파일은 이름·크기만 읽어요(내용은 읽거나 보내지 않아요 — 데모에서 지문은 이름·크기·제목·요약으로 만들어요).
-import type { ProposalDraft, ProposalError } from "@sdgs-compass/core/proposal";
+import { TEAM_SIZE, type ProposalDraft, type ProposalError } from "@sdgs-compass/core/proposal";
 
 export interface PickedFile {
   name: string;
@@ -20,6 +20,10 @@ export function pickFileInfo(file: { name: string; size: number }): PickedFile {
 
 export interface DraftFields {
   teamName: string;
+  /** 팀 인원 3~5명 (처음에는 3명이 골라져 있어요) */
+  teamSize: number;
+  /** 세미나 · 수업 이름과 지도 교수 (선택) */
+  seminar: string;
   title: string;
   summary: string;
   videoUrl: string;
@@ -27,13 +31,15 @@ export interface DraftFields {
 }
 
 export function emptyDraftFields(): DraftFields {
-  return { teamName: "", title: "", summary: "", videoUrl: "", file: null };
+  return { teamName: "", teamSize: TEAM_SIZE.default, seminar: "", title: "", summary: "", videoUrl: "", file: null };
 }
 
 /** 화면의 입력값 → core 의 ProposalDraft (검사·제출에 그대로 써요) */
 export function toProposalDraft(fields: DraftFields): ProposalDraft {
   return {
     teamName: fields.teamName,
+    teamSize: fields.teamSize,
+    seminar: fields.seminar,
     title: fields.title,
     summary: fields.summary,
     videoUrl: fields.videoUrl,
@@ -47,7 +53,7 @@ export const SUBMIT_STEPS: readonly SubmitStep[] = [1, 2, 3, 4];
 
 /** 각 입력 단계(1~3)에서 보여 줄 오류. 4단계(확인)에는 전체를 보여 줘요. deadline_passed 는 어느 단계에서나 보여요. */
 const STEP_ERRORS: Record<1 | 2 | 3, readonly ProposalError[]> = {
-  1: ["team_name_required", "team_name_too_long"],
+  1: ["team_name_required", "team_name_too_long", "team_size_invalid", "seminar_too_long", "seminar_contact"],
   2: ["file_required", "file_type", "file_too_large"],
   3: ["title_required", "title_too_long", "summary_required", "summary_too_long", "video_url_invalid"],
 };

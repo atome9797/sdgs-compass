@@ -48,7 +48,7 @@ export function ChallengeCard({ card, onPress, showMatch = false, footer, testID
                 .map((reward) => (
                   <Badge key={reward} tone="success" label={reward} />
                 ))}
-              <Badge label={card.participationLabel} />
+              <Badge label={`👥 ${card.teamRuleLabel}`} />
             </View>
             {showMatch && card.match !== null ? (
               <View style={styles.match}>

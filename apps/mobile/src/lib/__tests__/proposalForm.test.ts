@@ -38,7 +38,7 @@ test("단계 순서와 이동 (양 끝에서는 멈춰요)", () => {
 test("단계 이름과 오류마다 문구가 있어요", () => {
   const keys = Object.keys(MESSAGES);
   for (const key of [...Object.values(STEP_LABEL_KEY), ...Object.values(PROPOSAL_ERROR_KEY)]) expect(keys).toContain(key);
-  expect(Object.keys(PROPOSAL_ERROR_KEY)).toHaveLength(11);
+  expect(Object.keys(PROPOSAL_ERROR_KEY)).toHaveLength(14);
 });
 
 test("비어 있는 입력: 오류가 단계마다 나뉘어 보이고, 가장 앞 단계부터 안내해요", () => {

@@ -12,11 +12,11 @@ import type { MessageKey } from "@sdgs-compass/core/messages";
 import type { SdgId } from "@sdgs-compass/core/sdg";
 import { clampInt, parseCount } from "./forms";
 
-/** 모집 기간 기본값(일). 기능명세 F-201: 마감일은 최소 7일 이후 → 기본값은 그보다 넉넉하게 */
-export const DEFAULT_CHALLENGE_DAYS = 14;
+/** 모집 기간 기본값(일). 기능명세 F-201: 마감일은 최소 7일 이후. 학생 팀(3~5명)이 1~2개월 준비할 수 있게 45일 */
+export const DEFAULT_CHALLENGE_DAYS = 45;
 
-/** 모집 기간 빠른 선택 (양 끝은 core 의 최소·최대) */
-export const DAY_PRESETS: readonly number[] = [MIN_CHALLENGE_DAYS, DEFAULT_CHALLENGE_DAYS, 30, 60, MAX_CHALLENGE_DAYS];
+/** 모집 기간 빠른 선택 (양 끝은 core 의 최소·최대, 30~60일이 권장) */
+export const DAY_PRESETS: readonly number[] = [MIN_CHALLENGE_DAYS, 30, DEFAULT_CHALLENGE_DAYS, 60, MAX_CHALLENGE_DAYS];
 
 export const PARTICIPATION_OPTIONS: readonly Participation[] = ["both", "individual", "team"];
 
@@ -45,7 +45,8 @@ export interface NewChallengeForm {
 }
 
 export function emptyChallengeForm(): NewChallengeForm {
-  return { title: "", summary: "", sdgIds: [], prizeText: "100000", days: DEFAULT_CHALLENGE_DAYS, participation: "both", internship: true };
+  // 응모는 한 팀 3~5명이라서 처음 값은 팀 (웹은 모집 형태를 고르지 않고 팀으로 저장해요)
+  return { title: "", summary: "", sdgIds: [], prizeText: "100000", days: DEFAULT_CHALLENGE_DAYS, participation: "team", internship: true };
 }
 
 /** 입력 → core 의 ChallengeDraft (검사는 validateChallengeDraft 가 해요) */

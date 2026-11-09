@@ -19,7 +19,8 @@ export const extraMobile = {
 
   // 기획서 제출
   "mobile.stepOf": { ja: "ステップ {current}/{total}", ko: "단계 {current}/{total}" },
-  "mobile.teamSolo": { ja: "個人で応募（ニックネームを使う）", ko: "개인으로 응모(닉네임 사용)" },
+  // 응모는 한 팀 3~5명이라 「개인으로 응모」가 아니라 닉네임을 팀 이름 칸에 넣는 단추예요
+  "mobile.teamSolo": { ja: "ニックネームをチーム名にする", ko: "닉네임을 팀 이름으로" },
   "mobile.sampleHint": { ja: "デモ用の見本ファイルです（実際のアップロードは行いません）", ko: "데모용 샘플 파일이에요(실제 업로드는 하지 않아요)" },
   "mobile.sampleInvalid": { ja: "形式エラーの例", ko: "형식 오류 예시" },
   "mobile.errorsTitle": { ja: "入力内容を確認してください", ko: "입력 내용을 확인해 주세요" },

@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { LIMITS, validateProposalDraft } from "@sdgs-compass/core/proposal";
+import { LIMITS, TEAM_SIZE, validateProposalDraft } from "@sdgs-compass/core/proposal";
 import { canLeaveStep, emptyDraftFields, errorsForStep, firstInvalidStep, pickFileInfo, SAMPLE_FILES, toProposalDraft, type DraftFields } from "./draft";
 
 const CLOSES = "2026-11-30";
 const TODAY = "2026-10-30";
-const filled = (over: Partial<DraftFields> = {}): DraftFields => ({ teamName: "SDGsフロンティア", title: "バイオ包装プラン", summary: "海のごみを減らす企画です。", videoUrl: "", file: SAMPLE_FILES[0], ...over });
+const filled = (over: Partial<DraftFields> = {}): DraftFields => ({ teamName: "SDGsフロンティア", teamSize: 4, seminar: "", title: "バイオ包装プラン", summary: "海のごみを減らす企画です。", videoUrl: "", file: SAMPLE_FILES[0], ...over });
 const errorsOf = (fields: DraftFields) => validateProposalDraft(toProposalDraft(fields), CLOSES, TODAY);
 
 describe("파일 → 초안", () => {
@@ -14,7 +14,14 @@ describe("파일 → 초안", () => {
   });
 
   it("빈 입력은 파일 없음(null, 0바이트)으로 바뀌어요", () => {
-    expect(toProposalDraft(emptyDraftFields())).toEqual({ teamName: "", title: "", summary: "", videoUrl: "", fileName: null, fileSizeBytes: 0 });
+    expect(toProposalDraft(emptyDraftFields())).toEqual({ teamName: "", teamSize: TEAM_SIZE.default, seminar: "", title: "", summary: "", videoUrl: "", fileName: null, fileSizeBytes: 0 });
+  });
+
+  it("팀 인원은 처음부터 3명이 골라져 있고, 인원 · 세미나 이름이 초안에 그대로 들어가요", () => {
+    expect(emptyDraftFields().teamSize).toBe(3);
+    const draft = toProposalDraft(filled({ teamSize: 5, seminar: "環境経済ゼミ（山田先生）" }));
+    expect(draft.teamSize).toBe(5);
+    expect(draft.seminar).toBe("環境経済ゼミ（山田先生）");
   });
 
   it("고른 파일의 이름·크기가 초안에 들어가요", () => {
@@ -49,6 +56,21 @@ describe("단계별 오류", () => {
     expect(errorsForStep(2, all)).toEqual(["file_required", "deadline_passed"]);
     expect(errorsForStep(3, all)).toEqual(["title_required", "summary_too_long", "video_url_invalid", "deadline_passed"]);
     expect(errorsForStep(4, all)).toEqual([...all]);
+  });
+
+  it("팀 인원(3~5명) · 세미나 이름(40자 · 연락처 없음) 오류는 1단계에서 잡혀요", () => {
+    for (const teamSize of [2, 6, 3.5]) {
+      const errors = errorsOf(filled({ teamSize }));
+      expect(errors, String(teamSize)).toEqual(["team_size_invalid"]);
+      expect(firstInvalidStep(errors)).toBe(1);
+    }
+    expect(errorsOf(filled({ seminar: "ゼ".repeat(LIMITS.seminar) }))).toEqual([]);
+    const long = errorsOf(filled({ seminar: "ゼ".repeat(LIMITS.seminar + 1) }));
+    expect(long).toEqual(["seminar_too_long"]);
+    expect(canLeaveStep(1, long)).toBe(false);
+    const contact = errorsOf(filled({ seminar: "山田ゼミ teacher@example.ac.jp" }));
+    expect(errorsForStep(1, contact)).toEqual(["seminar_contact"]);
+    expect(errorsForStep(2, contact)).toEqual([]);
   });
 
   it("파일 종류·크기 오류는 2단계에서 잡혀요", () => {

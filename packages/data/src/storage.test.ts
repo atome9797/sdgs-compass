@@ -326,3 +326,36 @@ describe("실천 마크(#35)가 생기기 전에 저장된 데모 상태", () =>
     expect(parseState(serializeState(current))).toEqual(current);
   });
 });
+
+describe("팀 인원 · 세미나(2026-11-09)가 생기기 전에 저장된 데모 상태", () => {
+  const current = createInitialState(TODAY);
+  /** 기획서에 teamSize · seminar 가 없던 때의 모양 */
+  const old = { ...current, proposals: current.proposals.map(({ teamSize: _size, seminar: _seminar, ...p }) => p) };
+
+  it("버리지 않고, 샘플 기획서는 샘플 값으로 채워서 이어 써요", () => {
+    expect(isDemoState(old)).toBe(false);
+    const loaded = parseState(JSON.stringify(old));
+    expect(loaded).not.toBeNull();
+    expect(loaded).toEqual(current);
+    expect(loaded!.proposals.find((p) => p.id === "pp-1")).toMatchObject({ teamSize: 4, seminar: "海洋環境ゼミ（指導：山田先生）" });
+  });
+
+  it("샘플에 없는 기획서(데모에서 낸 것)는 3명 · 세미나 없음으로, 이미 값이 있으면 그대로 읽어요", () => {
+    const mine = { ...old.proposals[0], id: "pr-mine", mine: true };
+    const kept = { ...current.proposals[1], teamSize: 5, seminar: "演習" };
+    const mixed = { ...old, proposals: [mine, kept, ...old.proposals.slice(2)] };
+    const loaded = parseState(JSON.stringify(mixed))!;
+    expect(loaded.proposals.find((p) => p.id === "pr-mine")).toMatchObject({ teamSize: 3, seminar: "" });
+    expect(loaded.proposals.find((p) => p.id === kept.id)).toMatchObject({ teamSize: 5, seminar: "演習" });
+  });
+
+  it("인원이 3~5 의 정수가 아니거나 세미나가 글자가 아니면 저장된 상태를 버려요", () => {
+    for (const bad of [2, 6, 3.5, "4", true]) {
+      const broken = { ...current, proposals: current.proposals.map((p, i) => (i === 0 ? { ...p, teamSize: bad } : p)) };
+      expect(parseState(JSON.stringify(broken)), String(bad)).toBeNull();
+    }
+    const brokenSeminar = { ...current, proposals: current.proposals.map((p, i) => (i === 0 ? { ...p, seminar: 3 } : p)) };
+    expect(parseState(JSON.stringify(brokenSeminar))).toBeNull();
+    expect(parseState(serializeState(current))).toEqual(current);
+  });
+});

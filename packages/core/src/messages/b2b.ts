@@ -32,6 +32,10 @@ export const b2b = {
   "new.sdgs": { ja: "対応するSDGs（最大3つ）", ko: "해당 SDGs(최대 3개)" },
   "new.prize": { ja: "賞金（円）", ko: "상금(엔)" },
   "new.days": { ja: "募集期間（日）", ko: "모집 기간(일)" },
+  "new.daysHint": {
+    ja: "7〜90日。学生チームが1〜2か月かけて取り組めるよう、30〜60日をおすすめします",
+    ko: "7~90일. 학생 팀이 1~2개월 동안 준비할 수 있게 30~60일을 권해요",
+  },
   "new.participation": { ja: "募集形態", ko: "모집 형태" },
   "new.internship": { ja: "インターン・採用選考の特典を付ける", ko: "인턴십·채용 전형 혜택 제공" },
   "new.submit": { ja: "出題する", ko: "출제하기" },
@@ -46,6 +50,10 @@ export const b2b = {
   "applicants.pick": { ja: "課題を選択", ko: "챌린지 선택" },
   "applicants.empty": { ja: "応募はまだありません", ko: "아직 응모가 없어요" },
   "applicants.team": { ja: "チーム：{name}", ko: "팀: {name}" },
+  "applicants.teamWithSize": { ja: "チーム：{name}（{size}人）", ko: "팀: {name}({size}명)" },
+  // 대학 수업 · 세미나에서 준비한 팀(응모할 때 세미나 · 수업 이름을 적은 팀)
+  "applicants.seminarBadge": { ja: "ゼミで参加", ko: "세미나로 참가" },
+  "applicants.seminar": { ja: "ゼミ・授業：{name}", ko: "세미나 · 수업: {name}" },
   "applicants.average": { ja: "総合 {score}/5.0", ko: "종합 {score}/5.0" },
   "applicants.notReviewed": { ja: "未審査", ko: "미심사" },
   "applicants.mine": { ja: "（デモ：あなたの提出）", ko: "(데모: 내가 제출한 기획서)" },

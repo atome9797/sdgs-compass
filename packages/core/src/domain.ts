@@ -121,6 +121,10 @@ export interface Proposal {
   challengeId: string;
   mine: boolean;
   teamName: string;
+  /** 팀 인원 3~5명(대학생 · 대학원생). 이 항목이 생기기 전에 저장된 데모 상태는 샘플 값(샘플에 없으면 3명)으로 채워요 */
+  teamSize: number;
+  /** 세미나 · 수업 이름(지도 교수) — 학생이 쓴 글 그대로. 빈 문자열이면 세미나 없이 응모(기업 화면의 「ゼミで参加」 표시가 없어요) */
+  seminar: string;
   title: string;
   summary: string;
   videoUrl: string;

@@ -5,6 +5,7 @@ import type { DemoState, Role } from "@sdgs-compass/core/domain";
 import { isLocale, type Locale } from "@sdgs-compass/core/i18n";
 import { DEFAULT_OFFICIAL_CHANNEL, isOfficialChannel, isOfficialPostUrl, isOfficialStatus } from "@sdgs-compass/core/post";
 import { isWorkCategory, isWorkStatus } from "@sdgs-compass/core/network";
+import { isTeamSize, TEAM_SIZE } from "@sdgs-compass/core/proposal";
 import { isResearchField, isResearchStatus } from "@sdgs-compass/core/research";
 import { SDG_IDS, type SdgId } from "@sdgs-compass/core/sdg";
 import { rebaseState } from "@sdgs-compass/core/state";
@@ -264,7 +265,7 @@ export function isDemoState(value: unknown): value is DemoState {
   if (!Array.isArray(value.workRequests) || !value.workRequests.every(isWorkRequest) || !Array.isArray(value.ratings) || !value.ratings.every(isRating)) return false;
   if (!(value.challenges as unknown[]).every((c) => isObject(c) && typeof c.id === "string" && isDay(c.opensOn) && isDay(c.closesOn))) return false;
   if (!(value.companies as unknown[]).every((c) => isObject(c) && typeof c.id === "string" && isCertScore(c.certScore) && isCompanyOffers(c))) return false;
-  if (!(value.proposals as unknown[]).every((p) => isObject(p) && typeof p.id === "string" && Array.isArray(p.versions) && typeof p.submittedAt === "string")) return false;
+  if (!(value.proposals as unknown[]).every((p) => isObject(p) && typeof p.id === "string" && Array.isArray(p.versions) && typeof p.submittedAt === "string" && isTeamSize(p.teamSize) && typeof p.seminar === "string")) return false;
   if (!isObject(value.cert)) return false;
   const cert = value.cert;
   return CERT_CRITERIA.every((c) => {
@@ -310,6 +311,8 @@ function normalizeOfficial(post: unknown): unknown {
  * - 연구 의뢰(세 번째 역할 · 연구자)가 생기기 전의 상태에는 researcher · researchRequests 가 없어요 → 저장했을 때의 "오늘" 기준 샘플을 채워요.
  * - 기업 네트워크가 생기기 전의 상태에는 workRequests · ratings 와 회사의 offers · offerNote 가 없어요 → 샘플(업무 의뢰 · 평가)을 채우고,
  *   샘플에만 있는 회사(포장 제조 등 — 샘플 의뢰의 상대)를 더하고, 회사의 할 수 있는 일은 샘플 값(샘플에 없는 회사는 비어 있게)으로 채워요.
+ * - 팀 인원 · 세미나(2026-11-09)가 생기기 전의 기획서에는 teamSize · seminar 가 없어요 → 샘플 기획서는 샘플 값으로,
+ *   그 밖(데모에서 낸 기획서 등)은 3명 · 세미나 없음으로 채워요. 이미 값이 있으면 그대로 두고 isDemoState 가 판단해요.
  */
 /** 이전 돈의 모양(리워드 잔액 · 상금 예치 · 채택 수수료)을 직접 지급 모델의 모양으로 (모르는 값은 그대로 두고 isDemoState 가 판단해요) */
 function upgradeMoney(state: Record<string, unknown>): Record<string, unknown> {
@@ -370,6 +373,17 @@ function upgradeSaved(data: unknown): unknown {
   if (Array.isArray(next.companies) && next.companies.some((c) => isObject(c) && c.offers === undefined) && isDay(data.today)) {
     const offers = new Map(sample().companies.map((c) => [c.id, { offers: c.offers, offerNote: c.offerNote }]));
     next = { ...next, companies: next.companies.map((c) => (isObject(c) && c.offers === undefined ? { ...c, ...(offers.get(String(c.id)) ?? { offers: [], offerNote: "" }) } : c)) };
+  }
+  if (Array.isArray(next.proposals) && next.proposals.some((p) => isObject(p) && (p.teamSize === undefined || p.seminar === undefined)) && isDay(data.today)) {
+    const teams = new Map(sample().proposals.map((p) => [p.id, { teamSize: p.teamSize, seminar: p.seminar }]));
+    next = {
+      ...next,
+      proposals: next.proposals.map((p) => {
+        if (!isObject(p)) return p;
+        const team = teams.get(String(p.id));
+        return { ...p, teamSize: p.teamSize ?? team?.teamSize ?? TEAM_SIZE.default, seminar: p.seminar ?? team?.seminar ?? "" };
+      }),
+    };
   }
   if (Array.isArray(next.companies) && next.companies.some((c) => isObject(c) && c.certScore === undefined) && isDay(data.today)) {
     const scores = new Map(sample().companies.map((c) => [c.id, c.certScore]));

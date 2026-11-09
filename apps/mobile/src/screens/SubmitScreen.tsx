@@ -6,7 +6,7 @@ import { useState } from "react";
 import { StyleSheet, View } from "react-native";
 import { formatBytes } from "@sdgs-compass/core/format";
 import { pick } from "@sdgs-compass/core/i18n";
-import { charCount, LIMITS, validateProposalDraft, type ProposalError } from "@sdgs-compass/core/proposal";
+import { charCount, LIMITS, TEAM_SIZE, validateProposalDraft, type ProposalError } from "@sdgs-compass/core/proposal";
 import { selectChallengeDetail, selectReceipt } from "@sdgs-compass/core/selectors";
 import { OptionRow } from "@/components/OptionRow";
 import { Screen } from "@/components/Screen";
@@ -139,7 +139,7 @@ function SubmitView({ id }: { id: string }) {
           <Field
             testID="team-name"
             label={t("submit.teamName")}
-            hint={`${t("challenge.participation")}: ${detail.card.participationLabel}`}
+            hint={t("submit.teamHint", { min: TEAM_SIZE.min, max: TEAM_SIZE.max })}
             value={fields.teamName}
             onChangeText={(text) => update({ teamName: text })}
             placeholder={t("submit.teamNamePh")}

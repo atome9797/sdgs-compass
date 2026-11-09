@@ -1,12 +1,12 @@
 "use client";
 
-// SCR-03 기획서 제출: ① 팀 → ② 파일 → ③ 제목·요약(·동영상) → ④ 최종 제출 → 제출 수령증
+// SCR-03 기획서 제출: ① 팀(이름 · 인원 3~5명 · 세미나 · 수업 이름) → ② 파일 → ③ 제목·요약(·동영상) → ④ 최종 제출 → 제출 수령증
 // 파일은 진짜 <input type="file"> 로 고르되 이름·크기만 읽어요(내용은 읽거나 보내지 않아요). 입력 검사는 core 의 validateProposalDraft 가 해요.
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, type ChangeEvent } from "react";
 import { formatBytes } from "@sdgs-compass/core/format";
-import { charCount, LIMITS, validateProposalDraft, type ProposalError } from "@sdgs-compass/core/proposal";
+import { charCount, LIMITS, TEAM_SIZE, TEAM_SIZES, validateProposalDraft, type ProposalError } from "@sdgs-compass/core/proposal";
 import { selectChallengeDetail, selectReceipt } from "@sdgs-compass/core/selectors";
 import { Banner, Button, ButtonLink, Counter, ErrorList, Field, ScreenHead } from "@/components/ui";
 import { canLeaveStep, emptyDraftFields, errorsForStep, firstInvalidStep, pickFileInfo, SAMPLE_FILES, SUBMIT_STEPS, toProposalDraft, type DraftFields, type SubmitStep } from "@/lib/draft";
@@ -52,7 +52,7 @@ function SubmitView({ id, preset }: { id: string; preset?: SubmitPreset }) {
   const [fields, setFields] = useState<DraftFields>(() => ({
     ...emptyDraftFields(),
     // 다시 제출할 때는 지난번 입력을 미리 채워 둬요 (파일은 새로 골라야 해요)
-    ...(mine ? { teamName: mine.teamName, title: mine.title, summary: mine.summary, videoUrl: mine.videoUrl } : {}),
+    ...(mine ? { teamName: mine.teamName, teamSize: mine.teamSize, seminar: mine.seminar, title: mine.title, summary: mine.summary, videoUrl: mine.videoUrl } : {}),
     ...preset?.fields,
   }));
   const [tried, setTried] = useState(false);
@@ -121,6 +121,7 @@ function SubmitView({ id, preset }: { id: string; preset?: SubmitPreset }) {
 
   const summaryCount = charCount(fields.summary);
   const titleCount = charCount(fields.title);
+  const seminarCount = charCount(fields.seminar);
 
   return (
     <div className="screen">
@@ -137,8 +138,28 @@ function SubmitView({ id, preset }: { id: string; preset?: SubmitPreset }) {
           <h2 id="step-title" className="section__title">
             {t("submit.stepTeam")}
           </h2>
-          <Field label={t("submit.teamName")} hint={`${t("challenge.participation")}: ${detail.card.participationLabel}`} error={message(["team_name_required", "team_name_too_long"])}>
+          <Field label={t("submit.teamName")} hint={t("submit.teamHint", { min: TEAM_SIZE.min, max: TEAM_SIZE.max })} error={message(["team_name_required", "team_name_too_long"])}>
             {(props) => <input {...props} className="input" value={fields.teamName} onChange={(event) => update({ teamName: event.target.value })} placeholder={t("submit.teamNamePh")} autoComplete="off" />}
+          </Field>
+          <Field label={t("submit.teamSize")} error={message(["team_size_invalid"])}>
+            {(props) => (
+              <select {...props} className="select" value={fields.teamSize} onChange={(event) => update({ teamSize: Number(event.target.value) })}>
+                {TEAM_SIZES.map((count) => (
+                  <option key={count} value={count}>
+                    {t("submit.teamSizeOption", { count })}
+                  </option>
+                ))}
+              </select>
+            )}
+          </Field>
+          {/* 대학 수업 · 세미나에서 준비한 팀은 이름을 적어요(선택) — 기업의 응모자 화면에 「ゼミで参加」로 보여요 */}
+          <Field
+            label={t("submit.seminar")}
+            hint={t("submit.seminarHint")}
+            error={message(["seminar_too_long", "seminar_contact"])}
+            right={<Counter text={t("submit.counter", { count: seminarCount, max: LIMITS.seminar })} over={seminarCount > LIMITS.seminar} />}
+          >
+            {(props) => <input {...props} className="input" value={fields.seminar} onChange={(event) => update({ seminar: event.target.value })} placeholder={t("submit.seminarPh")} autoComplete="off" />}
           </Field>
         </section>
       ) : null}
@@ -202,6 +223,10 @@ function SubmitView({ id, preset }: { id: string; preset?: SubmitPreset }) {
           <dl className="kv kv--stack card card--pad">
             <dt>{t("submit.teamName")}</dt>
             <dd>{fields.teamName}</dd>
+            <dt>{t("submit.teamSize")}</dt>
+            <dd>{t("submit.teamSizeOption", { count: fields.teamSize })}</dd>
+            <dt>{t("submit.seminarShort")}</dt>
+            <dd>{fields.seminar.trim() || t("common.none")}</dd>
             <dt>{t("receipt.file")}</dt>
             <dd>{fields.file ? t("submit.fileChosen", { name: fields.file.name, size: formatBytes(fields.file.size) }) : "—"}</dd>
             <dt>{t("submit.proposalTitle")}</dt>
@@ -271,6 +296,14 @@ function ReceiptView({ id }: { id: string }) {
             <dd>{receipt.challengeTitle}</dd>
             <dt>{t("submit.teamName")}</dt>
             <dd>{receipt.teamName}</dd>
+            <dt>{t("submit.teamSize")}</dt>
+            <dd>{receipt.teamSizeLabel}</dd>
+            {receipt.seminar ? (
+              <>
+                <dt>{t("submit.seminarShort")}</dt>
+                <dd>{receipt.seminar}</dd>
+              </>
+            ) : null}
             <dt>{t("submit.proposalTitle")}</dt>
             <dd>{receipt.title}</dd>
             <dt>{t("receipt.at")}</dt>

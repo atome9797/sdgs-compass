@@ -3,7 +3,7 @@
 // SCR-02 챌린지 상세: 기업 브리핑(상세 요강) · 팀원 모집 게시판 · 북마크 · 참가 신청/재제출/수령증
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useState, type FormEvent } from "react";
+import { Fragment, useState, type FormEvent } from "react";
 import { SKILL_IDS, type SkillId } from "@sdgs-compass/core/domain";
 import { skillLabel } from "@sdgs-compass/core/labels";
 import { coverColors } from "@sdgs-compass/core/theme";
@@ -160,7 +160,7 @@ function ChallengeView({ id }: { id: string }) {
             </div>
           </div>
           <p className="small muted">
-            {card.applicantsLabel} · {t("challenge.participation")}: {card.participationLabel}
+            {card.applicantsLabel} · {card.teamRuleLabel}
           </p>
         </div>
       </section>
@@ -207,6 +207,17 @@ function ChallengeView({ id }: { id: string }) {
           <Section title={t("challenge.mission")}>
             <p className="prose">{vm.mission}</p>
           </Section>
+          {/* 응모 조건: 한 팀 3~5명(대학생 · 대학원생) · 권장 기간 1~2개월 · 수업 · 세미나 이름을 적을 수 있어요 */}
+          <Section title={t("challenge.conditions")}>
+            <dl className="kv card card--pad">
+              {vm.conditions.map((row) => (
+                <Fragment key={row.label}>
+                  <dt>{row.label}</dt>
+                  <dd>{row.value}</dd>
+                </Fragment>
+              ))}
+            </dl>
+          </Section>
           <Section title={t("challenge.deliverables")}>
             <div className="prose">
               <ul>
@@ -215,6 +226,7 @@ function ChallengeView({ id }: { id: string }) {
                 ))}
               </ul>
             </div>
+            <p className="small muted">{t("challenge.deliverablesNote")}</p>
           </Section>
           {vm.skills.length > 0 ? (
             <Section title={t("team.rolesWanted")}>

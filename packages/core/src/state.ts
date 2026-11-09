@@ -8,7 +8,7 @@ import { addDays, daysBetween } from "./format";
 import { levelOf } from "./impact";
 import { applyWorkRequest, chooseWorkApplicant, completeWork, deliverWork, postWorkRequest, rate, respondWorkRequest, type RatingDraft, type WorkDraft } from "./network";
 import { authorRole, DEFAULT_OFFICIAL_CHANNEL, OFFICIAL_SHARE_FEE_YEN, POST_LIMITS, postContext, resolveOfficialDate, uniqueSdgs, validatePostDraft, type PostDraft } from "./post";
-import { fileFingerprint, makeReceiptNo, validateProposalDraft, type ProposalDraft } from "./proposal";
+import { fileFingerprint, makeReceiptNo, teamOf, validateProposalDraft, type ProposalDraft } from "./proposal";
 import { canSendScout } from "./scout";
 import { isOpenFor } from "./recommend";
 import { acceptResearchRequest, completeResearchRequest, postResearchRequest, submitResearchResult, type ResearchDraft, type ResearchResultDraft } from "./research";
@@ -124,7 +124,7 @@ export function reducer(state: DemoState, action: Action): DemoState {
       if (existing) {
         const updated: Proposal = {
           ...existing,
-          teamName: draft.teamName.trim(),
+          ...teamOf(draft),
           title: draft.title.trim(),
           summary: draft.summary.trim(),
           videoUrl: draft.videoUrl.trim(),
@@ -136,7 +136,7 @@ export function reducer(state: DemoState, action: Action): DemoState {
         id: `pr${state.seq}`,
         challengeId: challenge.id,
         mine: true,
-        teamName: draft.teamName.trim(),
+        ...teamOf(draft),
         title: draft.title.trim(),
         summary: draft.summary.trim(),
         videoUrl: draft.videoUrl.trim(),

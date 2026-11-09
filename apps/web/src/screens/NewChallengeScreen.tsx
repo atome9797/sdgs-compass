@@ -1,9 +1,9 @@
 "use client";
 
-// 신규 챌린지 출제(F-201): 제목·개요·SDGs(최대 3)·상금·모집 기간(7~90일)·모집 형태·인턴십 특전
+// 신규 챌린지 출제(F-201): 제목·개요·SDGs(최대 3)·상금·모집 기간(7~90일, 처음 값 45일 — 학생 팀이 1~2개월 준비)·인턴십 특전
+// 응모는 한 팀 3~5명(대학생 · 대학원생)이라서 모집 형태는 고르지 않아요(팀으로 저장해요).
 import { useMemo, useState, type FormEvent } from "react";
 import { MAX_CHALLENGE_DAYS, MAX_CHALLENGE_SDGS, MIN_CHALLENGE_DAYS, validateChallengeDraft, type ChallengeDraftError } from "@sdgs-compass/core/challenge";
-import type { Participation } from "@sdgs-compass/core/domain";
 import type { SdgId } from "@sdgs-compass/core/sdg";
 import { selectSdgTiles } from "@sdgs-compass/core/selectors";
 import { SdgChips } from "@/components/sdg";
@@ -11,8 +11,8 @@ import { Banner, Button, ButtonLink, Field, ScreenHead } from "@/components/ui";
 import { buildHref, ROUTES } from "@/lib/routes";
 import { useSession } from "@/lib/session";
 
-const DEFAULT_DAYS = 14;
-const PARTICIPATIONS: readonly Participation[] = ["both", "individual", "team"];
+/** 학생 팀이 1~2개월 준비할 수 있게 처음 값은 45일 (7~90일에서 고를 수 있어요) */
+const DEFAULT_DAYS = 45;
 
 function NewChallengeForm({ onCreated }: { onCreated: () => void }) {
   const { locale, t, dispatch } = useSession();
@@ -22,11 +22,10 @@ function NewChallengeForm({ onCreated }: { onCreated: () => void }) {
   const [sdgIds, setSdgIds] = useState<SdgId[]>([]);
   const [prize, setPrize] = useState("100000");
   const [days, setDays] = useState(String(DEFAULT_DAYS));
-  const [participation, setParticipation] = useState<Participation>("both");
   const [internship, setInternship] = useState(true);
   const [tried, setTried] = useState(false);
 
-  const draft = { title, summary, sdgIds, prizeYen: prize.trim() === "" ? Number.NaN : Number(prize), days: days.trim() === "" ? Number.NaN : Number(days), participation, internship };
+  const draft = { title, summary, sdgIds, prizeYen: prize.trim() === "" ? Number.NaN : Number(prize), days: days.trim() === "" ? Number.NaN : Number(days), participation: "team" as const, internship };
   const errors = validateChallengeDraft(draft);
   const errorText = (code: ChallengeDraftError): string | null => (tried && errors.includes(code) ? t(`new.error.${code}`) : null);
   const toggleSdg = (id: SdgId) => setSdgIds((current) => (current.includes(id) ? current.filter((x) => x !== id) : [...current, id]));
@@ -62,22 +61,11 @@ function NewChallengeForm({ onCreated }: { onCreated: () => void }) {
           </Field>
         </div>
         <div className="grow" style={{ minWidth: 200 }}>
-          <Field label={t("new.days")} hint={t("new.error.days_invalid")} error={errorText("days_invalid")}>
+          <Field label={t("new.days")} hint={t("new.daysHint")} error={errorText("days_invalid")}>
             {(props) => <input {...props} className="input" type="number" inputMode="numeric" min={MIN_CHALLENGE_DAYS} max={MAX_CHALLENGE_DAYS} step={1} value={days} onChange={(event) => setDays(event.target.value)} />}
           </Field>
         </div>
       </div>
-      <Field label={t("new.participation")}>
-        {(props) => (
-          <select {...props} className="select" value={participation} onChange={(event) => setParticipation(event.target.value as Participation)}>
-            {PARTICIPATIONS.map((value) => (
-              <option key={value} value={value}>
-                {t(`participation.${value}`)}
-              </option>
-            ))}
-          </select>
-        )}
-      </Field>
       <label className="check">
         <input type="checkbox" checked={internship} onChange={(event) => setInternship(event.target.checked)} />
         {t("new.internship")}

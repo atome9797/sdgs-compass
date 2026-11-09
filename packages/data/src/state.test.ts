@@ -87,8 +87,32 @@ describe("기획서 제출 (F-301/F-302)", () => {
     expect(points(second)).toBe(points(first));
   });
 
+  it("팀 인원(3~5명)과 세미나 · 수업 이름이 저장되고, 수령증 · 응모자 화면에 보여요", () => {
+    const next = run(initial, { type: "submitProposal", challengeId: "ch-plastic", draft: draft({ teamSize: 4, seminar: "  海洋環境ゼミ（指導：田中先生）  " }), at: AT });
+    const mine = next.proposals.find((p) => p.mine)!;
+    expect([mine.teamSize, mine.seminar]).toEqual([4, "海洋環境ゼミ（指導：田中先生）"]);
+    const receipt = selectReceipt(next, "ch-plastic", "ja")!;
+    expect([receipt.teamSizeLabel, receipt.seminar]).toEqual(["4人", "海洋環境ゼミ（指導：田中先生）"]);
+    expect(selectReceipt(next, "ch-plastic", "ko")?.teamSizeLabel).toBe("4명");
+    const card = selectApplicants(next, "ja", "ch-plastic").applicants.find((a) => a.mine)!;
+    expect(card.teamLabel).toBe("チーム：Mina & Rin（4人）");
+    expect(card.seminarLabel).toBe("ゼミ・授業：海洋環境ゼミ（指導：田中先生）");
+    // 다시 낼 때 인원 · 세미나를 바꿀 수 있어요 (세미나를 지우면 표시도 없어져요)
+    const again = run(next, { type: "submitProposal", challengeId: "ch-plastic", draft: draft({ teamSize: 5, seminar: "" }), at: "2026-10-31T09:00" });
+    const updated = again.proposals.find((p) => p.mine)!;
+    expect([updated.teamSize, updated.seminar, updated.versions.length]).toEqual([5, "", 2]);
+    expect(selectApplicants(again, "ja", "ch-plastic").applicants.find((a) => a.mine)?.seminarLabel).toBeNull();
+    // 인원을 고르지 않은 초안(모바일 앱)은 3명
+    const { teamSize: _drop, ...noSize } = draft();
+    expect(run(initial, { type: "submitProposal", challengeId: "ch-plastic", draft: noSize, at: AT }).proposals.find((p) => p.mine)?.teamSize).toBe(3);
+  });
+
   it("잘못된 입력·마감·심사 중 챌린지에는 제출되지 않아요", () => {
     expect(run(initial, { type: "submitProposal", challengeId: "ch-plastic", draft: draft({ teamName: "" }), at: AT })).toBe(initial);
+    expect(run(initial, { type: "submitProposal", challengeId: "ch-plastic", draft: draft({ teamSize: 2 }), at: AT })).toBe(initial);
+    expect(run(initial, { type: "submitProposal", challengeId: "ch-plastic", draft: draft({ teamSize: 6 }), at: AT })).toBe(initial);
+    expect(run(initial, { type: "submitProposal", challengeId: "ch-plastic", draft: draft({ seminar: "ゼ".repeat(LIMITS.seminar + 1) }), at: AT })).toBe(initial);
+    expect(run(initial, { type: "submitProposal", challengeId: "ch-plastic", draft: draft({ seminar: "山田ゼミ yamada@example.ac.jp" }), at: AT })).toBe(initial);
     expect(run(initial, { type: "submitProposal", challengeId: "ch-plastic", draft: draft({ fileName: "a.docx" }), at: AT })).toBe(initial);
     expect(run(initial, { type: "submitProposal", challengeId: "ch-plastic", draft: draft({ fileSizeBytes: LIMITS.fileBytes + 1 }), at: AT })).toBe(initial);
     expect(run(initial, { type: "submitProposal", challengeId: "ch-bottle", draft: draft(), at: AT })).toBe(initial);

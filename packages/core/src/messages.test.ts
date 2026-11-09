@@ -66,8 +66,8 @@ describe("문구 사전 (일본어·한국어)", () => {
     for (const s of ["submitted", "reviewed", "awarded", "adopted"]) wanted.push(`proposalStatus.${s}`);
     for (const k of ["Internship", "Offer", "Interview"]) wanted.push(`inbox.kind${k}`);
     const proposalErrors: ProposalError[] = [
-      "team_name_required", "team_name_too_long", "title_required", "title_too_long", "summary_required", "summary_too_long",
-      "file_required", "file_type", "file_too_large", "video_url_invalid", "deadline_passed",
+      "team_name_required", "team_name_too_long", "team_size_invalid", "seminar_too_long", "seminar_contact", "title_required", "title_too_long",
+      "summary_required", "summary_too_long", "file_required", "file_type", "file_too_large", "video_url_invalid", "deadline_passed",
     ];
     for (const e of proposalErrors) wanted.push(`submit.error.${e}`);
     const challengeErrors: ChallengeDraftError[] = ["title_required", "summary_required", "sdgs_required", "prize_invalid", "days_invalid"];

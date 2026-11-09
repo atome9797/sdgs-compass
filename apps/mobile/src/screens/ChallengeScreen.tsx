@@ -246,7 +246,7 @@ function ChallengeView({ id }: { id: string }) {
               <Fact label={t("challenge.impact")} value={card.impactLabel} />
             </View>
             <Txt variant="small" tone="muted">
-              {card.applicantsLabel} · {t("challenge.participation")}: {card.participationLabel}
+              {card.applicantsLabel} · {card.teamRuleLabel}
             </Txt>
           </View>
         </View>

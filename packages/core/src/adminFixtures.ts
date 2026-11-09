@@ -36,6 +36,8 @@ const proposal = (id: string, challengeId: string, status: Proposal["status"], s
   challengeId,
   mine: false,
   teamName: `team-${id}`,
+  teamSize: 3,
+  seminar: "",
   title: `企画 ${id}`,
   summary: "概要",
   videoUrl: "",

@@ -20,6 +20,7 @@ import {
   authorRole, bodyLimit, DEFAULT_OFFICIAL_CHANNEL, defaultPrSdgs, OFFICIAL_CHANNELS, OFFICIAL_SHARE_FEE_YEN, OFFICIAL_SHARE_MONTHLY_LIMIT, OFFICIAL_SHARE_WINDOW_DAYS,
   officialChannelFormat, officialChannelLabel, officialChannelName, officialDateChoices, officialShareLink, officialUsageByMonth, POST_LIMITS,
 } from "./post";
+import { TEAM_SIZE } from "./proposal";
 import { qrMatrix } from "./qr";
 import { isOpenFor, recommendChallenges, scoreChallenge, type Reason, type Recommendation } from "./recommend";
 import { remainingScouts, SCOUT_DAILY_LIMIT, alreadyScouted, canSendScout } from "./scout";
@@ -168,6 +169,8 @@ export interface ChallengeCardVM {
   prizeLabel: string | null;
   rewardLabels: string[];
   participationLabel: string;
+  /** 「3〜5人チーム」 — 응모는 한 팀 3~5명(대학생 · 대학원생) */
+  teamRuleLabel: string;
   impactLabel: string;
   applicantsLabel: string;
   bookmarked: boolean;
@@ -202,6 +205,7 @@ export function challengeCard(state: DemoState, challenge: Challenge, locale: Lo
     prizeLabel: challenge.prizeYen > 0 ? formatYen(challenge.prizeYen, locale) : null,
     rewardLabels: challenge.rewards.map((r) => rewardLabel(r, locale)),
     participationLabel: participationLabel(challenge.participation, locale),
+    teamRuleLabel: translate("challenge.teamRule", locale, { min: TEAM_SIZE.min, max: TEAM_SIZE.max }),
     // 실적은 포인트 숫자로 보여 주지 않아요 — 참가·수상이 임팩트 레벨에 반영된다는 것만
     impactLabel: translate("challenge.impactValue", locale),
     applicantsLabel: translate("challenge.applicants", locale, { count: formatPeople(challenge.applicants, locale) }),
@@ -313,6 +317,8 @@ export interface ChallengeDetailVM {
   background: string;
   mission: string;
   deliverables: string[];
+  /** 응모 조건: 팀(3~5명 · 대학생 · 대학원생) · 권장 기간(1~2개월 + 이 과제의 모집 기간) · 수업 · 세미나 */
+  conditions: { label: string; value: string }[];
   opensOnLabel: string;
   teamPosts: TeamPostVM[];
   canApply: boolean;
@@ -356,6 +362,11 @@ export function selectChallengeDetail(state: DemoState, id: string, locale: Loca
     background: pick(challenge.background, locale),
     mission: pick(challenge.mission, locale),
     deliverables: challenge.deliverables.map((d) => pick(d, locale)),
+    conditions: [
+      { label: translate("challenge.cond.team", locale), value: translate("challenge.cond.teamValue", locale, { min: TEAM_SIZE.min, max: TEAM_SIZE.max }) },
+      { label: translate("challenge.cond.period", locale), value: translate("challenge.cond.periodValue", locale, { days: daysBetween(challenge.opensOn, challenge.closesOn) }) },
+      { label: translate("challenge.cond.seminar", locale), value: translate("challenge.cond.seminarValue", locale) },
+    ],
     opensOnLabel: formatDate(challenge.opensOn, locale),
     teamPosts: posts,
     canApply: card.isOpen,
@@ -370,6 +381,10 @@ export interface ReceiptVM {
   companyName: string;
   challengeTitle: string;
   teamName: string;
+  /** 「4人」·「4명」 */
+  teamSizeLabel: string;
+  /** 세미나 · 수업 이름(지도 교수). 없으면 빈 문자열 */
+  seminar: string;
   title: string;
   summary: string;
   receiptNo: string;
@@ -392,6 +407,8 @@ export function selectReceipt(state: DemoState, challengeId: string, locale: Loc
     companyName: company ? pick(company.name, locale) : "",
     challengeTitle: pick(challenge.title, locale),
     teamName: proposal.teamName,
+    teamSizeLabel: translate("submit.teamSizeOption", locale, { count: proposal.teamSize }),
+    seminar: proposal.seminar,
     title: proposal.title,
     summary: proposal.summary,
     receiptNo: proposal.receiptNo,
@@ -899,6 +916,13 @@ export interface ApplicantVM {
   /** 「課題：海洋プラスチックを減らす新しい包装アイデア」 */
   challengeLabel: string;
   teamName: string;
+  teamSize: number;
+  /** 「チーム：クリーンシーサイド（4人）」 */
+  teamLabel: string;
+  /** 세미나 · 수업 이름(지도 교수). 없으면 빈 문자열 — 있으면 카드에 「ゼミで参加」 표시 */
+  seminar: string;
+  /** 「ゼミ・授業：海洋環境ゼミ（指導：山田先生）」 (세미나가 없으면 null) */
+  seminarLabel: string | null;
   title: string;
   summary: string;
   /** 「第1版」·「1차 제출」 — 제출 버전(다시 내면 올라가요). 레벨(Lv.n)과 헷갈리지 않게 맨 글자 v1 은 쓰지 않아요 (#34) */
@@ -955,6 +979,10 @@ export function applicantVM(p: Proposal, locale: Locale, challengeTitle = ""): A
     challengeId: p.challengeId,
     challengeLabel: translate("applicants.challenge", locale, { title: challengeTitle }),
     teamName: p.teamName,
+    teamSize: p.teamSize,
+    teamLabel: translate("applicants.teamWithSize", locale, { name: p.teamName, size: p.teamSize }),
+    seminar: p.seminar,
+    seminarLabel: p.seminar === "" ? null : translate("applicants.seminar", locale, { name: p.seminar }),
     title: p.title,
     summary: p.summary,
     versionLabel: translate("proposal.version", locale, { version: latest.no }),

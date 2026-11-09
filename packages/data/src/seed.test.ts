@@ -7,7 +7,7 @@ import {
   containsContact, earliestOfficialDate, isOfficialChannel, OFFICIAL_ACCOUNT_URLS, OFFICIAL_SHARE_MONTHLY_LIMIT, OFFICIAL_SHARE_WINDOW_DAYS, officialMonthOf, officialShareLink,
   officialUsageByMonth, POST_LIMITS,
 } from "@sdgs-compass/core/post";
-import { charCount } from "@sdgs-compass/core/proposal";
+import { charCount, isTeamSize, LIMITS } from "@sdgs-compass/core/proposal";
 import { selectEsg, selectHome, selectImpact } from "@sdgs-compass/core/selectors";
 import { createInitialState, DEMO_COMPANY_ID, DEMO_STUDENT_ID } from "./seed";
 
@@ -92,6 +92,27 @@ describe("샘플 데이터", () => {
     expect(open.length).toBeGreaterThanOrEqual(6);
     for (const c of open) expect(daysBetween(TODAY, c.closesOn), c.id).toBeGreaterThanOrEqual(0);
     for (const c of state.challenges) expect(daysBetween(c.opensOn, c.closesOn), c.id).toBeGreaterThan(0);
+  });
+
+  it("응모는 팀(3~5명): 샘플 과제는 모두 팀 모집이고, 모집 기간은 30~60일(학생 팀이 1~2개월 준비)", () => {
+    for (const c of state.challenges) {
+      expect(c.participation, c.id).toBe("team");
+      const days = daysBetween(c.opensOn, c.closesOn);
+      expect(days, c.id).toBeGreaterThanOrEqual(30);
+      expect(days, c.id).toBeLessThanOrEqual(60);
+    }
+  });
+
+  it("샘플 기획서의 팀은 3~5명이고, 세미나 · 수업 이름은 몇 팀만(40자 이내 · 연락처 없음)", () => {
+    for (const p of state.proposals) {
+      expect(isTeamSize(p.teamSize), p.id).toBe(true);
+      expect(charCount(p.seminar), p.id).toBeLessThanOrEqual(LIMITS.seminar);
+      expect(containsContact(p.seminar), p.id).toBe(false);
+    }
+    const withSeminar = state.proposals.filter((p) => p.seminar !== "");
+    expect(withSeminar.length).toBeGreaterThanOrEqual(2);
+    expect(withSeminar.length).toBeLessThan(state.proposals.length);
+    expect(new Set(state.proposals.map((p) => p.teamSize))).toEqual(new Set([3, 4, 5]));
   });
 
   it("심사 중인 챌린지에 응모작이 있어요 (B2B 데모용)", () => {

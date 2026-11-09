@@ -43,7 +43,7 @@ export function buildChallenge(draft: ChallengeDraft, ctx: { id: string; company
     summary,
     background: summary,
     mission: summary,
-    deliverables: [{ ja: "企画書（PDF・PPTX）", ko: "기획서(PDF·PPTX)" }],
+    deliverables: [{ ja: "企画書・発表資料（PDF・PPTX）", ko: "기획서 · 발표 자료(PDF · PPTX)" }],
     sdgIds: [...new Set(draft.sdgIds)],
     skills: [],
     prizeYen: draft.prizeYen,

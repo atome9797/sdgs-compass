@@ -17,7 +17,8 @@ export const STEP_LABEL_KEY: Record<SubmitStep, MessageKey> = {
 
 /** 마지막(confirm) 단계가 아닌 단계에서 보여 줄 오류 */
 const STEP_ERRORS: Record<Exclude<SubmitStep, "confirm">, readonly ProposalError[]> = {
-  team: ["team_name_required", "team_name_too_long"],
+  // 팀 인원 · 세미나 이름 입력은 아직 웹에만 있어요(모바일 초안은 3명 · 세미나 없음) — 오류가 생기면 팀 단계에서 보여요
+  team: ["team_name_required", "team_name_too_long", "team_size_invalid", "seminar_too_long", "seminar_contact"],
   file: ["file_required", "file_type", "file_too_large"],
   summary: ["title_required", "title_too_long", "summary_required", "summary_too_long", "video_url_invalid"],
 };
@@ -45,6 +46,9 @@ export function canAdvance(step: SubmitStep, all: readonly ProposalError[]): boo
 export const PROPOSAL_ERROR_KEY: Record<ProposalError, MessageKey> = {
   team_name_required: "submit.error.team_name_required",
   team_name_too_long: "submit.error.team_name_too_long",
+  team_size_invalid: "submit.error.team_size_invalid",
+  seminar_too_long: "submit.error.seminar_too_long",
+  seminar_contact: "submit.error.seminar_contact",
   title_required: "submit.error.title_required",
   title_too_long: "submit.error.title_too_long",
   summary_required: "submit.error.summary_required",

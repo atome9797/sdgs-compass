@@ -1,4 +1,5 @@
-// 퀘스트 의뢰서(#39): 웹과 같은 양피지 두루마리 모양의 「依頼書」 — 위아래 두루마리, 의뢰인 · 토벌 대상(과제 몬스터의 픽셀 그림) · SDG 번호 · 보상 한 줄,
+// 퀘스트 의뢰서(#39): 웹과 같은 양피지 두루마리 모양의 「依頼書」 — 위아래 두루마리, 과제 몬스터의 픽셀 그림(밑에 이름) · 의뢰인 ·
+// 「課題」(과제를 쉬운 말로, #41 — 게임을 하지 않는 사람도 알 수 있게) · SDG 번호 · 보상 한 줄,
 // 오른쪽 위에 남은 날 도장(あと 12日 · 本日締切 · 審査中), 기획서를 낸 퀘스트는 몬스터 그림 위에 「達成」 도장. 종이 전체가 하나의 단추예요.
 // compact 는 홈의 「締切が近いクエスト」용 작은 의뢰서(그림 · 제목 · 의뢰인 · 도장 한 줄). 그라데이션 없이 색 View 를 겹쳐서 그려요.
 import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
@@ -72,11 +73,11 @@ export function QuestScroll({ card, locale, onPress, showMatch = false, compact 
   const serif = serifOf(locale);
   const cleared = card.submittedVersion !== null;
   const due = !card.isOpen ? card.statusLabel : card.dDay;
-  // 스크린 리더: 종이 전체가 단추 하나 — 제목 · 의뢰인 · 토벌 대상 · 남은 날(상태) · 제출 여부
+  // 스크린 리더: 종이 전체가 단추 하나 — 제목 · 의뢰인 · 과제(쉬운 말) · 남은 날(상태) · 제출 여부
   const label = [
     card.title,
     `${t("scroll.client")} ${card.companyName}`,
-    `${t("scroll.foe")} ${card.foe.name}`,
+    `${t("scroll.problem")} ${card.problem}`,
     due,
     cleared ? t("challenge.submitted", { version: card.submittedVersion ?? 1 }) : null,
   ]
@@ -129,7 +130,13 @@ export function QuestScroll({ card, locale, onPress, showMatch = false, compact 
             </View>
             <Seal card={card} locale={locale} small={false} />
             <View style={styles.main}>
-              {wanted}
+              {/* 몬스터 그림 밑에 이름을 작게(#41) — 「課題」 줄에는 쉬운 말을 써요 */}
+              <View style={styles.monster}>
+                {wanted}
+                <Text style={styles.foeName} numberOfLines={2}>
+                  {card.foe.name}
+                </Text>
+              </View>
               <Text style={[styles.title, { fontFamily: serif }]} numberOfLines={3}>
                 {card.title}
               </Text>
@@ -141,8 +148,8 @@ export function QuestScroll({ card, locale, onPress, showMatch = false, compact 
               </Text>
             </View>
             <View style={styles.row}>
-              <Key label={t("scroll.foe")} />
-              <Text style={[styles.value, styles.strong]}>{card.foe.name}</Text>
+              <Key label={t("scroll.problem")} />
+              <Text style={[styles.value, styles.problem]}>{card.problem}</Text>
             </View>
             <SdgMiniRow ids={card.sdgIds} />
             {card.rewardsLine ? (
@@ -221,6 +228,8 @@ const styles = StyleSheet.create({
   main: { flexDirection: "row", alignItems: "center", gap: SPACE.md },
   wanted: { width: 76, height: 76, alignItems: "center", justifyContent: "center", borderWidth: 2, borderColor: C.frame, borderRadius: 6, backgroundColor: C.frameFill },
   wantedSmall: { width: 56, height: 56 },
+  monster: { alignItems: "center", gap: 3 },
+  foeName: { maxWidth: 86, fontSize: 11, fontWeight: "800", lineHeight: 14, textAlign: "center", color: C.key },
   title: { flex: 1, paddingRight: 50, fontSize: FONT_SIZE.lg, fontWeight: "800", lineHeight: 24, color: C.ink },
   titleCompact: { flex: 0, paddingRight: 0, fontSize: FONT_SIZE.md, lineHeight: 21 },
   row: { flexDirection: "row", alignItems: "flex-start", gap: 6 },
@@ -228,6 +237,7 @@ const styles = StyleSheet.create({
   keyText: { fontSize: FONT_SIZE.xs, fontWeight: "800", color: C.keyText },
   value: { flex: 1, fontSize: FONT_SIZE.sm, lineHeight: 19, color: C.ink },
   strong: { fontWeight: "800" },
+  problem: { fontWeight: "700" },
   reasons: { gap: 2 },
   reason: { fontSize: FONT_SIZE.sm, color: "#5A4630" },
   foot: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: SPACE.sm, paddingTop: 6, borderTopWidth: 1, borderTopColor: "rgba(184, 148, 99, 0.6)" },

@@ -1,6 +1,7 @@
 "use client";
 
-// 퀘스트 목록(#39): 양피지 두루마리 모양의 「依頼書」. 위아래로 말린 두루마리, 의뢰인 · 토벌 대상(과제 몬스터의 픽셀 그림) · SDG 번호 · 보상,
+// 퀘스트 목록(#39): 양피지 두루마리 모양의 「依頼書」. 위아래로 말린 두루마리, 과제 몬스터의 픽셀 그림(밑에 이름) · 의뢰인 ·
+// 「課題」(과제를 쉬운 말로, #41 — 게임을 하지 않는 사람도 알 수 있게) · SDG 번호 · 보상,
 // 오른쪽 위에는 남은 날을 도장으로(마감 · 심사 중이면 그 상태). 기획서를 낸 퀘스트에는 붉은 「達成」 도장이 찍혀요.
 // 종이 어디를 눌러도 퀘스트 상세(전투 화면)로 가요 — 북마크 · 실천 마크 단추는 따로 눌러요.
 import Link from "next/link";
@@ -50,14 +51,19 @@ export function ChallengeCard({ vm, showReasons = false }: { vm: ChallengeCardVM
         </p>
         <Seal vm={vm} />
         <div className="scroll__main">
-          <span className="scroll__wanted">
-            <FoeIcon kind={vm.foe.kind} color={vm.foe.color} label={t("scroll.foeAlt", { foe: vm.foe.name })} />
-            {/* 기획서를 낸 퀘스트: 몬스터 그림 위에 「達成」 도장 */}
-            {vm.submittedVersion !== null ? (
-              <span className="scroll__cleared" aria-hidden="true">
-                {t("scroll.cleared")}
-              </span>
-            ) : null}
+          <span className="scroll__monster">
+            <span className="scroll__wanted">
+              <FoeIcon kind={vm.foe.kind} color={vm.foe.color} label={t("scroll.foeAlt", { foe: vm.foe.name })} />
+              {/* 기획서를 낸 퀘스트: 몬스터 그림 위에 「達成」 도장 */}
+              {vm.submittedVersion !== null ? (
+                <span className="scroll__cleared" aria-hidden="true">
+                  {t("scroll.cleared")}
+                </span>
+              ) : null}
+            </span>
+            <span className="scroll__foe-name" aria-hidden="true">
+              {vm.foe.name}
+            </span>
           </span>
           <h3 className="scroll__title">
             <Link className="scroll__link" href={challengeHref(vm.id)}>
@@ -73,8 +79,8 @@ export function ChallengeCard({ vm, showReasons = false }: { vm: ChallengeCardVM
           </span>
         </p>
         <p className="scroll__row">
-          <span className="scroll__key">{t("scroll.foe")}</span>
-          <span className="scroll__foe">{vm.foe.name}</span>
+          <span className="scroll__key">{t("scroll.problem")}</span>
+          <span className="scroll__problem">{vm.problem}</span>
         </p>
         {vm.companyMark ? (
           <div className="scroll__mark">

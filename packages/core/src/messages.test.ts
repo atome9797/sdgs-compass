@@ -58,8 +58,9 @@ describe("문구 사전 (일본어·한국어)", () => {
     const wanted: string[] = [];
     for (const id of SKILL_IDS) wanted.push(`skill.${id}`);
     for (const code of BADGE_CODES) wanted.push(`badge.${code}.name`, `badge.${code}.desc`);
-    // #38 레벨은 없어졌어요(스킬로) — 전투 명령 4개의 이름 · 설명
+    // #38 전투 명령 4개의 이름 · 설명, #41 「しらべる」의 선택지(용사가 묻는 쉬운 말)
     for (const c of ["fight", "skill", "look", "run"]) wanted.push(`battle.cmd.${c}`, `battle.cmd.${c}Sub`);
+    for (const topic of ["trouble", "todo", "reward"]) wanted.push(`battle.topic.${topic}`);
     for (const award of ["grand", "excellence", "special"]) wanted.push(`award.${award}`);
     for (const reward of ["prize", "internship", "offer"]) wanted.push(`reward.${reward}`);
     for (const p of ["individual", "team", "both"]) wanted.push(`participation.${p}`);

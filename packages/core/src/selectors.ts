@@ -183,20 +183,28 @@ export interface ChallengeCardVM {
   /** 매칭률 0~100 (추천 계산을 한 경우만) */
   match: number | null;
   reasons: string[];
-  /** 의뢰서(#39)의 「討伐対象」: 이 퀘스트의 과제 몬스터(전투 화면과 같아요) — 색은 대표 SDG 색 */
-  foe: { name: string; kind: FoeKind; color: string };
+  /** 의뢰서(#39)의 과제 몬스터(전투 화면과 같아요) — 색은 대표 SDG 색. about = 몬스터의 정체(쉬운 말, 없으면 null) */
+  foe: { name: string; kind: FoeKind; color: string; about: string | null };
+  /** 의뢰서의 「課題」(#41): 과제를 쉬운 말로 — 몬스터의 정체, 없으면 퀘스트의 요약 */
+  problem: string;
   /** 의뢰서의 「報酬」 한 줄: 「賞金 ¥100,000 ／ 🎁 みなとの干物ギフトセット ／ インターン」 (없으면 null) */
   rewardsLine: string | null;
 }
 
-/** 보상을 한 줄로: 상금 → 상품(🎁) → 그 밖의 특전 (의뢰 창 · 의뢰서가 같이 써요) */
-function rewardsLineOf(challenge: Challenge, locale: Locale): string | null {
+/** 보상을 한 줄로: 상금 → 상품(🎁) → 그 밖의 특전 (의뢰 창 · 의뢰서 · 퀘스트 상세의 대화가 같이 써요) */
+export function rewardsLineOf(challenge: Challenge, locale: Locale): string | null {
   const parts = [
     challenge.prizeYen > 0 ? `${rewardLabel("prize", locale)} ${formatYen(challenge.prizeYen, locale)}` : null,
     challenge.rewardItem ? `🎁 ${pick(challenge.rewardItem.name, locale)}` : null,
     ...challenge.rewards.filter((r) => r !== "prize").map((r) => rewardLabel(r, locale)),
   ].filter((part): part is string => part !== null);
   return parts.length > 0 ? parts.join(locale === "ja" ? " ／ " : " / ") : null;
+}
+
+/** 과제를 쉬운 말로(#41): 몬스터의 정체(foe.about), 없으면 퀘스트의 요약 — 의뢰서의 「課題」와 퀘스트 상세의 첫 대화가 같이 써요 */
+export function problemOf(challenge: Challenge, locale: Locale): string {
+  const about = foeOf(challenge).about;
+  return about ? pick(about, locale) : pick(challenge.summary, locale);
 }
 
 export function challengeCard(state: DemoState, challenge: Challenge, locale: Locale, recommendation?: Recommendation): ChallengeCardVM {
@@ -237,8 +245,9 @@ export function challengeCard(state: DemoState, challenge: Challenge, locale: Lo
     reasons: rec.reasons.map((r) => reasonText(r, locale)),
     foe: (() => {
       const foe = foeOf(challenge);
-      return { name: pick(foe.name, locale), kind: foe.kind, color: getSdg(challenge.sdgIds[0] ?? 17).color };
+      return { name: pick(foe.name, locale), kind: foe.kind, color: getSdg(challenge.sdgIds[0] ?? 17).color, about: foe.about ? pick(foe.about, locale) : null };
     })(),
+    problem: problemOf(challenge, locale),
     rewardsLine: rewardsLineOf(challenge, locale),
   };
 }

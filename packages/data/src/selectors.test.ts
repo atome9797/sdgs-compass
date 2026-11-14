@@ -369,14 +369,14 @@ describe("챌린지 상세", () => {
   it("응모 조건: 한 팀 3~5명(대학생 · 대학원생) · 권장 기간 1~2개월(이 과제의 모집 기간) · 수업 · 세미나", () => {
     const ja = selectChallengeDetail(initial, "ch-plastic", "ja")!;
     expect(ja.conditions).toEqual([
-      { label: "パーティ", value: "1パーティ3〜5人（大学生・大学院生）" },
+      { label: "チーム", value: "1チーム3〜5人（大学生・大学院生）" },
       { label: "期間の目安", value: "1〜2か月（このクエストの募集期間は44日）" },
-      { label: "授業・ゼミ", value: "大学の授業・ゼミで取り組むパーティは、応募のときにゼミ・授業名と指導教員を書けます（書かなくても応募できます）。" },
+      { label: "授業・ゼミ", value: "大学の授業・ゼミで取り組むチームは、応募のときにゼミ・授業名と指導教員を書けます（書かなくても応募できます）。" },
     ]);
-    expect(ja.card.teamRuleLabel).toBe("3〜5人パーティ");
+    expect(ja.card.teamRuleLabel).toBe("3〜5人チーム");
     const ko = selectChallengeDetail(initial, "ch-plastic", "ko")!;
-    expect(ko.conditions.map((c) => c.value).slice(0, 2)).toEqual(["한 파티 3~5명(대학생 · 대학원생)", "1~2개월(이 퀘스트의 모집 기간은 44일)"]);
-    expect(ko.card.teamRuleLabel).toBe("3~5명 파티");
+    expect(ko.conditions.map((c) => c.value).slice(0, 2)).toEqual(["한 팀 3~5명(대학생 · 대학원생)", "1~2개월(이 퀘스트의 모집 기간은 44일)"]);
+    expect(ko.card.teamRuleLabel).toBe("3~5명 팀");
   });
 
   it("응모자 카드: 팀 인원, 그리고 세미나 · 수업에서 준비한 팀은 그 이름(「ゼミで参加」)", () => {

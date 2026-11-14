@@ -426,3 +426,22 @@ describe("스킬(#38)이 생기기 전에 저장한 상태 — 레벨(authorLeve
     expect(parsed.skills).toHaveLength(3);
   });
 });
+
+describe("몬스터의 정체(#41)가 생기기 전에 저장한 상태 — 몬스터는 있지만 정체(about)가 없어요", () => {
+  const current = createInitialState(TODAY);
+  const old = {
+    ...current,
+    challenges: current.challenges.map((c) => (c.foe ? { ...c, foe: { kind: c.foe.kind, name: c.foe.name } } : c)),
+  };
+
+  it("샘플 퀘스트의 몬스터에 샘플의 정체를 붙여요 (그 밖은 그대로)", () => {
+    const parsed = parseState(JSON.stringify(old))!;
+    expect(parsed).toEqual(current);
+    expect(parsed.challenges.find((c) => c.id === "ch-plastic")!.foe!.about).toEqual({ ja: "商品の包装から出るプラスチックごみ", ko: "상품 포장에서 나오는 플라스틱 쓰레기" });
+  });
+
+  it("몬스터 모양이 샘플과 다르면 정체를 붙이지 않아요", () => {
+    const changed = { ...old, challenges: old.challenges.map((c) => (c.id === "ch-plastic" && c.foe ? { ...c, foe: { ...c.foe, kind: "wall" as const } } : c)) };
+    expect(parseState(JSON.stringify(changed))!.challenges.find((c) => c.id === "ch-plastic")!.foe!.about).toBeUndefined();
+  });
+});

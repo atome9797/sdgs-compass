@@ -33,6 +33,8 @@ export type FoeKind = "jelly" | "bottle" | "smog" | "ghost" | "wall" | "bird";
 export interface QuestFoe {
   name: Text;
   kind: FoeKind;
+  /** 몬스터의 정체 = 이 퀘스트의 과제를 쉬운 말로(#41): 「商品の包装から出るプラスチックごみ」. 없으면 퀘스트의 요약(summary)을 써요 */
+  about?: Text;
 }
 
 export interface Company {

@@ -406,6 +406,20 @@ function upgradeSkills(data: Record<string, unknown>, sample: () => DemoState): 
       }),
     };
   }
+  // #41 몬스터의 정체(과제를 쉬운 말로)가 생기기 전에 저장한 샘플 퀘스트: 같은 모양의 몬스터면 샘플의 정체를 붙여요
+  const lacksAbout = (c: unknown) => isObject(c) && isObject(c.foe) && c.foe.about === undefined;
+  if (Array.isArray(next.challenges) && next.challenges.some(lacksAbout)) {
+    const samples = new Map(sampleState().challenges.map((c) => [c.id, c.foe]));
+    next = {
+      ...next,
+      challenges: next.challenges.map((c) => {
+        if (!lacksAbout(c) || !isObject(c) || !isObject(c.foe)) return c;
+        const sample = samples.get(String(c.id));
+        if (!sample?.about || sample.kind !== c.foe.kind) return c;
+        return { ...c, foe: { ...c.foe, about: sample.about } };
+      }),
+    };
+  }
   return next;
 }
 

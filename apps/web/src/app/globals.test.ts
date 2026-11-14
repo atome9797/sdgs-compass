@@ -44,11 +44,17 @@ describe("globals.css 와 theme.ts 의 토큰", () => {
     for (const [key, value] of Object.entries(GAME_COLORS)) expect(norm(vars.get(`--game-${kebab(key)}`) ?? ""), key).toBe(norm(value));
   });
 
-  it("전투 화면(#38): 명령 · 스킬 단추는 누르는 곳 44px, 캔버스는 칸이 번지지 않게(pixelated)", () => {
+  it("전투 화면(#38 · #41): 명령 · 「しらべる」의 선택지 · 스킬 단추는 누르는 곳 44px, 캔버스는 칸이 번지지 않게(pixelated)", () => {
     expect(css).toMatch(/\.battle-cmd\s*\{[^}]*min-height:\s*var\(--tap\)/);
+    expect(css).toMatch(/\.choice\s*\{[^}]*min-height:\s*var\(--tap\)/);
     expect(css).toMatch(/\.battle-skill\s*\{[^}]*min-height:\s*var\(--tap\)/);
     expect(css).toMatch(/\.battle__canvas\s*\{[^}]*image-rendering:\s*pixelated/);
     expect(css).toMatch(/@media \(prefers-reduced-motion: reduce\)\s*\{[^}]*\.battle-msg__next/);
+  });
+
+  it("메시지 창(#41): 낼 것 목록의 줄바꿈이 보이고(pre-line), 이름표는 창 위에 겹쳐요", () => {
+    expect(css).toMatch(/\.battle-msg\s*\{[^}]*white-space:\s*pre-line/);
+    expect(css).toMatch(/\.talk__name\s*\{[^}]*position:\s*absolute/);
   });
 
   it("퀘스트 의뢰서(#39)의 먹 · 도장 색(--scroll-ink · --scroll-seal)이 core 의 SCROLL_COLORS 와 같아요 (앱과 같은 색)", () => {

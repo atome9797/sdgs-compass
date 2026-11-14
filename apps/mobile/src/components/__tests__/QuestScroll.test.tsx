@@ -1,4 +1,4 @@
-// 퀘스트 의뢰서(#39): 웹과 같은 양피지 두루마리 — 依頼書 · 의뢰인 · 토벌 대상(몬스터 그림) · 보상 한 줄 · 남은 날 도장 · 「達成」 도장, 종이 전체가 하나의 단추.
+// 퀘스트 의뢰서(#39): 웹과 같은 양피지 두루마리 — 依頼書 · 몬스터 그림(밑에 이름) · 의뢰인 · 「課題」(쉬운 말, #41) · 보상 한 줄 · 남은 날 도장 · 「達成」 도장, 종이 전체가 하나의 단추.
 import { fireEvent, render, screen } from "@testing-library/react-native";
 import { challengeCard } from "@sdgs-compass/core/selectors";
 import { reducer } from "@sdgs-compass/core/state";
@@ -9,18 +9,22 @@ import { QuestScroll } from "../QuestScroll";
 const demo = createInitialState("2026-10-30");
 const plasticOf = (state: typeof demo, locale: "ja" | "ko") => challengeCard(state, state.challenges.find((c) => c.id === "ch-plastic")!, locale);
 
-test("의뢰서: 依頼書 · 依頼主 · 討伐対象 · 報酬 한 줄 · 「あと 12日」 도장, 누르면 onPress", async () => {
+test("의뢰서: 依頼書 · 몬스터 이름 · 依頼主 · 「課題」(쉬운 말) · 報酬 한 줄 · 「あと 12日」 도장, 누르면 onPress", async () => {
   const card = plasticOf(demo, "ja");
   const onPress = jest.fn();
   await render(<QuestScroll testID="scroll" card={card} locale="ja" showMatch onPress={onPress} />);
   expect(screen.getByText("依頼書")).toBeOnTheScreen();
   expect(screen.getByText("プラごみクラゲ")).toBeOnTheScreen();
+  expect(screen.getByText("課題")).toBeOnTheScreen();
+  expect(screen.getByText("商品の包装から出るプラスチックごみ")).toBeOnTheScreen();
+  expect(screen.queryByText("討伐対象")).not.toBeOnTheScreen();
+  expect(screen.getByText(/3〜5人チーム/)).toBeOnTheScreen();
   expect(screen.getByText("賞金 ¥100,000 ／ 🎁 みなとの干物ギフトセット ／ インターン")).toBeOnTheScreen();
   expect(screen.getByText("あと")).toBeOnTheScreen();
   expect(screen.getByText(`${card.daysLeft}日`)).toBeOnTheScreen();
   expect(screen.queryByText("達成")).not.toBeOnTheScreen();
-  // 스크린 리더: 종이 전체가 단추 하나 (제목 · 의뢰인 · 토벌 대상 · 남은 날)
-  expect(screen.getByTestId("scroll").props.accessibilityLabel).toBe(`${card.title}, 依頼主 ${card.companyName}, 討伐対象 プラごみクラゲ, ${card.dDay}`);
+  // 스크린 리더: 종이 전체가 단추 하나 (제목 · 의뢰인 · 과제 · 남은 날)
+  expect(screen.getByTestId("scroll").props.accessibilityLabel).toBe(`${card.title}, 依頼主 ${card.companyName}, 課題 商品の包装から出るプラスチックごみ, ${card.dDay}`);
   await fireEvent.press(screen.getByTestId("scroll"));
   expect(onPress).toHaveBeenCalledTimes(1);
 });

@@ -195,7 +195,7 @@ function isWallet(value: unknown): boolean {
 function isPrizePayment(value: unknown): boolean {
   return (
     isObject(value) && typeof value.challengeId === "string" && typeof value.companyId === "string" && isYen(value.amountYen) &&
-    (value.status === "promised" || value.status === "paid" || value.status === "noWinner") && isDay(value.promisedOn) &&
+    (value.status === "promised" || value.status === "choosing" || value.status === "paid" || value.status === "itemChosen" || value.status === "noWinner") && isDay(value.promisedOn) &&
     (value.paidOn === null || isDay(value.paidOn)) && (value.status === "paid") === (value.paidOn !== null) && (value.proposalId === null || typeof value.proposalId === "string")
   );
 }

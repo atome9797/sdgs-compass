@@ -8,7 +8,7 @@ import {
 import { certificateFromActivity, certificateIdAt, qrPayload, verifyCode, type Certificate } from "./certificate";
 import type {
   Activity, ActivityKind, AwardKind, Candidate, Challenge, ChallengeStatus, CertCriterionId, Company, DemoState, FoeKind, HeroSkill, OfficialChannel, OfficialShare, PostKind, Proposal, ProposalStatus,
-  Review, Role, ScoutKind, ScoutStatus, SkillId, SocialPost,
+  QuestReward, Review, Role, ScoutKind, ScoutStatus, SkillId, SocialPost,
 } from "./domain";
 import { feeItems, PLATFORM_FEE_MIN_YEN, summarizeFees, type FeeKind } from "./fees";
 import { foeOf } from "./foe";
@@ -29,6 +29,7 @@ import { remainingScouts, SCOUT_DAILY_LIMIT, alreadyScouted, canSendScout } from
 import { buildShareCard, type CardTemplate, type ShareCard } from "./shareCard";
 import { AWARD_STARS, sdgSkills, skillLevel, skillSdgIds, sortSkills } from "./skills";
 import { computeSdgExp, reviewExp, statusLevel, statusLevelUps, topStatusSdgs } from "./status";
+import { rewardChosen, rewardPending } from "./wallet";
 import { getSdg, sdgTextColor, SDG_IDS, SDGS, type SdgId } from "./sdg";
 import { COLORS } from "./theme";
 
@@ -182,6 +183,10 @@ export interface ChallengeCardVM {
   bookmarked: boolean;
   /** 내가 제출한 최신 버전 번호 (제출 전이면 null) */
   submittedVersion: number | null;
+  /** 의뢰서의 도장(#47): 기획서를 냈으면 「挑戦中」, 기업이 골랐으면(수상) 「達成」, 아니면 null */
+  stamp: "challenged" | "won" | null;
+  /** 도장의 글자 */
+  stampLabel: string | null;
   /** 매칭률 0~100 (추천 계산을 한 경우만) */
   match: number | null;
   reasons: string[];
@@ -243,6 +248,8 @@ export function challengeCard(state: DemoState, challenge: Challenge, locale: Lo
     applicantsLabel: translate("challenge.applicants", locale, { count: formatPeople(challenge.applicants, locale) }),
     bookmarked: state.bookmarks.includes(challenge.id),
     submittedVersion: mine ? mine.versions.length : null,
+    stamp: mine ? (mine.award ? "won" : "challenged") : null,
+    stampLabel: mine ? translate(mine.award ? "scroll.cleared" : "scroll.challenged", locale) : null,
     match: rec.score,
     reasons: rec.reasons.map((r) => reasonText(r, locale)),
     foe: (() => {
@@ -539,8 +546,12 @@ export interface ApplicationReviewVM {
   award: AwardKind | null;
   /** 「最優秀賞を受賞」 */
   awardLabel: string | null;
-  /** 상품 보상이 걸린 퀘스트에서 수상했을 때 「報酬アイテム「…」を手に入れた！（…から届きます）」 (#37, 아니면 null) */
+  /** 받은 보상이 상품일 때 「報酬アイテム「…」を手に入れた！（…から届きます）」 (#37 · #47 — 상금을 골랐거나 아직 고르지 않았으면 null) */
   rewardItemLabel: string | null;
+  /** 받은 보상이 상금일 때 「賞金 30,000円を受け取りました（企業から直接お振込み）」 (#47) */
+  prizeLabel: string | null;
+  /** 상금과 상품 중에서 아직 고르지 않았으면 true — 카드에 「報酬を えらぶ」 (#47) */
+  rewardPending: boolean;
   /** 수상해서 얻은 스킬(#38 · #45): 「SDG 14・12の スキルを おぼえた！」 · 「SDG 14の スキルが レベルアップ！（Lv.2）」 (수상이 아니면 null) */
   skillLearned: HeroSkillVM | null;
   /** 스크린 리더용 요약: 「企業からの審査結果：創造性 4/5・実現可能性 3/5・SDGs貢献度 5/5、総合 4.0/5.0。EXP +120（SDG 14・12）」 */
@@ -550,6 +561,12 @@ export interface ApplicationReviewVM {
 /** applicationReview 에 넘기는 덧붙임 — 상품 보상 · 수상 기록 · EXP 가 들어간 SDG 와 지금의 EXP(레벨이 올랐는지) */
 export interface ReviewExtras {
   rewardItemName?: string;
+  /** 받은 보상(#47 — wallet.ts 의 rewardChosen) */
+  rewardChoice?: QuestReward | null;
+  /** 상금과 상품 중에서 아직 고르지 않았는지(#47) */
+  rewardPending?: boolean;
+  /** 「30,000円」 */
+  prizeAmount?: string;
   /** 이 기획서의 수상 기록(있으면 「…スキルを おぼえた！」) */
   skill?: HeroSkill;
   /** 가진 수상 기록 전체 — 스킬 레벨을 세요 */
@@ -562,7 +579,7 @@ export interface ReviewExtras {
 
 /** 내 기획서 하나의 심사 결과 화면 모델. 기업이 아직 아무 결과도 내지 않았으면 null (#30) */
 export function applicationReview(proposal: Proposal, companyName: string, locale: Locale, extras: ReviewExtras = {}): ApplicationReviewVM | null {
-  const { rewardItemName, skill, allSkills, sdgIds = [], statusExp } = extras;
+  const { rewardItemName, rewardChoice = null, prizeAmount, skill, allSkills, sdgIds = [], statusExp } = extras;
   const review = proposal.review;
   if (!review && !proposal.award) return null;
   const title = translate("impact.reviewTitle", locale);
@@ -616,7 +633,9 @@ export function applicationReview(proposal: Proposal, companyName: string, local
     improveLabel,
     award: proposal.award,
     awardLabel: awardText,
-    rewardItemLabel: proposal.award && rewardItemName ? translate("impact.rewardItemWon", locale, { item: rewardItemName, company: companyName }) : null,
+    rewardItemLabel: proposal.award && rewardItemName && rewardChoice === "item" ? translate("impact.rewardItemWon", locale, { item: rewardItemName, company: companyName }) : null,
+    prizeLabel: proposal.award && prizeAmount && rewardChoice === "prize" ? translate("impact.prizeWon", locale, { amount: prizeAmount }) : null,
+    rewardPending: extras.rewardPending ?? false,
     skillLearned: learned,
     summary,
   };
@@ -641,6 +660,8 @@ export interface ApplicationVM {
   sdgIds: SdgId[];
   /** 기업이 심사·표창했으면 그 결과 (#30). 아직이면 null — 카드에는 지금처럼 상태만 보여요 */
   review: ApplicationReviewVM | null;
+  /** 내 기획서 id (#47 — 「報酬を えらぶ」로 퀘스트 달성 창을 다시 열 때) */
+  proposalId: string;
 }
 
 /**
@@ -675,8 +696,12 @@ export function selectApplications(state: DemoState, locale: Locale): Applicatio
       versionLabel: translate("challenge.submitted", locale, { version: latest.no }),
       submittedAt: latest.submittedAt,
       sdgIds: challenge.sdgIds,
+      proposalId: proposal.id,
       review: applicationReview(proposal, companyName, locale, {
         rewardItemName: challenge.rewardItem ? pick(challenge.rewardItem.name, locale) : undefined,
+        rewardChoice: rewardChosen(state, proposal),
+        rewardPending: rewardPending(state, proposal),
+        prizeAmount: challenge.prizeYen > 0 ? formatYen(challenge.prizeYen, locale) : undefined,
         skill: state.skills.find((skill) => skill.proposalId === proposal.id),
         allSkills: state.skills,
         sdgIds: challenge.sdgIds,
@@ -986,7 +1011,8 @@ export function selectShare(state: DemoState, locale: Locale, template: CardTemp
   const all = deriveActivities(state);
   // 수상한 퀘스트에 상품 보상이 걸려 있으면 카드와 공유 글에 「◯◯提供」 표시와 함께 넣어요(#37)
   const proposal = selected.proposalId ? state.proposals.find((p) => p.id === selected.proposalId) : undefined;
-  const rewardItem = proposal ? state.challenges.find((c) => c.id === proposal.challengeId)?.rewardItem : undefined;
+  // #47 상품을 받은 수상만(상금을 골랐으면 상품은 없어요)
+  const rewardItem = proposal && rewardChosen(state, proposal) === "item" ? state.challenges.find((c) => c.id === proposal.challengeId)?.rewardItem : undefined;
   const card = buildShareCard({
     nickname: state.me.nickname,
     activity: selected,

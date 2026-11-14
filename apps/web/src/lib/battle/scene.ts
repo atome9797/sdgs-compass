@@ -41,7 +41,7 @@ export const DURATION: Record<EffectKind, number> = { intro: 700, skill: 1300, f
 export interface SceneInput {
   t: number;
   effects: readonly Effect[];
-  /** 몬스터가 이미 쓰러졌는지(기획서를 낸 퀘스트) */
+  /** 몬스터가 이미 쓰러졌는지(기업이 고른 퀘스트, #47). 아니어도 「clear」 효과가 시작되면 그때 쓰러져요 */
   defeated: boolean;
   /** 움직임 줄이기 — 등장 · 흔들림 · 불꽃이 없고, 끝난 모습만 */
   reduced: boolean;
@@ -94,8 +94,10 @@ export function layout(input: SceneInput): DrawItem[] {
   let foeGray = 0;
   let foeAlpha = 1;
   const clear = progressOf(effects, "clear", t);
-  if (input.defeated) {
-    // 쓰러짐: 처음 들어올 때 「clear」 효과가 있으면 번쩍이다 흐려지고, 없으면(또는 끝나면) 흐린 채로
+  // 쓰러짐: 이미 쓰러진 퀘스트(defeated)이거나, 「clear」 효과가 시작됐을 때(#47 승리 연출 — 기술을 다 쓴 뒤에 쓰러뜨려요)
+  const down = input.defeated || clear !== null;
+  if (down) {
+    // 처음 들어올 때 「clear」 효과가 있으면 번쩍이다 흐려지고, 없으면(또는 끝나면) 흐린 채로
     const p = reduced ? 1 : (clear ?? 1);
     if (p < 0.45) foeFlash = Math.floor(p * 20) % 2 === 0 ? 0.85 : 0;
     const fade = clamp01((p - 0.45) / 0.55);
@@ -169,7 +171,7 @@ export function layout(input: SceneInput): DrawItem[] {
     }
   }
   // 쓰러질 때 반짝이
-  if (input.defeated && clear !== null && clear < 1 && !reduced) {
+  if (down && clear !== null && clear < 1 && !reduced) {
     for (let i = 0; i < 10; i++) {
       const p = clamp01((clear - i * 0.05) / 0.7);
       if (p <= 0 || p >= 1) continue;

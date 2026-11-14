@@ -56,6 +56,9 @@ export const wallet = {
   "prize.status.promised": { ja: "表彰待ち", ko: "표창 전" },
   "prize.status.paid": { ja: "支払い済み", ko: "지급 완료" },
   "prize.status.noWinner": { ja: "最優秀賞なし", ko: "최우수상 없음" },
+  // #47 상금과 상품이 둘 다 걸린 퀘스트: 최우수상 팀이 고르는 중 · 상품을 골랐어요(상금은 지급하지 않아요)
+  "prize.status.choosing": { ja: "受賞チームが選択中", ko: "수상 팀이 고르는 중" },
+  "prize.status.itemChosen": { ja: "商品を選択（賞金なし）", ko: "상품 선택(상금 없음)" },
   "prize.col.challenge": { ja: "課題", ko: "과제" },
   "prize.col.amount": { ja: "賞金", ko: "상금" },
   "prize.col.fee": { ja: "手数料", ko: "수수료" },
@@ -72,4 +75,12 @@ export const wallet = {
   "prize.applicants.paid": { ja: "賞金 {amount} を「{team}」へ支払い済みとして記録しました（デモ）。手数料 {fee}", ko: "상금 {amount}을 「{team}」에 지급한 것으로 기록했어요(데모). 수수료 {fee}" },
   "prize.applicants.paidWinner": { ja: "賞金 {amount} は受賞チームへ支払い済みです。手数料 {fee}", ko: "상금 {amount}은 수상 팀에 지급했어요. 수수료 {fee}" },
   "prize.applicants.noWinner": { ja: "最優秀賞なしで終わったため、賞金 {amount} の支払いと手数料はありません", ko: "최우수상 없이 끝나서 상금 {amount} 지급과 수수료는 없어요" },
+  "prize.applicants.choosing": {
+    ja: "最優秀賞の「{team}」が、賞金 {amount} か商品かを選んでいます。賞金が選ばれたら、受賞チームへ直接お支払いください（手数料 {fee}）。",
+    ko: "최우수상 「{team}」 팀이 상금 {amount}과 상품 중에서 고르고 있어요. 상금을 고르면 수상 팀에게 직접 지급해 주세요(수수료 {fee}).",
+  },
+  "prize.applicants.itemChosen": {
+    ja: "最優秀賞の「{team}」は商品を選びました。賞金 {amount} の支払いと手数料はありません。商品をお届けください。",
+    ko: "최우수상 「{team}」 팀은 상품을 골랐어요. 상금 {amount} 지급과 수수료는 없어요. 상품을 보내 주세요.",
+  },
 } as const satisfies Record<string, LocalizedText>;

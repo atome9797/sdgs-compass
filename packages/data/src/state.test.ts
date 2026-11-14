@@ -7,6 +7,7 @@ import { OFFICIAL_CHANNELS, POST_LIMITS, type PostDraft } from "@sdgs-compass/co
 import { LIMITS, type ProposalDraft } from "@sdgs-compass/core/proposal";
 import { selectApplicants, selectB2bDashboard, selectCertificates, selectHome, selectImpact, selectInbox, selectReceipt, selectSearch, selectTalent } from "@sdgs-compass/core/selectors";
 import { selectBattle } from "@sdgs-compass/core/battle";
+import { selectQuestClear } from "@sdgs-compass/core/questClear";
 import { reducer, rebaseState, type Action } from "@sdgs-compass/core/state";
 import { createStore } from "@sdgs-compass/core/store";
 import { createInitialState } from "./seed";
@@ -313,11 +314,11 @@ describe("발표 시나리오 한 바퀴 (학생 ↔ 기업)", () => {
     const newId = store.getState().challenges[0].id;
     expect(selectSearch(store.getState(), "ko", { query: "朝市", sdgIds: [14] }).some((c) => c.id === newId)).toBe(true);
 
-    // 2) 학생이 기획서를 제출 → 수령증 · 전투 화면의 몬스터 HP 0(クエスト達成)
+    // 2) 학생이 기획서를 제출 → 수령증 · 전투 화면의 몬스터에게 큰 데미지(HP 30%, #47 — 퀘스트 달성은 기업이 고른 때)
     d({ type: "submitProposal", challengeId: newId, draft: draft(), at: AT });
     const receipt = selectReceipt(store.getState(), newId, "ja");
     expect(receipt?.receiptNo).toMatch(/^SC-20261030-\d{4}$/);
-    expect(selectBattle(store.getState(), newId, "ja")?.foe.hpPercent).toBe(0);
+    expect(selectBattle(store.getState(), newId, "ja")).toMatchObject({ phase: "challenged", foe: { hpPercent: 30, defeated: false } });
 
     // 3) 기업 화면에 내 응모작이 보임 → 심사 → 수상 → 채택
     const applicants = selectApplicants(store.getState(), "ja", newId);
@@ -325,6 +326,9 @@ describe("발표 시나리오 한 바퀴 (학생 ↔ 기업)", () => {
     const proposalId = applicants.applicants[0].id;
     d({ type: "reviewProposal", proposalId, review: { creativity: 5, feasibility: 4, sdgContribution: 5, comment: "素晴らしい" }, at: AT });
     d({ type: "awardProposal", proposalId, award: "grand" });
+    // 기업이 골랐어요 → HP 0 = 「クエスト達成！」, 다음에 학생 화면을 열면 퀘스트 달성 팝업(#47)
+    expect(selectBattle(store.getState(), newId, "ja")).toMatchObject({ phase: "won", foe: { hpPercent: 0, defeated: true } });
+    expect(selectQuestClear(store.getState(), "ja")?.proposalId).toBe(proposalId);
     d({ type: "adoptProposal", proposalId, at: AT });
 
     // 4) 학생 포트폴리오에 수상·보너스가 반영되고, 새 증명서는 검증을 통과

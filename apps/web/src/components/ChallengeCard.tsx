@@ -54,10 +54,10 @@ export function ChallengeCard({ vm, showReasons = false }: { vm: ChallengeCardVM
           <span className="scroll__monster">
             <span className="scroll__wanted">
               <FoeIcon kind={vm.foe.kind} color={vm.foe.color} label={t("scroll.foeAlt", { foe: vm.foe.name })} />
-              {/* 기획서를 낸 퀘스트: 몬스터 그림 위에 「達成」 도장 */}
-              {vm.submittedVersion !== null ? (
-                <span className="scroll__cleared" aria-hidden="true">
-                  {t("scroll.cleared")}
+              {/* 기획서를 낸 퀘스트: 몬스터 그림 위에 도장 — 「挑戦中」, 기업이 고르면(수상) 「達成」(#47) */}
+              {vm.stampLabel ? (
+                <span className="scroll__cleared" data-stamp={vm.stamp ?? undefined} aria-hidden="true">
+                  {vm.stampLabel}
                 </span>
               ) : null}
             </span>
@@ -129,9 +129,9 @@ export function ChallengeRow({ vm }: { vm: ChallengeCardVM }) {
       <span className="scroll__paper">
         <span className="scroll__wanted">
           <FoeIcon kind={vm.foe.kind} color={vm.foe.color} />
-          {vm.submittedVersion !== null ? (
-            <span className="scroll__cleared scroll__cleared--small" aria-hidden="true">
-              {t("scroll.cleared")}
+          {vm.stampLabel ? (
+            <span className="scroll__cleared scroll__cleared--small" data-stamp={vm.stamp ?? undefined} aria-hidden="true">
+              {vm.stampLabel}
             </span>
           ) : null}
         </span>

@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import { selectInbox } from "@sdgs-compass/core/selectors";
 import { B2B_TABS, B2C_TABS, LAB_TABS } from "@/lib/nav";
 import { useSession } from "@/lib/session";
+import { QuestClearHost } from "./battle/QuestClear";
 import { Brand, TopBar } from "./TopBar";
 import { SideNav, TabBar } from "./TabBar";
 
@@ -24,9 +25,12 @@ export function StudentShell({ children }: { children: ReactNode }) {
     <div className="phone">
       <SkipLink />
       <TopBar />
-      <main id="main" className="main" tabIndex={-1}>
-        {children}
-      </main>
+      {/* #47 기업이 내 기획서를 고르면(수상) 다음에 학생 화면을 열 때 퀘스트 달성 팝업 */}
+      <QuestClearHost>
+        <main id="main" className="main" tabIndex={-1}>
+          {children}
+        </main>
+      </QuestClearHost>
       <TabBar items={B2C_TABS} badges={{ messages: unread }} />
     </div>
   );

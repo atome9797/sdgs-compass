@@ -142,6 +142,8 @@ export interface Review {
 
 export type AwardKind = "grand" | "excellence" | "special";
 export type ProposalStatus = "submitted" | "reviewed" | "awarded" | "adopted";
+/** #47 퀘스트 달성(수상)의 보상: 상금(prize) 또는 상품(item) — 둘 다 걸린 퀘스트의 최우수상은 학생이 하나를 골라요 */
+export type QuestReward = "prize" | "item";
 
 /** F-301 기획서 제출 */
 export interface Proposal {
@@ -163,6 +165,10 @@ export interface Proposal {
   status: ProposalStatus;
   review: Review | null;
   award: AwardKind | null;
+  /** #47 수상(퀘스트 달성)한 내 기획서의 축하 연출을 봤는지 — 없으면 아직(다음에 학생 화면을 열 때 떠요) */
+  celebrated?: boolean;
+  /** #47 학생이 받은 보상. 상금과 상품이 둘 다 걸린 퀘스트의 최우수상이면 고른 쪽 하나, 하나만 걸려 있으면 그것. 아직이면 없음 */
+  rewardChoice?: QuestReward;
 }
 
 export type ActivityKind = "participation" | "submission" | "award" | "share";
@@ -369,7 +375,11 @@ export interface Wallet {
  * promised = 과제에 상금을 걸었어요(표창 전) · paid = 최우수상 팀에 지급했어요(데모는 표창할 때 기록) · noWinner = 최우수상 없이 끝나서 지급할 상금이 없어요.
  * 기업의 신뢰 실적(network.ts)에서 「약속대로 지급한 상금」으로 세요.
  */
-export type PrizePaymentStatus = "promised" | "paid" | "noWinner";
+/**
+ * 상금의 상태: promised(표창 전) → paid(지급) / noWinner(최우수상 없음).
+ * #47 상금과 상품이 둘 다 걸린 퀘스트는 최우수상이 정해지면 choosing(수상 팀이 고르는 중) → paid(상금을 고름) / itemChosen(상품을 고름 — 상금은 지급하지 않아요)
+ */
+export type PrizePaymentStatus = "promised" | "choosing" | "paid" | "itemChosen" | "noWinner";
 export interface PrizePayment {
   challengeId: string;
   companyId: string;

@@ -2,11 +2,13 @@
 // 메시지 창에는 노벨 게임처럼 이름표(누가 말하는지)가 있고(#41), 처음에 의뢰한 기업이 몬스터의 정체 = 과제를 쉬운 말로 알려 줘요.
 // 「しらべる」를 고르면 기업에게 선택지로 물어요(무엇이 곤란한지 · 할 일과 낼 것 · 마감과 보상).
 // 그림(WebGL)은 웹이 그려요(apps/web/src/lib/battle). 몬스터 · 배경 · HP · 대사 · 선택지 · 스킬 상성(相性)은 여기 한 곳에서 정해요.
-// 규칙: 기획서를 내면 몬스터의 HP 가 0 = 「クエスト達成！」(수령증과 같은 때). 수상하면 그 퀘스트의 SDG 마다 스킬을 얻어요(skills.ts — 같은 SDG 의 수상이 쌓이면 스킬 레벨이 올라요).
+// 규칙(#47): 기획서를 내면 몬스터에게 큰 데미지(HP 30%)를 주고 기업의 심사를 기다려요. 기업이 고르면(수상) HP 0 = 「クエスト達成！」 —
+// 그 퀘스트의 SDG 마다 스킬을 얻어요(skills.ts — 같은 SDG 의 수상이 쌓이면 스킬 레벨이 올라요). 뽑히지 않고 끝나도 평가 EXP 는 남아요(status.ts).
+// 수상한 뒤 학생이 처음 화면을 열 때의 승리 연출 · 보상 고르기는 questClear.ts.
 // 「スキル」 명령은 가진 SDG 스킬을 보여 줘요(#45): 이 퀘스트의 SDG 에 들어 있는 스킬이 「相性◎」.
 import type { DemoState, FoeKind } from "./domain";
 import { foeOf } from "./foe";
-import { daysBetween, formatDate } from "./format";
+import { daysBetween, formatDate, formatYen } from "./format";
 import { pick, type Locale } from "./i18n";
 import { translate } from "./messages";
 import { TEAM_SIZE } from "./proposal";
@@ -14,6 +16,8 @@ import { isOpenFor } from "./recommend";
 import { getSdg, type SdgId } from "./sdg";
 import { heroSkillVM, rewardsLineOf, selectSdgSkills, type SdgSkillVM } from "./selectors";
 import { skillSdgIds } from "./skills";
+import { reviewExp } from "./status";
+import { rewardChosen, rewardPending } from "./wallet";
 
 export type SceneKind = "sea" | "sky" | "field" | "town";
 
@@ -27,8 +31,14 @@ export function sceneOf(sdgIds: readonly SdgId[]): SceneKind {
   return "town";
 }
 
-/** open = 도전할 수 있어요 · cleared = 기획서를 냈어요(HP 0) · closed = 내지 않았고 접수가 끝났어요 */
-export type BattlePhase = "open" | "cleared" | "closed";
+/**
+ * open = 도전할 수 있어요 · challenged = 기획서를 냈어요(HP 30%, 심사를 기다려요) · won = 기업이 골랐어요(수상 — HP 0, 퀘스트 달성)
+ * · ended = 냈지만 이번에는 뽑히지 않고 끝났어요 · closed = 내지 않았고 접수가 끝났어요
+ */
+export type BattlePhase = "open" | "challenged" | "won" | "ended" | "closed";
+
+/** 기획서를 낸 뒤 몬스터에게 남는 HP(%) — 기업이 고르면(수상) 0 */
+export const HP_AFTER_SUBMIT = 30;
 
 /** 누가 말하는지 — 메시지 창의 이름표(#41). narrator(해설)는 이름표가 없어요 */
 export type Speaker = "narrator" | "client" | "hero";
@@ -129,13 +139,24 @@ export function selectBattle(state: DemoState, challengeId: string, locale: Loca
   const companyName = company ? pick(company.name, locale) : "";
   const proposal = state.proposals.find((p) => p.mine && p.challengeId === challenge.id);
   const open = isOpenFor(challenge, state.today);
-  const phase: BattlePhase = proposal ? "cleared" : open ? "open" : "closed";
+  const phase: BattlePhase = proposal ? (proposal.award ? "won" : challenge.status === "closed" ? "ended" : "challenged") : open ? "open" : "closed";
   const foe = foeOf(challenge);
   const foeName = pick(foe.name, locale);
   const name = state.me.nickname;
   const mainSdg = challenge.sdgIds[0] ?? 17;
-  const hpPercent = phase === "cleared" ? 0 : 100;
+  const hpPercent = phase === "won" ? 0 : phase === "challenged" || phase === "ended" ? HP_AFTER_SUBMIT : 100;
   const learned = proposal ? state.skills.find((skill) => skill.proposalId === proposal.id) : undefined;
+  // 기업의 평가로 받은 EXP(#45 — 상과 관계없이)
+  const exp = proposal ? reviewExp(proposal.review) : 0;
+  const expLine = (key: "battle.reviewedExp" | "battle.endedExp") => (exp > 0 ? [narrator(t(key, { exp, sdgs: challenge.sdgIds.join(locale === "ja" ? "・" : ", ") }))] : []);
+  // 받은 보상(#47): 받은 상금 · 상품, 상금과 상품 중에서 아직 고르지 않았으면 고르라고
+  const rewardLines: DialogueLine[] = [];
+  if (proposal?.award) {
+    const choice = rewardChosen(state, proposal);
+    if (choice === "prize") rewardLines.push(narrator(t("battle.clearedPrize", { amount: formatYen(challenge.prizeYen, locale) })));
+    else if (choice === "item" && challenge.rewardItem) rewardLines.push(narrator(t("battle.clearedItem", { item: pick(challenge.rewardItem.name, locale) })));
+    else if (rewardPending(state, proposal)) rewardLines.push(narrator(t("battle.rewardPending")));
+  }
 
   // 몬스터의 정체 = 과제를 쉬운 말로(#41). 정체가 적혀 있지 않은 퀘스트(기업이 새로 낸 퀘스트 등)는 요약을 그대로 말해요
   const identity = foe.about ? client(t("battle.identity", { foe: foeName, about: pick(foe.about, locale) })) : client(pick(challenge.summary, locale));
@@ -144,24 +165,22 @@ export function selectBattle(state: DemoState, challengeId: string, locale: Loca
       ? [narrator(t("battle.appear", { foe: foeName })), client(t("battle.help")), identity]
       : phase === "closed"
         ? [narrator(t("battle.appear", { foe: foeName })), identity, narrator(t("battle.fight.closed"))]
-        : [
-            narrator(t("battle.cleared", { foe: foeName })),
-            ...(learned
-              ? [
-                  ...heroSkillVM(learned, locale, state.skills).learnedLines.map(narrator),
-                  ...(challenge.rewardItem ? [narrator(t("battle.clearedItem", { item: pick(challenge.rewardItem.name, locale) }))] : []),
-                ]
-              : [client(t("battle.clearedWait"))]),
-          ];
+        : phase === "challenged"
+          ? [narrator(t("battle.attacked", { name, foe: foeName })), client(t("battle.clearedWait")), ...expLine("battle.reviewedExp")]
+          : phase === "ended"
+            ? [narrator(t("battle.ended", { foe: foeName })), ...expLine("battle.endedExp")]
+            : [narrator(t("battle.cleared", { foe: foeName })), ...(learned ? heroSkillVM(learned, locale, state.skills).learnedLines.map(narrator) : []), ...rewardLines];
 
   const fight =
     phase === "open"
       ? { lines: [narrator(t("battle.fight.go", { name })), narrator(t("battle.fight.goHint"))], go: "submit" as const }
-      : phase === "cleared"
+      : phase === "challenged"
         ? open
           ? { lines: [narrator(t("battle.fight.again"))], go: "submit" as const }
           : { lines: [narrator(t("battle.fight.done"))], go: null }
-        : { lines: [narrator(t("battle.fight.closed"))], go: null };
+        : phase === "won"
+          ? { lines: [narrator(t("battle.fight.won"))], go: null }
+          : { lines: [narrator(t("battle.fight.closed"))], go: null };
 
   // ── しらべる: 의뢰한 기업에게 묻는 선택지 ──
   const deliverables = challenge.deliverables.map((item) => `・${pick(item, locale)}`);
@@ -212,7 +231,7 @@ export function selectBattle(state: DemoState, challengeId: string, locale: Loca
       color: getSdg(mainSdg).color,
       hpPercent,
       hpAria: t("battle.hpAria", { foe: foeName, percent: hpPercent }),
-      defeated: phase === "cleared",
+      defeated: phase === "won",
     },
     hero: { name: t("battle.heroName", { name }), skillsLabel: t("battle.heroSkills", { count: skills.length }), skillSdgIds: skillSdgIds(state.skills) },
     speakers: { client: { name: companyName, emoji: company?.emoji ?? "🏢" }, hero: { name: t("battle.heroName", { name }) } },

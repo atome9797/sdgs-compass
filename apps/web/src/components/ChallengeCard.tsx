@@ -52,26 +52,30 @@ export function ChallengeCard({ vm, showReasons = false }: { vm: ChallengeCardVM
         <div className="scroll__main">
           <span className="scroll__wanted">
             <FoeIcon kind={vm.foe.kind} color={vm.foe.color} label={t("scroll.foeAlt", { foe: vm.foe.name })} />
-          </span>
-          <div className="scroll__lines">
-            <h3 className="scroll__title">
-              <Link className="scroll__link" href={challengeHref(vm.id)}>
-                {vm.title}
-              </Link>
-            </h3>
-            <p className="scroll__row">
-              <span className="scroll__key">{t("scroll.client")}</span>
-              <span>
-                <span aria-hidden="true">{vm.companyEmoji} </span>
-                {vm.companyName}
+            {/* 기획서를 낸 퀘스트: 몬스터 그림 위에 「達成」 도장 */}
+            {vm.submittedVersion !== null ? (
+              <span className="scroll__cleared" aria-hidden="true">
+                {t("scroll.cleared")}
               </span>
-            </p>
-            <p className="scroll__row">
-              <span className="scroll__key">{t("scroll.foe")}</span>
-              <span className="scroll__foe">{vm.foe.name}</span>
-            </p>
-          </div>
+            ) : null}
+          </span>
+          <h3 className="scroll__title">
+            <Link className="scroll__link" href={challengeHref(vm.id)}>
+              {vm.title}
+            </Link>
+          </h3>
         </div>
+        <p className="scroll__row">
+          <span className="scroll__key">{t("scroll.client")}</span>
+          <span>
+            <span aria-hidden="true">{vm.companyEmoji} </span>
+            {vm.companyName}
+          </span>
+        </p>
+        <p className="scroll__row">
+          <span className="scroll__key">{t("scroll.foe")}</span>
+          <span className="scroll__foe">{vm.foe.name}</span>
+        </p>
         {vm.companyMark ? (
           <div className="scroll__mark">
             <CertMarkButton mark={vm.companyMark} open={mark.open} noteId={mark.noteId} onToggle={mark.toggle} />
@@ -106,11 +110,6 @@ export function ChallengeCard({ vm, showReasons = false }: { vm: ChallengeCardVM
             <span aria-hidden="true">{vm.bookmarked ? "★" : "☆"}</span>
           </button>
         </div>
-        {vm.submittedVersion !== null ? (
-          <span className="scroll__cleared" aria-hidden="true">
-            {t("scroll.cleared")}
-          </span>
-        ) : null}
       </div>
     </article>
   );
@@ -124,20 +123,20 @@ export function ChallengeRow({ vm }: { vm: ChallengeCardVM }) {
       <span className="scroll__paper">
         <span className="scroll__wanted">
           <FoeIcon kind={vm.foe.kind} color={vm.foe.color} />
+          {vm.submittedVersion !== null ? (
+            <span className="scroll__cleared scroll__cleared--small" aria-hidden="true">
+              {t("scroll.cleared")}
+            </span>
+          ) : null}
         </span>
         <span className="scroll__lines">
           <span className="scroll__title">{vm.title}</span>
           <span className="scroll__row">
             <span className="scroll__key">{t("scroll.client")}</span>
-            <span>{vm.companyName}</span>
+            <span className="scroll__client">{vm.companyName}</span>
           </span>
         </span>
         <Seal vm={vm} small />
-        {vm.submittedVersion !== null ? (
-          <span className="scroll__cleared scroll__cleared--small" aria-hidden="true">
-            {t("scroll.cleared")}
-          </span>
-        ) : null}
       </span>
     </Link>
   );

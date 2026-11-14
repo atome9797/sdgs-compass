@@ -16,8 +16,12 @@ export function platformFeeFor(baseYen: number): number {
   return Math.max(PLATFORM_FEE_MIN_YEN, Math.floor(baseYen * PLATFORM_FEE_RATE));
 }
 
-/** 수수료가 생기는 거래: prize = 최우수상 팀에 지급한 상금, research = 완료한 연구 의뢰의 의뢰비 */
-export type FeeKind = "prize" | "research";
+/**
+ * 수수료가 생기는 거래: prize = 최우수상 팀에 지급한 상금, research = 완료한 연구 의뢰의 의뢰비,
+ * prizeItem = 상금과 상품이 둘 다 걸린 퀘스트에서 최우수상 팀이 상품을 고른 것(#51, 2026-11-15 결정) —
+ * 상품은 상금에 맞먹는 보상을 다른 형태로 주는 것이라, 상금을 지급하지 않아도 그 상금액으로 수수료를 받아요.
+ */
+export type FeeKind = "prize" | "prizeItem" | "research";
 
 export interface FeeItem {
   /** 화면의 key: `prize:<과제 id>` / `research:<의뢰 id>` */
@@ -28,32 +32,34 @@ export interface FeeItem {
   /** 과제 id 또는 연구 의뢰 id */
   refId: string;
   title: Text;
-  /** 학생·연구자가 기업에게서 직접 받은 금액(상금·의뢰비) */
+  /** 수수료를 계산한 금액: 학생·연구자가 기업에게서 직접 받은 상금·의뢰비. prizeItem 은 상품 대신 받지 않은 그 상금액 */
   baseYen: number;
   feeYen: number;
-  /** 상금을 지급한 날 / 연구를 완료한 날 (YYYY-MM-DD) */
+  /** 상금을 지급한 날 / 상품을 고른 날 / 연구를 완료한 날 (YYYY-MM-DD) */
   date: string;
 }
 
 /**
- * 기업이 내는 수수료의 근거가 된 거래: 지급한 상금(prizePayments 의 paid) + 완료한 연구 의뢰(completed). 최신 날짜 순.
- * companyId 를 주면 그 기업 것만, 비우면 모든 기업 것(운영자 화면).
+ * 기업이 내는 수수료의 근거가 된 거래: 지급한 상금(prizePayments 의 paid) + 상품을 고른 최우수상(itemChosen, #51)
+ * + 완료한 연구 의뢰(completed). 최신 날짜 순. companyId 를 주면 그 기업 것만, 비우면 모든 기업 것(운영자 화면).
  */
 export function feeItems(state: DemoState, companyId?: string): FeeItem[] {
   const items: FeeItem[] = [];
   for (const payment of state.prizePayments) {
-    if (payment.status !== "paid" || payment.paidOn === null) continue;
+    const paid = payment.status === "paid" && payment.paidOn !== null;
+    if (!paid && payment.status !== "itemChosen") continue;
     if (companyId !== undefined && payment.companyId !== companyId) continue;
     const challenge = state.challenges.find((c) => c.id === payment.challengeId);
     items.push({
       id: `prize:${payment.challengeId}`,
-      kind: "prize",
+      kind: paid ? "prize" : "prizeItem",
       companyId: payment.companyId,
       refId: payment.challengeId,
       title: challenge ? challenge.title : payment.challengeId,
       baseYen: payment.amountYen,
       feeYen: platformFeeFor(payment.amountYen),
-      date: payment.paidOn,
+      // 상품을 고른 날(#51 전에 저장된 기록은 날이 없어서 상금을 건 날)
+      date: payment.paidOn ?? payment.promisedOn,
     });
   }
   for (const request of state.researchRequests) {
@@ -75,14 +81,18 @@ export function feeItems(state: DemoState, companyId?: string): FeeItem[] {
 
 export interface FeeTotals {
   count: number;
-  /** 학생·연구자에게 직접 간 금액의 합 */
+  /** 학생·연구자에게 직접 간 금액의 합 (상품을 고른 최우수상 prizeItem 은 상금을 지급하지 않아서 넣지 않아요) */
   baseYen: number;
   /** 수수료의 합 (운영 수익) */
   feeYen: number;
 }
 
-export function summarizeFees(items: readonly Pick<FeeItem, "baseYen" | "feeYen">[]): FeeTotals {
-  return { count: items.length, baseYen: items.reduce((sum, i) => sum + i.baseYen, 0), feeYen: items.reduce((sum, i) => sum + i.feeYen, 0) };
+export function summarizeFees(items: readonly Pick<FeeItem, "kind" | "baseYen" | "feeYen">[]): FeeTotals {
+  return {
+    count: items.length,
+    baseYen: items.reduce((sum, i) => sum + (i.kind === "prizeItem" ? 0 : i.baseYen), 0),
+    feeYen: items.reduce((sum, i) => sum + i.feeYen, 0),
+  };
 }
 
 // ───────── 이전 모델 (레거시) ─────────

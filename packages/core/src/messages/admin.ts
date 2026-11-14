@@ -77,6 +77,11 @@ export const admin = {
     ja: "手数料は{fee}です（企業が学生・研究者へ直接支払った賞金・研究依頼費{base}に対して）。",
     ko: "수수료는 {fee}이에요(기업이 학생·연구자에게 직접 지급한 상금·연구 의뢰비 {base}에 대해).",
   },
+  // #51 상금 대신 상품을 고른 최우수상이 있을 때: 그 상금액도 수수료의 근거
+  "admin.usage.insight.feesWithItems": {
+    ja: "手数料は{fee}です（企業が学生・研究者へ直接支払った賞金・研究依頼費{base}と、賞金の代わりに商品を選んだ最優秀賞の賞金額{item}に対して）。",
+    ko: "수수료는 {fee}이에요(기업이 학생·연구자에게 직접 지급한 상금·연구 의뢰비 {base}와, 상금 대신 상품을 고른 최우수상의 상금액 {item}에 대해).",
+  },
   "admin.usage.insight.scouts": { ja: "スカウト{total}件のうち、承諾は{accepted}件、既読は{read}件です。", ko: "스카우트 {total}건 가운데 수락은 {accepted}건, 읽음은 {read}건이에요." },
   "admin.usage.insight.official": { ja: "公式SNS掲載の申請は{n}件です。", ko: "공식 SNS 게시 신청은 {n}건이에요." },
   "admin.usage.insight.busy": { ja: "{range}でいちばん動きがあったのは「{label}」ごろで、{n}件でした。", ko: "{range} 중 움직임이 가장 많았던 때는 “{label}” 무렵이고, {n}건이었어요." },

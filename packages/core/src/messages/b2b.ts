@@ -175,6 +175,9 @@ export const b2b = {
   "fee.item": { ja: "課題・研究", ko: "과제·연구" },
   "fee.date": { ja: "日付", ko: "날짜" },
   "fee.kind.prize": { ja: "賞金", ko: "상금" },
+  // #51 최우수상 팀이 상금 대신 상품을 골라도 그 상금액의 수수료를 받아요 — 표의 종류 · 금액 칸
+  "fee.kind.prizeItem": { ja: "賞金（商品を選択）", ko: "상금(상품 선택)" },
+  "fee.baseItem": { ja: "賞金 {amount} の代わりに商品", ko: "상금 {amount} 대신 상품" },
   "fee.kind.research": { ja: "研究依頼", ko: "연구 의뢰" },
   "fee.empty": { ja: "まだ手数料の対象になった取引はありません", ko: "아직 수수료 대상 거래가 없어요" },
   "fee.note": {

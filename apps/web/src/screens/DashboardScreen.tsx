@@ -115,7 +115,7 @@ export function FeeSection({ fee, anchorId }: { fee: FeeVM; anchorId?: string })
                 {fee.rows.map((row) => (
                   <tr key={row.id}>
                     <td data-label={t("fee.kind")}>
-                      <Tag tone={row.kind === "prize" ? "success" : "info"}>{row.kindLabel}</Tag>
+                      <Tag tone={row.kind === "research" ? "info" : "success"}>{row.kindLabel}</Tag>
                     </td>
                     <td data-label={t("fee.item")}>{row.title}</td>
                     <td className="nowrap" data-label={t("fee.date")}>

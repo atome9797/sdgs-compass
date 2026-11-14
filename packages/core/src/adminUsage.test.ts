@@ -250,6 +250,23 @@ describe("이용 현황: 한 번에 · 한 줄 읽기", () => {
     ]);
   });
 
+  it("상금 대신 상품을 고른 최우수상이 있으면 그 상금액도 수수료의 근거라고 말해요(#51)", () => {
+    const base = makeUsageState();
+    const state = {
+      ...base,
+      prizePayments: [
+        ...base.prizePayments,
+        { challengeId: "chX", companyId: "co1", amountYen: 200_000, status: "itemChosen" as const, promisedOn: "2026-09-01", paidOn: "2026-10-22", proposalId: null },
+      ],
+    };
+    const totals = summarizeTotals(state);
+    expect([totals.feeYen, totals.feeBaseYen, totals.feeItemPrizeYen]).toEqual([30_000, 100_000, 200_000]);
+    expect(usageInsights(summarizeUsage(state), "ja")).toContain(
+      "手数料は¥30,000です（企業が学生・研究者へ直接支払った賞金・研究依頼費¥100,000と、賞金の代わりに商品を選んだ最優秀賞の賞金額¥200,000に対して）。",
+    );
+    expect(summarizeTotals(base).feeItemPrizeYen).toBe(0);
+  });
+
   it("한국어 한 줄 읽기", () => {
     const lines = usageInsights(summarizeUsage(makeUsageState(), 7), "ko");
     expect(lines[0]).toBe("응모자가 가장 많은 SDGs는 “해양 생태계 보전”이고, 15명이에요.");

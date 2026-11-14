@@ -76,7 +76,7 @@ export function FeeSection({ fee }: { fee: FeeVM }) {
           >
             <Divider />
             <View style={styles.prizeMeta}>
-              <Badge label={row.kindLabel} tone={row.kind === "prize" ? "success" : "primary"} />
+              <Badge label={row.kindLabel} tone={row.kind === "research" ? "primary" : "success"} />
               <Txt variant="small" tone="muted">
                 {row.dateLabel}
               </Txt>

@@ -114,12 +114,15 @@ export function releasePrize(state: DemoState, proposal: Proposal): DemoState {
   return { ...state, prizePayments: state.prizePayments.map((p) => (p === payment ? { ...p, status: "promised", proposalId: null } : p)) };
 }
 
-/** #47 수상 팀이 보상을 골랐어요: 상금이면 지급(받은 상금에 한 줄), 상품이면 상금은 지급하지 않아요(itemChosen — 상금 수수료도 없어요) */
+/**
+ * #47 수상 팀이 보상을 골랐어요: 상금이면 지급(받은 상금에 한 줄), 상품이면 상금은 지급하지 않아요(itemChosen).
+ * 상품을 골라도 그 상금액의 수수료는 생겨요(#51) — 고른 날을 paidOn 에 남겨서 수수료의 날짜로 써요.
+ */
 export function settlePrizeChoice(state: DemoState, proposal: Proposal, reward: QuestReward): DemoState {
   if (reward === "prize") return payPrize(state, proposal, PRIZE_AWARD);
   const payment = state.prizePayments.find((p) => p.challengeId === proposal.challengeId && p.status === "choosing" && p.proposalId === proposal.id);
   if (!payment) return state;
-  return { ...state, prizePayments: state.prizePayments.map((p) => (p === payment ? { ...p, status: "itemChosen" } : p)) };
+  return { ...state, prizePayments: state.prizePayments.map((p) => (p === payment ? { ...p, status: "itemChosen", paidOn: state.today } : p)) };
 }
 
 /** #47 받은 보상: 고른 것 → 이미 지급된 상금(#47 전의 최우수상) → 받을 수 있는 것이 하나뿐이면 그것. 고를 것이 남았으면 null */

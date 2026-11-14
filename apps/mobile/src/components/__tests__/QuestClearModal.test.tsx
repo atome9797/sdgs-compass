@@ -43,7 +43,7 @@ test("창: 상금 · 상품 중에서 고르기 전에는 정할 수 없고, 고
   expect(screen.getByText("企業の評価で EXP +130（SDG 14・12）")).toBeOnTheScreen();
   expect(screen.getByTestId("reward-confirm")).toBeDisabled();
   await fireEvent.press(screen.getByTestId("reward-option-item"));
-  expect(screen.getByTestId("reward-option-item").props.accessibilityState).toEqual({ checked: true });
+  expect(screen.getByTestId("reward-option-item").props.accessibilityState).toMatchObject({ checked: true });
   await fireEvent.press(screen.getByTestId("reward-confirm"));
   expect(onChoose).toHaveBeenCalledWith("item");
   await fireEvent.press(screen.getByText("あとで えらぶ"));

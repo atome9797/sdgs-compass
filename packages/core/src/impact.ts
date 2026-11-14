@@ -4,8 +4,8 @@ import type { Activity, AwardKind } from "./domain";
 import { SDG_IDS, type SdgId } from "./sdg";
 
 /**
- * 레벨 — #38 부터 앱 화면에는 보이지 않아요(학생은 레벨 대신 수상으로 얻은 스킬을 가져요: skills.ts).
- * DB 의 impact_level · impact_totals 와 값을 맞춰 두는 내부 규칙으로만 남아 있어요(db/tests/04_parity.sql).
+ * 레벨 — #38 부터 앱 화면에는 보이지 않아요. DB 의 impact_level · impact_totals 와 값을 맞춰 두는 내부 규칙으로만 남아 있어요(db/tests/04_parity.sql).
+ * 화면의 레벨은 SDG 항목마다의 스테이터스 레벨(status.ts — 기업 평가의 EXP)과 SDG 마다의 스킬 레벨(skills.ts — 수상의 수)이에요.
  */
 export type Level = 1 | 2 | 3 | 4 | 5;
 /** 레벨 i+1 이 시작되는 누적 포인트 */
@@ -21,7 +21,7 @@ export const SDG_SATURATION = 300;
 
 /** 기업 심사 한 항목의 만점 (창의성·실현 가능성·SDGs 기여도 모두 1~5점) */
 export const REVIEW_SCORE_MAX = 5;
-/** 심사 보너스의 최대치 — 세 항목이 모두 만점이면 이만큼 제출 실적 포인트에 더해져요(#30: 기업 심사 화면 안내·학생 결과 카드가 이 값을 써요) */
+/** 심사 보너스의 최대치 — 세 항목이 모두 만점이면 이만큼 제출 실적 포인트(내부 점수 · DB 와 맞춘 규칙)에 더해져요. 학생 · 기업 화면의 안내는 #45 부터 스테이터스 EXP(status.ts) */
 export const REVIEW_BONUS_MAX = 80;
 
 /** 심사 점수(1~5)의 평균으로 주는 보너스 포인트 (최대 REVIEW_BONUS_MAX) */

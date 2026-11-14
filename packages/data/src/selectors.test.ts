@@ -8,7 +8,7 @@ import type { DemoState, OfficialShare } from "@sdgs-compass/core/domain";
 import { OFFICIAL_ACCOUNT_URLS } from "@sdgs-compass/core/post";
 import { deriveActivities } from "@sdgs-compass/core/activities";
 import { addDays, formatYen } from "@sdgs-compass/core/format";
-import { REVIEW_BONUS_MAX, reviewBonus } from "@sdgs-compass/core/impact";
+import { REVIEW_EXP_MAX, reviewExp } from "@sdgs-compass/core/status";
 import { LOCALES, type Locale } from "@sdgs-compass/core/i18n";
 import type { ProposalDraft } from "@sdgs-compass/core/proposal";
 import { SCOUT_DAILY_LIMIT } from "@sdgs-compass/core/scout";
@@ -42,7 +42,7 @@ import {
   selectTalent,
   tamperedCopy,
 } from "@sdgs-compass/core/selectors";
-import type { PostVM } from "@sdgs-compass/core/selectors";
+import type { HeroSkillVM, PostVM } from "@sdgs-compass/core/selectors";
 import { reducer, type Action } from "@sdgs-compass/core/state";
 import { createInitialState } from "./seed";
 
@@ -501,7 +501,7 @@ describe("심사 결과를 학생에게 — 「応募中の課題」 카드 (#30
     for (const locale of LOCALES) expect(selectApplications(submitted, locale)[0].review).toBeNull();
   });
 
-  it("심사하면 점수 3개(5점 만점)·평균·코멘트(기업 이름)·반영 포인트·다음에 키울 점이 두 언어로 나와요", () => {
+  it("심사하면 점수 3개(5점 만점)·평균·코멘트(기업 이름)·받은 EXP 와 오른 레벨·다음에 키울 점이 두 언어로 나와요", () => {
     const state = run(submitted, review(4, 3, 5));
     const ja = selectApplications(state, "ja")[0].review!;
     expect(ja.title).toBe("企業からの審査結果");
@@ -515,36 +515,49 @@ describe("심사 결과를 학생에게 — 「応募中の課題」 카드 (#30
     expect(ja.averageLabel).toBe("総合 4.0/5.0");
     expect(ja.comment).toBe("回収まで考えた、現実的な提案です。");
     expect(ja.commentBy).toBe("みなと海洋フーズ株式会社のコメント");
-    expect(ja.bonusPoints).toBe(64);
-    expect(ja.bonusLabel).toBe("+64pt をマイImpactに反映");
+    // #45 평가 합계 12점 × 10 = EXP 120 이 이 퀘스트의 SDG(14 · 12)에 들어가요 — 샘플의 110 에 더해 230 이라 둘 다 Lv.3
+    expect(ja.exp).toBe(120);
+    expect(ja.expLabel).toBe("EXP +120（SDG 14・12）");
+    expect(ja.statusLevelUps).toEqual(["14 海の豊かさを守ろう Lv.3にアップ！", "12 つくる責任 つかう責任 Lv.3にアップ！"]);
     expect(ja.improveLabel).toBe("次に伸ばすポイント：実現可能性");
     expect(ja.award).toBeNull();
     expect(ja.awardLabel).toBeNull();
-    expect(ja.summary).toBe("企業からの審査結果：創造性 4/5・実現可能性 3/5・SDGs貢献度 5/5、総合 4.0/5.0。+64pt をマイImpactに反映。次に伸ばすポイント：実現可能性。");
+    expect(ja.skillLearned).toBeNull();
+    expect(ja.summary).toBe(
+      "企業からの審査結果：創造性 4/5・実現可能性 3/5・SDGs貢献度 5/5、総合 4.0/5.0。EXP +120（SDG 14・12）。14 海の豊かさを守ろう Lv.3にアップ。12 つくる責任 つかう責任 Lv.3にアップ。次に伸ばすポイント：実現可能性。",
+    );
     const ko = selectApplications(state, "ko")[0].review!;
     expect(ko.title).toBe("기업의 심사 결과");
     expect(ko.scores.map((s) => s.label)).toEqual(["창의성", "실현 가능성", "SDGs 기여도"]);
     expect(ko.averageLabel).toBe("종합 4.0/5.0");
     expect(ko.commentBy).toBe("미나토 해양푸드(주)의 코멘트");
-    expect(ko.bonusLabel).toBe("마이 임팩트에 +64pt 반영");
+    expect(ko.expLabel).toBe("EXP +120 (SDG 14, 12)");
+    expect(ko.statusLevelUps).toEqual(["14 해양 생태계 보전 Lv.3 달성!", "12 책임감 있는 소비와 생산 Lv.3 달성!"]);
     expect(ko.improveLabel).toBe("다음에 키울 점: 실현 가능성");
-    expect(ko.summary).toBe("기업의 심사 결과: 창의성 4/5・실현 가능성 3/5・SDGs 기여도 5/5, 종합 4.0/5.0. 마이 임팩트에 +64pt 반영. 다음에 키울 점: 실현 가능성.");
+    expect(ko.summary).toBe(
+      "기업의 심사 결과: 창의성 4/5・실현 가능성 3/5・SDGs 기여도 5/5, 종합 4.0/5.0. EXP +120 (SDG 14, 12). 14 해양 생태계 보전 Lv.3 달성. 12 책임감 있는 소비와 생산 Lv.3 달성. 다음에 키울 점: 실현 가능성.",
+    );
   });
 
-  it("보너스는 reviewBonus 와 같고 제출 실적 포인트에 그대로 더해져요 — 심사를 고치면 바로 바뀌어요", () => {
-    const base = deriveActivities(submitted).find((a) => a.proposalId === mineId)!.points;
+  it("EXP 는 reviewExp 와 같고, 상을 받지 않아도 스테이터스의 그 SDG 항목에 그대로 더해져요 — 심사를 고치면 바로 바뀌어요", () => {
+    const expOf = (state: DemoState, id: number) => selectImpact(state, "ja").stats.find((stat) => stat.id === id)!.exp;
+    const base = { 14: expOf(submitted, 14), 12: expOf(submitted, 12), 7: expOf(submitted, 7) };
     for (const [c, f, s] of [[4, 3, 5], [5, 5, 5], [1, 2, 1], [3, 3, 3]] as const) {
       const state = run(submitted, review(c, f, s));
       const result = selectApplications(state, "ja")[0].review!;
-      expect(result.bonusPoints).toBe(reviewBonus({ creativity: c, feasibility: f, sdgContribution: s }));
-      expect(result.bonusPoints).toBeLessThanOrEqual(REVIEW_BONUS_MAX);
-      expect(deriveActivities(state).find((a) => a.proposalId === mineId)!.points - base).toBe(result.bonusPoints);
+      expect(result.exp).toBe(reviewExp({ creativity: c, feasibility: f, sdgContribution: s }));
+      expect(result.exp).toBeLessThanOrEqual(REVIEW_EXP_MAX);
+      expect(result.award).toBeNull();
+      expect(expOf(state, 14) - base[14]).toBe(result.exp);
+      expect(expOf(state, 12) - base[12]).toBe(result.exp);
+      // 이 퀘스트의 SDG 가 아닌 항목은 그대로
+      expect(expOf(state, 7)).toBe(base[7]);
     }
     // 같은 기획서를 다시 심사하면(점수 수정) 결과 카드의 숫자가 바로 바뀌어요
     const first = run(submitted, review(4, 3, 5));
     const revised = run(first, review(5, 5, 5, "さらに良くなりました"));
-    expect(selectApplications(first, "ja")[0].review!.bonusLabel).toBe("+64pt をマイImpactに反映");
-    expect(selectApplications(revised, "ja")[0].review!.bonusLabel).toBe("+80pt をマイImpactに反映");
+    expect(selectApplications(first, "ja")[0].review!.expLabel).toBe("EXP +120（SDG 14・12）");
+    expect(selectApplications(revised, "ja")[0].review!.expLabel).toBe("EXP +150（SDG 14・12）");
     expect(selectApplications(revised, "ja")[0].review!.comment).toBe("さらに良くなりました");
   });
 
@@ -556,21 +569,25 @@ describe("심사 결과를 학생에게 — 「応募中の課題」 카드 (#30
     expect(tie.commentBy).toBeNull();
     const flat = selectApplications(run(submitted, review(4, 4, 4)), "ko")[0].review!;
     expect(flat.improveLabel).toBeNull();
-    expect(flat.bonusLabel).toBe("마이 임팩트에 +64pt 반영");
+    expect(flat.expLabel).toBe("EXP +120 (SDG 14, 12)");
   });
 
   it("표창하면 같은 카드에 상 이름이 나오고, 점수 없이 표창만 해도 결과 칸이 생겨요", () => {
     const ja = selectApplications(reviewedMine, "ja")[0].review!;
     expect(ja.award).toBe("grand");
     expect(ja.awardLabel).toBe("最優秀賞を受賞");
-    expect(ja.summary.endsWith("最優秀賞を受賞。")).toBe(true);
+    expect(ja.summary).toContain("最優秀賞を受賞。");
+    // #45 SDG 14 · 12 퀘스트의 수상 → 두 SDG 의 스킬이 모두 레벨 업(샘플에 14 · 12 의 수상이 이미 하나 있어요)
+    expect(ja.skillLearned?.learnedLines).toEqual(["SDG 14のスキルがレベルアップ！（Lv.2）", "SDG 12のスキルがレベルアップ！（Lv.2）"]);
     expect(selectApplications(reviewedMine, "ko")[0].review!.awardLabel).toBe("최우수상 수상");
     const awardOnly = selectApplications(run(submitted, { type: "awardProposal", proposalId: mineId, award: "special" }), "ja")[0].review!;
     expect(awardOnly.scores).toEqual([]);
-    expect([awardOnly.average, awardOnly.averageLabel, awardOnly.bonusLabel, awardOnly.improveLabel, awardOnly.comment]).toEqual([null, null, null, null, null]);
-    expect(awardOnly.bonusPoints).toBe(0);
+    expect([awardOnly.average, awardOnly.averageLabel, awardOnly.expLabel, awardOnly.improveLabel, awardOnly.comment]).toEqual([null, null, null, null, null]);
+    // 점수가 없으면 EXP 도 없어요(수상은 스테이터스가 아니라 스킬에 반영)
+    expect(awardOnly.exp).toBe(0);
+    expect(awardOnly.statusLevelUps).toEqual([]);
     expect(awardOnly.awardLabel).toBe("特別賞を受賞");
-    expect(awardOnly.summary).toBe("企業からの審査結果。特別賞を受賞。");
+    expect(awardOnly.summary).toBe("企業からの審査結果。特別賞を受賞。SDG 14のスキルがレベルアップ！（Lv.2）。SDG 12のスキルがレベルアップ！（Lv.2）。");
   });
 
   it("보이는 것은 내 기획서의 결과뿐이에요 — 다른 팀(pp-1)을 심사해도 내 카드는 그대로예요", () => {
@@ -592,24 +609,25 @@ describe("심사 결과를 학생에게 — 「応募中の課題」 카드 (#30
     const after = selectApplications(reviewedMine, "ja");
     expect(after).toHaveLength(1);
     expect(after[0].challengeId).toBe("ch-plastic");
-    expect(after[0].review?.bonusLabel).toBe("+64pt をマイImpactに反映");
+    expect(after[0].review?.expLabel).toBe("EXP +120（SDG 14・12）");
     expect(after[0].review?.awardLabel).toBe("最優秀賞を受賞");
   });
 });
 
 describe("Impact·증명서·카드뉴스", () => {
-  it("실적은 포인트 숫자 없이 스킬로 보여요 (어느 화면 모델에도 「… pt」 · 레벨 글자가 없어요 — #30 의 심사 보너스 한 줄만 예외)", () => {
+  it("포인트 숫자(「… pt」)는 어느 화면 모델에도 없어요 — 「Lv.」 · 「EXP」는 스테이터스 · SDG 스킬 · 심사 결과의 EXP 와 얻은 스킬에만(#45)", () => {
     for (const [, state] of STATES) {
       for (const locale of LOCALES) {
         const views = allViews(state, locale);
-        // #30 사용자 결정(2026-11-03): 기업 심사 보너스만은 「+64pt をマイImpactに反映」처럼 숫자로 보여요 — 그 줄(과 요약)만 빼고 그대로 검사해요
-        const bonusLines = views.applications.flatMap((a) => (a.review?.bonusLabel ? [a.review.bonusLabel] : []));
-        for (const line of bonusLines) expect(line).toMatch(locale === "ja" ? /^\+\d+pt をマイImpactに反映$/ : /^마이 임팩트에 \+\d+pt 반영$/);
-        const rest = { ...views, applications: views.applications.map((a) => ({ ...a, review: a.review ? { ...a.review, bonusLabel: null, summary: "" } : null })) };
-        const text = JSON.stringify(rest);
-        expect(text).not.toMatch(/\d\s?pt\b/);
-        // #38 레벨은 없어졌어요 — 어느 화면 모델에도 「Lv.」 · 「EXP」가 없어요
-        expect(text).not.toMatch(/Lv\.\s?\d|EXP/);
+        expect(JSON.stringify(views)).not.toMatch(/\d\s?pt\b/);
+        // 레벨 · EXP 가 나와도 되는 칸을 빼면 남은 화면 모델에는 레벨 글자가 없어요(용사 전체의 레벨 같은 것은 없어요)
+        const strip = (vm: HeroSkillVM) => ({ ...vm, learnedLines: [], learnedLabel: "" });
+        const rest = {
+          ...views,
+          applications: views.applications.map((a) => ({ ...a, review: a.review ? { ...a.review, expLabel: null, statusLevelUps: [], summary: "", skillLearned: a.review.skillLearned ? strip(a.review.skillLearned) : null } : null })),
+          impact: { ...views.impact, stats: [], sdgSkills: [], skills: views.impact.skills.map(strip) },
+        };
+        expect(JSON.stringify(rest)).not.toMatch(/Lv\.\s?\d|EXP/);
         const impact = selectImpact(state, locale);
         expect(impact.skills.length).toBe(state.skills.length);
         expect(impact.skillsHint.length).toBeGreaterThan(0);
@@ -626,16 +644,18 @@ describe("Impact·증명서·카드뉴스", () => {
     }
   });
 
-  it("Impact: SDG 17개 점수, 강점 최대 3개(높은 순), 진행률 0~1, 배지", () => {
+  it("Impact: SDG 17항목의 스테이터스(EXP · 레벨), 「得意」 최대 3개(EXP 가 높은 것), SDG 스킬, 배지", () => {
     for (const locale of LOCALES) {
       const impact = selectImpact(initial, locale);
-      expect(impact.perSdg.map((s) => s.id)).toEqual([...SDG_IDS]);
-      expect(impact.perSdg.every((s) => s.score >= 0 && s.score <= 100)).toBe(true);
-      expect(impact.topSdgs.length).toBeLessThanOrEqual(3);
-      const scores = impact.topSdgs.map((s) => s.score);
-      expect([...scores].sort((a, b) => b - a)).toEqual(scores);
+      expect(impact.stats.map((s) => s.id)).toEqual([...SDG_IDS]);
+      expect(impact.stats.every((s) => s.exp >= 0 && s.level >= 1 && s.level <= 10 && s.progress >= 0 && s.progress <= 100)).toBe(true);
+      const top = impact.stats.filter((s) => s.top);
+      expect(top.length).toBeLessThanOrEqual(3);
+      expect(Math.min(...top.map((s) => s.exp))).toBeGreaterThanOrEqual(Math.max(...impact.stats.filter((s) => !s.top).map((s) => s.exp)));
       expect(impact.badges.length).toBeGreaterThan(0);
-      expect(impact.skillCountLabel).toBe(locale === "ja" ? "スキル 2" : "스킬 2개");
+      // 샘플의 수상 2건(SDG 14・12 · 11・10) → SDG 스킬 4개(모두 Lv.1)
+      expect(impact.sdgSkills.map((s) => [s.sdgId, s.level])).toEqual([[14, 1], [12, 1], [11, 1], [10, 1]]);
+      expect(impact.skillCountLabel).toBe(locale === "ja" ? "スキル 4" : "스킬 4개");
       expect(impact.activities.length).toBeGreaterThan(0);
     }
   });
@@ -1328,25 +1348,37 @@ describe("게임 테마 — 용사 · 퀘스트 · 보상 아이템 (#37)", () =
   });
 });
 
-describe("능력치 창 (#43) — SDGs 실적을 게임의 스테이터스처럼", () => {
+describe("용사의 스테이터스 (#43 · #45) — SDGs 17항목, 기업의 평가 점수가 EXP 로 쌓여 레벨이 올라요", () => {
   const state = createInitialState("2026-10-30");
 
-  it("17개 목표를 번호 순으로, 공식 이름 · 0~100 · 「得意」(가장 높은 3개)", () => {
+  it("17개 항목을 번호 순으로: 공식 이름 · Lv · EXP · 다음 레벨까지 · 막대(지금 레벨 안에서 채운 정도) · 「得意」(EXP 가 가장 높은 3개)", () => {
     const vm = selectImpact(state, "ja");
     expect(vm.stats.map((s) => s.id)).toEqual(Array.from({ length: 17 }, (_, i) => i + 1));
-    for (const stat of vm.stats) {
-      expect(stat.score).toBe(vm.perSdg.find((p) => p.id === stat.id)!.score);
-      expect(stat.score).toBeGreaterThanOrEqual(0);
-      expect(stat.score).toBeLessThanOrEqual(100);
-    }
-    expect(vm.stats.filter((s) => s.top).map((s) => s.id).sort((a, b) => a - b)).toEqual(vm.topSdgs.map((s) => s.id).sort((a, b) => a - b));
+    // 샘플: 평가받은 제출 5건 — 14 · 12 는 4+4+3 = 11점 → EXP 110 (Lv.2, 다음 Lv.3 은 200)
     const sea = vm.stats.find((s) => s.id === 14)!;
-    expect(sea.name).toBe("海の豊かさを守ろう");
-    expect(sea.short).toBe("海");
-    expect(sea.ariaLabel).toBe(`目標14 海の豊かさを守ろう ${sea.score}（得意）`);
+    expect(sea).toMatchObject({ name: "海の豊かさを守ろう", short: "海", exp: 110, level: 2, levelLabel: "Lv.2", expLabel: "EXP 110", nextLabel: "次まで 90", progress: 10, max: false, top: false });
+    expect(sea.ariaLabel).toBe("目標14 海の豊かさを守ろう レベル2 経験値110、次のレベルまで90");
+    // 「得意」 = EXP 가 가장 높은 3개(같으면 번호 순): 7 · 13(140), 4(130)
+    expect(vm.stats.filter((s) => s.top).map((s) => s.id)).toEqual([4, 7, 13]);
+    const energy = vm.stats.find((s) => s.id === 7)!;
+    expect(energy.ariaLabel).toBe(`目標7 ${energy.name} レベル2 経験値140、次のレベルまで60（得意）`);
+    // 평가를 받은 적이 없는 항목은 Lv.1 · EXP 0
     const poverty = vm.stats.find((s) => s.id === 1)!;
-    expect(poverty.top).toBe(false);
-    expect(poverty.ariaLabel).toBe(`目標1 貧困をなくそう ${poverty.score}`);
-    expect(selectImpact(state, "ko").stats.find((s) => s.id === 14)!.ariaLabel).toBe(`목표 14 해양 생태계 보전 ${sea.score} (강점)`);
+    expect(poverty).toMatchObject({ exp: 0, level: 1, levelLabel: "Lv.1", nextLabel: "次まで 100", progress: 0, top: false });
+    expect(poverty.ariaLabel).toBe("目標1 貧困をなくそう レベル1 経験値0、次のレベルまで100");
+    const ko = selectImpact(state, "ko").stats.find((s) => s.id === 14)!;
+    expect(ko).toMatchObject({ levelLabel: "Lv.2", expLabel: "EXP 110", nextLabel: "다음까지 90" });
+    expect(ko.ariaLabel).toBe("목표 14 해양 생태계 보전 레벨 2 경험치 110, 다음 레벨까지 90");
+  });
+
+  it("상을 받지 않아도 평가만으로 오르고, 수상만으로는 오르지 않아요", () => {
+    const submitted = run(state, { type: "submitProposal", challengeId: "ch-plastic", draft, at: AT });
+    const reviewed = run(submitted, { type: "reviewProposal", proposalId: mineId, review: { creativity: 5, feasibility: 4, sdgContribution: 5, comment: "" }, at: "2026-10-30T11:00" });
+    const sea = selectImpact(reviewed, "ja").stats.find((s) => s.id === 14)!;
+    expect(sea).toMatchObject({ exp: 250, level: 3, nextLabel: "次まで 100", top: true });
+    const awardedOnly = run(submitted, { type: "awardProposal", proposalId: mineId, award: "special" });
+    expect(selectImpact(awardedOnly, "ja").stats.find((s) => s.id === 14)!.exp).toBe(110);
+    // 수상은 스킬에: SDG 14 · 12 의 스킬이 Lv.2
+    expect(selectImpact(awardedOnly, "ja").sdgSkills.slice(0, 2).map((s) => [s.sdgId, s.levelLabel])).toEqual([[14, "スキルLv.2"], [12, "スキルLv.2"]]);
   });
 });

@@ -8,7 +8,7 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { useId, useMemo, useState } from "react";
 import type { AwardKind } from "@sdgs-compass/core/domain";
-import { REVIEW_BONUS_MAX } from "@sdgs-compass/core/impact";
+import { REVIEW_EXP_MAX } from "@sdgs-compass/core/status";
 import { awardLabel } from "@sdgs-compass/core/labels";
 import { parseApplicantFilter, selectApplicants, type ApplicantFilter, type ApplicantVM } from "@sdgs-compass/core/selectors";
 import { proposalResearchLabel } from "@sdgs-compass/core/researchView";
@@ -59,7 +59,7 @@ function ReviewForm({ applicant, onTouched }: { applicant: ApplicantVM; onTouche
       <h4 className="strong">{t("review.title")}</h4>
       <p className="review-form__note">
         <span aria-hidden="true">👀 </span>
-        {t("review.publicNote", { max: REVIEW_BONUS_MAX })}
+        {t("review.publicNote", { max: REVIEW_EXP_MAX })}
       </p>
       <RateRow label={t("review.creativity")} value={creativity} onChange={(v) => edit(() => setCreativity(v))} />
       <RateRow label={t("review.feasibility")} value={feasibility} onChange={(v) => edit(() => setFeasibility(v))} />

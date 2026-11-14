@@ -1,11 +1,11 @@
-// SCR-04 마이 포트폴리오 = 용사의 스테이터스(#38): 레벨 대신 스킬(수상 1건 = SDG 번호가 붙은 스킬 1개) · 스카우트 수신 설정(따로 된 줄) · 応募中の課題(#28, 낸 기획서가 있을 때만) · SDGs Impact 레이더 차트(17목표) · 강점 SDGs · 배지 · 참여 실적
-// · 증명서/요약/카드뉴스 단추 · 맨 아래 リワード残高 카드(#25 데모).
-// SDGs 실적은 게임의 능력치 창(components/StatsWindow, #43)으로 보여 줘요. 값은 모두 core 의 selectImpact 에서 와요.
-// #30 기업이 내 기획서를 심사·표창하면 応募中の課題 카드에 「企業からの審査結果」(점수 3개 · 코멘트 · 반영 포인트 · 다음에 키울 점 · 수상)가 붙어요.
+// SCR-04 마이 포트폴리오 = 용사의 프로필: 스킬(#38 · #45 — 수상으로 얻은 SDG 마다의 스킬과 레벨, 그 밑에 스킬이 된 수상) · 스카우트 수신 설정(따로 된 줄) · 応募中の課題(#28, 낸 기획서가 있을 때만)
+// · 용사의 스테이터스(components/StatsWindow, #43 · #45 — SDGs 17항목, 기업의 평가 점수가 EXP 로 쌓여 레벨이 올라요) · 배지 · 참여 실적 · 증명서/요약/카드뉴스 단추 · 맨 아래 リワード残高 카드(#25 데모).
+// 값은 모두 core 의 selectImpact 에서 와요(웹과 같은 내용).
+// #30 기업이 내 기획서를 심사·표창하면 応募中の課題 카드에 「企業からの審査結果」(점수 3개 · 코멘트 · 받은 EXP 와 오른 레벨 · 다음에 키울 점 · 수상 · 얻은 스킬)가 붙어요.
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useMemo } from "react";
 import { StyleSheet, View } from "react-native";
-import { selectApplications, selectCertificates, selectImpact, type ApplicationReviewVM, type HeroSkillVM } from "@sdgs-compass/core/selectors";
+import { selectApplications, selectCertificates, selectImpact, type ApplicationReviewVM, type HeroSkillVM, type SdgSkillVM } from "@sdgs-compass/core/selectors";
 import { selectWallet } from "@sdgs-compass/core/walletView";
 import { ActivityRow } from "@/components/ActivityRow";
 import { Screen, ScreenTitle } from "@/components/Screen";
@@ -19,7 +19,7 @@ import { COLORS, GAME_COLORS, RADIUS, SPACE } from "@/theme";
 
 /**
  * #30 기업의 심사 결과: 점수는 막대 + 「4/5」 글자(색만으로 구분하지 않아요), 가장 낮은 항목은 「次に伸ばすポイント」 한 줄로도 알려요.
- * 스크린 리더는 점수·평균·반영 포인트·다음에 키울 점·수상을 요약 한 문장(summary)으로, 코멘트는 따로 읽어요.
+ * 스크린 리더는 점수·평균·받은 EXP 와 오른 레벨·다음에 키울 점·수상·얻은 스킬을 요약 한 문장(summary)으로, 코멘트는 따로 읽어요.
  */
 function ReviewResult({ review, id }: { review: ApplicationReviewVM; id: string }) {
   return (
@@ -31,17 +31,21 @@ function ReviewResult({ review, id }: { review: ApplicationReviewVM; id: string 
           </Txt>
           {review.awardLabel ? <Badge tone="warning" label={`🏆 ${review.awardLabel}`} /> : null}
         </View>
-        {/* 수상하면 그 퀘스트의 SDG 번호가 붙은 스킬을 「おぼえた！」(#38) */}
+        {/* 수상하면 그 퀘스트의 SDG 마다 스킬을 「おぼえた！」 · 이미 있던 SDG 는 「レベルアップ！」(#38 · #45) */}
         {review.skillLearned ? (
           <View style={[styles.itemWon, styles.learnedRow]} testID={`impact-skill-learned-${id}`}>
-            <View style={[styles.skillTypeSmall, { backgroundColor: review.skillLearned.color }]}>
-              <Txt variant="small" bold style={{ color: review.skillLearned.textColor }}>
-                {review.skillLearned.sdgId}
-              </Txt>
+            <View style={styles.learnedIcons}>
+              {review.skillLearned.sdgIds.map((sdg) => (
+                <SdgEmblem key={sdg} id={sdg} size={22} />
+              ))}
             </View>
-            <Txt variant="small" bold style={[styles.itemWonText, styles.shrink]}>
-              {review.skillLearned.learnedLabel}
-            </Txt>
+            <View style={styles.shrink}>
+              {review.skillLearned.learnedLines.map((line) => (
+                <Txt key={line} variant="small" bold style={styles.itemWonText}>
+                  {line}
+                </Txt>
+              ))}
+            </View>
           </View>
         ) : null}
         {/* 상품 보상이 걸린 퀘스트에서 수상하면 「〇〇を手に入れた！」(#37) */}
@@ -65,16 +69,22 @@ function ReviewResult({ review, id }: { review: ApplicationReviewVM; id: string 
             </Txt>
           </View>
         ))}
-        {review.averageLabel || review.bonusLabel ? (
+        {/* 평가 점수는 상과 관계없이 그 퀘스트의 SDG 항목에 EXP 로 들어가요(#45) — 레벨이 오르면 한 줄씩 */}
+        {review.averageLabel || review.expLabel ? (
           <View style={styles.resultTotal}>
             {review.averageLabel ? (
               <Txt variant="small" bold>
                 {review.averageLabel}
               </Txt>
             ) : null}
-            {review.bonusLabel ? <Badge tone="success" label={review.bonusLabel} /> : null}
+            {review.expLabel ? <Badge tone="success" label={review.expLabel} /> : null}
           </View>
         ) : null}
+        {review.statusLevelUps.map((line) => (
+          <Txt key={line} variant="small" bold tone="success">
+            {`⬆ ${line}`}
+          </Txt>
+        ))}
         {review.improveLabel ? (
           <Txt variant="small" bold tone="warning">
             {`🌱 ${review.improveLabel}`}
@@ -117,20 +127,30 @@ export function ImpactScreen() {
             </Txt>
           </View>
         </View>
-        {/* 레벨 대신 스킬(#38): 수상 1건 = SDG 번호가 붙은 스킬 1개 — 실적은 포인트 숫자가 아니에요(돈과 무관한 기록) */}
+        {/* 스킬 = 수상 경력(#38 · #45): 수상한 퀘스트의 SDG 마다 스킬, 같은 SDG 의 수상이 쌓이면 레벨이 올라요(돈과 무관한 기록) */}
         <Txt variant="display" testID="impact-total">
           {vm.skillCountLabel}
         </Txt>
-        {vm.skills.length === 0 ? (
+        {vm.sdgSkills.length === 0 ? (
           <Txt variant="small" tone="muted">
             {t("impact.skillsEmpty")}
           </Txt>
         ) : (
-          <View style={styles.skillList} testID="impact-skills">
-            {vm.skills.map((skill) => (
-              <SkillRow key={skill.id} skill={skill} />
-            ))}
-          </View>
+          <>
+            <View style={styles.sdgSkillGrid} testID="impact-sdg-skills">
+              {vm.sdgSkills.map((skill) => (
+                <SdgSkillTile key={skill.sdgId} skill={skill} />
+              ))}
+            </View>
+            <Txt variant="small" tone="muted" bold>
+              {t("impact.skillRecords")}
+            </Txt>
+            <View style={styles.skillList} testID="impact-skills">
+              {vm.skills.map((skill) => (
+                <SkillRow key={skill.id} skill={skill} />
+              ))}
+            </View>
+          </>
         )}
         <Txt variant="small" tone="muted">
           {vm.skillsHint}
@@ -190,7 +210,7 @@ export function ImpactScreen() {
         </Section>
       ) : null}
 
-      {/* 능력치 창(#43): 17개 목표의 실적을 게임의 스테이터스처럼 — 예전의 레이더 차트와 「得意なSDGs」를 한 창에 */}
+      {/* 용사의 스테이터스(#43 · #45): SDGs 17항목 — 기업의 평가 점수가 EXP 로 쌓여 항목마다 레벨이 올라요 */}
       <StatsWindow stats={vm.stats} locale={locale} testID="impact-stats" />
 
       <Section title={t("impact.badges")}>
@@ -264,7 +284,36 @@ export function ImpactScreen() {
   );
 }
 
-/** 스킬 한 줄(#38): 왼쪽에 대표 SDG 번호(색 = 스킬의 「タイプ」), 이름 · ★(상의 세기) · 상 · 기업 · 날짜 · 수상한 퀘스트 · 모든 SDG 번호 (웹 .skill 과 같은 모양) */
+/** SDG 스킬 하나(#45): 문장 · 번호와 스킬 레벨(= 그 SDG 의 수상 수) · 공식 이름 · 「受賞 2件」 (웹 .sdg-skill 과 같은 모양) */
+function SdgSkillTile({ skill }: { skill: SdgSkillVM }) {
+  return (
+    <View style={styles.sdgSkill} accessible accessibilityLabel={skill.ariaLabel} testID={`impact-sdg-skill-${skill.sdgId}`}>
+      <View style={styles.sdgSkillSlot}>
+        <SdgEmblem id={skill.sdgId} size={30} />
+      </View>
+      <View style={styles.sdgSkillMain}>
+        <View style={styles.sdgSkillHead}>
+          <View style={[styles.sdgSkillNo, { backgroundColor: skill.color }]}>
+            <Txt variant="caption" bold style={{ color: skill.textColor }}>
+              {skill.sdgId}
+            </Txt>
+          </View>
+          <Txt variant="small" bold style={styles.sdgSkillLevel} numberOfLines={1}>
+            {skill.levelLabel}
+          </Txt>
+        </View>
+        <Txt variant="caption" bold style={styles.sdgSkillGoalText} numberOfLines={3}>
+          {skill.goal}
+        </Txt>
+        <Txt variant="caption" bold style={styles.sdgSkillCount}>
+          {skill.countLabel}
+        </Txt>
+      </View>
+    </View>
+  );
+}
+
+/** 스킬이 된 수상 한 줄(#38): 왼쪽에 대표 SDG 의 문장과 번호, 이름 · ★(상의 세기) · 상 · 기업 · 날짜 · 수상한 퀘스트 · 스킬을 얻은 SDG 번호 모두 (웹 .skill 과 같은 모양) */
 function SkillRow({ skill }: { skill: HeroSkillVM }) {
   return (
     <View style={styles.skill} accessible accessibilityLabel={skill.ariaLabel} testID={`impact-skill-${skill.activityId}`}>
@@ -297,7 +346,17 @@ const styles = StyleSheet.create({
   skill: { flexDirection: "row", alignItems: "flex-start", gap: SPACE.md, padding: SPACE.md, borderRadius: RADIUS.md, borderWidth: 2, borderColor: GAME_COLORS.ink, backgroundColor: GAME_COLORS.panel },
   skillBadge: { alignItems: "center", gap: 4 },
   skillType: { minWidth: 32, height: 24, paddingHorizontal: 4, alignItems: "center", justifyContent: "center", borderRadius: 5, borderWidth: 2, borderColor: GAME_COLORS.ink },
-  skillTypeSmall: { minWidth: 28, height: 24, paddingHorizontal: 4, alignItems: "center", justifyContent: "center", borderRadius: 4 },
+  learnedIcons: { flexDirection: "row", gap: 3, padding: 2, borderRadius: 5, backgroundColor: GAME_COLORS.panel },
+  // #45 SDG 스킬 칸(한 칸 150 이상 — 좁은 화면은 1열, 보통 2열): 남색 게임 창 · 금색 레벨
+  sdgSkillGrid: { flexDirection: "row", flexWrap: "wrap", gap: SPACE.xs + 2 },
+  sdgSkill: { flexBasis: "48%", minWidth: 150, flexGrow: 1, flexDirection: "row", alignItems: "center", gap: SPACE.sm, padding: SPACE.sm, borderRadius: 8, borderWidth: 2, borderColor: GAME_COLORS.ink, backgroundColor: GAME_COLORS.window },
+  sdgSkillSlot: { padding: 2, borderRadius: 6, borderWidth: 2, borderColor: "#0B1324", backgroundColor: GAME_COLORS.panel },
+  sdgSkillMain: { flex: 1, minWidth: 0, gap: 3 },
+  sdgSkillHead: { flexDirection: "row", alignItems: "center", gap: 6 },
+  sdgSkillNo: { minWidth: 22, height: 18, paddingHorizontal: 3, alignItems: "center", justifyContent: "center", borderRadius: 4 },
+  sdgSkillGoalText: { color: GAME_COLORS.frame },
+  sdgSkillLevel: { flexShrink: 1, color: GAME_COLORS.speaker },
+  sdgSkillCount: { color: GAME_COLORS.reward },
   skillMain: { flex: 1, gap: 3 },
   skillName: { color: GAME_COLORS.ink },
   stars: { color: "#C98A0C" },

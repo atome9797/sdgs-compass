@@ -64,18 +64,20 @@ describe("퀘스트 전투 화면 (#38)", () => {
     expect(vm.fight.go).toBe("submit");
     expect(said(vm.fight.lines)).toEqual(["narrator: 勇者Minaの チームは クエストに いどんだ！", "narrator: 企画書の提出画面へ進みます。"]);
     expect(said(vm.run)).toEqual(["narrator: 勇者Minaは うまく にげきれた！"]);
-    expect(vm.hero).toEqual({ name: "勇者 Mina", skillsLabel: "スキル 2", skillSdgIds: [14, 12, 11, 10] });
-    // 「プラごみ削減アイデア」(SDG 14・12)은 이 퀘스트와 상성◎, 「多言語の防災マップ」(SDG 11・10)은 새 분야
-    expect(vm.skills.map((s) => [s.name, s.match])).toEqual([
-      ["プラごみ削減アイデア", true],
-      ["多言語の防災マップ", false],
+    // #45 스킬은 SDG 마다: 샘플의 수상 2건(SDG 14・12 · 11・10) → SDG 스킬 4개
+    expect(vm.hero).toEqual({ name: "勇者 Mina", skillsLabel: "スキル 4", skillSdgIds: [14, 12, 11, 10] });
+    // 이 퀘스트의 SDG(14 · 12)에 들어 있는 스킬이 상성◎ — 먼저 보여요
+    expect(vm.skills.map((s) => [s.sdgId, s.match])).toEqual([
+      [14, true],
+      [12, true],
+      [11, false],
+      [10, false],
     ]);
-    // 기술(#42): 퀘스트와 겹치는 SDG(14)의 「大波そうじ」, 겹치지 않으면 스킬의 대표 SDG(11)의 「まちおこし」
-    expect(said(vm.skills[0].lines)).toEqual(["narrator: 勇者Minaの「プラごみ削減アイデア」！", "narrator: 大波そうじ！ SDG 14の 経験が いきる！ このクエストと 相性ばつぐんだ！"]);
-    // 목표의 공식 이름도 함께(기술 이름만으로는 무슨 목표인지 모를 수 있어서)
-    expect(vm.skills[0].move).toEqual({ sdgId: 14, name: "大波そうじ", effect: "wave", color: "#0A97D9", goal: "海の豊かさを守ろう" });
-    expect(vm.skills[1].move).toMatchObject({ sdgId: 11, name: "まちおこし", effect: "town" });
-    expect(vm.skills[1].lines[1].text).toBe("まちおこし！ はじめての 分野だ。新しい スキルを おぼえる チャンス！");
+    expect(said(vm.skills[0].lines)).toEqual(["narrator: 勇者Minaの SDG 14スキル（Lv.1）！", "narrator: SDG 14の 経験が いきる！ このクエストと 相性ばつぐんだ！"]);
+    // 목표의 공식 이름 · 레벨 · 이 스킬이 된 수상 · 효과 모양(#42)
+    expect(vm.skills[0]).toMatchObject({ sdgId: 14, goal: "海の豊かさを守ろう", level: 1, levelLabel: "スキルLv.1", recordsLabel: "プラごみ削減アイデア", effect: "wave", color: "#0A97D9" });
+    expect(vm.skills[2]).toMatchObject({ sdgId: 11, effect: "town", recordsLabel: "多言語の防災マップ" });
+    expect(vm.skills[2].lines[1].text).toBe("はじめての 分野だ。新しい スキルを おぼえる チャンス！");
     expect(said([vm.skillPick])).toEqual(["narrator: どの スキルを つかう？"]);
     const ko = selectBattle(initial, "ch-plastic", "ko")!;
     expect(said(ko.intro)[2]).toBe("client: 플라스틱 해파리의 정체는 바로 상품 포장에서 나오는 플라스틱 쓰레기!");
@@ -90,18 +92,23 @@ describe("퀘스트 전투 화면 (#38)", () => {
     expect(vm.fight).toEqual({ lines: [{ speaker: "narrator", text: "クエスト達成ずみ！ 締切までは 企画書を 出しなおせる。" }], go: "submit" });
   });
 
-  it("수상하면 그 퀘스트의 SDG 번호가 붙은 스킬을 「おぼえた！」 · 상품 보상도 「手に入れた！」", () => {
+  it("수상하면 그 퀘스트의 SDG 마다 스킬을 얻어요 — 이미 있는 SDG 는 레벨 업 · 상품 보상도 「手に入れた！」", () => {
     const state = submitAndAward(initial, "ch-plastic", "excellence");
     expect(state.skills).toHaveLength(3);
     const vm = selectBattle(state, "ch-plastic", "ja")!;
     expect(said(vm.intro)).toEqual([
       "narrator: プラごみクラゲを やっつけた！ クエスト達成！",
-      "narrator: スキル「エコ包装デザイン」（SDG 14）をおぼえた！",
+      "narrator: SDG 14のスキルがレベルアップ！（Lv.2）",
+      "narrator: SDG 12のスキルがレベルアップ！（Lv.2）",
       "narrator: 報酬アイテム「みなとの干物ギフトセット」を 手に入れた！",
     ]);
-    expect(vm.hero.skillsLabel).toBe("スキル 3");
+    expect(vm.hero.skillsLabel).toBe("スキル 4");
+    expect(vm.skills.slice(0, 2).map((s) => [s.sdgId, s.levelLabel, s.recordsLabel])).toEqual([
+      [14, "スキルLv.2", "エコ包装デザイン・プラごみ削減アイデア"],
+      [12, "スキルLv.2", "エコ包装デザイン・プラごみ削減アイデア"],
+    ]);
     const ko = selectBattle(state, "ch-plastic", "ko")!;
-    expect(ko.intro.map((line) => line.text)).toEqual(["플라스틱 해파리 격파! 퀘스트 달성!", "스킬 「친환경 포장 디자인」(SDG 14)을 배웠다!", "보상 아이템 「미나토 건어물 선물 세트」 획득!"]);
+    expect(ko.intro.map((line) => line.text)).toEqual(["플라스틱 해파리 격파! 퀘스트 달성!", "SDG 14 스킬 레벨 업! Lv.2", "SDG 12 스킬 레벨 업! Lv.2", "보상 아이템 「미나토 건어물 선물 세트」 획득!"]);
   });
 
   it("내지 않은 채로 접수가 끝난 퀘스트: 「たたかう」는 어디로도 가지 않고, 마감은 「…でした」", () => {

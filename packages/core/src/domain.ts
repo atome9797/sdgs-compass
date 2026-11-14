@@ -168,8 +168,9 @@ export interface Proposal {
 export type ActivityKind = "participation" | "submission" | "award" | "share";
 
 /**
- * 용사의 스킬(#38): 수상 1건 = 스킬 1개. 레벨 대신, 수상 경력을 SDG 번호와 함께 저장하고 보여 줘요.
- * 수상한 때의 스킬 이름 · 퀘스트 이름 · 기업 이름 · SDG 번호를 그대로 적어 두는 스냅샷이에요(증명서와 같은 방식 — 나중에 퀘스트를 고쳐도 스킬은 그대로).
+ * 용사의 스킬의 수상 기록(#38 · #45): 수상 1건 = 기록 1개. 이 수상으로 퀘스트의 SDG 마다 스킬을 얻고,
+ * 같은 SDG 의 기록이 쌓이면 그 SDG 의 스킬 레벨이 올라요(skills.ts 의 sdgSkills · skillLevel — 레벨은 저장하지 않고 기록에서 계산해요).
+ * 수상한 때의 이름 · 퀘스트 이름 · 기업 이름 · SDG 번호를 그대로 적어 두는 스냅샷이에요(증명서와 같은 방식 — 나중에 퀘스트를 고쳐도 기록은 그대로).
  * activityId 는 그 수상 활동(Activity kind "award")의 id 라서 증명서 · 카드뉴스와 이어져요. DB 는 hero_skills 표.
  */
 export interface HeroSkill {

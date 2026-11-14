@@ -1,7 +1,7 @@
-// SDG 17개 목표의 「스킬 문장(紋章)」(#42): 목표마다 특징을 담은 16×16 픽셀 아이콘 · 기술 이름 · 전투 효과의 종류.
-// 모두 이 앱만의 그림과 이름이에요 — 유엔의 공식 아이콘이나 다른 게임의 기술(이름 · 모양)을 따라 하지 않아요. 색만 각 목표의 공식 색을 써요.
+// SDG 17개 목표의 문장(紋章)(#42): 스테이터스 항목(#45)의 16×16 픽셀 아이콘이자, 수상으로 얻은 그 SDG 스킬의 아이콘과 전투 효과의 종류.
+// 17개를 처음부터 가진 기술이 아니에요(스킬은 수상해야 얻어요 — skills.ts). 그래서 목표마다의 기술 이름은 두지 않고, 이름은 목표의 공식 이름을 그대로 써요.
+// 모두 이 앱만의 그림이에요 — 유엔의 공식 아이콘이나 다른 게임의 기술 모양을 따라 하지 않아요. 색만 각 목표의 공식 색을 써요.
 // 웹은 RGBA 배열을 그대로(캔버스) · PNG 데이터 URI 로, 앱은 PNG 데이터 URI(png.ts)로 같은 그림을 보여 줘요.
-import type { LocalizedText } from "./i18n";
 import { darken, lighten, PixelGrid, type PixelImage } from "./pixels";
 import { getSdg, type SdgId } from "./sdg";
 
@@ -16,30 +16,28 @@ export type SkillEffectKind =
 
 export interface SdgEmblem {
   id: SdgId;
-  /** 기술 이름: 「大波そうじ」 */
-  name: LocalizedText;
   effect: SkillEffectKind;
 }
 
-/** 목표마다의 기술 이름과 효과 — 이름은 이 앱이 지은 말이에요 */
+/** 목표마다의 전투 효과(14 큰 파도 · 6 물대포 · 7 번개 …) */
 export const SDG_EMBLEMS: Record<SdgId, SdgEmblem> = {
-  1: { id: 1, name: { ja: "ささえあいの灯", ko: "서로 돕는 등불" }, effect: "beacon" },
-  2: { id: 2, name: { ja: "豊作のめぐみ", ko: "풍년의 선물" }, effect: "harvest" },
-  3: { id: 3, name: { ja: "いやしの十字", ko: "치유의 십자" }, effect: "heal" },
-  4: { id: 4, name: { ja: "まなびのページ", ko: "배움의 페이지" }, effect: "pages" },
-  5: { id: 5, name: { ja: "つりあいの天秤", ko: "균형의 저울" }, effect: "balance" },
-  6: { id: 6, name: { ja: "清流キャノン", ko: "맑은 물 대포" }, effect: "jet" },
-  7: { id: 7, name: { ja: "いなずまチャージ", ko: "번개 충전" }, effect: "bolt" },
-  8: { id: 8, name: { ja: "グロースアロー", ko: "성장의 화살" }, effect: "growth" },
-  9: { id: 9, name: { ja: "ひらめきの歯車", ko: "번뜩이는 톱니바퀴" }, effect: "gears" },
-  10: { id: 10, name: { ja: "なかまの架け橋", ko: "함께 잇는 다리" }, effect: "bridge" },
-  11: { id: 11, name: { ja: "まちおこし", ko: "마을 살리기" }, effect: "town" },
-  12: { id: 12, name: { ja: "リサイクルループ", ko: "리사이클 루프" }, effect: "cycle" },
-  13: { id: 13, name: { ja: "ひんやりストーム", ko: "시원한 폭풍" }, effect: "frost" },
-  14: { id: 14, name: { ja: "大波そうじ", ko: "큰 파도 청소" }, effect: "wave" },
-  15: { id: 15, name: { ja: "もりのつむじ風", ko: "숲의 회오리바람" }, effect: "leaves" },
-  16: { id: 16, name: { ja: "へいわのシールド", ko: "평화의 방패" }, effect: "shield" },
-  17: { id: 17, name: { ja: "みんなのリンク", ko: "모두의 연결" }, effect: "link" },
+  1: { id: 1, effect: "beacon" },
+  2: { id: 2, effect: "harvest" },
+  3: { id: 3, effect: "heal" },
+  4: { id: 4, effect: "pages" },
+  5: { id: 5, effect: "balance" },
+  6: { id: 6, effect: "jet" },
+  7: { id: 7, effect: "bolt" },
+  8: { id: 8, effect: "growth" },
+  9: { id: 9, effect: "gears" },
+  10: { id: 10, effect: "bridge" },
+  11: { id: 11, effect: "town" },
+  12: { id: 12, effect: "cycle" },
+  13: { id: 13, effect: "frost" },
+  14: { id: 14, effect: "wave" },
+  15: { id: 15, effect: "leaves" },
+  16: { id: 16, effect: "shield" },
+  17: { id: 17, effect: "link" },
 };
 
 // 팔레트 번호: 1 = 테두리(INK, 자동) · 2 = 목표의 색 · 3 = 밝게 · 4 = 어둡게 · 5 = 흰색 · 6 = 금색 · 7 · 8 = 그림마다의 색

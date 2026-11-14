@@ -128,10 +128,12 @@ describe("샘플 데이터", () => {
     for (const p of state.proposals) for (const v of p.versions) expect(v.sha256).toMatch(/^[0-9a-f]{64}$/);
   });
 
-  it("주인공 학생(Mina)은 내부 점수 1,476 이고, 레벨 대신 앱을 쓰기 전에 받은 상 2건의 스킬을 가져요 (#38)", () => {
+  it("주인공 학생(Mina)은 내부 점수 1,476 이고, 앱을 쓰기 전에 받은 상 2건으로 SDG 스킬 4개를 가져요 (#38 · #45)", () => {
     const impact = selectImpact(state, "ja");
     expect(impact.totalPoints).toBe(1476);
-    expect(impact.skillCountLabel).toBe("スキル 2");
+    // 상 2건(SDG 14・12 · 11・10) → 그 SDG 마다 스킬(모두 Lv.1)
+    expect(impact.skillCountLabel).toBe("スキル 4");
+    expect(impact.sdgSkills.map((s) => [s.sdgId, s.levelLabel])).toEqual([[14, "スキルLv.1"], [12, "スキルLv.1"], [11, "スキルLv.1"], [10, "スキルLv.1"]]);
     // 최근 것부터: 優秀賞(SDG 14·12, 28일 전) → 特別賞(SDG 11·10, 45일 전)
     expect(impact.skills.map((s) => [s.name, s.sdgIds, s.awardLabel, s.stars])).toEqual([
       ["プラごみ削減アイデア", [14, 12], "優秀賞", 2],
@@ -139,8 +141,11 @@ describe("샘플 데이터", () => {
     ]);
     expect(impact.skills[0].metaLabel).toBe(`優秀賞・みなと海洋フーズ株式会社・${formatDate(addDays(TODAY, -28), "ja")}`);
     expect(impact.skills[0].color).toBe("#0A97D9");
-    expect(JSON.stringify(impact)).not.toMatch(/Lv\.|EXP|レベル/);
-    expect(impact.topSdgs[0].id).toBe(14);
+    // 스테이터스: 평가받은 제출 5건의 EXP — 14 는 110(Lv.2), 「得意」는 EXP 가 높은 7 · 13 · 4
+    expect(impact.stats.find((s) => s.id === 14)).toMatchObject({ exp: 110, levelLabel: "Lv.2" });
+    expect(impact.stats.filter((s) => s.top).map((s) => s.id)).toEqual([4, 7, 13]);
+    // 용사 전체의 레벨은 없어요 — 레벨 글자는 스테이터스 · SDG 스킬(과 그 설명 · 얻은 스킬 문구)에만
+    expect(JSON.stringify({ ...impact, stats: [], sdgSkills: [], skillsHint: "", skills: impact.skills.map((s) => ({ ...s, learnedLines: [], learnedLabel: "" })) })).not.toMatch(/Lv\.|EXP|レベル/);
     const badgeCodes = impact.badges.map((b) => b.code);
     for (const code of ["firstStep", "challenger", "winner", "multiSdg", "ocean"]) expect(badgeCodes).toContain(code);
     expect(badgeCodes).not.toContain("sharer");

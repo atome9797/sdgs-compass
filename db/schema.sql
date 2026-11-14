@@ -271,6 +271,7 @@ CREATE TABLE challenges (
   max_team_size smallint           CHECK (max_team_size BETWEEN 2 AND 10),
   impact_points smallint           NOT NULL DEFAULT 120 CHECK (impact_points BETWEEN 0 AND 1000),  -- 제출 시 얻는 기본 Impact 포인트
   cover_hue     smallint           NOT NULL DEFAULT 200 CHECK (cover_hue BETWEEN 0 AND 360),       -- 표지 그라데이션 색상
+  skill_name    text               CHECK (skill_name IS NULL OR char_length(btrim(skill_name)) BETWEEN 1 AND 30),  -- #38 수상하면 얻는 스킬 이름 (없으면 챌린지 이름)
   opens_at      timestamptz        NOT NULL DEFAULT now(),
   closes_at     timestamptz        NOT NULL,
   approved_by   uuid               REFERENCES users (id),
@@ -908,6 +909,43 @@ END $$;
 CREATE TRIGGER activities_guard_ins BEFORE INSERT ON activities FOR EACH ROW EXECUTE FUNCTION activities_guard();
 CREATE TRIGGER activities_immutable BEFORE UPDATE ON activities FOR EACH ROW EXECUTE FUNCTION forbid_mutation();
 
+-- #38 용사의 스킬: 수상 1건 = 그 챌린지의 SDG 번호가 붙은 스킬 1개 — 앱은 레벨 대신 이것을 보여 줘요(packages/core skills.ts).
+-- 수상 활동(activities kind 'award', 학생마다 한 줄)이 생기면 트리거가 같이 만들어요. 이름 · 챌린지 · 기업 · SDG 번호는 그때의 스냅샷이고 고칠 수 없어요(증명서와 같은 방식).
+CREATE TABLE hero_skills (
+  id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id         uuid        NOT NULL REFERENCES student_profiles (user_id) ON DELETE CASCADE,
+  activity_id     uuid        NOT NULL UNIQUE,
+  award_id        uuid        NOT NULL REFERENCES awards (id),
+  name            text        NOT NULL CHECK (char_length(btrim(name)) BETWEEN 1 AND 100),
+  sdg_ids         smallint[]  NOT NULL CHECK (cardinality(sdg_ids) BETWEEN 1 AND 3 AND 1 <= ALL (sdg_ids) AND 17 >= ALL (sdg_ids)),  -- 첫 번째가 대표(스킬의 「タイプ」)
+  award_kind      award_kind  NOT NULL,
+  challenge_title text        NOT NULL,
+  company_name    text        NOT NULL,
+  learned_on      date        NOT NULL,
+  created_at      timestamptz NOT NULL DEFAULT now(),
+  FOREIGN KEY (activity_id, user_id) REFERENCES activities (id, user_id) ON DELETE CASCADE
+);
+CREATE INDEX hero_skills_user_idx ON hero_skills (user_id, learned_on DESC);
+CREATE INDEX hero_skills_award_idx ON hero_skills (award_id);
+CREATE TRIGGER hero_skills_immutable BEFORE UPDATE ON hero_skills FOR EACH ROW EXECUTE FUNCTION forbid_mutation();
+
+CREATE FUNCTION activities_learn_skill() RETURNS trigger
+  LANGUAGE plpgsql AS $$
+DECLARE
+  aw  awards%ROWTYPE;
+  ids smallint[];
+BEGIN
+  SELECT * INTO aw FROM awards WHERE id = NEW.award_id;
+  SELECT array_agg(cs.sdg_id ORDER BY cs.position) INTO ids FROM challenge_sdgs cs WHERE cs.challenge_id = aw.challenge_id;
+  IF ids IS NULL THEN
+    RAISE EXCEPTION '스킬에는 SDG 번호가 있어야 해요 — 이 챌린지에 SDG 가 없어요' USING ERRCODE = 'check_violation';
+  END IF;
+  INSERT INTO hero_skills (user_id, activity_id, award_id, name, sdg_ids, award_kind, challenge_title, company_name, learned_on)
+  VALUES (NEW.user_id, NEW.id, aw.id, COALESCE((SELECT skill_name FROM challenges WHERE id = aw.challenge_id), NEW.title), ids, aw.kind, NEW.title, NEW.company_name, NEW.occurred_on);
+  RETURN NULL;
+END $$;
+CREATE TRIGGER activities_learn_skill_ins AFTER INSERT ON activities FOR EACH ROW WHEN (NEW.kind = 'award') EXECUTE FUNCTION activities_learn_skill();
+
 -- 활동이 닿은 SDGs (포인트가 SDG 마다 쌓여 레이더 차트가 돼요)
 CREATE TABLE activity_sdgs (
   activity_id uuid     NOT NULL REFERENCES activities (id) ON DELETE CASCADE,
@@ -1090,6 +1128,8 @@ CREATE VIEW talent_directory AS
   SELECT sp.user_id, sp.nickname, sp.university_name, sp.faculty, sp.grad_year, sp.scoutable,
          t.total_points, t.level,
          (SELECT count(*) FROM awards a JOIN proposals p ON p.id = a.proposal_id WHERE p.submitter_id = sp.user_id) AS award_count,
+         (SELECT count(*) FROM hero_skills h WHERE h.user_id = sp.user_id)::integer AS skill_count,
+         ARRAY(SELECT DISTINCT unnest(h.sdg_ids) FROM hero_skills h WHERE h.user_id = sp.user_id) AS skill_sdg_ids,
          ARRAY(SELECT i.sdg_id     FROM profile_sdg_interests i WHERE i.user_id = sp.user_id ORDER BY i.priority) AS sdg_interests,
          ARRAY(SELECT s.skill_code FROM profile_skills s        WHERE s.user_id = sp.user_id ORDER BY s.skill_code) AS skills
     FROM student_profiles sp
@@ -1232,7 +1272,7 @@ CREATE FUNCTION post_char_count(txt text) RETURNS integer
 
 -- 피드의 글 한 건. brag = 학생 자랑 글(내 실적 1건 필수, 본문 1~200자), pr = 기업 홍보 글(제목 1~40자, 본문 1~400자).
 -- 둘 다 이메일 주소·전화번호처럼 보이는 글자는 쓸 수 없어요. 글은 쓴 언어 그대로 저장하고(source_lang), 다른 언어 번역은 content_translations 에 둬요.
--- 글쓴이의 레벨은 저장하지 않아요: 앱(BragPost.authorLevel)은 글을 올린 때의 레벨을 스냅샷으로 들고 있지만, DB 는 feed_posts 뷰가 impact_totals 의 지금 값을 보여 줘요.
+-- 글쓴이의 스킬 수는 저장하지 않아요: 앱(BragPost.authorSkills)은 글을 올린 때의 값을 스냅샷으로 들고 있지만, DB 는 feed_posts 뷰가 hero_skills 의 지금 값을 보여 줘요(#38).
 CREATE TABLE social_posts (
   id           uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   kind         post_kind   NOT NULL,
@@ -2003,12 +2043,12 @@ CREATE VIEW company_fee_summary AS
 
 -- 피드 화면(F-503·F-504): 블라인드되지 않은 글 + 글쓴이 표시(홍보 글은 회사의 실천 마크 별 수 — #35, 없으면 NULL) + 붙은 실적 + 태그 + 좋아요 수 + 공식 게시 채널·날짜·상태·게시글 주소.
 -- 예정일·게시료를 누구에게 보여 줄지(쓴 기업에게만)와 게시글 주소가 없을 때 공식 계정으로 이어 주는 일은 앱·서버 계층이 해요(PostVM.official).
--- 자랑 글은 닉네임과 레벨만, 홍보 글은 기업 정보만 보여요 (이메일·연락처 열은 없어요). 최신순은 화면이 ORDER BY created_at DESC 로 정해요.
--- 레벨은 지금 값이에요 (앱의 샘플 글은 올린 때의 레벨을 그대로 들고 있어요).
+-- 자랑 글은 닉네임과 스킬 수만, 홍보 글은 기업 정보만 보여요 (이메일·연락처 열은 없어요). 최신순은 화면이 ORDER BY created_at DESC 로 정해요.
+-- 스킬 수는 지금 값이에요 (앱의 샘플 글은 올린 때의 스킬 수를 그대로 들고 있어요). #38 부터 레벨(author_level)은 없어요.
 CREATE VIEW feed_posts AS
   SELECT p.id, p.kind, p.created_at, p.source_lang, p.title, p.body,
          CASE p.kind WHEN 'brag' THEN sp.nickname ELSE c.name END AS author_name,
-         CASE p.kind WHEN 'brag' THEN t.level END AS author_level,
+         CASE p.kind WHEN 'brag' THEN (SELECT count(*) FROM hero_skills h WHERE h.user_id = p.author_id)::integer END AS author_skills,
          c.industry AS company_industry,
          (c.status = 'approved') AS company_verified,
          m.stars AS company_cert_stars,
@@ -2019,7 +2059,6 @@ CREATE VIEW feed_posts AS
          o.channel AS official_channel, o.scheduled_on AS official_on, o.fee_yen AS official_fee_yen, o.status AS official_status, o.post_url AS official_post_url
     FROM social_posts p
     LEFT JOIN student_profiles sp    ON sp.user_id = p.author_id AND p.kind = 'brag'
-    LEFT JOIN impact_totals t        ON t.user_id = p.author_id AND p.kind = 'brag'
     LEFT JOIN companies c            ON c.id = p.company_id
     LEFT JOIN company_cert_marks m   ON m.company_id = p.company_id AND p.kind = 'pr'
     LEFT JOIN activities a           ON a.id = p.activity_id
@@ -2085,6 +2124,7 @@ COMMENT ON TABLE donation_recipients        IS '기부처 (일본어/한국어 �
 COMMENT ON TABLE donations                  IS '기업 이름으로 한 SDGs 기부 (금액은 매칭의 기부액과 같아야 함) — 수익 모델';
 COMMENT ON TABLE share_cards                IS 'SNS 카드뉴스 (Instagram 1:1·LinkedIn 1.91:1) — F-501';
 COMMENT ON TABLE activities                 IS '활동 기록 (참가·제출·수상·공유, 수정 불가) — F-401';
+COMMENT ON TABLE hero_skills                IS '용사의 스킬 (수상 1건 = 챌린지의 SDG 번호가 붙은 스킬 1개, 수상 활동이 생기면 자동, 수정 불가) — #38';
 COMMENT ON TABLE activity_sdgs              IS '활동이 닿은 SDGs — F-401';
 COMMENT ON TABLE impact_scores              IS 'SDG 별 누적 포인트와 점수 (레이더 차트) — F-401';
 COMMENT ON TABLE user_badges                IS '획득한 배지 — F-402';
@@ -2122,7 +2162,7 @@ COMMENT ON VIEW company_fee_summary         IS '기업별 수수료·기부·운
 COMMENT ON VIEW wallet_balances             IS '학생별 リワード残高 (잔액 = 입금 − 출금) — #25 리워드';
 COMMENT ON VIEW company_prize_summary       IS '기업별 상금 예치·송금·반환 합계 — #25 리워드';
 COMMENT ON VIEW company_cert_marks          IS '회사별 지금 유효한 인증마크 (점수·별 수, 학생 화면의 회사 이름 옆) — 인증마크';
-COMMENT ON VIEW feed_posts                  IS '피드에 보이는 글 (닉네임·레벨 또는 기업 정보·인증마크만, 블라인드 제외) — F-503, F-504';
-COMMENT ON COLUMN feed_posts.author_level   IS '자랑 글 글쓴이의 지금 레벨 (앱은 글을 올린 때의 레벨을 스냅샷으로 저장해요)';
+COMMENT ON VIEW feed_posts                  IS '피드에 보이는 글 (닉네임·스킬 수 또는 기업 정보·인증마크만, 블라인드 제외) — F-503, F-504';
+COMMENT ON COLUMN feed_posts.author_skills  IS '자랑 글 글쓴이가 지금 가진 스킬 수 (#38, hero_skills — 앱은 글을 올린 때의 값을 스냅샷으로 저장해요)';
 COMMENT ON COLUMN feed_posts.company_cert_stars IS '홍보 글 회사의 지금 유효한 실천 마크 별 수 ★0.5~5.0 (company_cert_marks, 없으면 NULL = 未取得 — 화면에 보이지 않아요, #35)';
 COMMENT ON COLUMN cert_applications.stars   IS '실천 마크의 별 수: 달성도 10점마다 0.5 (cert_stars, 0 = 未取得) — 앱의 certStarsOf 와 같아요 (#35)';

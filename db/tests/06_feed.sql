@@ -350,13 +350,13 @@ SELECT pg_temp.eq((SELECT count(*) FROM social_posts WHERE id = '90000000-0000-0
                   + (SELECT count(*) FROM social_post_likes WHERE user_id = 'c0000000-0000-0000-0000-0000000000ee')::int, 0, '계정이 지워지면 그 사람의 글과 좋아요도 함께 지워진다');
 
 -- ───────── 피드 뷰 ─────────
-SELECT pg_temp.eq((SELECT author_name || ' Lv.' || author_level || ' ' || achievement_kind || '/' || achievement_award || ' ' || sdg_ids::text || ' ' || like_count
+SELECT pg_temp.eq((SELECT author_name || ' skill ' || author_skills || ' ' || achievement_kind || '/' || achievement_award || ' ' || sdg_ids::text || ' ' || like_count
                      FROM feed_posts WHERE id = '90000000-0000-0000-0000-000000000003'),
-                  'Ren Lv.2 award/excellence {14,11} 0', '자랑 글: 닉네임 · 레벨(300 pt = Lv.2) · 수상 실적 · 태그(고른 순서) · 좋아요');
-SELECT pg_temp.eq((SELECT author_name || ' Lv.' || author_level FROM feed_posts WHERE id = '90000000-0000-0000-0000-000000000001'), 'Mina Lv.1', '활동이 적은 학생은 Lv.1 로 나온다 (참가 50 + 공유 10 = 60 pt)');
-SELECT pg_temp.eq((SELECT author_name || '/' || company_industry || '/' || company_verified || '/' || COALESCE(author_level::text, '-') || '/' || COALESCE(achievement_kind::text, '-')
+                  'Ren skill 1 award/excellence {14,11} 0', '자랑 글: 닉네임 · 스킬 수(우수상 1건 = 스킬 1개, #38) · 수상 실적 · 태그(고른 순서) · 좋아요');
+SELECT pg_temp.eq((SELECT author_name || ' skill ' || author_skills FROM feed_posts WHERE id = '90000000-0000-0000-0000-000000000001'), 'Mina skill 0', '수상이 없는 학생은 스킬 0 으로 나온다 (참가 · 공유는 스킬이 아니에요)');
+SELECT pg_temp.eq((SELECT author_name || '/' || company_industry || '/' || company_verified || '/' || COALESCE(author_skills::text, '-') || '/' || COALESCE(achievement_kind::text, '-')
                      FROM feed_posts WHERE id = '90000000-0000-0000-0000-000000000010'),
-                  'みなと海洋フーズ/食品/true/-/-', '홍보 글: 기업 이름 · 업종 · 인증 ✓ (레벨·실적은 없다)');
+                  'みなと海洋フーズ/食品/true/-/-', '홍보 글: 기업 이름 · 업종 · 인증 ✓ (스킬 수·실적은 없다)');
 SELECT pg_temp.eq((SELECT challenge_id FROM feed_posts WHERE id = '90000000-0000-0000-0000-000000000010'), 'e1000000-0000-0000-0000-000000000001'::uuid, '홍보 글에 연결한 챌린지가 보인다');
 -- #35 홍보 글의 회사 이름 옆 마크: 그 회사의 지금 유효한 인증마크 별 수 (없으면 NULL = 未取得, 자랑 글에는 없다)
 SELECT pg_temp.eq((SELECT count(*) FROM feed_posts WHERE kind = 'pr' AND company_cert_stars IS NOT NULL)::int, 0, '인증마크를 받은 회사가 없으면 홍보 글에 마크가 없다 (未取得)');

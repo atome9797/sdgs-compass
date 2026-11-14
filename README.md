@@ -562,7 +562,7 @@ PC 폭에서는 왼쪽 메뉴, 좁은 화면에서는 하단 탭으로 바뀌어
 > **DB 의 돈 표는 아직 이전 설계예요.** 아래 ERD 의 `matches` 수수료·기부 열, `donations`, ⑨ #25 리워드 표(`wallet_*` · `prize_deposits` · `withdrawal_requests`)는 2026-11-08 이전 모델이에요. 앱은 이미 직접 지급 모델(채용 무료 · 상금·연구 의뢰비의 10% 수수료)이고, DB 를 옮기는 일은 [docs/fees.md](docs/fees.md) 「남은 일」에 있어요.
 
 <!-- erd:begin — 자동 생성: node scripts/erd.mjs --write (db/schema.sql 에서 읽어요. 직접 고치지 마세요) -->
-표 68개 · 뷰 9개 · 외래 키 124개. 아래 그림과 표 설명은 `db/schema.sql` 을 실제 PostgreSQL 에 올려서 읽어 만든 거라, 스키마가 바뀌면 CI 가 README 를 다시 만들라고 알려 줘요.
+표 69개 · 뷰 9개 · 외래 키 127개. 아래 그림과 표 설명은 `db/schema.sql` 을 실제 PostgreSQL 에 올려서 읽어 만든 거라, 스키마가 바뀌면 CI 가 README 를 다시 만들라고 알려 줘요.
 
 #### 한눈에 보기 (핵심 표만, 열 생략)
 
@@ -771,6 +771,7 @@ erDiagram
     smallint max_team_size
     smallint impact_points
     smallint cover_hue
+    text skill_name
     timestamptz opens_at
     timestamptz closes_at
     uuid approved_by FK
@@ -1062,7 +1063,7 @@ erDiagram
 
 #### ④ Impact Index · 증명서 · SNS — F-104, F-401, F-402, F-501, F-502
 
-활동 기록 → SDG별 점수(레이더 차트)·레벨·배지, 카드뉴스, SHA-256 해시·QR 디지털 증명서와 진위 확인 기록이에요.
+활동 기록 → SDG별 점수(레이더 차트)·배지·스킬(수상 1건 = SDG 번호가 붙은 스킬 1개, #38), 카드뉴스, SHA-256 해시·QR 디지털 증명서와 진위 확인 기록이에요.
 
 ```mermaid
 erDiagram
@@ -1102,6 +1103,19 @@ erDiagram
   activity_sdgs {
     uuid activity_id PK, FK
     smallint sdg_id PK, FK
+  }
+  hero_skills {
+    uuid id PK
+    uuid user_id FK
+    uuid activity_id FK, UK
+    uuid award_id FK
+    text name
+    smallint_array sdg_ids
+    award_kind award_kind
+    text challenge_title
+    text company_name
+    date learned_on
+    timestamptz created_at
   }
   impact_scores {
     uuid user_id PK, FK
@@ -1181,6 +1195,9 @@ erDiagram
   student_profiles ||..o{ activities : "user_id"
   activities ||--o{ activity_sdgs : "activity_id"
   sdgs ||--o{ activity_sdgs : "sdg_id"
+  activities ||..o{ hero_skills : "activity_id, user_id"
+  awards ||..o{ hero_skills : "award_id"
+  student_profiles ||..o{ hero_skills : "user_id"
   sdgs ||--o{ impact_scores : "sdg_id"
   student_profiles ||--o{ impact_scores : "user_id"
   badges ||--o{ user_badges : "badge_code"
@@ -1198,6 +1215,7 @@ erDiagram
 | `share_cards` | SNS 카드뉴스 (Instagram 1:1·LinkedIn 1.91:1) | F-501 |
 | `activities` | 활동 기록 (참가·제출·수상·공유, 수정 불가) | F-401 |
 | `activity_sdgs` | 활동이 닿은 SDGs | F-401 |
+| `hero_skills` | 용사의 스킬 (수상 1건 = 챌린지의 SDG 번호가 붙은 스킬 1개, 수상 활동이 생기면 자동, 수정 불가) | #38 |
 | `impact_scores` | SDG 별 누적 포인트와 점수 (레이더 차트) | F-401 |
 | `user_badges` | 획득한 배지 | F-402 |
 | `portfolio_files` | 직접 올린 포트폴리오 (PDF·URL) | F-104 |
@@ -1656,7 +1674,7 @@ erDiagram
 | `company_cert_marks` | 회사별 지금 유효한 인증마크 (점수·별 수, 학생 화면의 회사 이름 옆) | 인증마크 |
 | `company_fee_summary` | 기업별 수수료·기부·운영 수익 요약 | 수익 모델 |
 | `company_prize_summary` | 기업별 상금 예치·송금·반환 합계 | #25 리워드 |
-| `feed_posts` | 피드에 보이는 글 (닉네임·레벨 또는 기업 정보·인증마크만, 블라인드 제외) | F-503, F-504 |
+| `feed_posts` | 피드에 보이는 글 (닉네임·스킬 수 또는 기업 정보·인증마크만, 블라인드 제외) | F-503, F-504 |
 | `impact_totals` | 학생별 누적 포인트와 레벨 | F-401 |
 | `proposal_current` | 제출 건 + 가장 최신 버전 (심사 화면용) | F-302 |
 | `talent_directory` | 인재 검색에 보이는 학생 (비공개·정지 계정 제외) | F-601 |

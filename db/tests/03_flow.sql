@@ -185,6 +185,20 @@ INSERT INTO activities (id, user_id, kind, challenge_id, title, company_name, po
 INSERT INTO activities (id, user_id, kind, award_id, title, company_name, points, occurred_on) VALUES
   ('ac000000-0000-0000-0000-000000000002', 'c0000000-0000-0000-0000-000000000001', 'award', 'aa000000-0000-0000-0000-000000000001', '海洋プラ', 'みなと海洋フーズ', 400, current_date);
 INSERT INTO activity_sdgs VALUES ('ac000000-0000-0000-0000-000000000001', 14), ('ac000000-0000-0000-0000-000000000001', 12), ('ac000000-0000-0000-0000-000000000002', 14);
+
+-- #38 레벨 대신 스킬: 수상 활동이 생기면 그 챌린지의 SDG 번호가 붙은 스킬이 저절로 생겨요 (스냅샷, 고칠 수 없어요)
+SELECT pg_temp.eq((SELECT name || ' ' || sdg_ids::text || ' ' || award_kind || ' ' || challenge_title || ' ' || company_name FROM hero_skills WHERE activity_id = 'ac000000-0000-0000-0000-000000000002'),
+                  '海洋プラ {14} grand 海洋プラ みなと海洋フーズ', '수상 활동 → 스킬 1개: 스킬 이름이 없으면 활동(챌린지) 이름 · 챌린지의 SDG 번호 · 상 · 기업');
+SELECT pg_temp.eq((SELECT count(*) FROM hero_skills WHERE user_id = 'c0000000-0000-0000-0000-000000000001')::int, 1, '참가 활동은 스킬이 되지 않아요 (수상만)');
+SELECT pg_temp.fails($s$UPDATE hero_skills SET name = '書きかえ' WHERE activity_id = 'ac000000-0000-0000-0000-000000000002'$s$, '23001', '스킬은 고칠 수 없다');
+SELECT pg_temp.eq((SELECT skill_count || ' ' || skill_sdg_ids::text FROM talent_directory WHERE user_id = 'c0000000-0000-0000-0000-000000000001'), '1 {14}', '인재 검색에 스킬 수와 스킬의 SDG 번호가 보인다');
+SAVEPOINT skill_name_case;
+UPDATE challenges SET skill_name = 'エコ包装デザイン' WHERE id = 'e0000000-0000-0000-0000-0000000000f1';
+INSERT INTO activities (id, user_id, kind, award_id, title, company_name, points, occurred_on) VALUES
+  ('ac000000-0000-0000-0000-0000000000b2', 'c0000000-0000-0000-0000-000000000002', 'award', 'aa000000-0000-0000-0000-000000000002', '海洋プラ', 'みなと海洋フーズ', 300, current_date);
+SELECT pg_temp.eq((SELECT name || ' ' || award_kind FROM hero_skills WHERE activity_id = 'ac000000-0000-0000-0000-0000000000b2'), 'エコ包装デザイン excellence', '챌린지에 스킬 이름이 있으면 그 이름으로');
+SELECT pg_temp.fails($s$UPDATE challenges SET skill_name = '' WHERE id = 'e0000000-0000-0000-0000-0000000000f1'$s$, '23514', '스킬 이름은 비울 수 없다 (없으면 NULL)');
+ROLLBACK TO SAVEPOINT skill_name_case;
 SELECT pg_temp.eq((SELECT raw_points FROM impact_scores WHERE user_id = 'c0000000-0000-0000-0000-000000000001' AND sdg_id = 14), 450, 'SDG 14 의 누적 포인트: 참가 50 + 대상 400');
 SELECT pg_temp.eq((SELECT score FROM impact_scores WHERE user_id = 'c0000000-0000-0000-0000-000000000001' AND sdg_id = 14), 78::smallint, 'SDG 14 점수: 100×(1−e^(−450/300)) ≈ 78');
 SELECT pg_temp.eq((SELECT score FROM impact_scores WHERE user_id = 'c0000000-0000-0000-0000-000000000001' AND sdg_id = 12), 15::smallint, 'SDG 12 점수: 100×(1−e^(−50/300)) ≈ 15');

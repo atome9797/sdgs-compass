@@ -23,6 +23,11 @@ const COMMANDS = ["fight", "skill", "look", "run"] as const;
 const ARROWS: Record<string, number> = { ArrowRight: 1, ArrowLeft: -1, ArrowDown: 2, ArrowUp: -2 };
 const TYPE_MS = 32;
 
+/** 효과를 지금 시각으로 더해요 — 눌렀을 때(이벤트 처리기)만 불러요. 그리기 중에는 시각을 읽지 않아요 */
+function pushEffect(list: Effect[], kind: EffectKind, color?: string): void {
+  list.push({ kind, start: performance.now(), color });
+}
+
 export function BattlePanel({ vm }: { vm: BattleVM }) {
   const { t } = useSession();
   const router = useRouter();
@@ -59,7 +64,7 @@ export function BattlePanel({ vm }: { vm: BattleVM }) {
     setTyped(0);
   };
   const play = (kind: EffectKind, color?: string) => {
-    effectsRef.current.push({ kind, start: performance.now(), color });
+    pushEffect(effectsRef.current, kind, color);
     kickRef.current?.();
   };
   const advance = () => {

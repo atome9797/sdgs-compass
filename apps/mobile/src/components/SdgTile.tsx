@@ -6,6 +6,7 @@ import type { Locale } from "@sdgs-compass/core/i18n";
 import { sdgLabel } from "@sdgs-compass/core/labels";
 import { getSdg, sdgTextColor, type SdgId } from "@sdgs-compass/core/sdg";
 import type { SdgCountTileVM, SdgTileVM } from "@sdgs-compass/core/selectors";
+import { SdgEmblem } from "@/components/SdgEmblem";
 import { Chip } from "@/components/ui";
 import { COLORS, PHONE_WIDTH, RADIUS, SDG_TILE_TINT, SPACE, tint } from "@/theme";
 
@@ -108,6 +109,10 @@ export function SdgGrid({ tiles, onPress }: { tiles: readonly SdgCountTileVM[]; 
             style={({ pressed }) => [styles.countTile, { width: size, minHeight: size + 14, backgroundColor: tint(tile.color, zero ? SDG_TILE_TINT.zero : SDG_TILE_TINT.base), opacity: pressed ? 0.8 : 1 }]}
           >
             <View style={[styles.softBar, { backgroundColor: zero ? tint(tile.color, SDG_TILE_TINT.zeroBar) : tile.color }]} />
+            {/* 오른쪽 위에 그 목표의 스킬 문장(#42) */}
+            <View style={[styles.emblem, zero ? styles.emblemZero : null]}>
+              <SdgEmblem id={tile.id} size={Math.round(size * 0.4)} testID={`sdg-tile-${tile.id}-emblem`} />
+            </View>
             <Text style={{ color: ink, fontSize: countSize, lineHeight: countSize + 4, fontWeight: zero ? "700" : "800" }}>
               {tile.openCount}
               <Text style={styles.unit}>{tile.unit}</Text>
@@ -162,6 +167,8 @@ export function SdgPicker({ tiles, locale, selected, onToggle, max }: SdgPickerP
 }
 
 const styles = StyleSheet.create({
+  emblem: { position: "absolute", top: 4, right: 3 },
+  emblemZero: { opacity: 0.7 },
   tile: { alignItems: "center", justifyContent: "center", paddingHorizontal: 2 },
   tileSelected: { borderWidth: 3, borderColor: COLORS.text },
   number: { fontWeight: "800" },

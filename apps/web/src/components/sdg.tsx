@@ -2,12 +2,30 @@
 
 import Link from "next/link";
 import type { CSSProperties } from "react";
+import { sdgEmblem } from "@sdgs-compass/core/emblems";
 import { sdgLabel } from "@sdgs-compass/core/labels";
+import { pngDataUri } from "@sdgs-compass/core/png";
 import { getSdg, sdgTextColor, type SdgId } from "@sdgs-compass/core/sdg";
 import type { SdgCountTileVM, SdgTileVM } from "@sdgs-compass/core/selectors";
 import { SDG_TILE_TINT, tint } from "@sdgs-compass/core/theme";
 import { searchHref } from "@/lib/routes";
 import { useSession } from "@/lib/session";
+
+const emblemUris = new Map<SdgId, string>();
+/** 문장(#42)의 PNG 데이터 URI — 목표마다 한 번만 만들어요(4배로 미리 키워서 칸이 번지지 않게) */
+export function emblemUri(id: SdgId): string {
+  const hit = emblemUris.get(id);
+  if (hit) return hit;
+  const uri = pngDataUri(sdgEmblem(id), 4);
+  emblemUris.set(id, uri);
+  return uri;
+}
+
+/** SDG 목표의 스킬 문장(#42): 이 앱이 그린 16×16 픽셀 그림(공식 아이콘이 아니에요). label 이 없으면 장식(화면 읽기 프로그램은 건너뛰어요) */
+export function SdgEmblem({ id, size = 24, label }: { id: SdgId; size?: number; label?: string }) {
+  const style = { width: size, height: size, backgroundImage: `url("${emblemUri(id)}")` } as CSSProperties;
+  return label ? <span className="emblem" role="img" aria-label={label} style={style} /> : <span className="emblem" aria-hidden="true" style={style} />;
+}
 
 /** 번호가 들어간 작은 색 타일 (공식 로고 이미지는 쓰지 않아요) */
 export function SdgMini({ id }: { id: SdgId }) {
@@ -46,6 +64,8 @@ export function SdgTileGrid({ tiles }: { tiles: readonly SdgCountTileVM[] }) {
               {tile.openCount}
               <span className="sdg-tile__unit">{tile.unit}</span>
             </span>
+            {/* 오른쪽 위에 그 목표의 스킬 문장(#42) */}
+            <SdgEmblem id={tile.id} size={26} />
             <span className="sdg-tile__label">
               <span className="sdg-tile__goal">{tile.id}</span>
               <span className="sdg-tile__name">{tile.short}</span>

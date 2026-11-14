@@ -286,7 +286,7 @@ svg { display: block; }
 /* ───────── SDG 타일 ───────── */
 .sdg-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); gap: 6px; }
 /* 홈 SDG 타일(#29): 큰 숫자 = 그 목표의 모집 중 과제 수(+작은 단위), 아래에 목표 번호(작게)와 짧은 이름. 0건은 옅게(누를 수는 있어요) */
-.sdg-tile { display: flex; flex-direction: column; justify-content: space-between; gap: 4px; min-height: 66px; padding: 6px 2px 7px 7px; border-radius: var(--radius-md); box-shadow: inset 3px 0 0 var(--sdg, var(--border)); color: var(--text); font-weight: 800; line-height: 1.1; }
+.sdg-tile { position: relative; display: flex; flex-direction: column; justify-content: space-between; gap: 4px; min-height: 66px; padding: 6px 2px 7px 7px; border-radius: var(--radius-md); box-shadow: inset 3px 0 0 var(--sdg, var(--border)); color: var(--text); font-weight: 800; line-height: 1.1; }
 .sdg-tile:hover { text-decoration: none; filter: brightness(0.97); }
 .sdg-tile__count { font-size: var(--fs-xl); line-height: 1; font-variant-numeric: tabular-nums; }
 .sdg-tile__unit { margin-left: 2px; font-size: var(--fs-xs); font-weight: 700; }
@@ -294,6 +294,10 @@ svg { display: block; }
 .sdg-tile__goal { font-size: var(--fs-xs); font-weight: 700; line-height: 1; color: var(--text-muted); font-variant-numeric: tabular-nums; }
 .sdg-tile__name { font-size: var(--fs-xs); line-height: 1.15; letter-spacing: -0.02em; word-break: normal; overflow-wrap: normal; }
 .sdg-tile--zero { color: var(--text-muted); }
+.sdg-tile .emblem { position: absolute; top: 4px; right: 3px; }
+.sdg-tile--zero .emblem { filter: grayscale(0.55); opacity: 0.75; }
+/* SDG 목표의 스킬 문장(#42): 16×16 픽셀 그림을 늘려도 칸이 번지지 않게 */
+.emblem { display: inline-block; flex: none; background-size: 100% 100%; background-repeat: no-repeat; image-rendering: crisp-edges; image-rendering: pixelated; }
 .sdg-tile--zero .sdg-tile__count { font-weight: 700; }
 .sdg-mini { display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: 7px; font-size: var(--fs-sm); font-weight: 800; flex: none; }
 .sdg-mini-row { display: flex; flex-wrap: wrap; gap: 4px; }
@@ -792,8 +796,12 @@ a.chip { text-decoration: none; }
 .battle-skills { display: flex; flex-direction: column; gap: 6px; }
 .battle-skill { display: flex; align-items: center; gap: 8px; min-height: var(--tap); padding: 6px 10px; font: inherit; text-align: left; color: var(--game-ink); background: var(--game-panel); border: 2px solid var(--game-ink); border-radius: 8px; cursor: pointer; }
 .battle-skill:focus-visible { outline: 3px solid var(--game-speaker); outline-offset: 2px; }
-.battle-skill__type { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 26px; font-size: var(--fs-sm); font-weight: 900; border: 2px solid var(--game-ink); border-radius: 5px; }
-.battle-skill__name { flex: 1; min-width: 0; font-size: var(--fs-sm); font-weight: 800; }
+.battle-skill__main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.battle-skill__name { font-size: var(--fs-sm); font-weight: 800; }
+/* 기술(#42): 목표의 번호 · 공식 이름, 그 밑에 「わざ：大波そうじ」 */
+.battle-skill__goal { display: flex; align-items: center; gap: 5px; font-size: var(--fs-xs); font-weight: 800; line-height: 1.35; color: var(--game-ink); }
+.battle-skill__move { font-size: var(--fs-xs); font-weight: 700; color: #4a5568; }
+.battle-skill__type { flex: none; display: inline-flex; align-items: center; justify-content: center; min-width: 22px; height: 18px; padding: 0 3px; font-size: 11px; font-weight: 900; border: 1.5px solid var(--game-ink); border-radius: 4px; }
 .battle-skill__match { flex: none; padding: 1px 6px; font-size: var(--fs-xs); font-weight: 900; color: #0f6b4c; background: #ddf5e7; border-radius: 4px; }
 .battle-skill__stars { flex: none; font-size: var(--fs-xs); letter-spacing: 1px; color: #c98a0c; }
 .battle-skill--back { justify-content: center; font-weight: 800; }
@@ -813,7 +821,8 @@ a.chip { text-decoration: none; }
 .status__name { font-size: var(--fs-lg); font-weight: 900; }
 .skill-list { display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 0; list-style: none; }
 .skill { display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px; background: var(--game-panel); border: 2px solid var(--game-ink); border-radius: 10px; }
-.skill__type { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 34px; font-size: var(--fs-lg); font-weight: 900; border: 2px solid var(--game-ink); border-radius: 6px; }
+.skill__badge { flex: none; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.skill__type { flex: none; display: inline-flex; align-items: center; justify-content: center; min-width: 30px; height: 22px; padding: 0 4px; font-size: var(--fs-sm); font-weight: 900; border: 2px solid var(--game-ink); border-radius: 5px; }
 .skill__main { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 .skill__name { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px; font-size: var(--fs-md); font-weight: 900; color: var(--game-ink); }
 .skill__stars { font-size: var(--fs-sm); letter-spacing: 1px; color: #c98a0c; }

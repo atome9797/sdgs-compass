@@ -70,8 +70,12 @@ describe("퀘스트 전투 화면 (#38)", () => {
       ["プラごみ削減アイデア", true],
       ["多言語の防災マップ", false],
     ]);
-    expect(said(vm.skills[0].lines)).toEqual(["narrator: 勇者Minaの「プラごみ削減アイデア」！", "narrator: SDG 14の 経験が いきる！ このクエストと 相性ばつぐんだ！"]);
-    expect(vm.skills[1].lines[1].text).toBe("はじめての 分野だ。新しい スキルを おぼえる チャンス！");
+    // 기술(#42): 퀘스트와 겹치는 SDG(14)의 「大波そうじ」, 겹치지 않으면 스킬의 대표 SDG(11)의 「まちおこし」
+    expect(said(vm.skills[0].lines)).toEqual(["narrator: 勇者Minaの「プラごみ削減アイデア」！", "narrator: 大波そうじ！ SDG 14の 経験が いきる！ このクエストと 相性ばつぐんだ！"]);
+    // 목표의 공식 이름도 함께(기술 이름만으로는 무슨 목표인지 모를 수 있어서)
+    expect(vm.skills[0].move).toEqual({ sdgId: 14, name: "大波そうじ", effect: "wave", color: "#0A97D9", goal: "海の豊かさを守ろう" });
+    expect(vm.skills[1].move).toMatchObject({ sdgId: 11, name: "まちおこし", effect: "town" });
+    expect(vm.skills[1].lines[1].text).toBe("まちおこし！ はじめての 分野だ。新しい スキルを おぼえる チャンス！");
     expect(said([vm.skillPick])).toEqual(["narrator: どの スキルを つかう？"]);
     const ko = selectBattle(initial, "ch-plastic", "ko")!;
     expect(said(ko.intro)[2]).toBe("client: 플라스틱 해파리의 정체는 바로 상품 포장에서 나오는 플라스틱 쓰레기!");

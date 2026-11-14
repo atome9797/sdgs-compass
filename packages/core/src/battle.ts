@@ -4,6 +4,7 @@
 // 그림(WebGL)은 웹이 그려요(apps/web/src/lib/battle). 몬스터 · 배경 · HP · 대사 · 선택지 · 스킬 상성(相性)은 여기 한 곳에서 정해요.
 // 규칙: 기획서를 내면 몬스터의 HP 가 0 = 「クエスト達成！」(수령증과 같은 때). 수상하면 그 퀘스트의 SDG 번호가 붙은 스킬을 얻어요(skills.ts).
 import type { DemoState, FoeKind } from "./domain";
+import { SDG_EMBLEMS, type SkillEffectKind } from "./emblems";
 import { foeOf } from "./foe";
 import { daysBetween, formatDate } from "./format";
 import { pick, type Locale } from "./i18n";
@@ -54,6 +55,8 @@ export interface BattleSkillVM extends HeroSkillVM {
   match: boolean;
   /** 고르면 메시지 창에 차례로 나오는 말 */
   lines: DialogueLine[];
+  /** 쓰는 기술(#42): 퀘스트와 겹치는 SDG 가 있으면 그 SDG, 없으면 스킬의 대표 SDG 의 문장 — 이름 · 효과 모양 · 색 · 목표의 공식 이름(「海の豊かさを守ろう」) */
+  move: { sdgId: SdgId; name: string; effect: SkillEffectKind; color: string; goal: string };
 }
 
 export interface BattleVM {
@@ -191,10 +194,16 @@ export function selectBattle(state: DemoState, challengeId: string, locale: Loca
     const vm = heroSkillVM(skill, locale);
     const match = skillMatches(skill, challenge.sdgIds);
     const shared = skill.sdgIds.find((id) => challenge.sdgIds.includes(id));
+    const moveSdg = match && shared ? shared : vm.sdgId;
+    const move = { sdgId: moveSdg, name: pick(SDG_EMBLEMS[moveSdg].name, locale), effect: SDG_EMBLEMS[moveSdg].effect, color: getSdg(moveSdg).color, goal: pick(getSdg(moveSdg).name, locale) };
     return {
       ...vm,
       match,
-      lines: [narrator(t("battle.skill.use", { name, skill: vm.name })), narrator(match && shared ? t("battle.skill.good", { sdg: shared }) : t("battle.skill.new"))],
+      move,
+      lines: [
+        narrator(t("battle.skill.use", { name, skill: vm.name })),
+        narrator(match && shared ? t("battle.skill.good", { move: move.name, sdg: shared }) : t("battle.skill.new", { move: move.name })),
+      ],
     };
   });
   // 상성이 좋은 스킬을 먼저 (같으면 최근 것부터 — sortSkills 의 순서)

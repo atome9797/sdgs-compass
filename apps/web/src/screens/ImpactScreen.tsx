@@ -11,7 +11,7 @@ import { selectApplications, selectImpact, type ApplicationReviewVM, type HeroSk
 import { selectWallet } from "@sdgs-compass/core/walletView";
 import { HeroPortrait } from "@/components/battle/HeroPortrait";
 import { RadarChart } from "@/components/RadarChart";
-import { SdgMiniRow } from "@/components/sdg";
+import { SdgEmblem, SdgMiniRow } from "@/components/sdg";
 import { ButtonLink, Empty, ScreenHead, Section, Tag } from "@/components/ui";
 import { buildHref, challengeHref, receiptHref, ROUTES } from "@/lib/routes";
 import { useSession } from "@/lib/session";
@@ -86,8 +86,12 @@ function ReviewResult({ review, id }: { review: ApplicationReviewVM; id: string 
 function SkillRow({ skill }: { skill: HeroSkillVM }) {
   return (
     <li className="skill" aria-label={skill.ariaLabel}>
-      <span className="skill__type" style={{ background: skill.color, color: skill.textColor }} aria-hidden="true">
-        {skill.sdgId}
+      {/* 스킬의 대표 SDG 의 문장(#42) + 번호 */}
+      <span className="skill__badge" aria-hidden="true">
+        <SdgEmblem id={skill.sdgId} size={34} />
+        <span className="skill__type" style={{ background: skill.color, color: skill.textColor }}>
+          {skill.sdgId}
+        </span>
       </span>
       <div className="skill__main">
         <p className="skill__name">

@@ -8,6 +8,9 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import type { BattleSkillVM, BattleVM, DialogueLine, LookTopicVM, TopicId } from "@sdgs-compass/core/battle";
+import type { SkillEffectKind } from "@sdgs-compass/core/emblems";
+import { getSdg, sdgTextColor } from "@sdgs-compass/core/sdg";
+import { SdgEmblem } from "@/components/sdg";
 import type { Effect, EffectKind } from "@/lib/battle/scene";
 import { searchHref, submitHref } from "@/lib/routes";
 import { useSession } from "@/lib/session";
@@ -28,8 +31,8 @@ const LIST_STEPS: Record<string, number> = { ArrowDown: 1, ArrowUp: -1 };
 const TYPE_MS = 30;
 
 /** 효과를 지금 시각으로 더해요 — 눌렀을 때(이벤트 처리기)만 불러요. 그리기 중에는 시각을 읽지 않아요 */
-function pushEffect(list: Effect[], kind: EffectKind, color?: string): void {
-  list.push({ kind, start: performance.now(), color });
+function pushEffect(list: Effect[], kind: EffectKind, color?: string, style?: SkillEffectKind): void {
+  list.push({ kind, start: performance.now(), color, style });
 }
 
 /** 화살표 키로 단추 사이를 옮겨 다녀요(끝에서는 처음으로) */
@@ -85,8 +88,8 @@ export function BattlePanel({ vm }: { vm: BattleVM }) {
     setIndex(0);
     setTyped(0);
   };
-  const play = (kind: EffectKind, color?: string) => {
-    pushEffect(effectsRef.current, kind, color);
+  const play = (kind: EffectKind, color?: string, style?: SkillEffectKind) => {
+    pushEffect(effectsRef.current, kind, color, style);
     kickRef.current?.();
   };
   const advance = () => {
@@ -117,7 +120,8 @@ export function BattlePanel({ vm }: { vm: BattleVM }) {
   };
   const castSkill = (skill: BattleSkillVM) => {
     setMenu("commands");
-    play("skill", skill.color);
+    // 기술(#42): 그 SDG 의 효과 모양과 색 — 14 큰 파도 · 6 물대포 · 7 번개 …
+    play("skill", skill.move.color, skill.move.effect);
     say([...skill.lines, vm.ask]);
   };
   const look = () => {
@@ -206,10 +210,18 @@ export function BattlePanel({ vm }: { vm: BattleVM }) {
           <div className="battle-skills" role="group" aria-label={t("battle.cmd.skill")} onKeyDown={moveInList}>
             {vm.skills.map((skill) => (
               <button key={skill.id} type="button" className="battle-skill" onClick={() => castSkill(skill)} aria-label={skill.ariaLabel}>
-                <span className="battle-skill__type" style={{ background: skill.color, color: skill.textColor }} aria-hidden="true">
-                  {skill.sdgId}
+                <SdgEmblem id={skill.move.sdgId} size={30} />
+                <span className="battle-skill__main">
+                  <span className="battle-skill__name">{skill.name}</span>
+                  {/* 목표의 공식 이름은 그대로 보여요 — 기술 이름은 그 위에 더한 게임의 이름 */}
+                  <span className="battle-skill__goal">
+                    <span className="battle-skill__type" style={{ background: getSdg(skill.move.sdgId).color, color: sdgTextColor(skill.move.sdgId) }} aria-hidden="true">
+                      {skill.move.sdgId}
+                    </span>
+                    {skill.move.goal}
+                  </span>
+                  <span className="battle-skill__move">{t("battle.skill.move", { move: skill.move.name })}</span>
                 </span>
-                <span className="battle-skill__name">{skill.name}</span>
                 {skill.match ? <span className="battle-skill__match">{t("battle.skill.match")}</span> : null}
                 <span className="battle-skill__stars" aria-hidden="true">
                   {"★".repeat(skill.stars)}

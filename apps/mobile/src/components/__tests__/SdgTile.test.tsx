@@ -3,6 +3,7 @@
 import { fireEvent, render, screen } from "@testing-library/react-native";
 import { selectHome, selectSdgCountTiles, selectSdgTiles } from "@sdgs-compass/core/selectors";
 import { createInitialState } from "@sdgs-compass/data/seed";
+import { emblemPng } from "../SdgEmblem";
 import { SdgGrid, SdgPicker, SdgTile } from "../SdgTile";
 
 test("누르면 onPress 가 불리고, 선택 전에는 ✓ 가 없어요", async () => {
@@ -52,4 +53,12 @@ test("고르는 화면(과제 만들기·인재·글쓰기)의 칩에는 숫자�
   expect(screen.getByText("14 海")).toBeOnTheScreen();
   expect(screen.getByLabelText("目標14 海の豊かさを守ろう")).toBeOnTheScreen();
   expect(screen.queryByText("0")).not.toBeOnTheScreen();
+});
+
+test("홈 타일의 오른쪽 위에 그 목표의 스킬 문장(#42) — 웹과 같은 그림을 PNG 데이터 URI 로, 목표마다 한 번만 만들어요", async () => {
+  await render(<SdgGrid tiles={selectHome(demo, "ja").sdgTiles} onPress={() => undefined} />);
+  const emblem = screen.getByTestId("sdg-tile-14-emblem");
+  expect(emblem.props.source.uri.startsWith("data:image/png;base64,iVBORw0KGgo")).toBe(true);
+  expect(emblemPng(14)).toBe(emblemPng(14));
+  expect(emblemPng(14)).not.toBe(emblemPng(6));
 });

@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { bayer, hash01, hexToRgba, mix, PixelGrid } from "@sdgs-compass/core/pixels";
+import { SDG_EMBLEMS } from "@sdgs-compass/core/emblems";
 import { DURATION, layout, portraitLayout, settled, type Effect, type SceneInput } from "./scene";
+import { skillFx } from "./skillFx";
 import { background, foeSprite, FOE_BASE, heroBack, heroFront, partyCapes, portraitBackground, STAGE } from "@sdgs-compass/core/sprites";
 
 const FOE_KINDS = ["jelly", "bottle", "smog", "ghost", "wall", "bird"] as const;
@@ -139,5 +141,55 @@ describe("움직임 (#38)", () => {
     expect(items.filter((i) => i.tex === "dot").map((i) => i.color).sort()).toEqual(["#0A97D9", "#FD9D24"]);
     expect(items.filter((i) => i.tex === "hero0")).toHaveLength(1);
     expect(portraitLayout(0, [], true, { w: 24, h: 28 }).map((i) => i.tex)).toEqual(["bg", "hero0"]);
+  });
+});
+
+describe("스킬 효과 (#42) — SDG 목표마다 다른 모양", () => {
+  const STYLES = [...new Set(Object.values(SDG_EMBLEMS).map((e) => e.effect))];
+  const input = { color: "#0A97D9", foe: { x: FOE_BASE.x, y: 56, base: FOE_BASE.y }, hero: { x: 44, y: 120 } };
+  const stage: SceneInput = { t: 0, effects: [], defeated: false, reduced: false, sea: true, foeSize: { w: 32, h: 32 }, heroSize: { w: 24, h: 28 } };
+
+  it("17개 목표가 저마다 다른 효과를 가져요", () => {
+    expect(STYLES).toHaveLength(17);
+  });
+
+  it("시작 전 · 끝난 뒤에는 아무것도 없고, 가운데에는 점이 무대 근처에만 그려져요", () => {
+    for (const style of STYLES) {
+      expect(skillFx({ ...input, style, p: 0 }), style).toEqual([]);
+      expect(skillFx({ ...input, style, p: 1 }), style).toEqual([]);
+      for (const p of [0.15, 0.4, 0.6, 0.85]) {
+        const items = skillFx({ ...input, style, p });
+        for (const item of items) {
+          expect(item.tex, style).toBe("dot");
+          expect(Number.isInteger(item.x) && Number.isInteger(item.y), style).toBe(true);
+          expect(item.x, `${style} x`).toBeGreaterThan(-80);
+          expect(item.x + item.w, `${style} x+w`).toBeLessThan(STAGE.w + 80);
+          expect(item.y, `${style} y`).toBeGreaterThan(-80);
+          expect(item.y + item.h, `${style} y+h`).toBeLessThan(STAGE.h + 80);
+          expect(item.alpha ?? 1, style).toBeGreaterThanOrEqual(0);
+          expect(item.alpha ?? 1, style).toBeLessThanOrEqual(1);
+        }
+      }
+      expect(skillFx({ ...input, style, p: 0.4 }).length + skillFx({ ...input, style, p: 0.6 }).length, style).toBeGreaterThan(5);
+    }
+  });
+
+  it("늘 같은 그림(같은 진행이면 같은 점)이고, 효과마다 모양이 달라요", () => {
+    for (const style of STYLES) expect(skillFx({ ...input, style, p: 0.5 })).toEqual(skillFx({ ...input, style, p: 0.5 }));
+    const shapes = new Set(STYLES.map((style) => JSON.stringify(skillFx({ ...input, style, p: 0.5 }).map((i) => [i.x, i.y]))));
+    expect(shapes.size).toBe(17);
+  });
+
+  it("14 큰 파도: 왼쪽에서 오른쪽으로 밀려와요(물마루가 움직여요)", () => {
+    const front = (p: number) => Math.max(...skillFx({ ...input, style: "wave", p }).map((i) => i.x));
+    expect(front(0.5)).toBeGreaterThan(front(0.2));
+    expect(skillFx({ ...input, style: "wave", p: 0.5 }).some((i) => i.color === "#FFFFFF")).toBe(true);
+  });
+
+  it("무대에서: 스킬 효과에 모양이 있으면 그 모양으로, 움직임 줄이기면 그리지 않아요", () => {
+    const effects: Effect[] = [{ kind: "skill", start: 0, color: "#0A97D9", style: "wave" }];
+    const mid = layout({ ...stage, effects, t: DURATION.skill * 0.5 });
+    expect(mid.filter((i) => i.tex === "dot").length).toBeGreaterThan(30);
+    expect(layout({ ...stage, reduced: true, effects, t: DURATION.skill * 0.5 }).some((i) => i.tex === "dot")).toBe(false);
   });
 });

@@ -10,6 +10,7 @@ import { selectWallet } from "@sdgs-compass/core/walletView";
 import { ActivityRow } from "@/components/ActivityRow";
 import { RadarChart } from "@/components/RadarChart";
 import { Screen, ScreenTitle } from "@/components/Screen";
+import { SdgEmblem } from "@/components/SdgEmblem";
 import { SdgMiniRow, SdgTile } from "@/components/SdgTile";
 import { Badge, Button, Card, Empty, Notice, Section, Txt } from "@/components/ui";
 import { useApp } from "@/lib/AppProvider";
@@ -301,10 +302,14 @@ export function ImpactScreen() {
 function SkillRow({ skill }: { skill: HeroSkillVM }) {
   return (
     <View style={styles.skill} accessible accessibilityLabel={skill.ariaLabel} testID={`impact-skill-${skill.activityId}`}>
-      <View style={[styles.skillType, { backgroundColor: skill.color }]}>
-        <Txt variant="title" bold style={{ color: skill.textColor }}>
-          {skill.sdgId}
-        </Txt>
+      {/* 대표 SDG 의 스킬 문장(#42) + 번호 */}
+      <View style={styles.skillBadge}>
+        <SdgEmblem id={skill.sdgId} size={36} />
+        <View style={[styles.skillType, { backgroundColor: skill.color }]}>
+          <Txt bold style={{ color: skill.textColor }}>
+            {skill.sdgId}
+          </Txt>
+        </View>
       </View>
       <View style={styles.skillMain}>
         <Txt bold style={styles.skillName}>
@@ -324,7 +329,8 @@ function SkillRow({ skill }: { skill: HeroSkillVM }) {
 const styles = StyleSheet.create({
   skillList: { gap: SPACE.sm },
   skill: { flexDirection: "row", alignItems: "flex-start", gap: SPACE.md, padding: SPACE.md, borderRadius: RADIUS.md, borderWidth: 2, borderColor: GAME_COLORS.ink, backgroundColor: GAME_COLORS.panel },
-  skillType: { width: 44, height: 38, alignItems: "center", justifyContent: "center", borderRadius: 6, borderWidth: 2, borderColor: GAME_COLORS.ink },
+  skillBadge: { alignItems: "center", gap: 4 },
+  skillType: { minWidth: 32, height: 24, paddingHorizontal: 4, alignItems: "center", justifyContent: "center", borderRadius: 5, borderWidth: 2, borderColor: GAME_COLORS.ink },
   skillTypeSmall: { minWidth: 28, height: 24, paddingHorizontal: 4, alignItems: "center", justifyContent: "center", borderRadius: 4 },
   skillMain: { flex: 1, gap: 3 },
   skillName: { color: GAME_COLORS.ink },

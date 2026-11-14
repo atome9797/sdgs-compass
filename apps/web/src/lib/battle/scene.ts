@@ -1,7 +1,9 @@
 // 전투 화면(#38)의 움직임: 시각 t(ms)에 무엇을 어디에 그릴지(그리기 목록)를 계산해요. 그리는 쪽(WebGL · 2D)은 이 목록만 따라 그려요.
 // 순수 함수라 브라우저 없이 테스트해요. 위치는 모두 내부 해상도(STAGE 240×150)의 정수 칸 — 픽셀 그림이 또렷하게 보이도록.
+import type { SkillEffectKind } from "@sdgs-compass/core/emblems";
 import { hash01 } from "@sdgs-compass/core/pixels";
 import { FOE_BASE, HERO_BASE, STAGE } from "@sdgs-compass/core/sprites";
+import { skillFx } from "./skillFx";
 
 export type TextureKey = "bg" | "foe" | "hero0" | "hero1" | "hero2" | "cloud" | "dot";
 
@@ -23,16 +25,18 @@ export interface DrawItem {
   wave?: number;
 }
 
-/** intro = 등장 · skill = 스킬 사용(색 = 스킬의 SDG 색) · fight = 도전 · run = 도망 · clear = 쓰러짐(クエスト達成) */
+/** intro = 등장 · skill = 스킬 사용(색 = 스킬의 SDG 색, style = 그 SDG 의 효과 모양 #42) · fight = 도전 · run = 도망 · clear = 쓰러짐(クエスト達成) */
 export type EffectKind = "intro" | "skill" | "fight" | "run" | "clear";
 export interface Effect {
   kind: EffectKind;
   /** 시작 시각(ms) */
   start: number;
   color?: string;
+  /** 스킬 효과의 모양(#42) — 없으면 둘레로 퍼지는 점 */
+  style?: SkillEffectKind;
 }
 
-export const DURATION: Record<EffectKind, number> = { intro: 700, skill: 1000, fight: 650, run: 600, clear: 1100 };
+export const DURATION: Record<EffectKind, number> = { intro: 700, skill: 1300, fight: 650, run: 600, clear: 1100 };
 
 export interface SceneInput {
   t: number;
@@ -131,8 +135,18 @@ export function layout(input: SceneInput): DrawItem[] {
     items.push({ tex: slot.tex, x, y, w: hw, h: hh });
   }
 
-  // ── 스킬의 불꽃: 몬스터 둘레로 SDG 색 점이 퍼져요 ──
-  if (skill && skillP !== null && skillP < 1 && !reduced) {
+  // ── 스킬의 효과(#42): SDG 마다 다른 모양(14 큰 파도 · 6 물대포 · 7 번개 …) — 모양이 없으면 몬스터 둘레로 SDG 색 점이 퍼져요 ──
+  if (skill?.style && skillP !== null && skillP < 1 && !reduced) {
+    items.push(
+      ...skillFx({
+        style: skill.style,
+        p: skillP,
+        color: skill.color ?? "#FFD75E",
+        foe: { x: FOE_BASE.x, y: FOE_BASE.y - fh / 2, base: FOE_BASE.y },
+        hero: { x: HERO_BASE.x - 22, y: HERO_BASE.y - hh / 2 + 4 },
+      }),
+    );
+  } else if (skill && skillP !== null && skillP < 1 && !reduced) {
     const local = clamp01((skillP - 0.2) / 0.8);
     if (local > 0) {
       const cx = FOE_BASE.x;

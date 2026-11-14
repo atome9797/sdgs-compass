@@ -96,12 +96,6 @@ export const common = {
   "award.excellence": { ja: "優秀賞", ko: "우수상" },
   "award.special": { ja: "特別賞", ko: "특별상" },
 
-  "level.label": { ja: "Lv.{level} {name}", ko: "Lv.{level} {name}" },
-  "level.1": { ja: "見習い勇者", ko: "견습 용사" },
-  "level.2": { ja: "駆け出し勇者", ko: "신참 용사" },
-  "level.3": { ja: "一人前の勇者", ko: "어엿한 용사" },
-  "level.4": { ja: "熟練の勇者", ko: "숙련된 용사" },
-  "level.5": { ja: "伝説の勇者", ko: "전설의 용사" },
 
   "badge.firstStep.name": { ja: "はじめの一歩", ko: "첫걸음" },
   "badge.firstStep.desc": { ja: "最初の課題に応募した", ko: "첫 챌린지에 참여했어요" },
@@ -117,7 +111,7 @@ export const common = {
   "badge.sharer.desc": { ja: "カードニュースを3回以上共有した", ko: "카드뉴스를 3회 이상 공유했어요" },
 
   "reason.sdg": { ja: "関心のSDGs（{sdgs}）に一致", ko: "관심 SDGs({sdgs})와 일치" },
-  "reason.skill": { ja: "スキルが合います：{skills}", ko: "스킬이 맞아요: {skills}" },
+  "reason.skill": { ja: "得意分野が合います：{skills}", ko: "특기가 맞아요: {skills}" },
   "reason.deadline": { ja: "締切まであと{days}日", ko: "마감까지 {days}일" },
   "reason.prize": { ja: "賞金 {amount}", ko: "상금 {amount}" },
   "reason.internship": { ja: "インターンにつながります", ko: "인턴십으로 이어져요" },

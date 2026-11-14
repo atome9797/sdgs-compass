@@ -10,7 +10,7 @@ import type { Locale } from "./i18n";
 import { sdgLabel } from "./labels";
 import { makeT, type MessageKey } from "./messages";
 import type { SdgId } from "./sdg";
-import { activityVM, certificateVM, selectImpact, type ActivityVM } from "./selectors";
+import { activityVM, certificateVM, selectImpact, selectSkills, type ActivityVM } from "./selectors";
 
 // ───────── 기간 ─────────
 
@@ -101,7 +101,8 @@ export interface ApplicationSummaryVM {
   docTitle: string;
   createdOnLabel: string;
   rangeLabel: string;
-  holder: { name: string; affiliation: string; levelLabel: string };
+  /** skillsLabel: #38 레벨 대신 기간 안에 얻은 스킬(수상) 「SDG 14 …（優秀賞）、…」 또는 「まだありません」 */
+  holder: { name: string; affiliation: string; skillsLabel: string };
   stats: SummaryStatVM[];
   /** 표에 보이는 활동 (최근 것부터, 최대 SUMMARY_MAX_ACTIVITIES) */
   activities: ActivityVM[];
@@ -176,7 +177,12 @@ export function selectApplicationSummary(state: DemoState, locale: Locale, perio
   const shownActivities = activities.slice(0, SUMMARY_MAX_ACTIVITIES);
   const shownCertificates = certificates.slice(0, SUMMARY_MAX_CERTIFICATES);
   const notes = SUMMARY_NOTE_KEYS.map((key) => t(key));
-  const holder = { name: impact.nickname, affiliation: `${impact.university} · ${impact.faculty}`, levelLabel: impact.levelLabel };
+  const skills = selectSkills({ skills: state.skills.filter((skill) => inPeriod(skill.learnedOn)) }, locale);
+  const skillsLabel =
+    skills.length === 0
+      ? t("summary.holder.skillsNone")
+      : skills.map((skill) => t("summary.holder.skillItem", { sdg: skill.sdgId, skill: skill.name, award: skill.awardLabel })).join(locale === "ja" ? "、" : ", ");
+  const holder = { name: impact.nickname, affiliation: `${impact.university} · ${impact.faculty}`, skillsLabel };
   const docTitle = t("summary.docTitle");
 
   const vm: Omit<ApplicationSummaryVM, "shareText"> = {
@@ -216,6 +222,7 @@ function summaryShareText(
     vm.docTitle,
     vm.createdOnLabel,
     t("summary.text.holder", { name: vm.holder.name, affiliation: vm.holder.affiliation }),
+    t("summary.text.skills", { skills: vm.holder.skillsLabel }),
     t("summary.text.range", { range: vm.rangeLabel }),
     t("summary.text.counts", {
       participations: formatNumber(counts.participations),

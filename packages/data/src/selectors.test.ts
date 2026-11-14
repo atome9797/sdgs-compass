@@ -598,7 +598,7 @@ describe("심사 결과를 학생에게 — 「応募中の課題」 카드 (#30
 });
 
 describe("Impact·증명서·카드뉴스", () => {
-  it("실적은 포인트 숫자 없이 레벨·진행률로 보여요 (어느 화면 모델에도 「… pt」 글자가 없어요 — #30 의 심사 보너스 한 줄만 예외)", () => {
+  it("실적은 포인트 숫자 없이 스킬로 보여요 (어느 화면 모델에도 「… pt」 · 레벨 글자가 없어요 — #30 의 심사 보너스 한 줄만 예외)", () => {
     for (const [, state] of STATES) {
       for (const locale of LOCALES) {
         const views = allViews(state, locale);
@@ -608,15 +608,11 @@ describe("Impact·증명서·카드뉴스", () => {
         const rest = { ...views, applications: views.applications.map((a) => ({ ...a, review: a.review ? { ...a.review, bonusLabel: null, summary: "" } : null })) };
         const text = JSON.stringify(rest);
         expect(text).not.toMatch(/\d\s?pt\b/);
+        // #38 레벨은 없어졌어요 — 어느 화면 모델에도 「Lv.」 · 「EXP」가 없어요
+        expect(text).not.toMatch(/Lv\.\s?\d|EXP/);
         const impact = selectImpact(state, locale);
-        expect(Number.isInteger(impact.progressPercent)).toBe(true);
-        expect(impact.progressPercent).toBeGreaterThanOrEqual(0);
-        expect(impact.progressPercent).toBeLessThanOrEqual(100);
-        if (impact.level < 5) {
-          expect(impact.progressPercent).toBeLessThanOrEqual(99);
-          expect(impact.nextLevelLabel).toContain(`${impact.progressPercent}%`);
-        }
-        expect(impact.levelHint.length).toBeGreaterThan(0);
+        expect(impact.skills.length).toBe(state.skills.length);
+        expect(impact.skillsHint.length).toBeGreaterThan(0);
       }
     }
   });
@@ -638,10 +634,8 @@ describe("Impact·증명서·카드뉴스", () => {
       expect(impact.topSdgs.length).toBeLessThanOrEqual(3);
       const scores = impact.topSdgs.map((s) => s.score);
       expect([...scores].sort((a, b) => b - a)).toEqual(scores);
-      expect(impact.progressRatio).toBeGreaterThanOrEqual(0);
-      expect(impact.progressRatio).toBeLessThanOrEqual(1);
       expect(impact.badges.length).toBeGreaterThan(0);
-      expect(impact.levelLabel).toContain(String(impact.level));
+      expect(impact.skillCountLabel).toBe(locale === "ja" ? "スキル 2" : "스킬 2개");
       expect(impact.activities.length).toBeGreaterThan(0);
     }
   });
@@ -729,13 +723,13 @@ describe("메시지·인재", () => {
     }
   });
 
-  it("인재 검색: 같은 조건이면 레벨 → 수상 수 순서로 보여요(포인트 숫자는 보이지 않아요)", () => {
+  it("인재 검색: 같은 조건이면 스킬(수상) 수 → 내부 점수 순서로 보여요(포인트 숫자 · 레벨은 보이지 않아요, #38)", () => {
     const list = selectTalent(initial, "ja", { query: "", sdgIds: [] }).candidates.filter((c) => c.canScout && !c.isDemoStudent);
     for (let i = 1; i < list.length; i++) {
       const [a, b] = [list[i - 1], list[i]];
-      expect(a.level > b.level || (a.level === b.level && a.awards >= b.awards)).toBe(true);
+      expect(a.awards > b.awards || (a.awards === b.awards && a.points >= b.points)).toBe(true);
     }
-    expect(list.every((c) => c.levelLabel.startsWith(`Lv.${c.level}`))).toBe(true);
+    expect(list.every((c) => c.skillsLabel === `スキル ${c.awards}`)).toBe(true);
   });
 
   it("인재 검색: SDG 필터와 스킬 낱말(일본어·한국어 모두)로 찾아요", () => {
@@ -962,7 +956,7 @@ describe("SNS 피드 (F-503 · F-504)", () => {
     expect(selectFeed(mineBrag, "ja", "b2c").posts[0].id).toBe(mineBrag.posts[0].id); // 방금 쓴 글이 맨 위
   });
 
-  it("홍보 글에는 항상 PR 표시와 기업 정보가, 자랑 글에는 닉네임·레벨·실적만 있어요", () => {
+  it("홍보 글에는 항상 PR 표시와 기업 정보가, 자랑 글에는 닉네임·스킬 수·실적만 있어요", () => {
     for (const locale of LOCALES) {
       for (const p of selectFeed(initial, locale, "b2c").posts) {
         if (p.kind === "pr") {
@@ -971,7 +965,7 @@ describe("SNS 피드 (F-503 · F-504)", () => {
           expect(p.achievement).toBeNull();
           expect(p.authorMeta.length).toBeGreaterThan(0);
         } else {
-          expect(p.authorMeta).toMatch(/^Lv\.\d$/);
+          expect(p.authorMeta).toMatch(locale === "ja" ? /^スキル \d$/ : /^스킬 \d$/);
           expect(p.authorName).toMatch(/^[A-Za-z]+$/); // 닉네임뿐 (학교·실명 없음)
           expect(p.achievement).not.toBeNull();
           expect(p.title).toBeNull();
@@ -1099,7 +1093,7 @@ describe("SNS 피드 (F-503 · F-504)", () => {
     expect(composer.activities[0].label).toContain("🏆");
     expect(selectComposer(initial, "ja", "brag", { activityId: "h-1" }).selectedActivityId).toBe("h-1");
     expect(selectComposer(initial, "ja", "brag", { activityId: "없음" }).selectedActivityId).toBe(composer.selectedActivityId);
-    expect(composer).toMatchObject({ kind: "brag", bodyLimit: 200, maxSdgs: 3, author: { name: "Mina", meta: "Lv.3", avatar: "M" } });
+    expect(composer).toMatchObject({ kind: "brag", bodyLimit: 200, maxSdgs: 3, author: { name: "Mina", meta: "スキル 2", avatar: "M" } });
     for (const a of composer.activities) expect(a.sdgIds.length).toBeLessThanOrEqual(3);
   });
 

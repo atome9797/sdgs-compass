@@ -79,7 +79,7 @@ export function WalletScreen() {
       {/* 고지 ①~③ — 순서대로 늘 보여요 (① 은 맨 위에도) */}
       <Section title={t("wallet.noticesTitle")}>
         <View style={styles.notices} testID="wallet-notices">
-          {[vm.notices.direct, vm.notices.tax, vm.notices.level].map((text, index) => (
+          {[vm.notices.direct, vm.notices.tax, vm.notices.skills].map((text, index) => (
             <Notice key={index} tone="warning" message={text} />
           ))}
         </View>

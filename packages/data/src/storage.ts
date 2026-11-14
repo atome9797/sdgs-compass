@@ -8,6 +8,7 @@ import { isWorkCategory, isWorkStatus } from "@sdgs-compass/core/network";
 import { isTeamSize, TEAM_SIZE } from "@sdgs-compass/core/proposal";
 import { isResearchField, isResearchStatus } from "@sdgs-compass/core/research";
 import { SDG_IDS, type SdgId } from "@sdgs-compass/core/sdg";
+import { syncSkills } from "@sdgs-compass/core/skills";
 import { rebaseState } from "@sdgs-compass/core/state";
 import { createInitialState } from "./seed";
 
@@ -139,7 +140,7 @@ function isSocialPost(value: unknown): boolean {
   if (value.kind === "brag") {
     const a = value.achievement;
     return (
-      typeof value.authorName === "string" && typeof value.authorLevel === "number" &&
+      typeof value.authorName === "string" && typeof value.authorSkills === "number" &&
       isObject(a) && (a.activityId === null || typeof a.activityId === "string") &&
       (a.kind === "award" || a.kind === "submission" || a.kind === "participation") &&
       isText(a.title) && isText(a.companyName) && (a.award === null || a.award === "grand" || a.award === "excellence" || a.award === "special") && isSdgList(a.sdgIds)
@@ -155,6 +156,17 @@ function isSocialPost(value: unknown): boolean {
     );
   }
   return false;
+}
+
+const isAward = (value: unknown): boolean => value === "grand" || value === "excellence" || value === "special";
+
+/** #38 스킬 한 개 (수상 기록의 스냅샷) */
+function isHeroSkill(value: unknown): boolean {
+  return (
+    isObject(value) && typeof value.id === "string" && isText(value.name) && isSdgList(value.sdgIds) && (value.sdgIds as unknown[]).length > 0 &&
+    isAward(value.award) && isText(value.questTitle) && isText(value.companyName) && isDay(value.learnedOn) && typeof value.activityId === "string" &&
+    (value.proposalId === undefined || typeof value.proposalId === "string")
+  );
 }
 
 const isYen = (value: unknown): value is number => typeof value === "number" && Number.isSafeInteger(value) && value > 0;
@@ -259,6 +271,8 @@ export function isDemoState(value: unknown): value is DemoState {
   if (!isObject(value.me) || typeof value.me.id !== "string" || typeof value.me.nickname !== "string") return false;
   const lists = ["companies", "challenges", "teamPosts", "bookmarks", "proposals", "history", "talent", "scouts", "matches", "posts"] as const;
   for (const key of lists) if (!Array.isArray(value[key])) return false;
+  if (!Array.isArray(value.skills) || !value.skills.every(isHeroSkill)) return false;
+  if (!(value.teamPosts as unknown[]).every((p) => isObject(p) && typeof p.id === "string" && typeof p.authorSkills === "number")) return false;
   if (!(value.posts as unknown[]).every(isSocialPost)) return false;
   if (!isWallet(value.wallet) || !Array.isArray(value.prizePayments) || !value.prizePayments.every(isPrizePayment)) return false;
   if (!isResearcher(value.researcher) || !Array.isArray(value.researchRequests) || !value.researchRequests.every(isResearchRequest)) return false;
@@ -351,6 +365,50 @@ function upgradeMoney(state: Record<string, unknown>): Record<string, unknown> {
   return next;
 }
 
+/**
+ * #38 레벨 → 스킬: 예전에 저장한 상태에는 스킬 · 퀘스트의 스킬 이름 · 몬스터가 없고, 글쓴이에게 레벨(authorLevel)이 있어요.
+ * 스킬은 샘플의 「앱을 쓰기 전 수상」 스킬로 채우고(이 앱에서 받은 상의 스킬은 불러온 뒤 syncSkills 가 만들어요),
+ * 글쓴이의 레벨은 샘플 글이면 샘플의 스킬 수, 내 글이면 지금 가진 스킬 수로 바꿔요.
+ */
+function upgradeSkills(data: Record<string, unknown>, sample: () => DemoState): Record<string, unknown> {
+  if (!isDay(data.today)) return data;
+  let next = data;
+  let fresh: DemoState | null = null;
+  const sampleState = () => (fresh ??= sample());
+  if (next.skills === undefined) {
+    const historyIds = new Set(Array.isArray(next.history) ? next.history.map((a) => (isObject(a) ? a.id : null)) : []);
+    next = { ...next, skills: sampleState().skills.filter((skill) => historyIds.has(skill.activityId)) };
+  }
+  const mySkills = Array.isArray(next.skills) ? next.skills.length : 0;
+  const withSkills = (list: unknown, sampleList: readonly { id: string; authorSkills?: number }[]): unknown => {
+    if (!Array.isArray(list) || !list.some((p) => isObject(p) && p.authorSkills === undefined && "authorLevel" in p)) return list;
+    const known = new Map(sampleList.map((p) => [p.id, p.authorSkills]));
+    return list.map((p) => {
+      if (!isObject(p) || p.authorSkills !== undefined || !("authorLevel" in p)) return p;
+      const rest: Record<string, unknown> = { ...p, authorSkills: p.mine === true ? mySkills : (known.get(String(p.id)) ?? 0) };
+      delete rest.authorLevel;
+      return rest;
+    });
+  };
+  if (Array.isArray(next.teamPosts) && next.teamPosts.some((p) => isObject(p) && "authorLevel" in p)) next = { ...next, teamPosts: withSkills(next.teamPosts, sampleState().teamPosts) };
+  if (Array.isArray(next.posts) && next.posts.some((p) => isObject(p) && "authorLevel" in p)) {
+    next = { ...next, posts: withSkills(next.posts, sampleState().posts.flatMap((p) => (p.kind === "brag" ? [p] : []))) };
+  }
+  if (Array.isArray(next.challenges) && next.challenges.some((c) => isObject(c) && c.skillName === undefined)) {
+    const extras = new Map(sampleState().challenges.map((c) => [c.id, { skillName: c.skillName, foe: c.foe }]));
+    next = {
+      ...next,
+      challenges: next.challenges.map((c) => {
+        if (!isObject(c) || c.skillName !== undefined) return c;
+        const extra = extras.get(String(c.id));
+        if (!extra) return c;
+        return { ...c, ...(extra.skillName ? { skillName: extra.skillName } : {}), ...(c.foe === undefined && extra.foe ? { foe: extra.foe } : {}) };
+      }),
+    };
+  }
+  return next;
+}
+
 function upgradeSaved(data: unknown): unknown {
   if (!isObject(data) || data.version !== 1) return data;
   let next: Record<string, unknown> = data;
@@ -393,6 +451,7 @@ function upgradeSaved(data: unknown): unknown {
       next = { ...next, challenges: next.challenges.map((c) => (isObject(c) && c.rewardItem === undefined && items.has(String(c.id)) ? { ...c, rewardItem: items.get(String(c.id)) } : c)) };
     }
   }
+  next = upgradeSkills(next, sample);
   if (Array.isArray(next.companies) && next.companies.some((c) => isObject(c) && c.certScore === undefined) && isDay(data.today)) {
     const scores = new Map(sample().companies.map((c) => [c.id, c.certScore]));
     next = { ...next, companies: next.companies.map((c) => (isObject(c) && c.certScore === undefined ? { ...c, certScore: scores.get(String(c.id)) ?? null } : c)) };
@@ -404,7 +463,8 @@ export function parseState(raw: string | null): DemoState | null {
   if (raw === null) return null;
   try {
     const data = upgradeSaved(JSON.parse(raw));
-    return isDemoState(data) ? data : null;
+    // 이 앱에서 받은 상인데 스킬이 없으면(예전에 저장한 상태) 여기서 만들어요 (#38)
+    return isDemoState(data) ? syncSkills(data) : null;
   } catch {
     return null;
   }

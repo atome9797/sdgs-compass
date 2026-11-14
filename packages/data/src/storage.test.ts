@@ -377,3 +377,52 @@ describe("상품 보상(報酬アイテム, #37)이 생기기 전에 저장한 �
     expect(parseState(serializeState(created))!.challenges.find((c) => c.id === mine.id)!.rewardItem).toBeUndefined();
   });
 });
+
+describe("스킬(#38)이 생기기 전에 저장한 상태 — 레벨(authorLevel)이 있고 스킬이 없어요", () => {
+  const current = createInitialState(TODAY);
+  // 학생이 ch-plastic 에 내고 기업이 우수상을 준 뒤에 저장한 예전 상태: 스킬 · 스킬 이름 · 몬스터가 없고, 글쓴이에게 레벨이 있어요
+  const submitted = reducer(current, {
+    type: "submitProposal",
+    challengeId: "ch-plastic",
+    draft: { teamName: "勇者団", teamSize: 3, seminar: "", title: "包装を変える", summary: "要約です", fileName: "plan.pdf", fileSizeBytes: 1000, videoUrl: "" },
+    at: `${TODAY}T10:00`,
+  });
+  const mineId = submitted.proposals.find((p) => p.mine)!.id;
+  const reviewed = reducer(submitted, { type: "reviewProposal", proposalId: mineId, review: { creativity: 4, feasibility: 4, sdgContribution: 5, comment: "" }, at: `${TODAY}T11:00` });
+  const awarded = reducer(reviewed, { type: "awardProposal", proposalId: mineId, award: "excellence" });
+  const { skills: _skills, ...withoutSkills } = awarded;
+  const old = {
+    ...withoutSkills,
+    challenges: awarded.challenges.map(({ skillName: _name, foe: _foe, ...rest }) => rest),
+    teamPosts: awarded.teamPosts.map(({ authorSkills: _n, ...rest }) => ({ ...rest, authorLevel: 3 })),
+    posts: awarded.posts.map((p) => (p.kind === "brag" ? (({ authorSkills: _n, ...rest }) => ({ ...rest, authorLevel: 2 }))(p) : p)),
+  };
+
+  it("버리지 않고, 앱을 쓰기 전의 수상 2건 + 이 앱에서 받은 상 1건의 스킬을 채워요", () => {
+    const parsed = parseState(JSON.stringify(old))!;
+    expect(parsed).not.toBeNull();
+    const byActivity = new Map(parsed.skills.map((s) => [s.activityId, s]));
+    expect([...byActivity.keys()].sort()).toEqual([`act-${mineId}-award`, "h-4b", "h-5b"].sort());
+    expect(byActivity.get("h-5b")!.name).toEqual({ ja: "プラごみ削減アイデア", ko: "플라스틱 쓰레기 감축 아이디어" });
+    const won = byActivity.get(`act-${mineId}-award`)!;
+    expect(won).toMatchObject({ award: "excellence", sdgIds: [14, 12], proposalId: mineId });
+    // 퀘스트의 스킬 이름도 샘플에서 채운 뒤에 만들어서, 퀘스트 이름이 아니라 스킬 이름이에요
+    expect(won.name).toEqual({ ja: "エコ包装デザイン", ko: "친환경 포장 디자인" });
+    expect(parsed).toEqual({ ...awarded, skills: parsed.skills });
+  });
+
+  it("글쓴이의 레벨은 스킬 수로 바꿔요: 샘플 글은 샘플의 값, 내 글은 지금 가진 스킬 수", () => {
+    const parsed = parseState(JSON.stringify(old))!;
+    for (const post of parsed.teamPosts) {
+      expect("authorLevel" in post).toBe(false);
+      expect(post.authorSkills).toBe(current.teamPosts.find((p) => p.id === post.id)!.authorSkills);
+    }
+    for (const post of parsed.posts) if (post.kind === "brag") expect("authorLevel" in post).toBe(false);
+  });
+
+  it("지금 모양으로 저장한 상태는 그대로 읽혀요 (스킬이 두 번 생기지 않아요)", () => {
+    const parsed = parseState(serializeState(awarded))!;
+    expect(parsed.skills).toEqual(awarded.skills);
+    expect(parsed.skills).toHaveLength(3);
+  });
+});

@@ -1,17 +1,17 @@
-// SCR-04 마이 포트폴리오: 레벨·누적 지수 · 스카우트 수신 설정(따로 된 줄) · 応募中の課題(#28, 낸 기획서가 있을 때만) · SDGs Impact 레이더 차트(17목표) · 강점 SDGs · 배지 · 참여 실적
+// SCR-04 마이 포트폴리오 = 용사의 스테이터스(#38): 레벨 대신 스킬(수상 1건 = SDG 번호가 붙은 스킬 1개) · 스카우트 수신 설정(따로 된 줄) · 応募中の課題(#28, 낸 기획서가 있을 때만) · SDGs Impact 레이더 차트(17목표) · 강점 SDGs · 배지 · 참여 실적
 // · 증명서/요약/카드뉴스 단추 · 맨 아래 リワード残高 카드(#25 데모).
 // 레이더는 SVG 없이 View 로 그려요(components/RadarChart). 값은 모두 core 의 selectImpact 에서 와요.
 // #30 기업이 내 기획서를 심사·표창하면 応募中の課題 카드에 「企業からの審査結果」(점수 3개 · 코멘트 · 반영 포인트 · 다음에 키울 점 · 수상)가 붙어요.
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useMemo } from "react";
 import { StyleSheet, View, useWindowDimensions } from "react-native";
-import { selectApplications, selectCertificates, selectImpact, type ApplicationReviewVM } from "@sdgs-compass/core/selectors";
+import { selectApplications, selectCertificates, selectImpact, type ApplicationReviewVM, type HeroSkillVM } from "@sdgs-compass/core/selectors";
 import { selectWallet } from "@sdgs-compass/core/walletView";
 import { ActivityRow } from "@/components/ActivityRow";
 import { RadarChart } from "@/components/RadarChart";
 import { Screen, ScreenTitle } from "@/components/Screen";
 import { SdgMiniRow, SdgTile } from "@/components/SdgTile";
-import { Badge, Button, Card, Empty, Notice, ProgressBar, Section, Txt } from "@/components/ui";
+import { Badge, Button, Card, Empty, Notice, Section, Txt } from "@/components/ui";
 import { useApp } from "@/lib/AppProvider";
 import { squareSizeFor } from "@/lib/geometry";
 import { certificateHref, challengeHref, paramText, receiptHref, ROUTES } from "@/lib/nav";
@@ -31,6 +31,19 @@ function ReviewResult({ review, id }: { review: ApplicationReviewVM; id: string 
           </Txt>
           {review.awardLabel ? <Badge tone="warning" label={`🏆 ${review.awardLabel}`} /> : null}
         </View>
+        {/* 수상하면 그 퀘스트의 SDG 번호가 붙은 스킬을 「おぼえた！」(#38) */}
+        {review.skillLearned ? (
+          <View style={[styles.itemWon, styles.learnedRow]} testID={`impact-skill-learned-${id}`}>
+            <View style={[styles.skillTypeSmall, { backgroundColor: review.skillLearned.color }]}>
+              <Txt variant="small" bold style={{ color: review.skillLearned.textColor }}>
+                {review.skillLearned.sdgId}
+              </Txt>
+            </View>
+            <Txt variant="small" bold style={[styles.itemWonText, styles.shrink]}>
+              {review.skillLearned.learnedLabel}
+            </Txt>
+          </View>
+        ) : null}
         {/* 상품 보상이 걸린 퀘스트에서 수상하면 「〇〇を手に入れた！」(#37) */}
         {review.rewardItemLabel ? (
           <View style={styles.itemWon} testID={`impact-item-${id}`}>
@@ -108,22 +121,25 @@ export function ImpactScreen() {
             </Txt>
           </View>
         </View>
-        {/* 실적은 포인트 숫자가 아니라 레벨 + 진행률로 보여요(돈과 무관한 지표) */}
-        <Txt variant="small" tone="muted">
-          {t("impact.total")}
-        </Txt>
+        {/* 레벨 대신 스킬(#38): 수상 1건 = SDG 번호가 붙은 스킬 1개 — 실적은 포인트 숫자가 아니에요(돈과 무관한 기록) */}
         <Txt variant="display" testID="impact-total">
-          {vm.levelLabel}
+          {vm.skillCountLabel}
         </Txt>
-        {/* 경험치(EXP) 막대 — 게임 테마(#37) */}
-        <ProgressBar ratio={vm.progressPercent / 100} color={GAME_COLORS.expTo} accessibilityLabel={t("impact.total")} valueText={vm.nextLevelLabel} />
+        {vm.skills.length === 0 ? (
+          <Txt variant="small" tone="muted">
+            {t("impact.skillsEmpty")}
+          </Txt>
+        ) : (
+          <View style={styles.skillList} testID="impact-skills">
+            {vm.skills.map((skill) => (
+              <SkillRow key={skill.id} skill={skill} />
+            ))}
+          </View>
+        )}
         <Txt variant="small" tone="muted">
-          {vm.nextLevelLabel}
+          {vm.skillsHint}
         </Txt>
-        <Txt variant="small" tone="muted">
-          {vm.levelHint}
-        </Txt>
-        {/* 스카우트 수신은 포인트와 관계없는 "설정"이라, 진행 막대 아래가 아니라 선으로 나눈 따로 된 줄에 상태 + 설명 + 설정 단추로 보여요 */}
+        {/* 스카우트 수신은 스킬과 관계없는 "설정"이라, 선으로 나눈 따로 된 줄에 상태 + 설명 + 설정 단추로 보여요 */}
         <View style={styles.scoutRow} testID="impact-scout">
           <Txt accessibilityElementsHidden importantForAccessibility="no">
             {vm.scoutable ? "🔔" : "🔕"}
@@ -273,7 +289,7 @@ export function ImpactScreen() {
           {t("wallet.cardNote")}
         </Txt>
         <Txt variant="small" tone="muted">
-          {wallet.notices.level}
+          {wallet.notices.skills}
         </Txt>
         <Button testID="open-wallet" variant="secondary" small label={t("wallet.more")} onPress={() => router.push(ROUTES.wallet)} />
       </Card>
@@ -281,7 +297,40 @@ export function ImpactScreen() {
   );
 }
 
+/** 스킬 한 줄(#38): 왼쪽에 대표 SDG 번호(색 = 스킬의 「タイプ」), 이름 · ★(상의 세기) · 상 · 기업 · 날짜 · 수상한 퀘스트 · 모든 SDG 번호 (웹 .skill 과 같은 모양) */
+function SkillRow({ skill }: { skill: HeroSkillVM }) {
+  return (
+    <View style={styles.skill} accessible accessibilityLabel={skill.ariaLabel} testID={`impact-skill-${skill.activityId}`}>
+      <View style={[styles.skillType, { backgroundColor: skill.color }]}>
+        <Txt variant="title" bold style={{ color: skill.textColor }}>
+          {skill.sdgId}
+        </Txt>
+      </View>
+      <View style={styles.skillMain}>
+        <Txt bold style={styles.skillName}>
+          {skill.name} <Txt style={styles.stars}>{"★".repeat(skill.stars)}</Txt>
+          <Txt style={styles.starsOff}>{"★".repeat(3 - skill.stars)}</Txt>
+        </Txt>
+        <Txt variant="small">{skill.metaLabel}</Txt>
+        <Txt variant="small" tone="muted">
+          {skill.questLabel}
+        </Txt>
+        <SdgMiniRow ids={skill.sdgIds} />
+      </View>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
+  skillList: { gap: SPACE.sm },
+  skill: { flexDirection: "row", alignItems: "flex-start", gap: SPACE.md, padding: SPACE.md, borderRadius: RADIUS.md, borderWidth: 2, borderColor: GAME_COLORS.ink, backgroundColor: GAME_COLORS.panel },
+  skillType: { width: 44, height: 38, alignItems: "center", justifyContent: "center", borderRadius: 6, borderWidth: 2, borderColor: GAME_COLORS.ink },
+  skillTypeSmall: { minWidth: 28, height: 24, paddingHorizontal: 4, alignItems: "center", justifyContent: "center", borderRadius: 4 },
+  skillMain: { flex: 1, gap: 3 },
+  skillName: { color: GAME_COLORS.ink },
+  stars: { color: "#C98A0C" },
+  starsOff: { color: "#CBD2DC" },
+  learnedRow: { flexDirection: "row", alignItems: "center", gap: SPACE.sm },
   // 수상 뒤 「〇〇を手に入れた！」(#37): 남색 바탕 · 금색 글자 (웹 .item-won 과 같은 색)
   itemWon: { marginTop: SPACE.xs, paddingVertical: SPACE.sm, paddingHorizontal: SPACE.md, borderRadius: RADIUS.md, backgroundColor: GAME_COLORS.window },
   itemWonText: { color: GAME_COLORS.speaker },

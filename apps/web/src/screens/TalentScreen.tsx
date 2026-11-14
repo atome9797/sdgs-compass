@@ -69,7 +69,7 @@ function CandidateCard({ candidate, composing, onCompose, onSent, onCancel }: { 
             {candidate.university} · {candidate.faculty}
           </p>
         </div>
-        <Tag tone="info">{candidate.levelLabel}</Tag>
+        <Tag tone="info">{candidate.skillsLabel}</Tag>
       </div>
       <div className="row small muted">
         <span className="strong">{candidate.awardsLabel}</span>

@@ -20,7 +20,7 @@ export const feed = {
   "feed.delete": { ja: "削除", ko: "삭제" },
   "feed.deleteConfirm": { ja: "この投稿を削除しますか？", ko: "이 글을 삭제할까요?" },
   "feed.mine": { ja: "あなたの投稿", ko: "내 글" },
-  "feed.level": { ja: "Lv.{level}", ko: "Lv.{level}" },
+  "feed.skills": { ja: "スキル {count}", ko: "스킬 {count}" },
   // 공식 SNS 게시 신청: 예정일·게시료는 글을 쓴 회사에게만, 다른 사람에게는 게시된 뒤의 링크만 보여요
   "feed.officialScheduled": { ja: "公式SNS掲載予定 · {channel} · {date}", ko: "공식 SNS 게시 예정 · {channel} · {date}" },
   "feed.officialFee": { ja: "掲載料 {fee}（サンプル）", ko: "게시료 {fee}(샘플)" },

@@ -2,12 +2,13 @@
 // 실서비스에서는 이 모양의 데이터를 서버(PostgreSQL, db/schema.sql)가 돌려줘요.
 import { emptyCertAnswers } from "@sdgs-compass/core/certification";
 import type {
-  Activity, Candidate, Challenge, Company, DemoState, Match, OfficialChannel, PrizePayment, Proposal, Rating, ResearcherProfile, ResearchRequest, ResearchResult, Scout, SocialPost,
+  Activity, Candidate, Challenge, Company, DemoState, HeroSkill, Match, OfficialChannel, PrizePayment, Proposal, Rating, ResearcherProfile, ResearchRequest, ResearchResult, Scout,
+  SocialPost,
   StudentProfile, TeamPost, Wallet, WorkRequest,
 } from "@sdgs-compass/core/domain";
 import { addDays } from "@sdgs-compass/core/format";
 import { sha256Hex } from "@sdgs-compass/core/hash";
-import { levelOf } from "@sdgs-compass/core/impact";
+import { isAwardActivity, skillFromAward } from "@sdgs-compass/core/skills";
 import { OFFICIAL_SHARE_FEE_YEN } from "@sdgs-compass/core/post";
 import { resultFingerprint } from "@sdgs-compass/core/research";
 
@@ -164,6 +165,8 @@ function buildChallenges(today: string): Challenge[] {
         { ja: "（任意）イメージ動画のURL", ko: "(선택) 이미지 영상 URL" },
       ],
       sdgIds: [14, 12],
+      skillName: { ja: "エコ包装デザイン", ko: "친환경 포장 디자인" },
+      foe: { kind: "jelly", name: { ja: "プラごみクラゲ", ko: "플라스틱 해파리" } },
       skills: ["design", "research", "planning"],
       prizeYen: 100_000,
       rewards: ["prize", "internship"],
@@ -198,6 +201,8 @@ function buildChallenges(today: string): Challenge[] {
         { ja: "売り場のイメージ図", ko: "매장 이미지 도안" },
       ],
       sdgIds: [12, 2],
+      skillName: { ja: "売り場のフードロス対策", ko: "매장 푸드 로스 대책" },
+      foe: { kind: "ghost", name: { ja: "売れ残りおばけ", ko: "팔다 남은 유령" } },
       skills: ["marketing", "data"],
       prizeYen: 50_000,
       rewards: ["prize"],
@@ -230,6 +235,8 @@ function buildChallenges(today: string): Challenge[] {
         { ja: "（任意）60秒の紹介動画URL", ko: "(선택) 60초 소개 영상 URL" },
       ],
       sdgIds: [7, 13],
+      skillName: { ja: "再エネの伝え方", ko: "재생에너지 전달법" },
+      foe: { kind: "smog", name: { ja: "くろけむり", ko: "검은 연기" } },
       skills: ["planning", "video", "writing"],
       prizeYen: 150_000,
       rewards: ["prize"],
@@ -261,6 +268,8 @@ function buildChallenges(today: string): Challenge[] {
       },
       deliverables: [{ ja: "企画書・発表資料（PDF・PPTX）", ko: "기획서 · 발표 자료(PDF · PPTX)" }, { ja: "SNS投稿のサンプル", ko: "SNS 게시물 샘플" }],
       sdgIds: [11, 8],
+      skillName: { ja: "商店街のSNS発信", ko: "상점가 SNS 홍보" },
+      foe: { kind: "bird", name: { ja: "シャッターガラス", ko: "셔터 까마귀" } },
       skills: ["marketing", "video"],
       prizeYen: 80_000,
       rewards: ["prize", "internship"],
@@ -290,6 +299,8 @@ function buildChallenges(today: string): Challenge[] {
       },
       deliverables: [{ ja: "企画書・発表資料（PDF・PPTX）", ko: "기획서 · 발표 자료(PDF · PPTX)" }],
       sdgIds: [2, 12, 15],
+      skillName: { ja: "規格外野菜の商品企画", ko: "규격 외 채소 상품 기획" },
+      foe: { kind: "wall", name: { ja: "規格のかべ", ko: "규격의 벽" } },
       skills: ["design", "marketing"],
       prizeYen: 60_000,
       rewards: ["prize"],
@@ -321,6 +332,8 @@ function buildChallenges(today: string): Challenge[] {
       },
       deliverables: [{ ja: "企画書・発表資料（PDF・PPTX）", ko: "기획서 · 발표 자료(PDF · PPTX)" }, { ja: "（任意）試作のURL", ko: "(선택) 시제품 URL" }],
       sdgIds: [4, 10, 17],
+      skillName: { ja: "多言語の教材づくり", ko: "다국어 교재 만들기" },
+      foe: { kind: "wall", name: { ja: "ことばのかべ", ko: "언어의 벽" } },
       skills: ["languages", "programming", "design"],
       prizeYen: 100_000,
       rewards: ["prize", "offer"],
@@ -350,6 +363,8 @@ function buildChallenges(today: string): Challenge[] {
       },
       deliverables: [{ ja: "企画書・発表資料（PDF・PPTX）", ko: "기획서 · 발표 자료(PDF · PPTX)" }],
       sdgIds: [14, 8],
+      skillName: { ja: "朝市のデジタル集客", ko: "아침시장 디지털 집객" },
+      foe: { kind: "bird", name: { ja: "カンコドリ", ko: "썰렁새" } },
       skills: ["marketing", "programming"],
       prizeYen: 70_000,
       rewards: ["prize"],
@@ -381,6 +396,8 @@ function buildChallenges(today: string): Challenge[] {
       },
       deliverables: [{ ja: "企画書・発表資料（PDF・PPTX）", ko: "기획서 · 발표 자료(PDF · PPTX)" }],
       sdgIds: [12, 14],
+      skillName: { ja: "マイボトル普及キャンペーン", ko: "텀블러 확산 캠페인" },
+      foe: { kind: "bottle", name: { ja: "つかいすてボトル", ko: "일회용 페트병" } },
       skills: ["marketing", "design"],
       prizeYen: 50_000,
       rewards: ["prize"],
@@ -401,6 +418,7 @@ function buildChallenges(today: string): Challenge[] {
       mission: { ja: "終了した課題です。", ko: "종료된 챌린지예요." },
       deliverables: [{ ja: "企画書・発表資料（PDF・PPTX）", ko: "기획서 · 발표 자료(PDF · PPTX)" }],
       sdgIds: [14, 11],
+      skillName: { ja: "清掃ボランティア集め", ko: "청소 봉사자 모집" },
       skills: ["design"],
       prizeYen: 30_000,
       rewards: ["prize"],
@@ -421,6 +439,7 @@ function buildChallenges(today: string): Challenge[] {
       mission: { ja: "終了した課題です。", ko: "종료된 챌린지예요." },
       deliverables: [{ ja: "企画書・発表資料（PDF・PPTX）", ko: "기획서 · 발표 자료(PDF · PPTX)" }],
       sdgIds: [14, 12],
+      skillName: { ja: "海産物レシピ動画", ko: "해산물 레시피 영상" },
       skills: ["video"],
       prizeYen: 30_000,
       rewards: ["prize"],
@@ -440,43 +459,43 @@ function buildTeamPosts(today: string): TeamPost[] {
   const base = { mine: false, requestedByMe: false } as const;
   return [
     {
-      ...base, id: "tp-1", challengeId: "ch-plastic", authorName: "Haru", authorLevel: 2,
+      ...base, id: "tp-1", challengeId: "ch-plastic", authorName: "Haru", authorSkills: 1,
       title: { ja: "経営学専攻のチームメンバー探してます", ko: "경영학 전공 팀원을 찾고 있어요" },
       body: { ja: "包装のコスト試算を一緒にやってくれる方を募集しています。", ko: "포장 비용 추정을 함께 해 줄 분을 모집해요." },
       rolesWanted: ["finance", "research"], sdgIds: [14, 12], createdOn: d(-2), requests: 3,
     },
     {
-      ...base, id: "tp-2", challengeId: "ch-plastic", authorName: "Yuna", authorLevel: 3,
+      ...base, id: "tp-2", challengeId: "ch-plastic", authorName: "Yuna", authorSkills: 2,
       title: { ja: "デザインが得意な方、パッケージ案を一緒に作りませんか", ko: "디자인에 자신 있는 분, 패키지안을 함께 만들어요" },
       body: { ja: "紙素材のパッケージ案を考えています。デザイン担当を探しています。", ko: "종이 소재 패키지안을 구상 중이에요. 디자인 담당을 찾고 있어요." },
       rolesWanted: ["design"], sdgIds: [14, 12], createdOn: d(-1), requests: 5,
     },
     {
-      ...base, id: "tp-3", challengeId: "ch-foodloss", authorName: "Sota", authorLevel: 2,
+      ...base, id: "tp-3", challengeId: "ch-foodloss", authorName: "Sota", authorSkills: 0,
       title: { ja: "データ分析ができる仲間を募集", ko: "데이터 분석이 가능한 동료 모집" },
       body: { ja: "売れ残りのデータから、値引きのタイミングを分析したいです。", ko: "팔리지 않은 데이터로 할인 타이밍을 분석하고 싶어요." },
       rolesWanted: ["data"], sdgIds: [12, 2], createdOn: d(-3), requests: 1,
     },
     {
-      ...base, id: "tp-4", challengeId: "ch-solar", authorName: "Jiwoo", authorLevel: 3,
+      ...base, id: "tp-4", challengeId: "ch-solar", authorName: "Jiwoo", authorSkills: 3,
       title: { ja: "動画編集できる人いませんか？", ko: "영상 편집 가능한 분 계신가요?" },
       body: { ja: "寮生活を題材に、再エネの紹介動画を作りたいです。", ko: "기숙사 생활을 소재로 재생에너지 소개 영상을 만들고 싶어요." },
       rolesWanted: ["video"], sdgIds: [7, 13], createdOn: d(-1), requests: 2,
     },
     {
-      ...base, id: "tp-5", challengeId: "ch-shotengai", authorName: "Ren", authorLevel: 1,
+      ...base, id: "tp-5", challengeId: "ch-shotengai", authorName: "Ren", authorSkills: 0,
       title: { ja: "SNS運用の経験者を探しています", ko: "SNS 운영 경험자를 찾고 있어요" },
       body: { ja: "商店街の公式アカウントを一緒に育てましょう。", ko: "상점가 공식 계정을 함께 키워 가요." },
       rolesWanted: ["marketing"], sdgIds: [11, 8], createdOn: d(0), requests: 0,
     },
     {
-      ...base, id: "tp-6", challengeId: "ch-kotoba", authorName: "Soyeon", authorLevel: 4,
+      ...base, id: "tp-6", challengeId: "ch-kotoba", authorName: "Soyeon", authorSkills: 0,
       title: { ja: "韓国語ネイティブの方、教材の監修をお願いしたいです", ko: "한국어 원어민 분, 교재 감수를 부탁드리고 싶어요" },
       body: { ja: "日韓のことばあそび教材を作ります。自然な表現のチェックをお願いします。", ko: "한일 말놀이 교재를 만들어요. 자연스러운 표현 확인을 부탁드려요." },
       rolesWanted: ["languages", "writing"], sdgIds: [4, 17], createdOn: d(-1), requests: 4,
     },
     {
-      ...base, id: "tp-7", challengeId: "ch-kotoba", authorName: "Mei", authorLevel: 2,
+      ...base, id: "tp-7", challengeId: "ch-kotoba", authorName: "Mei", authorSkills: 1,
       title: { ja: "アプリ開発ができる方、一緒に試作を作りましょう", ko: "앱 개발이 가능한 분, 함께 시제품을 만들어요" },
       body: { ja: "簡単なクイズアプリの試作を週末に作る予定です。", ko: "주말에 간단한 퀴즈 앱 시제품을 만들 예정이에요." },
       rolesWanted: ["programming"], sdgIds: [4, 10], createdOn: d(-2), requests: 2,
@@ -498,6 +517,17 @@ const me: StudentProfile = {
     ko: "한일을 잇는 SDGs 기획에 도전 중. 바다와 식량 문제에 관심이 있어요.",
   },
 };
+
+/** 앱을 쓰기 전에 받은 상(history 의 award 2건)으로 얻은 스킬의 이름 (#38) */
+const HISTORY_SKILL_NAMES: Record<string, { ja: string; ko: string }> = {
+  "h-4b": { ja: "多言語の防災マップ", ko: "다국어 방재 지도" },
+  "h-5b": { ja: "プラごみ削減アイデア", ko: "플라스틱 쓰레기 감축 아이디어" },
+};
+
+/** 데모 학생(me)이 처음부터 가진 스킬: 수상 기록에서 만들어요 (수상한 날 · SDG 번호 · 기업은 기록 그대로) */
+function buildSkills(history: Activity[]): HeroSkill[] {
+  return history.filter(isAwardActivity).map((activity) => skillFromAward(activity, HISTORY_SKILL_NAMES[activity.id]));
+}
 
 function buildHistory(today: string): Activity[] {
   const d = (n: number) => addDays(today, n);
@@ -613,7 +643,8 @@ function buildPosts(today: string): SocialPost[] {
   const scheduled = (n: number, channel: OfficialChannel) => ({ on: d(n), channel, feeYen: OFFICIAL_SHARE_FEE_YEN, status: "scheduled" as const, postUrl: null });
   // 운영자가 이미 올린 신청: 가상의 회사 글이라 특정 게시글이 아니라 공식 계정 주소로 이어져요 (postUrl = null → OFFICIAL_ACCOUNT_URLS)
   const posted = (n: number, channel: OfficialChannel) => ({ on: d(n), channel, feeYen: OFFICIAL_SHARE_FEE_YEN, status: "posted" as const, postUrl: null });
-  const levelOfStudent = (id: string) => levelOf(talent.find((c) => c.id === id)?.points ?? 0);
+  // 글쓴이의 스킬 수(#38) = 그 학생의 수상 수
+  const skillsOfStudent = (id: string) => talent.find((c) => c.id === id)?.awards ?? 0;
   const minato = { ja: "みなと海洋フーズ株式会社", ko: "미나토 해양푸드(주)" };
   const hikari = { ja: "ひかりエナジー株式会社", ko: "히카리 에너지(주)" };
   const yasai = { ja: "やさい未来ファーム", ko: "야채 미래 팜" };
@@ -661,7 +692,7 @@ function buildPosts(today: string): SocialPost[] {
     },
     // 학생 자랑 글 (닉네임·레벨만 보이고, 실적 1건이 붙어요). 내가 쓴 글은 처음에는 없어요.
     {
-      id: "po-5", kind: "brag", authorName: "Yuna", authorLevel: levelOfStudent("cand-yuna"), sdgIds: [14, 11],
+      id: "po-5", kind: "brag", authorName: "Yuna", authorSkills: skillsOfStudent("cand-yuna"), sdgIds: [14, 11],
       achievement: {
         activityId: null, kind: "award", award: "excellence", companyName: minato, sdgIds: [14, 11],
         title: { ja: "漁港清掃の参加者を増やすポスター企画", ko: "어항 청소 참가자를 늘리는 포스터 기획" },
@@ -673,7 +704,7 @@ function buildPosts(today: string): SocialPost[] {
       createdAt: at(-1, "21:05"), likes: 31, likedBy: [], mine: false,
     },
     {
-      id: "po-6", kind: "brag", authorName: "Daichi", authorLevel: levelOfStudent("cand-daichi"), sdgIds: [7, 13],
+      id: "po-6", kind: "brag", authorName: "Daichi", authorSkills: skillsOfStudent("cand-daichi"), sdgIds: [7, 13],
       achievement: {
         activityId: null, kind: "award", award: "grand", companyName: hikari, sdgIds: [7, 13],
         title: { ja: "再エネ啓発動画コンテスト", ko: "재생에너지 계몽 영상 콘테스트" },
@@ -685,7 +716,7 @@ function buildPosts(today: string): SocialPost[] {
       createdAt: at(-2, "20:40"), likes: 42, likedBy: [], mine: false,
     },
     {
-      id: "po-7", kind: "brag", authorName: "Mei", authorLevel: levelOfStudent("cand-mei"), sdgIds: [2, 12],
+      id: "po-7", kind: "brag", authorName: "Mei", authorSkills: skillsOfStudent("cand-mei"), sdgIds: [2, 12],
       achievement: {
         activityId: null, kind: "submission", award: null, companyName: yasai, sdgIds: [2, 12],
         title: { ja: "規格外野菜の新しい食べ方・売り方", ko: "규격 외 채소의 새로운 먹는 법·파는 법" },
@@ -697,7 +728,7 @@ function buildPosts(today: string): SocialPost[] {
       createdAt: at(-3, "13:15"), likes: 15, likedBy: [], mine: false,
     },
     {
-      id: "po-8", kind: "brag", authorName: "Soyeon", authorLevel: levelOfStudent("cand-soyeon"), sdgIds: [4, 17],
+      id: "po-8", kind: "brag", authorName: "Soyeon", authorSkills: skillsOfStudent("cand-soyeon"), sdgIds: [4, 17],
       achievement: {
         activityId: null, kind: "participation", award: null, companyName: kotoba, sdgIds: [4, 17],
         title: { ja: "日韓の子どもをつなぐ多言語学習コンテンツ", ko: "한일 어린이를 잇는 다국어 학습 콘텐츠" },
@@ -1080,6 +1111,7 @@ export function createInitialState(today: string): DemoState {
   cert.volunteer = { value: 4, evidence: true };
   cert.disclosure = { value: 1, evidence: true };
   const challenges = buildChallenges(today);
+  const history = buildHistory(today);
   return {
     version: 1,
     today,
@@ -1091,7 +1123,8 @@ export function createInitialState(today: string): DemoState {
     teamPosts: buildTeamPosts(today),
     bookmarks: ["ch-foodloss"],
     proposals: buildProposals(today),
-    history: buildHistory(today),
+    history,
+    skills: buildSkills(history),
     shares: 1,
     talent,
     scouts: buildScouts(today),

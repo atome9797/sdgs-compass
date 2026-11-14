@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import type { Activity } from "./domain";
-import { computeImpactIndex } from "./impact";
 import { buildShareCard, CARD_ASPECT, CARD_TEMPLATES } from "./shareCard";
 
 const award: Activity = {
@@ -12,8 +11,7 @@ const award: Activity = {
 const submission: Activity = { ...award, id: "a2", kind: "submission", award: undefined, points: 215 };
 
 describe("1-Click 카드뉴스", () => {
-  const index = computeImpactIndex([award, submission]);
-  const input = { nickname: "Mina", index, participationCount: 5, awardCount: 2 } as const;
+  const input = { nickname: "Mina", participationCount: 5, skillCount: 2, skillSdgIds: [14, 12, 11, 10] } as const;
 
   it("규격: Instagram 1:1, LinkedIn 1.91:1", () => {
     expect(CARD_TEMPLATES).toEqual(["instagram", "linkedin"]);
@@ -41,12 +39,17 @@ describe("1-Click 카드뉴스", () => {
     expect(card.caption).toContain("#SDGs7");
   });
 
-  it("통계 3가지(포인트·참가·수상)", () => {
+  it("통계 3가지(스킬 수 · 참가 · 스킬의 SDG) — 레벨 · 포인트 숫자는 없어요 (#38)", () => {
     const card = buildShareCard({ ...input, activity: submission, template: "instagram", locale: "ja" });
     expect(card.stats).toHaveLength(3);
-    expect(card.stats[0].value).toBe("Lv.2"); // 실적은 포인트 숫자가 아니라 레벨로 (515 → Lv.2)
+    expect(card.stats.map((s) => s.label)).toEqual(["スキル", "参加したクエスト", "スキルのSDG"]);
+    expect(card.stats[0].value).toBe("2");
     expect(card.stats[1].value).toBe("5");
-    expect(card.stats[2].value).toBe("2");
+    // SDG 번호는 앞의 3개까지
+    expect(card.stats[2].value).toBe("14・12・11");
+    expect(JSON.stringify(card)).not.toContain("Lv.");
+    const none = buildShareCard({ ...input, skillCount: 0, skillSdgIds: [], activity: submission, template: "instagram", locale: "ko" });
+    expect(none.stats.map((s) => s.value)).toEqual(["0", "5", "—"]);
   });
 
   it("개인정보: 닉네임과 성과만 넣어요 (학교·이메일 등은 없음)", () => {

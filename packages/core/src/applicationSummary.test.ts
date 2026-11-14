@@ -159,7 +159,8 @@ describe("신청 요약 한 장", () => {
     expect(selectApplicationSummary(state, "ja", "year").rangeLabel).toBe("2025年10月30日 〜 2026年10月30日");
     expect(all.holder.name).toBe(state.me.nickname);
     expect(all.holder.affiliation).toContain(" · ");
-    expect(all.holder.levelLabel.length).toBeGreaterThan(0);
+    // #38 레벨 대신 스킬(수상): 이 상태에는 스킬이 없어요
+    expect(all.holder.skillsLabel).toBe("まだありません");
     expect(all.periodOptions.map((o) => [o.id, o.selected])).toEqual([
       ["all", true],
       ["year", false],

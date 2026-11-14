@@ -302,7 +302,7 @@ test("자랑 글 미리보기: 고른 실적의 이름·SDGs 가 붙고, 동작 
     kind: "brag",
     chipLabel: "자랑",
     authorName: "Mina",
-    authorMeta: "Lv.3",
+    authorMeta: "스킬 2",
     title: null,
     body: "특별상을 받았어요!",
     sdgIds: [11, 10],

@@ -74,7 +74,7 @@ function CandidateCard({
             {candidate.university} · {candidate.faculty}
           </Txt>
         </View>
-        <Badge tone="primary" label={candidate.levelLabel} />
+        <Badge tone="primary" label={candidate.skillsLabel} />
       </View>
       <View style={styles.badges}>
         <Txt variant="small" bold>

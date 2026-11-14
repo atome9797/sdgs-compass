@@ -76,7 +76,7 @@ export function WalletScreen() {
         <ol className="wallet-notices">
           <li className="disclaimer">{vm.notices.direct}</li>
           <li className="disclaimer">{vm.notices.tax}</li>
-          <li className="disclaimer">{vm.notices.level}</li>
+          <li className="disclaimer">{vm.notices.skills}</li>
         </ol>
       </Section>
     </div>

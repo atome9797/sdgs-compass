@@ -102,7 +102,8 @@ export const b2b = {
   },
 
   "talent.title": { ja: "人材スカウト", ko: "인재 스카우트" },
-  "talent.searchPlaceholder": { ja: "SDGs、スキル、実績で検索", ko: "SDGs, 스킬, 실적으로 검색" },
+  "talent.searchPlaceholder": { ja: "SDGs、得意分野、実績で検索", ko: "SDGs, 특기, 실적으로 검색" },
+  "talent.skills": { ja: "スキル {count}", ko: "스킬 {count}개" },
   "talent.filterSdg": { ja: "SDGsで絞り込み", ko: "SDGs로 필터" },
   "talent.quota": { ja: "本日のスカウト残り {remaining}/{limit}通", ko: "오늘 스카우트 잔여 {remaining}/{limit}건" },
   "talent.propose": { ja: "スカウト提案", ko: "스카우트 제안" },

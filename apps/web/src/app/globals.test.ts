@@ -44,6 +44,13 @@ describe("globals.css 와 theme.ts 의 토큰", () => {
     for (const [key, value] of Object.entries(GAME_COLORS)) expect(norm(vars.get(`--game-${kebab(key)}`) ?? ""), key).toBe(norm(value));
   });
 
+  it("전투 화면(#38): 명령 · 스킬 단추는 누르는 곳 44px, 캔버스는 칸이 번지지 않게(pixelated)", () => {
+    expect(css).toMatch(/\.battle-cmd\s*\{[^}]*min-height:\s*var\(--tap\)/);
+    expect(css).toMatch(/\.battle-skill\s*\{[^}]*min-height:\s*var\(--tap\)/);
+    expect(css).toMatch(/\.battle__canvas\s*\{[^}]*image-rendering:\s*pixelated/);
+    expect(css).toMatch(/@media \(prefers-reduced-motion: reduce\)\s*\{[^}]*\.battle-msg__next/);
+  });
+
   it("의뢰 창의 「クエストを受ける」는 누르는 곳 44px 이에요 (#37)", () => {
     expect(css).toMatch(/\.rpg-window__choice\s*\{[^}]*min-height:\s*var\(--tap\)/);
   });

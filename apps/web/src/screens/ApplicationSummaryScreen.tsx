@@ -70,9 +70,9 @@ export function ApplicationSummaryScreen() {
             <dd>{vm.holder.affiliation}</dd>
           </div>
           <div>
-            <dt>{t("summary.holder.level")}</dt>
+            <dt>{t("summary.holder.skills")}</dt>
             <dd>
-              {vm.holder.levelLabel}
+              {vm.holder.skillsLabel}
             </dd>
           </div>
           <div>

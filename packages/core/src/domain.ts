@@ -26,6 +26,15 @@ export interface RewardItem {
   retailYen: number;
 }
 
+/** 전투 화면의 몬스터 모양 (웹의 픽셀 그림 이름과 같아요 — apps/web/src/lib/battle/sprites.ts) */
+export type FoeKind = "jelly" | "bottle" | "smog" | "ghost" | "wall" | "bird";
+
+/** 퀘스트가 맞서는 과제를 몬스터로 (#38): 예) 海洋プラスチック → 「プラごみクラゲ」 */
+export interface QuestFoe {
+  name: Text;
+  kind: FoeKind;
+}
+
 export interface Company {
   id: string;
   name: Text;
@@ -64,6 +73,10 @@ export interface Challenge {
   rewards: RewardKind[];
   /** 상품 보상(報酬アイテム) — 없으면 상금 · 인턴 등 rewards 만 (#37) */
   rewardItem?: RewardItem;
+  /** 이 퀘스트에서 수상하면 얻는 스킬의 이름(#38). 없으면 퀘스트 이름을 그대로 써요 */
+  skillName?: Text;
+  /** 전투 화면(#38)에 나오는 「과제 몬스터」. 없으면 대표 SDG 로 정한 기본 몬스터(battle.ts 의 defaultFoe) */
+  foe?: QuestFoe;
   participation: Participation;
   /** 참가·제출로 얻는 Impact 포인트의 기본값 (예: +120 pt) */
   impactPoints: number;
@@ -94,7 +107,8 @@ export interface TeamPost {
   id: string;
   challengeId: string;
   authorName: string;
-  authorLevel: number;
+  /** 글쓴이가 가진 스킬 수(#38 — 레벨 대신). 글을 올린 때의 값 */
+  authorSkills: number;
   title: Text;
   body: Text;
   rolesWanted: SkillId[];
@@ -150,6 +164,26 @@ export interface Proposal {
 }
 
 export type ActivityKind = "participation" | "submission" | "award" | "share";
+
+/**
+ * 용사의 스킬(#38): 수상 1건 = 스킬 1개. 레벨 대신, 수상 경력을 SDG 번호와 함께 저장하고 보여 줘요.
+ * 수상한 때의 스킬 이름 · 퀘스트 이름 · 기업 이름 · SDG 번호를 그대로 적어 두는 스냅샷이에요(증명서와 같은 방식 — 나중에 퀘스트를 고쳐도 스킬은 그대로).
+ * activityId 는 그 수상 활동(Activity kind "award")의 id 라서 증명서 · 카드뉴스와 이어져요. DB 는 hero_skills 표.
+ */
+export interface HeroSkill {
+  id: string;
+  name: Text;
+  /** 퀘스트의 SDG 번호 그대로(첫 번째가 대표 — 화면의 색 · 「タイプ」) */
+  sdgIds: SdgId[];
+  award: AwardKind;
+  questTitle: Text;
+  companyName: Text;
+  /** 수상한 날 (YYYY-MM-DD) */
+  learnedOn: string;
+  activityId: string;
+  /** 이 앱에서 낸 기획서의 수상이면 그 기획서 id (앱을 쓰기 전 기록이면 없음) */
+  proposalId?: string;
+}
 
 /** F-401 Impact Index 의 재료: 참가·제출·수상·공유 기록 */
 export interface Activity {
@@ -259,11 +293,12 @@ interface PostBase {
   mine: boolean;
 }
 
-/** F-503 학생 자랑 글: 닉네임·레벨만 보이고, 플랫폼에 기록된 실적 1건이 붙어요 */
+/** F-503 학생 자랑 글: 닉네임·스킬 수만 보이고, 플랫폼에 기록된 실적 1건이 붙어요 */
 export interface BragPost extends PostBase {
   kind: "brag";
   authorName: string;
-  authorLevel: number;
+  /** 글쓴이가 가진 스킬 수(#38 — 레벨 대신). 글을 올린 때의 값 */
+  authorSkills: number;
   achievement: PostAchievement;
 }
 
@@ -511,6 +546,8 @@ export interface DemoState {
   proposals: Proposal[];
   /** 앱을 쓰기 전의 활동 기록(샘플) */
   history: Activity[];
+  /** 이 데모의 학생(me)이 가진 스킬 — 수상하면 하나씩 늘어요(#38). 화면에서는 최근 것부터 */
+  skills: HeroSkill[];
   /** 내가 카드뉴스를 공유·저장한 횟수 */
   shares: number;
   talent: Candidate[];

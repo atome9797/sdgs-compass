@@ -33,7 +33,7 @@ export interface WalletVM {
   totalsLabel: string;
   entries: WalletEntryVM[];
   /** 고지 ①~③ (順番どおり) */
-  notices: { direct: string; tax: string; level: string };
+  notices: { direct: string; tax: string; skills: string };
 }
 
 /** 고지 ①~③ — 학생의 「受け取った賞金」 화면에 늘 보여요 */
@@ -41,7 +41,7 @@ export function walletNotices(locale: Locale): WalletVM["notices"] {
   return {
     direct: translate("wallet.notice.direct", locale),
     tax: translate("wallet.notice.tax", locale),
-    level: translate("wallet.notice.level", locale),
+    skills: translate("wallet.notice.skills", locale),
   };
 }
 

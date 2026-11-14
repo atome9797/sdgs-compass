@@ -1,8 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { certStarsOf, evaluateCertification } from "@sdgs-compass/core/certification";
-import { addDays, daysBetween } from "@sdgs-compass/core/format";
+import { addDays, daysBetween, formatDate } from "@sdgs-compass/core/format";
 import { pick } from "@sdgs-compass/core/i18n";
-import { levelOf } from "@sdgs-compass/core/impact";
 import {
   containsContact, earliestOfficialDate, isOfficialChannel, OFFICIAL_ACCOUNT_URLS, OFFICIAL_SHARE_MONTHLY_LIMIT, OFFICIAL_SHARE_WINDOW_DAYS, officialMonthOf, officialShareLink,
   officialUsageByMonth, POST_LIMITS,
@@ -129,13 +128,18 @@ describe("샘플 데이터", () => {
     for (const p of state.proposals) for (const v of p.versions) expect(v.sha256).toMatch(/^[0-9a-f]{64}$/);
   });
 
-  it("주인공 학생(Mina)은 내부 점수 1,476·Lv.3 이고, 화면에는 Lv.4 까지의 진행률 97% 로 보여요", () => {
+  it("주인공 학생(Mina)은 내부 점수 1,476 이고, 레벨 대신 앱을 쓰기 전에 받은 상 2건의 스킬을 가져요 (#38)", () => {
     const impact = selectImpact(state, "ja");
     expect(impact.totalPoints).toBe(1476);
-    expect(impact.level).toBe(3);
-    expect(impact.progressPercent).toBe(97);
-    expect(impact.nextLevelLabel).toBe("次のLv.4まで EXP 97%");
-    expect(impact.nextLevelLabel).not.toContain("pt");
+    expect(impact.skillCountLabel).toBe("スキル 2");
+    // 최근 것부터: 優秀賞(SDG 14·12, 28일 전) → 特別賞(SDG 11·10, 45일 전)
+    expect(impact.skills.map((s) => [s.name, s.sdgIds, s.awardLabel, s.stars])).toEqual([
+      ["プラごみ削減アイデア", [14, 12], "優秀賞", 2],
+      ["多言語の防災マップ", [11, 10], "特別賞", 1],
+    ]);
+    expect(impact.skills[0].metaLabel).toBe(`優秀賞・みなと海洋フーズ株式会社・${formatDate(addDays(TODAY, -28), "ja")}`);
+    expect(impact.skills[0].color).toBe("#0A97D9");
+    expect(JSON.stringify(impact)).not.toMatch(/Lv\.|EXP|レベル/);
     expect(impact.topSdgs[0].id).toBe(14);
     const badgeCodes = impact.badges.map((b) => b.code);
     for (const code of ["firstStep", "challenger", "winner", "multiSdg", "ocean"]) expect(badgeCodes).toContain(code);
@@ -250,11 +254,11 @@ describe("SNS 피드 샘플 글 (F-503 · F-504)", () => {
     expect(officialUsageByMonth(state.posts, DEMO_COMPANY_ID)).toEqual({ [officialMonthOf(tomorrow)]: 1 });
   });
 
-  it("자랑 글: 닉네임·레벨·실적만 있고, 샘플 학생과 레벨이 맞아요 (이메일·학교 이름 없음)", () => {
+  it("자랑 글: 닉네임·스킬 수·실적만 있고, 샘플 학생의 수상 수와 스킬 수가 맞아요 (이메일·학교 이름 없음)", () => {
     for (const p of brags) {
       const candidate = state.talent.find((c) => c.nickname === p.authorName);
       expect(candidate, p.id).toBeDefined();
-      expect(p.authorLevel, p.id).toBe(levelOf(candidate!.points));
+      expect(p.authorSkills, p.id).toBe(candidate!.awards);
       expect(p.achievement.activityId, p.id).toBeNull(); // 다른 학생의 실적이라 내 활동 기록에는 없어요
       expect(p.sdgIds, p.id).toEqual(p.achievement.sdgIds.slice(0, 3));
       expect(JSON.stringify(p)).not.toMatch(/大学|대학교|@/);

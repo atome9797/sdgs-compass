@@ -30,7 +30,9 @@ export const summary = {
   "summary.rangeAll": { ja: "全期間（〜 {to}）", ko: "전체 기간(~ {to})" },
   "summary.holder.name": { ja: "表示名", ko: "표시 이름" },
   "summary.holder.affiliation": { ja: "所属", ko: "소속" },
-  "summary.holder.level": { ja: "勇者レベル", ko: "용사 레벨" },
+  "summary.holder.skills": { ja: "スキル（受賞）", ko: "스킬(수상)" },
+  "summary.holder.skillsNone": { ja: "まだありません", ko: "아직 없어요" },
+  "summary.holder.skillItem": { ja: "SDG {sdg} {skill}（{award}）", ko: "SDG {sdg} {skill}({award})" },
   "summary.holder.period": { ja: "対象期間", ko: "대상 기간" },
   "summary.stat.participations": { ja: "参加", ko: "참가" },
   "summary.stat.submissions": { ja: "企画書の提出", ko: "기획서 제출" },
@@ -71,6 +73,7 @@ export const summary = {
   // ───────── 글로 공유 (모바일 Share) ─────────
   "summary.text.holder": { ja: "表示名：{name}（{affiliation}）", ko: "표시 이름: {name}({affiliation})" },
   "summary.text.range": { ja: "対象期間：{range}", ko: "대상 기간: {range}" },
+  "summary.text.skills": { ja: "スキル（受賞）：{skills}", ko: "스킬(수상): {skills}" },
   "summary.text.counts": {
     ja: "参加 {participations}件・企画書の提出 {submissions}件・受賞 {awards}件・関連するSDGs {goals}",
     ko: "참가 {participations}건 · 기획서 제출 {submissions}건 · 수상 {awards}건 · 관련 SDGs {goals}",

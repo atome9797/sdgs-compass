@@ -3,6 +3,10 @@
 import type { Activity, AwardKind } from "./domain";
 import { SDG_IDS, type SdgId } from "./sdg";
 
+/**
+ * 레벨 — #38 부터 앱 화면에는 보이지 않아요(학생은 레벨 대신 수상으로 얻은 스킬을 가져요: skills.ts).
+ * DB 의 impact_level · impact_totals 와 값을 맞춰 두는 내부 규칙으로만 남아 있어요(db/tests/04_parity.sql).
+ */
 export type Level = 1 | 2 | 3 | 4 | 5;
 /** 레벨 i+1 이 시작되는 누적 포인트 */
 export const LEVEL_THRESHOLDS = [0, 300, 700, 1500, 2500] as const;

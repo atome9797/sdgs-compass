@@ -3,7 +3,7 @@ import type { Activity, ActivityKind, DemoState } from "./domain";
 import { AWARD_POINTS, MAX_SHARE_ACTIVITIES, reviewBonus, SHARE_POINTS } from "./impact";
 import { pick } from "./i18n";
 
-type ActivitySource = Pick<DemoState, "history" | "proposals" | "challenges" | "companies" | "shares" | "today">;
+export type ActivitySource = Pick<DemoState, "history" | "proposals" | "challenges" | "companies" | "shares" | "today">;
 
 /** 내 기획서가 상을 받았을 때 생기는 수상 실적의 id (リワード残高의 상금 내역이 이 id 로 실적과 이어져요) */
 export const awardActivityId = (proposalId: string): string => `act-${proposalId}-award`;

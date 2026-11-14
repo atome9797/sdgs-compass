@@ -5,6 +5,7 @@ import { admin } from "./messages/admin";
 import { adminFinance } from "./messages/adminFinance";
 import { b2b } from "./messages/b2b";
 import { b2c } from "./messages/b2c";
+import { battle } from "./messages/battle";
 import { common } from "./messages/common";
 import { extraMobile } from "./messages/extraMobile";
 import { extraWeb } from "./messages/extraWeb";
@@ -15,7 +16,7 @@ import { settings } from "./messages/settings";
 import { summary } from "./messages/summary";
 import { wallet } from "./messages/wallet";
 
-export const MESSAGES = { ...common, ...b2c, ...b2b, ...feed, ...settings, ...summary, ...wallet, ...research, ...network, ...admin, ...adminFinance, ...extraWeb, ...extraMobile } as const;
+export const MESSAGES = { ...common, ...b2c, ...battle, ...b2b, ...feed, ...settings, ...summary, ...wallet, ...research, ...network, ...admin, ...adminFinance, ...extraWeb, ...extraMobile } as const;
 export type MessageKey = keyof typeof MESSAGES;
 
 /** 사전에서 문구를 꺼내 {자리표시자}를 채워요 */

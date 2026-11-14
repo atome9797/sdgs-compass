@@ -14,7 +14,7 @@ export const extraMobile = {
 
   // 홈·챌린지 상세
   "mobile.reasonsTitle": { ja: "おすすめの理由", ko: "추천 이유" },
-  "mobile.challengeSkills": { ja: "歓迎スキル", ko: "환영 스킬" },
+  "mobile.challengeSkills": { ja: "歓迎する得意分野", ko: "환영하는 특기" },
   "mobile.companyVerified": { ja: "確認済みの企業（サンプル）", ko: "확인된 기업(샘플)" },
 
   // 기획서 제출

@@ -51,7 +51,18 @@ export const MARK_COLORS = { star: "#A87612", starSoft: "#F5EEDC" } as const;
  * 게임 테마(#37)의 색: 의뢰 창(RPG 대화 상자)의 남색 바탕 · 흰 테두리 · 금색 이름 · 옅은 하늘색 보상 줄, 경험치(EXP) 막대.
  * 남색 바탕 위 글자는 흰색 15:1, 금색 11:1, 하늘색 12:1 이상이에요. 웹(globals.css 의 --game-*)과 모바일이 같은 값을 써요.
  */
-export const GAME_COLORS = { window: "#13213B", frame: "#FFFFFF", speaker: "#FFD75E", reward: "#CFE3FF", expFrom: "#FFD75E", expTo: "#F2994A" } as const;
+export const GAME_COLORS = {
+  window: "#13213B",
+  frame: "#FFFFFF",
+  speaker: "#FFD75E",
+  reward: "#CFE3FF",
+  /** 전투 화면(#38)의 이름표(상태 상자) 바탕 · 글자 · 테두리 */
+  panel: "#FFFBEF",
+  ink: "#1B2333",
+  /** 몬스터의 HP 막대와 그 바탕 */
+  hp: "#3FBF6F",
+  hpTrack: "#3A4258",
+} as const;
 
 /**
  * #RRGGBB 를 흰색과 섞은 옅은 색(amount 0~1 = 원래 색의 비율, 결과도 #RRGGBB). SDG 타일·기업 로고처럼 넓은 면을 차분하게 칠할 때 써요.

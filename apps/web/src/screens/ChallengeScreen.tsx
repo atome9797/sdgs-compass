@@ -1,13 +1,14 @@
 "use client";
 
-// SCR-02 챌린지 상세: 기업 브리핑(상세 요강) · 팀원 모집 게시판 · 북마크 · 참가 신청/재제출/수령증
+// SCR-02 챌린지 상세: 맨 위에 퀘스트 전투 화면(#38 — WebGL, 과제 몬스터 vs 용사 파티) · 기업 브리핑(상세 요강) · 팀원 모집 게시판 · 북마크 · 참가 신청/재제출/수령증
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Fragment, useState, type FormEvent } from "react";
 import { SKILL_IDS, type SkillId } from "@sdgs-compass/core/domain";
 import { skillLabel } from "@sdgs-compass/core/labels";
-import { coverColors } from "@sdgs-compass/core/theme";
+import { selectBattle } from "@sdgs-compass/core/battle";
 import { selectChallengeDetail, type TeamPostVM } from "@sdgs-compass/core/selectors";
+import { BattlePanel } from "@/components/battle/BattlePanel";
 import { CertMarkButton, CertMarkDetail, CertMarkNote, useMarkDisclosure } from "@/components/CertMark";
 import { SdgMiniRow } from "@/components/sdg";
 import { Banner, Button, ButtonLink, Empty, Field, ScreenHead, Section, Tag } from "@/components/ui";
@@ -99,8 +100,9 @@ function ChallengeView({ id }: { id: string }) {
   const [composing, setComposing] = useState(false);
   const mark = useMarkDisclosure();
   const vm = selectChallengeDetail(demo, id, locale);
+  const battle = selectBattle(demo, id, locale);
 
-  if (!vm) {
+  if (!vm || !battle) {
     return (
       <div className="screen">
         <ScreenHead title={t("challenge.notFound")} back={buildHref(ROUTES.home)} backLabel={t("common.back")} />
@@ -110,7 +112,6 @@ function ChallengeView({ id }: { id: string }) {
   }
 
   const { card } = vm;
-  const { from, to } = coverColors(card.hue);
   const tabs: { id: TabId; label: string }[] = [
     { id: "detail", label: t("challenge.tabDetail") },
     { id: "team", label: t("challenge.tabTeam") },
@@ -120,15 +121,18 @@ function ChallengeView({ id }: { id: string }) {
     <div className="screen">
       <ScreenHead title={t("web.challenge.detail")} back={buildHref(ROUTES.search)} backLabel={t("common.back")} />
 
-      <section className="card hero" aria-labelledby="challenge-title">
-        <div className="hero__cover" style={{ background: `linear-gradient(135deg, ${from}, ${to})` }}>
-          <span className="hero__emoji" aria-hidden="true">
-            {card.companyEmoji}
-          </span>
-          <span className="ccard__pill ccard__pill--dday">{card.dDay}</span>
-          {!card.isOpen ? <span className="ccard__pill ccard__pill--status">{card.statusLabel}</span> : null}
-        </div>
+      {/* 퀘스트 = 전투(#38): 언어 · 진행 상태 · 스킬 수가 바뀌면 메시지를 처음부터 다시 */}
+      <BattlePanel key={`${battle.challengeId}-${locale}-${battle.phase}-${battle.skills.length}`} vm={battle} />
+
+      <section className="card hero" aria-labelledby="challenge-title" id="challenge-details">
         <div className="hero__body">
+          <div className="row">
+            <Tag tone={card.isOpen ? "info" : "warning"}>{card.dDay}</Tag>
+            {!card.isOpen ? <Tag>{card.statusLabel}</Tag> : null}
+            <span className="hero__company-emoji" aria-hidden="true">
+              {card.companyEmoji}
+            </span>
+          </div>
           <h2 id="challenge-title" className="hero__title">
             {card.title}
           </h2>

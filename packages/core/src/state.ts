@@ -1,17 +1,17 @@
 // 데모 상태와 그것을 바꾸는 reducer (순수 함수). 화면은 dispatch(action) 만 하고, 계산·검사는 모두 여기와 core 의 다른 모듈이 해요.
 // 시각은 모두 action 의 at("YYYY-MM-DDTHH:mm")로 받아서 reducer 가 항상 같은 입력에 같은 결과를 내요(테스트하기 쉬워요).
-import { deriveActivities, showableActivities } from "./activities";
+import { showableActivities } from "./activities";
 import { buildChallenge, validateChallengeDraft, type ChallengeDraft } from "./challenge";
 import { clampCertValue } from "./certification";
 import type { AwardKind, BragPost, CertCriterionId, DemoState, Match, PrPost, Proposal, RaterRole, Review, Role, Scout, ScoutKind, SkillId, TeamPost } from "./domain";
 import { addDays, daysBetween } from "./format";
-import { levelOf } from "./impact";
 import { applyWorkRequest, chooseWorkApplicant, completeWork, deliverWork, postWorkRequest, rate, respondWorkRequest, type RatingDraft, type WorkDraft } from "./network";
 import { authorRole, DEFAULT_OFFICIAL_CHANNEL, OFFICIAL_SHARE_FEE_YEN, POST_LIMITS, postContext, resolveOfficialDate, uniqueSdgs, validatePostDraft, type PostDraft } from "./post";
 import { fileFingerprint, makeReceiptNo, teamOf, validateProposalDraft, type ProposalDraft } from "./proposal";
 import { canSendScout } from "./scout";
 import { isOpenFor } from "./recommend";
 import { acceptResearchRequest, completeResearchRequest, postResearchRequest, submitResearchResult, type ResearchDraft, type ResearchResultDraft } from "./research";
+import { syncSkills } from "./skills";
 import { payPrize, promisePrize } from "./wallet";
 
 export type Action =
@@ -64,10 +64,6 @@ export type Action =
 
 const clampScore = (n: number) => Math.min(5, Math.max(1, Math.round(n)));
 
-function myPoints(state: DemoState): number {
-  return deriveActivities(state).reduce((sum, a) => sum + a.points, 0);
-}
-
 export function reducer(state: DemoState, action: Action): DemoState {
   switch (action.type) {
     case "hydrate":
@@ -88,7 +84,7 @@ export function reducer(state: DemoState, action: Action): DemoState {
         id: `tp${state.seq}`,
         challengeId: action.challengeId,
         authorName: state.me.nickname,
-        authorLevel: levelOf(myPoints(state)),
+        authorSkills: state.skills.length,
         title,
         body: action.body.trim(),
         rolesWanted: action.rolesWanted,
@@ -182,7 +178,8 @@ export function reducer(state: DemoState, action: Action): DemoState {
       if (!proposal || proposal.status === "adopted") return state;
       const awarded = { ...state, proposals: state.proposals.map((p) => (p.id === proposal.id ? { ...p, award: action.award, status: "awarded" as const } : p)) };
       // 최우수상이면 걸어 둔 상금을 기업이 수상 팀에 직접 지급한 것으로 기록해요 (데모 — 수수료는 fees.ts 가 지급 기록에서 계산해요)
-      return payPrize(awarded, proposal, action.award);
+      // 내 기획서의 수상이면 그 퀘스트의 SDG 번호가 붙은 스킬을 하나 얻어요(#38 — 레벨 대신)
+      return syncSkills(payPrize(awarded, proposal, action.award));
     }
 
     case "adoptProposal": {
@@ -247,7 +244,7 @@ export function reducer(state: DemoState, action: Action): DemoState {
           id,
           kind: "brag",
           authorName: state.me.nickname,
-          authorLevel: levelOf(myPoints(state)),
+          authorSkills: state.skills.length,
           body: draft.body.trim(),
           // 실적의 SDGs 가 자동으로 붙어요 (최대 3개)
           sdgIds: activity.sdgIds.slice(0, POST_LIMITS.maxSdgs),
@@ -367,6 +364,7 @@ export function rebaseState(state: DemoState, today: string): DemoState {
       review: p.review ? { ...p.review, reviewedAt: shift(p.review.reviewedAt, delta) } : null,
     })),
     history: state.history.map((a) => ({ ...a, date: shift(a.date, delta) })),
+    skills: state.skills.map((skill) => ({ ...skill, learnedOn: shift(skill.learnedOn, delta) })),
     scouts: state.scouts.map((s) => ({ ...s, sentAt: shift(s.sentAt, delta) })),
     matches: state.matches.map((m) => ({ ...m, matchedOn: shift(m.matchedOn, delta) })),
     posts: state.posts.map((p) => {

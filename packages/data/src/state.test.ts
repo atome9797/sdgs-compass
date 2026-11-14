@@ -6,6 +6,7 @@ import type { DemoState } from "@sdgs-compass/core/domain";
 import { OFFICIAL_CHANNELS, POST_LIMITS, type PostDraft } from "@sdgs-compass/core/post";
 import { LIMITS, type ProposalDraft } from "@sdgs-compass/core/proposal";
 import { selectApplicants, selectB2bDashboard, selectCertificates, selectHome, selectImpact, selectInbox, selectReceipt, selectSearch, selectTalent } from "@sdgs-compass/core/selectors";
+import { selectBattle } from "@sdgs-compass/core/battle";
 import { reducer, rebaseState, type Action } from "@sdgs-compass/core/state";
 import { createStore } from "@sdgs-compass/core/store";
 import { createInitialState } from "./seed";
@@ -39,7 +40,7 @@ describe("북마크·팀 빌딩", () => {
 
   it("팀원 모집 글: 내 글이 맨 앞에 생겨요 (제목이 비면 무시)", () => {
     const next = run(initial, { type: "addTeamPost", challengeId: "ch-plastic", title: " 함께해요 ", body: "디자이너 구해요", rolesWanted: ["design"], at: AT });
-    expect(next.teamPosts[0]).toMatchObject({ title: "함께해요", mine: true, authorName: "Mina", authorLevel: 3, challengeId: "ch-plastic", createdOn: TODAY });
+    expect(next.teamPosts[0]).toMatchObject({ title: "함께해요", mine: true, authorName: "Mina", authorSkills: 2, challengeId: "ch-plastic", createdOn: TODAY });
     expect(next.seq).toBe(initial.seq + 1);
     expect(run(initial, { type: "addTeamPost", challengeId: "ch-plastic", title: "  ", body: "", rolesWanted: [], at: AT })).toBe(initial);
     expect(run(initial, { type: "addTeamPost", challengeId: "없음", title: "x", body: "", rolesWanted: [], at: AT })).toBe(initial);
@@ -57,7 +58,7 @@ describe("북마크·팀 빌딩", () => {
 });
 
 describe("기획서 제출 (F-301/F-302)", () => {
-  it("제출하면 수령증·응모자 수·포인트(+120)·레벨업(Lv.3→4)이 반영돼요", () => {
+  it("제출하면 수령증·응모자 수·포인트(+120)가 반영되고, 스킬은 수상할 때까지 그대로예요 (#38)", () => {
     const before = points(initial);
     const next = run(initial, { type: "submitProposal", challengeId: "ch-plastic", draft: draft(), at: AT });
     const mine = next.proposals.find((p) => p.mine);
@@ -68,8 +69,7 @@ describe("기획서 제출 (F-301/F-302)", () => {
     expect(mine?.status).toBe("submitted");
     expect(next.challenges.find((c) => c.id === "ch-plastic")?.applicants).toBe(4);
     expect(points(next)).toBe(before + 120);
-    expect(selectImpact(initial, "ja").level).toBe(3);
-    expect(selectImpact(next, "ja").level).toBe(4);
+    expect(next.skills).toBe(initial.skills);
     expect(selectReceipt(next, "ch-plastic", "ko")?.version).toBe(1);
     expect(selectReceipt(initial, "ch-plastic", "ko")).toBeNull();
   });
@@ -313,11 +313,11 @@ describe("발표 시나리오 한 바퀴 (학생 ↔ 기업)", () => {
     const newId = store.getState().challenges[0].id;
     expect(selectSearch(store.getState(), "ko", { query: "朝市", sdgIds: [14] }).some((c) => c.id === newId)).toBe(true);
 
-    // 2) 학생이 기획서를 제출 → 수령증, 레벨 업
+    // 2) 학생이 기획서를 제출 → 수령증 · 전투 화면의 몬스터 HP 0(クエスト達成)
     d({ type: "submitProposal", challengeId: newId, draft: draft(), at: AT });
     const receipt = selectReceipt(store.getState(), newId, "ja");
     expect(receipt?.receiptNo).toMatch(/^SC-20261030-\d{4}$/);
-    expect(selectImpact(store.getState(), "ja").level).toBe(4);
+    expect(selectBattle(store.getState(), newId, "ja")?.foe.hpPercent).toBe(0);
 
     // 3) 기업 화면에 내 응모작이 보임 → 심사 → 수상 → 채택
     const applicants = selectApplicants(store.getState(), "ja", newId);
@@ -330,6 +330,12 @@ describe("발표 시나리오 한 바퀴 (학생 ↔ 기업)", () => {
     // 4) 학생 포트폴리오에 수상·보너스가 반영되고, 새 증명서는 검증을 통과
     const impact = selectImpact(store.getState(), "ja");
     expect(impact.badges.map((b) => b.code)).toContain("winner");
+    // #38 수상 = 그 퀘스트의 SDG 번호(14 · 8)가 붙은 스킬 하나 (기업이 새로 낸 퀘스트라 스킬 이름은 퀘스트 이름)
+    expect(impact.skills.map((s) => [s.name, s.sdgIds, s.awardLabel])).toEqual([
+      ["朝市×デジタル企画", [14, 8], "最優秀賞"],
+      ["プラごみ削減アイデア", [14, 12], "優秀賞"],
+      ["多言語の防災マップ", [11, 10], "特別賞"],
+    ]);
     expect(impact.totalPoints).toBe(1476 + 100 + 75 + 400); // 제출 +100(출제 기본값) +심사 보너스 75 +대상 400
     const certs = selectCertificates(store.getState(), "ja");
     expect(certs.length).toBeGreaterThanOrEqual(6);
@@ -347,11 +353,11 @@ describe("SNS 피드: 글 올리기·좋아요·삭제 (F-503 · F-504)", () => 
   const create = (state: DemoState, draft: PostDraft) => run(state, { type: "createPost", draft, at: AT });
   const post = (state: DemoState, id: string) => state.posts.find((p) => p.id === id)!;
 
-  it("자랑 글: 내 실적 1건이 붙고 SDGs 가 자동으로 붙어요 (포인트·레벨은 그대로)", () => {
+  it("자랑 글: 내 실적 1건이 붙고 SDGs 가 자동으로 붙어요 (포인트·스킬은 그대로)", () => {
     const next = create(initial, brag());
     expect(next.posts).toHaveLength(initial.posts.length + 1);
     expect(next.posts[0]).toMatchObject({
-      id: `po${initial.seq}`, kind: "brag", authorName: "Mina", authorLevel: 3, body: "優秀賞をいただきました！",
+      id: `po${initial.seq}`, kind: "brag", authorName: "Mina", authorSkills: 2, body: "優秀賞をいただきました！",
       sdgIds: [14, 12], createdAt: AT, likes: 0, likedBy: [], mine: true,
     });
     expect(next.posts[0]).toMatchObject({ achievement: { activityId: "h-5b", kind: "award", award: "excellence" } });

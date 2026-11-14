@@ -72,7 +72,7 @@ const teamPost = (id: string, createdOn: string): TeamPost => ({
   id,
   challengeId: "chA",
   authorName: "writer",
-  authorLevel: 1,
+  authorSkills: 0,
   title: "仲間募集",
   body: "",
   rolesWanted: ["design"],
@@ -104,7 +104,7 @@ const brag = (id: string, createdAt: string, likes: number): BragPost => ({
   likedBy: [],
   mine: false,
   authorName: "writer",
-  authorLevel: 2,
+  authorSkills: 1,
   achievement: { activityId: null, kind: "submission", title: { ja: "実績", ko: "실적" }, companyName: { ja: "会社", ko: "회사" }, award: null, sdgIds: [14] },
 });
 
@@ -170,6 +170,8 @@ export function makeUsageState(overrides: Partial<DemoState> = {}): DemoState {
       activity("h2", "submission", "2026-10-05"),
       activity("h3", "award", "2026-10-06", { award: "excellence" }),
     ],
+    // 운영자 화면의 집계에는 스킬(#38)을 쓰지 않아요 — 비워 둬요
+    skills: [],
     shares: 0,
     talent: [candidate("a", true, [14]), candidate("b", false, [4, 14]), candidate("c", true, [12])],
     scouts: [scout("sc1", "sent", "2026-10-29T10:00"), scout("sc2", "read", "2026-10-25T10:00"), scout("sc3", "accepted", "2026-10-02T10:00")],

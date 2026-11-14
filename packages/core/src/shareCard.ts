@@ -1,7 +1,6 @@
 // F-501 1-Click 카드뉴스: 성과 한 건을 Instagram(1:1)·LinkedIn(1.91:1) 규격의 카드 내용으로 만들어요.
 // F-502 개인정보 보호: 카드와 공유 문구에는 닉네임과 성과만 넣고, 학교·이메일 등은 넣지 않아요.
 import type { Activity } from "./domain";
-import type { ImpactIndex } from "./impact";
 import { pick, type Locale } from "./i18n";
 import { awardLabel } from "./labels";
 import { translate } from "./messages";
@@ -30,9 +29,11 @@ export interface ShareCard {
 export interface ShareCardInput {
   nickname: string;
   activity: Activity;
-  index: ImpactIndex;
   participationCount: number;
-  awardCount: number;
+  /** 가진 스킬 수 (#38 — 레벨 대신, 수상 1건 = 스킬 1개) */
+  skillCount: number;
+  /** 가진 스킬의 SDG 번호 (최근 스킬의 번호부터) */
+  skillSdgIds: readonly SdgId[];
   template: CardTemplate;
   locale: Locale;
   /** 수상한 퀘스트에 걸린 상품 보상(報酬アイテム)의 이름 — 수상 카드에만 쓰고, 기업이 제공했다는 표시와 함께 넣어요(#37) */
@@ -40,7 +41,7 @@ export interface ShareCardInput {
 }
 
 export function buildShareCard(input: ShareCardInput): ShareCard {
-  const { nickname, activity, index, template, locale } = input;
+  const { nickname, activity, template, locale } = input;
   const isAward = activity.kind === "award" && activity.award !== undefined;
   const title = pick(activity.title, locale);
   const company = pick(activity.companyName, locale);
@@ -59,10 +60,10 @@ export function buildShareCard(input: ShareCardInput): ShareCard {
     title,
     subtitle: subtitleParts.join(" · "),
     stats: [
-      // 실적은 포인트 숫자가 아니라 레벨로 보여요
-      { label: translate("share.statPoints", locale), value: `Lv.${index.level}` },
+      // 실적은 포인트 숫자가 아니라 스킬(수상)의 수와 그 SDG 번호로 보여요 (#38)
+      { label: translate("share.statSkills", locale), value: String(input.skillCount) },
       { label: translate("share.statChallenges", locale), value: String(input.participationCount) },
-      { label: translate("share.statAwards", locale), value: String(input.awardCount) },
+      { label: translate("share.statSkillSdgs", locale), value: input.skillSdgIds.length > 0 ? input.skillSdgIds.slice(0, 3).join(locale === "ja" ? "・" : "·") : "—" },
     ],
     sdgIds: activity.sdgIds,
     hashtags,

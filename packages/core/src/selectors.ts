@@ -7,12 +7,12 @@ import {
 } from "./certification";
 import { certificateFromActivity, certificateIdAt, qrPayload, verifyCode, type Certificate } from "./certificate";
 import type {
-  Activity, ActivityKind, AwardKind, Candidate, Challenge, ChallengeStatus, CertCriterionId, Company, DemoState, OfficialChannel, OfficialShare, PostKind, Proposal, ProposalStatus, Review,
-  Role, ScoutKind, ScoutStatus, SkillId, SocialPost,
+  Activity, ActivityKind, AwardKind, Candidate, Challenge, ChallengeStatus, CertCriterionId, Company, DemoState, HeroSkill, OfficialChannel, OfficialShare, PostKind, Proposal, ProposalStatus,
+  Review, Role, ScoutKind, ScoutStatus, SkillId, SocialPost,
 } from "./domain";
 import { feeItems, PLATFORM_FEE_MIN_YEN, summarizeFees, type FeeKind } from "./fees";
 import { dDayLabel, daysBetween, formatBytes, formatDate, formatDateShort, formatDateTime, formatMonthDayWeekday, formatPeople, formatYen } from "./format";
-import { computeBadges, computeImpactIndex, BADGE_EMOJI, levelProgress, levelOf, REVIEW_SCORE_MAX, reviewBonus, type BadgeCode } from "./impact";
+import { computeBadges, computeImpactIndex, BADGE_EMOJI, REVIEW_SCORE_MAX, reviewBonus, type BadgeCode } from "./impact";
 import { pick, type Locale } from "./i18n";
 import { awardLabel, challengeStatusLabel, participationLabel, proposalStatusLabel, rewardLabel, scoutKindLabel, sdgLabel, sdgShort, skillLabel } from "./labels";
 import { makeT, translate, type TFunction } from "./messages";
@@ -25,6 +25,7 @@ import { qrMatrix } from "./qr";
 import { isOpenFor, recommendChallenges, scoreChallenge, type Reason, type Recommendation } from "./recommend";
 import { remainingScouts, SCOUT_DAILY_LIMIT, alreadyScouted, canSendScout } from "./scout";
 import { buildShareCard, type CardTemplate, type ShareCard } from "./shareCard";
+import { AWARD_STARS, skillSdgIds, sortSkills } from "./skills";
 import { getSdg, sdgTextColor, SDG_IDS, SDGS, type SdgId } from "./sdg";
 import { COLORS } from "./theme";
 
@@ -376,7 +377,7 @@ export function selectChallengeDetail(state: DemoState, id: string, locale: Loca
     .filter((p) => p.challengeId === id)
     .map((p) => ({
       id: p.id,
-      authorLabel: translate("team.author", locale, { name: p.authorName, level: p.authorLevel }),
+      authorLabel: translate("team.author", locale, { name: p.authorName, skills: p.authorSkills }),
       title: pick(p.title, locale),
       body: pick(p.body, locale),
       roles: p.rolesWanted.map((r) => skillLabel(r, locale)),
@@ -511,12 +512,14 @@ export interface ApplicationReviewVM {
   awardLabel: string | null;
   /** 상품 보상이 걸린 퀘스트에서 수상했을 때 「報酬アイテム「…」を手に入れた！（…から届きます）」 (#37, 아니면 null) */
   rewardItemLabel: string | null;
+  /** 수상해서 얻은 스킬 「スキル「…」（SDG 14）をおぼえた！」 (#38, 아니면 null) */
+  skillLearned: HeroSkillVM | null;
   /** 스크린 리더용 요약: 「企業からの審査結果：創造性 4/5・実現可能性 3/5・SDGs貢献度 5/5、総合 4.0/5.0。+64pt をマイImpactに反映」 */
   summary: string;
 }
 
 /** 내 기획서 하나의 심사 결과 화면 모델. 기업이 아직 아무 결과도 내지 않았으면 null (#30) */
-export function applicationReview(proposal: Proposal, companyName: string, locale: Locale, rewardItemName?: string): ApplicationReviewVM | null {
+export function applicationReview(proposal: Proposal, companyName: string, locale: Locale, rewardItemName?: string, skill?: HeroSkill): ApplicationReviewVM | null {
   const review = proposal.review;
   if (!review && !proposal.award) return null;
   const title = translate("impact.reviewTitle", locale);
@@ -561,6 +564,7 @@ export function applicationReview(proposal: Proposal, companyName: string, local
     award: proposal.award,
     awardLabel: awardText,
     rewardItemLabel: proposal.award && rewardItemName ? translate("impact.rewardItemWon", locale, { item: rewardItemName, company: companyName }) : null,
+    skillLearned: proposal.award && skill ? heroSkillVM(skill, locale) : null,
     summary,
   };
 }
@@ -617,7 +621,7 @@ export function selectApplications(state: DemoState, locale: Locale): Applicatio
       versionLabel: translate("challenge.submitted", locale, { version: latest.no }),
       submittedAt: latest.submittedAt,
       sdgIds: challenge.sdgIds,
-      review: applicationReview(proposal, companyName, locale, challenge.rewardItem ? pick(challenge.rewardItem.name, locale) : undefined),
+      review: applicationReview(proposal, companyName, locale, challenge.rewardItem ? pick(challenge.rewardItem.name, locale) : undefined, state.skills.find((skill) => skill.proposalId === proposal.id)),
     });
   }
   // 최근에 낸 것이 위로 (같은 시각이면 과제 id 순서로 고정)
@@ -637,23 +641,19 @@ export interface ImpactVM {
   nickname: string;
   university: string;
   faculty: string;
-  level: number;
-  levelLabel: string;
-  /** 내부 점수(레벨 계산·정렬용) — 화면에는 숫자로 보여 주지 않아요 */
+  /** 내부 점수(레이더 차트 · 정렬용) — 화면에는 숫자로 보여 주지 않아요 */
   totalPoints: number;
-  /** 현재 레벨 안에서의 진행률 0~1 */
-  progressRatio: number;
-  /** 진행률 0~100 (정수, 최고 레벨이면 100) */
-  progressPercent: number;
-  /** 「次のLv.4への進み具合 98%」 또는 최고 레벨 문구 */
-  nextLevelLabel: string;
-  /** 「参加・提出・受賞の実績でレベルが上がります。」 */
-  levelHint: string;
+  /** #38 레벨 대신 스킬: 수상 1건 = SDG 번호가 붙은 스킬 1개 (최근 것부터) */
+  skills: HeroSkillVM[];
+  /** 「スキル 2」 */
+  skillCountLabel: string;
+  /** 「クエストで受賞すると、…スキルをおぼえます。」 */
+  skillsHint: string;
   perSdg: { id: SdgId; score: number; color: string; short: string }[];
   topSdgs: { id: SdgId; name: string; score: number }[];
   badges: BadgeVM[];
   activities: ActivityVM[];
-  /** 스카우트 수신 설정(포인트·레벨과 관계없는 학생의 선택) — 화면은 포인트와 떨어진 줄에 보여요 */
+  /** 스카우트 수신 설정(포인트·스킬과 관계없는 학생의 선택) — 화면은 스킬과 떨어진 줄에 보여요 */
   scoutable: boolean;
   /** 「スカウトの受け取り：オン」 */
   scoutStatus: string;
@@ -682,35 +682,67 @@ export function badgeVM(code: BadgeCode, locale: Locale): BadgeVM {
   return { code, emoji: BADGE_EMOJI[code], name: translate(`badge.${code}.name`, locale), desc: translate(`badge.${code}.desc`, locale) };
 }
 
-/**
- * 레벨 진행률(0~1)을 화면용 정수 % 로. 최고 레벨이면 100, 아직 다음 레벨이 아니면 99 를 넘지 않게 버림해요
- * (반올림으로 100% 가 보이면 레벨이 이미 오른 것처럼 읽혀요).
- */
-export function progressPercent(ratio: number, isMax: boolean): number {
-  if (isMax) return 100;
-  return Math.min(99, Math.max(0, Math.floor(ratio * 100)));
+/** #38 스킬 1개의 화면 모델: 대표 SDG(첫 번째)의 색이 스킬의 「タイプ」, ★ 은 상의 세기(최우수상 ★★★) */
+export interface HeroSkillVM {
+  id: string;
+  name: string;
+  sdgIds: SdgId[];
+  sdgId: SdgId;
+  color: string;
+  textColor: string;
+  awardLabel: string;
+  stars: 1 | 2 | 3;
+  /** 「優秀賞・みなと海洋フーズ・2026/10/17」 */
+  metaLabel: string;
+  /** 「受賞したクエスト：…」 */
+  questLabel: string;
+  /** 화면 읽기 프로그램용 한 줄 */
+  ariaLabel: string;
+  /** 「スキル「…」（SDG 14）をおぼえた！」 */
+  learnedLabel: string;
+  activityId: string;
+  proposalId: string | null;
+}
+
+export function heroSkillVM(skill: HeroSkill, locale: Locale): HeroSkillVM {
+  const name = pick(skill.name, locale);
+  const sdgId = skill.sdgIds[0] ?? 17;
+  const award = awardLabel(skill.award, locale);
+  return {
+    id: skill.id,
+    name,
+    sdgIds: skill.sdgIds,
+    sdgId,
+    color: getSdg(sdgId).color,
+    textColor: sdgTextColor(sdgId),
+    awardLabel: award,
+    stars: AWARD_STARS[skill.award],
+    metaLabel: translate("impact.skillMeta", locale, { award, company: pick(skill.companyName, locale), date: formatDate(skill.learnedOn, locale) }),
+    questLabel: translate("impact.skillQuest", locale, { quest: pick(skill.questTitle, locale) }),
+    ariaLabel: translate("impact.skillAria", locale, { skill: name, sdgs: skill.sdgIds.join(locale === "ja" ? "・" : ", "), award }),
+    learnedLabel: translate("impact.skillLearned", locale, { skill: name, sdg: sdgId }),
+    activityId: skill.activityId,
+    proposalId: skill.proposalId ?? null,
+  };
+}
+
+export function selectSkills(state: Pick<DemoState, "skills">, locale: Locale): HeroSkillVM[] {
+  return sortSkills(state.skills).map((skill) => heroSkillVM(skill, locale));
 }
 
 export function selectImpact(state: DemoState, locale: Locale): ImpactVM {
   const activities = deriveActivities(state);
   const index = computeImpactIndex(activities);
-  const progress = levelProgress(index.totalPoints);
   const t = makeT(locale);
-  const levelName = (level: number) => translate(`level.${level as 1 | 2 | 3 | 4 | 5}`, locale);
+  const skills = selectSkills(state, locale);
   return {
     nickname: state.me.nickname,
     university: pick(state.me.university, locale),
     faculty: pick(state.me.faculty, locale),
-    level: index.level,
-    levelLabel: t("level.label", { level: index.level, name: levelName(index.level) }),
     totalPoints: index.totalPoints,
-    progressRatio: progress.ratio,
-    progressPercent: progressPercent(progress.ratio, progress.next === null),
-    nextLevelLabel:
-      progress.next === null
-        ? t("impact.maxLevel")
-        : t("impact.nextLevel", { level: progress.next, percent: progressPercent(progress.ratio, false) }),
-    levelHint: t("impact.levelHint"),
+    skills,
+    skillCountLabel: t("impact.skillCount", { count: skills.length }),
+    skillsHint: t("impact.skillsHint"),
     perSdg: SDG_IDS.map((id) => ({ id, score: index.perSdg[id], color: getSdg(id).color, short: sdgShort(id, locale) })),
     topSdgs: index.topSdgs.map((id) => ({ id, name: getSdg(id).name[locale], score: index.perSdg[id] })),
     badges: computeBadges(activities).map((code) => badgeVM(code, locale)),
@@ -792,9 +824,9 @@ export function selectShare(state: DemoState, locale: Locale, template: CardTemp
     nickname: state.me.nickname,
     activity: selected,
     rewardItemName: rewardItem ? pick(rewardItem.name, locale) : undefined,
-    index: computeImpactIndex(all),
     participationCount: all.filter((a) => a.kind === "participation" || a.kind === "submission").length,
-    awardCount: all.filter((a) => a.kind === "award").length,
+    skillCount: state.skills.length,
+    skillSdgIds: skillSdgIds(state.skills),
     template,
     locale,
   });
@@ -1107,9 +1139,8 @@ export interface CandidateVM {
   nickname: string;
   university: string;
   faculty: string;
-  /** 레벨(1~5) — 기업 화면에도 포인트 숫자 대신 레벨로 보여요 */
-  level: number;
-  levelLabel: string;
+  /** #38 스킬 수(= 수상 수) — 기업 화면에도 포인트 숫자 대신 「スキル 2」로 보여요 */
+  skillsLabel: string;
   /** 내부 점수(정렬의 마지막 기준) — 화면에는 숫자로 보여 주지 않아요 */
   points: number;
   awards: number;
@@ -1135,15 +1166,12 @@ export interface TalentVM {
 function candidateVM(state: DemoState, c: Candidate, isDemoStudent: boolean, locale: Locale): CandidateVM {
   const sent = alreadyScouted(state.scouts, state.myCompanyId, c.id);
   const topSdg = c.sdgInterests[0];
-  const level = levelOf(c.points);
-  const levelName = translate(`level.${level}`, locale);
   return {
     id: c.id,
     nickname: c.nickname,
     university: pick(c.university, locale),
     faculty: pick(c.faculty, locale),
-    level,
-    levelLabel: translate("level.label", locale, { level, name: levelName }),
+    skillsLabel: translate("talent.skills", locale, { count: c.awards }),
     points: c.points,
     awards: c.awards,
     awardsLabel: translate("talent.awards", locale, { count: c.awards }),
@@ -1169,7 +1197,8 @@ export function allCandidates(state: DemoState): { candidate: Candidate; isDemoS
     skills: state.me.skills,
     sdgInterests: state.me.sdgInterests,
     points: activities.reduce((sum, a) => sum + a.points, 0),
-    awards: activities.filter((a) => a.kind === "award").length,
+    // 스킬 = 수상 (#38) — 저장된 스킬 수와 같아요
+    awards: Math.max(state.skills.length, activities.filter((a) => a.kind === "award").length),
     scoutable: state.me.scoutable,
     bio: state.me.bio,
   };
@@ -1193,12 +1222,11 @@ export function selectTalent(state: DemoState, locale: Locale, q: SearchQuery): 
       return hay.includes(needle);
     })
     .map(({ candidate, isDemoStudent }) => candidateVM(state, candidate, isDemoStudent, locale))
-    // 스카우트할 수 있는 사람 → 데모 학생(나) → 레벨 → 수상 수 → 내부 점수 → 이름 순
+    // 스카우트할 수 있는 사람 → 데모 학생(나) → 스킬(수상) 수 → 내부 점수 → 이름 순
     .sort(
       (a, b) =>
         Number(b.canScout) - Number(a.canScout) ||
         Number(b.isDemoStudent) - Number(a.isDemoStudent) ||
-        b.level - a.level ||
         b.awards - a.awards ||
         b.points - a.points ||
         a.nickname.localeCompare(b.nickname),
@@ -1460,7 +1488,7 @@ function postVM(state: DemoState, post: SocialPost, locale: Locale, role: Role, 
       ...base,
       chipLabel: translate("feed.chip.brag", locale),
       authorName: post.authorName,
-      authorMeta: translate("feed.level", locale, { level: post.authorLevel }),
+      authorMeta: translate("feed.skills", locale, { count: post.authorSkills }),
       avatar: [...post.authorName][0]?.toUpperCase() ?? "?",
       avatarColor: null,
       verified: false,
@@ -1616,8 +1644,6 @@ export function officialDateNav(official: Pick<ComposerVM["official"], "dates" |
 export function selectComposer(state: DemoState, locale: Locale, kind: PostKind, preset: PostPreset = {}): ComposerVM {
   const t = makeT(locale);
   const company = companyOf(state, state.myCompanyId);
-  const points = deriveActivities(state).reduce((sum, a) => sum + a.points, 0);
-
   const activities = showableActivities(state).map((a) => ({
     id: a.id,
     label: `${a.award ? `🏆 ${awardLabel(a.award, locale)} · ` : ""}${pick(a.title, locale)}`,
@@ -1659,7 +1685,7 @@ export function selectComposer(state: DemoState, locale: Locale, kind: PostKind,
     maxSdgs: POST_LIMITS.maxSdgs,
     author:
       kind === "brag"
-        ? { name: state.me.nickname, meta: t("feed.level", { level: levelOf(points) }), avatar: [...state.me.nickname][0]?.toUpperCase() ?? "?", avatarColor: null, verified: false, mark: null }
+        ? { name: state.me.nickname, meta: t("feed.skills", { count: state.skills.length }), avatar: [...state.me.nickname][0]?.toUpperCase() ?? "?", avatarColor: null, verified: false, mark: null }
         : {
             name: company ? pick(company.name, locale) : "",
             meta: company ? pick(company.industry, locale) : "",

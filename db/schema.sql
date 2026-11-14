@@ -2126,7 +2126,7 @@ COMMENT ON TABLE share_cards                IS 'SNS 카드뉴스 (Instagram 1:1�
 COMMENT ON TABLE activities                 IS '활동 기록 (참가·제출·수상·공유, 수정 불가) — F-401';
 COMMENT ON TABLE hero_skills                IS '용사의 스킬 (수상 1건 = 챌린지의 SDG 번호가 붙은 스킬 1개, 수상 활동이 생기면 자동, 수정 불가) — #38';
 COMMENT ON TABLE activity_sdgs              IS '활동이 닿은 SDGs — F-401';
-COMMENT ON TABLE impact_scores              IS 'SDG 별 누적 포인트와 점수 (레이더 차트) — F-401';
+COMMENT ON TABLE impact_scores              IS 'SDG 별 누적 포인트와 점수 (내부 점수 — 화면의 스테이터스는 평가 EXP, #45) — F-401';
 COMMENT ON TABLE user_badges                IS '획득한 배지 — F-402';
 COMMENT ON TABLE portfolio_files            IS '직접 올린 포트폴리오 (PDF·URL) — F-104';
 COMMENT ON TABLE certificates               IS '디지털 증명서 (SHA-256 해시·QR, 발급 후 수정 불가) — F-502';

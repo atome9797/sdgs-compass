@@ -34,7 +34,7 @@ const GROUPS = [
   },
   {
     id: "impact", no: "④", title: "Impact Index · 증명서 · SNS", features: "F-104, F-401, F-402, F-501, F-502",
-    summary: "활동 기록 → SDG별 점수(레이더 차트)·배지·스킬(수상 1건 = SDG 번호가 붙은 스킬 1개, #38), 카드뉴스, SHA-256 해시·QR 디지털 증명서와 진위 확인 기록이에요.",
+    summary: "활동 기록 → SDGs 스테이터스(기업 평가의 EXP · Lv, #45)·배지·스킬(수상 = 그 퀘스트의 SDG 스킬, 같은 SDG 수상 수 = 스킬 Lv, #38 · #45), 카드뉴스, SHA-256 해시·QR 디지털 증명서와 진위 확인 기록이에요.",
     tables: ["badges", "share_cards", "activities", "activity_sdgs", "hero_skills", "impact_scores", "user_badges", "portfolio_files", "certificates", "certificate_verifications"],
   },
   {

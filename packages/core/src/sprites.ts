@@ -1,8 +1,8 @@
-// 전투 화면(#38)의 픽셀 그림: 과제 몬스터 6종 · 용사(뒷모습 · 앞모습) · 구름 · 배경 4종. 모두 이 앱만의 그림이에요(다른 게임의 캐릭터를 따라 그리지 않아요).
+// 전투 화면(#38) · 의뢰서(#39)의 픽셀 그림(웹 · 앱 공용, DOM 없이 RGBA 배열만): 과제 몬스터 6종 · 용사(뒷모습 · 앞모습) · 구름 · 배경 4종. 모두 이 앱만의 그림이에요(다른 게임의 캐릭터를 따라 그리지 않아요).
 // 몬스터의 무늬(accent)는 퀘스트의 대표 SDG 색 — 몬스터의 「タイプ」가 SDG 번호예요. 용사의 망토 색은 가진 스킬의 SDG 색.
-import type { FoeKind } from "@sdgs-compass/core/domain";
-import type { SceneKind } from "@sdgs-compass/core/battle";
-import { getSdg, type SdgId } from "@sdgs-compass/core/sdg";
+import type { SceneKind } from "./battle";
+import type { FoeKind } from "./domain";
+import { getSdg, type SdgId } from "./sdg";
 import { darken, hash01, lighten, PixelCanvas, PixelGrid, type PixelImage } from "./pixels";
 
 const INK = "#1B2333";

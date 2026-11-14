@@ -1,7 +1,7 @@
 import { readFileSync, existsSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { CHART_COLORS, COLORS, FONT_SIZE, GAME_COLORS, MARK_COLORS, PHONE_WIDTH, RADIUS, SPACE } from "@sdgs-compass/core/theme";
+import { CHART_COLORS, COLORS, FONT_SIZE, GAME_COLORS, MARK_COLORS, PHONE_WIDTH, RADIUS, SCROLL_COLORS, SPACE } from "@sdgs-compass/core/theme";
 
 // globals.css 의 :root 값이 core 의 theme.ts(웹·모바일 공용 디자인 토큰)와 같은지 확인해요.
 function readCss(file = "globals.css"): string {
@@ -49,6 +49,11 @@ describe("globals.css 와 theme.ts 의 토큰", () => {
     expect(css).toMatch(/\.battle-skill\s*\{[^}]*min-height:\s*var\(--tap\)/);
     expect(css).toMatch(/\.battle__canvas\s*\{[^}]*image-rendering:\s*pixelated/);
     expect(css).toMatch(/@media \(prefers-reduced-motion: reduce\)\s*\{[^}]*\.battle-msg__next/);
+  });
+
+  it("퀘스트 의뢰서(#39)의 먹 · 도장 색(--scroll-ink · --scroll-seal)이 core 의 SCROLL_COLORS 와 같아요 (앱과 같은 색)", () => {
+    expect(norm(vars.get("--scroll-ink") ?? "")).toBe(norm(SCROLL_COLORS.ink));
+    expect(norm(vars.get("--scroll-seal") ?? "")).toBe(norm(SCROLL_COLORS.seal));
   });
 
   it("퀘스트 의뢰서(#39): 종이 전체가 상세로 가는 링크이고, 북마크 · 마크 단추는 그 위에서 따로 눌려요", () => {

@@ -1,7 +1,7 @@
 // 전투 화면(#38)의 움직임: 시각 t(ms)에 무엇을 어디에 그릴지(그리기 목록)를 계산해요. 그리는 쪽(WebGL · 2D)은 이 목록만 따라 그려요.
 // 순수 함수라 브라우저 없이 테스트해요. 위치는 모두 내부 해상도(STAGE 240×150)의 정수 칸 — 픽셀 그림이 또렷하게 보이도록.
-import { hash01 } from "./pixels";
-import { FOE_BASE, HERO_BASE, STAGE } from "./sprites";
+import { hash01 } from "@sdgs-compass/core/pixels";
+import { FOE_BASE, HERO_BASE, STAGE } from "@sdgs-compass/core/sprites";
 
 export type TextureKey = "bg" | "foe" | "hero0" | "hero1" | "hero2" | "cloud" | "dot";
 

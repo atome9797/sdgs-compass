@@ -6,7 +6,7 @@ import { useMemo, useState } from "react";
 import { StyleSheet, View } from "react-native";
 import type { SdgId } from "@sdgs-compass/core/sdg";
 import { searchResultsLabel, selectSdgCountTiles, selectSearch } from "@sdgs-compass/core/selectors";
-import { ChallengeCard } from "@/components/ChallengeCard";
+import { QuestScroll } from "@/components/QuestScroll";
 import { Screen, ScreenTitle } from "@/components/Screen";
 import { SdgPicker } from "@/components/SdgTile";
 import { SearchBox } from "@/components/SearchBox";
@@ -73,7 +73,7 @@ export function SearchScreen() {
       ) : (
         <View style={styles.list}>
           {results.map((card) => (
-            <ChallengeCard key={card.id} testID={`result-${card.id}`} card={card} onPress={() => router.push(challengeHref(card.id))} />
+            <QuestScroll key={card.id} testID={`result-${card.id}`} card={card} locale={locale} onPress={() => router.push(challengeHref(card.id))} />
           ))}
         </View>
       )}

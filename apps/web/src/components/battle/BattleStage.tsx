@@ -7,7 +7,7 @@ import type { BattleVM } from "@sdgs-compass/core/battle";
 import { SdgMini } from "@/components/sdg";
 import { createRenderer } from "@/lib/battle/renderer";
 import { layout, settled, type Effect } from "@/lib/battle/scene";
-import { background, cloudSprite, dotSprite, foeSprite, heroBack, HORIZON, partyCapes, STAGE } from "@/lib/battle/sprites";
+import { background, cloudSprite, dotSprite, foeSprite, heroBack, HORIZON, partyCapes, STAGE } from "@sdgs-compass/core/sprites";
 
 export function BattleStage({ vm, effectsRef, kickRef, reduced }: { vm: BattleVM; effectsRef: RefObject<Effect[]>; kickRef: RefObject<(() => void) | null>; reduced: boolean }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);

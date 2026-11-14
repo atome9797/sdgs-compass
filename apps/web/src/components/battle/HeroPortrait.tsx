@@ -5,7 +5,7 @@ import { useEffect, useRef } from "react";
 import { getSdg, type SdgId } from "@sdgs-compass/core/sdg";
 import { createRenderer } from "@/lib/battle/renderer";
 import { portraitLayout } from "@/lib/battle/scene";
-import { cloudSprite, dotSprite, heroFront, partyCapes, PORTRAIT, portraitBackground } from "@/lib/battle/sprites";
+import { cloudSprite, dotSprite, heroFront, partyCapes, PORTRAIT, portraitBackground } from "@sdgs-compass/core/sprites";
 import { useReducedMotion } from "@/lib/useReducedMotion";
 
 export function HeroPortrait({ skillSdgIds, label }: { skillSdgIds: readonly SdgId[]; label: string }) {

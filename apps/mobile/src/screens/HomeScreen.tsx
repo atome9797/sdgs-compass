@@ -6,8 +6,8 @@ import { StyleSheet, View } from "react-native";
 import type { SdgId } from "@sdgs-compass/core/sdg";
 import { selectHome } from "@sdgs-compass/core/selectors";
 import { ActivityRow } from "@/components/ActivityRow";
-import { ChallengeCard } from "@/components/ChallengeCard";
 import { PleaWindow } from "@/components/PleaWindow";
+import { QuestScroll } from "@/components/QuestScroll";
 import { Screen, ScreenTitle } from "@/components/Screen";
 import { SdgGrid } from "@/components/SdgTile";
 import { SearchBox } from "@/components/SearchBox";
@@ -48,7 +48,7 @@ export function HomeScreen() {
       <Section title={t("home.recommendedTitle")} hint={t("home.recommendedHint")}>
         <View style={styles.list}>
           {vm.recommended.map((card) => (
-            <ChallengeCard key={card.id} testID={`recommended-${card.id}`} card={card} showMatch onPress={() => router.push(challengeHref(card.id))} />
+            <QuestScroll key={card.id} testID={`recommended-${card.id}`} card={card} locale={locale} showMatch onPress={() => router.push(challengeHref(card.id))} />
           ))}
         </View>
       </Section>
@@ -56,7 +56,7 @@ export function HomeScreen() {
       <Section title={t("home.deadlineSoon")}>
         <View style={styles.list}>
           {vm.soon.map((card) => (
-            <ChallengeCard key={card.id} testID={`soon-${card.id}`} card={card} onPress={() => router.push(challengeHref(card.id))} />
+            <QuestScroll key={card.id} testID={`soon-${card.id}`} card={card} locale={locale} compact onPress={() => router.push(challengeHref(card.id))} />
           ))}
         </View>
       </Section>

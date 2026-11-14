@@ -3,8 +3,8 @@
 // 의뢰서(#39)의 「討伐対象」 그림: 전투 화면과 같은 과제 몬스터의 픽셀 그림을 작은 2D 캔버스로 (목록에 여러 장이 있어도 WebGL 을 쓰지 않아요).
 import { useEffect, useRef } from "react";
 import type { FoeKind } from "@sdgs-compass/core/domain";
-import { foeSprite } from "@/lib/battle/sprites";
-import type { PixelImage } from "@/lib/battle/pixels";
+import { foeSprite } from "@sdgs-compass/core/sprites";
+import type { PixelImage } from "@sdgs-compass/core/pixels";
 
 const cache = new Map<string, PixelImage>();
 function spriteOf(kind: FoeKind, color: string): PixelImage {

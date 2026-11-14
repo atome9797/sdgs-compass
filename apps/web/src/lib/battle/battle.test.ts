@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { bayer, hash01, hexToRgba, mix, PixelGrid } from "./pixels";
+import { bayer, hash01, hexToRgba, mix, PixelGrid } from "@sdgs-compass/core/pixels";
 import { DURATION, layout, portraitLayout, settled, type Effect, type SceneInput } from "./scene";
-import { background, foeSprite, FOE_BASE, heroBack, heroFront, partyCapes, portraitBackground, STAGE } from "./sprites";
+import { background, foeSprite, FOE_BASE, heroBack, heroFront, partyCapes, portraitBackground, STAGE } from "@sdgs-compass/core/sprites";
 
 const FOE_KINDS = ["jelly", "bottle", "smog", "ghost", "wall", "bird"] as const;
 

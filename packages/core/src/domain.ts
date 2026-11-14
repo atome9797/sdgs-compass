@@ -26,7 +26,7 @@ export interface RewardItem {
   retailYen: number;
 }
 
-/** 전투 화면의 몬스터 모양 (웹의 픽셀 그림 이름과 같아요 — apps/web/src/lib/battle/sprites.ts) */
+/** 전투 화면 · 의뢰서의 몬스터 모양 (픽셀 그림 이름과 같아요 — packages/core/src/sprites.ts) */
 export type FoeKind = "jelly" | "bottle" | "smog" | "ghost" | "wall" | "bird";
 
 /** 퀘스트가 맞서는 과제를 몬스터로 (#38): 예) 海洋プラスチック → 「プラごみクラゲ」 */

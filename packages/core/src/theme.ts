@@ -65,6 +65,25 @@ export const GAME_COLORS = {
 } as const;
 
 /**
+ * 퀘스트 의뢰서(#39, 양피지 두루마리)의 색 — ink · seal 은 웹의 --scroll-ink · --scroll-seal 과 같아요(globals.test.ts).
+ * 종이 · 두루마리 · 열쇠말 칸의 색은 앱(QuestScroll)이 쓰고, 웹은 CSS 그라데이션으로 같은 색 계열을 써요.
+ */
+export const SCROLL_COLORS = {
+  ink: "#3B2A1A",
+  seal: "#B8322A",
+  paper: "#F2E2BB",
+  paperEdge: "#DCBC82",
+  roll: "#C9A46A",
+  rollLight: "#F6E5BE",
+  rollDark: "#8D6331",
+  key: "#6B4A26",
+  keyText: "#FBF1D8",
+  frame: "#8A6232",
+  frameFill: "#FFF4DA",
+  muted: "#6B5A48",
+} as const;
+
+/**
  * #RRGGBB 를 흰색과 섞은 옅은 색(amount 0~1 = 원래 색의 비율, 결과도 #RRGGBB). SDG 타일·기업 로고처럼 넓은 면을 차분하게 칠할 때 써요.
  * 모양이 #RRGGBB 가 아니면 그대로 돌려줘요(화면이 깨지지 않게).
  */

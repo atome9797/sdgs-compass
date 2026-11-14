@@ -1,6 +1,6 @@
 // 전투 화면(#38)을 그리는 쪽: WebGL 로 그리고, WebGL 을 못 쓰는 브라우저에서는 2D 캔버스로 같은 그림을 그려요(번쩍임 · 물결은 빼고).
 // 그림은 내부 해상도 그대로(240×150) 그리고, 화면에는 CSS(image-rendering: pixelated)로 늘려서 칸이 또렷하게 보여요.
-import { hexToRgba, type PixelImage } from "./pixels";
+import { hexToRgba, type PixelImage } from "@sdgs-compass/core/pixels";
 import type { DrawItem, TextureKey } from "./scene";
 
 export interface Renderer {

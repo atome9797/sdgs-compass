@@ -1327,3 +1327,26 @@ describe("게임 테마 — 용사 · 퀘스트 · 보상 아이템 (#37)", () =
     if (mine) expect(selectShare(submitted, "ja", "instagram", mine.id).card!.caption).not.toContain("提供");
   });
 });
+
+describe("능력치 창 (#43) — SDGs 실적을 게임의 스테이터스처럼", () => {
+  const state = createInitialState("2026-10-30");
+
+  it("17개 목표를 번호 순으로, 공식 이름 · 0~100 · 「得意」(가장 높은 3개)", () => {
+    const vm = selectImpact(state, "ja");
+    expect(vm.stats.map((s) => s.id)).toEqual(Array.from({ length: 17 }, (_, i) => i + 1));
+    for (const stat of vm.stats) {
+      expect(stat.score).toBe(vm.perSdg.find((p) => p.id === stat.id)!.score);
+      expect(stat.score).toBeGreaterThanOrEqual(0);
+      expect(stat.score).toBeLessThanOrEqual(100);
+    }
+    expect(vm.stats.filter((s) => s.top).map((s) => s.id).sort((a, b) => a - b)).toEqual(vm.topSdgs.map((s) => s.id).sort((a, b) => a - b));
+    const sea = vm.stats.find((s) => s.id === 14)!;
+    expect(sea.name).toBe("海の豊かさを守ろう");
+    expect(sea.short).toBe("海");
+    expect(sea.ariaLabel).toBe(`目標14 海の豊かさを守ろう ${sea.score}（得意）`);
+    const poverty = vm.stats.find((s) => s.id === 1)!;
+    expect(poverty.top).toBe(false);
+    expect(poverty.ariaLabel).toBe(`目標1 貧困をなくそう ${poverty.score}`);
+    expect(selectImpact(state, "ko").stats.find((s) => s.id === 14)!.ariaLabel).toBe(`목표 14 해양 생태계 보전 ${sea.score} (강점)`);
+  });
+});

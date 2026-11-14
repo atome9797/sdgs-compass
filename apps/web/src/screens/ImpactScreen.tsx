@@ -6,11 +6,10 @@
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useMemo } from "react";
-import { sdgLabel } from "@sdgs-compass/core/labels";
 import { selectApplications, selectImpact, type ApplicationReviewVM, type HeroSkillVM } from "@sdgs-compass/core/selectors";
 import { selectWallet } from "@sdgs-compass/core/walletView";
 import { HeroPortrait } from "@/components/battle/HeroPortrait";
-import { RadarChart } from "@/components/RadarChart";
+import { StatsWindow } from "@/components/StatsWindow";
 import { SdgEmblem, SdgMiniRow } from "@/components/sdg";
 import { ButtonLink, Empty, ScreenHead, Section, Tag } from "@/components/ui";
 import { buildHref, challengeHref, receiptHref, ROUTES } from "@/lib/routes";
@@ -197,27 +196,8 @@ export function ImpactScreen() {
         </Section>
       ) : null}
 
-      <Section title={t("impact.radarTitle")} hint={t("impact.radarHint")}>
-        <div className="card radar">
-          <RadarChart data={vm.perSdg} label={t("impact.radarTitle")} />
-        </div>
-      </Section>
-
-      <Section title={t("impact.top")}>
-        {vm.topSdgs.length === 0 ? (
-          <Empty>{t("impact.badgesEmpty")}</Empty>
-        ) : (
-          <ol className="top-list">
-            {vm.topSdgs.map((sdg, index) => (
-              <li key={sdg.id} className="card top-item">
-                <span className="top-item__rank">{index + 1}</span>
-                <span className="top-item__name">{sdgLabel(sdg.id, locale)}</span>
-                <span className="top-item__score">{sdg.score}</span>
-              </li>
-            ))}
-          </ol>
-        )}
-      </Section>
+      {/* 능력치 창(#43): 17개 목표의 실적을 게임의 스테이터스처럼 — 예전의 레이더 차트와 「得意なSDGs」를 한 창에 */}
+      <StatsWindow stats={vm.stats} />
 
       <Section title={t("impact.badges")}>
         {vm.badges.length === 0 ? (

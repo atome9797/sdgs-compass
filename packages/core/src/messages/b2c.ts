@@ -197,6 +197,12 @@ export const b2c = {
   "impact.radarTitle": { ja: "SDGs Impact レーダーチャート", ko: "SDGs Impact 레이더 차트" },
   "impact.radarHint": { ja: "17目標ごとの実績を0〜100で表示します", ko: "17개 목표별 실적을 0~100으로 표시해요" },
   "impact.top": { ja: "得意なSDGs", ko: "강점 SDGs" },
+  // 능력치 창(#43): 게임의 스테이터스 화면처럼 17개 목표를 한 줄씩
+  "impact.statsTitle": { ja: "SDGs ステータス", ko: "SDGs 스테이터스" },
+  "impact.statsHint": { ja: "17目標ごとの実績（0〜100）。クエストに参加・受賞すると上がります", ko: "17개 목표별 실적(0~100). 퀘스트에 참가 · 수상하면 올라요" },
+  "impact.statTop": { ja: "得意", ko: "강점" },
+  "impact.statAria": { ja: "目標{id} {name} {score}", ko: "목표 {id} {name} {score}" },
+  "impact.statAriaTop": { ja: "目標{id} {name} {score}（得意）", ko: "목표 {id} {name} {score} (강점)" },
   "impact.badges": { ja: "獲得バッジ", ko: "획득 배지" },
   "impact.badgesEmpty": { ja: "まだバッジがありません", ko: "아직 배지가 없어요" },
   "impact.history": { ja: "参加実績", ko: "참여 실적" },

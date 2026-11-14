@@ -1,20 +1,19 @@
 // SCR-04 마이 포트폴리오 = 용사의 스테이터스(#38): 레벨 대신 스킬(수상 1건 = SDG 번호가 붙은 스킬 1개) · 스카우트 수신 설정(따로 된 줄) · 応募中の課題(#28, 낸 기획서가 있을 때만) · SDGs Impact 레이더 차트(17목표) · 강점 SDGs · 배지 · 참여 실적
 // · 증명서/요약/카드뉴스 단추 · 맨 아래 リワード残高 카드(#25 데모).
-// 레이더는 SVG 없이 View 로 그려요(components/RadarChart). 값은 모두 core 의 selectImpact 에서 와요.
+// SDGs 실적은 게임의 능력치 창(components/StatsWindow, #43)으로 보여 줘요. 값은 모두 core 의 selectImpact 에서 와요.
 // #30 기업이 내 기획서를 심사·표창하면 応募中の課題 카드에 「企業からの審査結果」(점수 3개 · 코멘트 · 반영 포인트 · 다음에 키울 점 · 수상)가 붙어요.
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useMemo } from "react";
-import { StyleSheet, View, useWindowDimensions } from "react-native";
+import { StyleSheet, View } from "react-native";
 import { selectApplications, selectCertificates, selectImpact, type ApplicationReviewVM, type HeroSkillVM } from "@sdgs-compass/core/selectors";
 import { selectWallet } from "@sdgs-compass/core/walletView";
 import { ActivityRow } from "@/components/ActivityRow";
-import { RadarChart } from "@/components/RadarChart";
 import { Screen, ScreenTitle } from "@/components/Screen";
 import { SdgEmblem } from "@/components/SdgEmblem";
-import { SdgMiniRow, SdgTile } from "@/components/SdgTile";
+import { StatsWindow } from "@/components/StatsWindow";
+import { SdgMiniRow } from "@/components/SdgTile";
 import { Badge, Button, Card, Empty, Notice, Section, Txt } from "@/components/ui";
 import { useApp } from "@/lib/AppProvider";
-import { squareSizeFor } from "@/lib/geometry";
 import { certificateHref, challengeHref, paramText, receiptHref, ROUTES } from "@/lib/nav";
 import { COLORS, GAME_COLORS, RADIUS, SPACE } from "@/theme";
 
@@ -97,17 +96,13 @@ function ReviewResult({ review, id }: { review: ApplicationReviewVM; id: string 
 export function ImpactScreen() {
   const { demo, locale, t } = useApp();
   const router = useRouter();
-  const { width } = useWindowDimensions();
   const vm = useMemo(() => selectImpact(demo, locale), [demo, locale]);
   const applications = useMemo(() => selectApplications(demo, locale), [demo, locale]);
   const certs = useMemo(() => selectCertificates(demo, locale), [demo, locale]);
   const wallet = useMemo(() => selectWallet(demo, locale), [demo, locale]);
   // 수령증의 「マイImpactを見る」로 오면 경로에 방금 낸 과제(just)가 붙어 있어요 — 그 과제를 강조해요
   const just = paramText(useLocalSearchParams().just);
-  const radarSize = squareSizeFor(width);
   const firstCert = certs[0];
-
-  const radarSummary = vm.topSdgs.map((top) => `${top.id} ${top.name} ${top.score}`).join(", ");
 
   return (
     <Screen tabbed testID="screen-impact">
@@ -195,37 +190,8 @@ export function ImpactScreen() {
         </Section>
       ) : null}
 
-      <Section title={t("impact.radarTitle")} hint={t("impact.radarHint")}>
-        <Card style={styles.center}>
-          <RadarChart
-            values={vm.perSdg.map((p) => p.score)}
-            colors={vm.perSdg.map((p) => p.color)}
-            labels={vm.perSdg.map((p) => String(p.id))}
-            size={radarSize}
-            accessibilityLabel={radarSummary ? `${t("impact.radarTitle")}: ${radarSummary}` : t("impact.radarTitle")}
-          />
-        </Card>
-      </Section>
-
-      <Section title={t("impact.top")}>
-        {vm.topSdgs.length === 0 ? (
-          <Empty>{t("home.myActivitiesEmpty")}</Empty>
-        ) : (
-          <Card>
-            {vm.topSdgs.map((top) => (
-              <View key={top.id} style={styles.topRow} accessible accessibilityLabel={`${top.id} ${top.name} ${top.score}`}>
-                <SdgTile id={top.id} size={36} />
-                <Txt style={styles.shrink} numberOfLines={2}>
-                  {top.name}
-                </Txt>
-                <Txt bold tone="primary">
-                  {top.score}
-                </Txt>
-              </View>
-            ))}
-          </Card>
-        )}
-      </Section>
+      {/* 능력치 창(#43): 17개 목표의 실적을 게임의 스테이터스처럼 — 예전의 레이더 차트와 「得意なSDGs」를 한 창에 */}
+      <StatsWindow stats={vm.stats} locale={locale} testID="impact-stats" />
 
       <Section title={t("impact.badges")}>
         {vm.badges.length === 0 ? (

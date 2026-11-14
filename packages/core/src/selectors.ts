@@ -662,6 +662,23 @@ export interface BadgeVM {
   desc: string;
 }
 
+/** 능력치 창의 한 줄(#43) */
+export interface SdgStatVM {
+  id: SdgId;
+  /** 목표의 공식 이름: 「海の豊かさを守ろう」 */
+  name: string;
+  /** 짧은 이름: 「海」 */
+  short: string;
+  /** 0~100 */
+  score: number;
+  color: string;
+  textColor: string;
+  /** 가장 높은 3개(「得意なSDGs」와 같은 기준) */
+  top: boolean;
+  /** 화면 읽기 프로그램용: 「目標14 海の豊かさを守ろう 97（得意）」 */
+  ariaLabel: string;
+}
+
 export interface ImpactVM {
   nickname: string;
   university: string;
@@ -676,6 +693,8 @@ export interface ImpactVM {
   skillsHint: string;
   perSdg: { id: SdgId; score: number; color: string; short: string }[];
   topSdgs: { id: SdgId; name: string; score: number }[];
+  /** 능력치 창(#43): 17개 목표를 번호 순으로 — 공식 이름 · 0~100 · 가장 높은 3개는 「得意」 */
+  stats: SdgStatVM[];
   badges: BadgeVM[];
   activities: ActivityVM[];
   /** 스카우트 수신 설정(포인트·스킬과 관계없는 학생의 선택) — 화면은 스킬과 떨어진 줄에 보여요 */
@@ -770,6 +789,12 @@ export function selectImpact(state: DemoState, locale: Locale): ImpactVM {
     skillsHint: t("impact.skillsHint"),
     perSdg: SDG_IDS.map((id) => ({ id, score: index.perSdg[id], color: getSdg(id).color, short: sdgShort(id, locale) })),
     topSdgs: index.topSdgs.map((id) => ({ id, name: getSdg(id).name[locale], score: index.perSdg[id] })),
+    stats: SDG_IDS.map((id) => {
+      const name = getSdg(id).name[locale];
+      const score = index.perSdg[id];
+      const top = index.topSdgs.includes(id);
+      return { id, name, short: sdgShort(id, locale), score, color: getSdg(id).color, textColor: sdgTextColor(id), top, ariaLabel: t(top ? "impact.statAriaTop" : "impact.statAria", { id, name, score }) };
+    }),
     badges: computeBadges(activities).map((code) => badgeVM(code, locale)),
     activities: activities.map((a) => activityVM(a, locale)),
     ...scoutFields(state, locale),

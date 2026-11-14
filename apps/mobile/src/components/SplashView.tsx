@@ -4,15 +4,14 @@ import { StatusBar } from "expo-status-bar";
 import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 import { MESSAGES } from "@sdgs-compass/core/messages";
 import { COLORS, SPACE } from "@/theme";
+import { BrandLogo } from "@/components/BrandLogo";
 
 export function SplashView() {
   const loading = `${MESSAGES["common.loading"].ja} / ${MESSAGES["common.loading"].ko}`;
   return (
     <View style={styles.root} accessibilityRole="progressbar" accessibilityLabel={loading}>
       <StatusBar style="light" />
-      <Text style={styles.emoji} accessible={false}>
-        🧭
-      </Text>
+      <BrandLogo size={88} />
       <Text style={styles.name}>{MESSAGES["app.title"].ja}</Text>
       <Text style={styles.service}>{MESSAGES["app.name"].ja}</Text>
       <ActivityIndicator color={COLORS.onPrimary} style={styles.spinner} />
@@ -22,7 +21,6 @@ export function SplashView() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: COLORS.primary, alignItems: "center", justifyContent: "center", gap: SPACE.md },
-  emoji: { fontSize: 72 },
   name: { fontSize: 24, fontWeight: "800", color: COLORS.onPrimary, textAlign: "center", paddingHorizontal: SPACE.lg },
   service: { fontSize: 15, fontWeight: "700", color: COLORS.onPrimary, opacity: 0.85 },
   spinner: { marginTop: SPACE.lg },

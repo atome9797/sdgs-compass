@@ -5,6 +5,7 @@ import { LOCALE_NAMES, LOCALES, type Locale, type LocalizedText } from "@sdgs-co
 import { LANGUAGE_PICKER, MESSAGES } from "@sdgs-compass/core/messages";
 import { Txt, type TextVariant } from "@/components/ui";
 import { COLORS, FONT_SIZE, RADIUS, SPACE } from "@/theme";
+import { BrandLogo } from "@/components/BrandLogo";
 
 function Bilingual({ text, variant, tone = "text", bold = false }: { text: LocalizedText; variant: TextVariant; tone?: "text" | "muted"; bold?: boolean }) {
   return (
@@ -29,9 +30,7 @@ export function LanguageGate({ detected, onSelect }: LanguageGateProps) {
   const suggested = MESSAGES["mobile.langSuggested"];
   return (
     <View style={styles.wrap}>
-      <Text style={styles.emoji} accessible={false}>
-        🧭
-      </Text>
+      <BrandLogo size={88} testID="language-gate-logo" />
       <View accessibilityRole="header" style={styles.titleWrap}>
         <Bilingual text={LANGUAGE_PICKER.title} variant="display" bold />
       </View>
@@ -65,7 +64,6 @@ export function LanguageGate({ detected, onSelect }: LanguageGateProps) {
 
 const styles = StyleSheet.create({
   wrap: { alignItems: "center", gap: SPACE.lg, paddingTop: SPACE.xl },
-  emoji: { fontSize: 72 },
   titleWrap: { alignSelf: "stretch" },
   bilingual: { alignSelf: "stretch", gap: 2 },
   buttons: { alignSelf: "stretch", gap: SPACE.md, marginTop: SPACE.sm },

@@ -9,6 +9,7 @@ import { LangToggle } from "@/components/TopBar";
 import { useAdmin } from "@/lib/adminSession";
 import { activeTabId, ADMIN_TABS } from "@/lib/nav";
 import { buildHref, ROUTES } from "@/lib/routes";
+import { BrandLogo } from "@/components/BrandLogo";
 
 export function AdminShell({ children }: { children: ReactNode }) {
   const { t } = useAdmin();
@@ -26,9 +27,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
               <span aria-hidden="true">←</span>
             </Link>
             <Link href={buildHref(ROUTES.admin)} className="brand">
-              <span className="brand__logo" aria-hidden="true">
-                🧭
-              </span>
+              <BrandLogo className="brand__logo" />
               <span className="brand__text">
                 <span className="brand__name">{t("admin.brandName")}</span>
                 <span className="demo-badge">{t("admin.badge")}</span>

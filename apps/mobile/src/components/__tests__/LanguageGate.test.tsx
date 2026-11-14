@@ -26,3 +26,11 @@ test("추천 안내는 기기 언어 쪽 단추에만 붙어요", async () => {
   expect(screen.getByText("기기 언어에 맞춘 추천")).toBeOnTheScreen();
   expect(screen.queryByText("端末の言語に合わせたおすすめ")).not.toBeOnTheScreen();
 });
+
+test("맨 위의 로고는 나침반 픽셀 그림(#44) — PNG 데이터 URI, 장식이라 화면 읽기 프로그램에서는 숨겨요", async () => {
+  await render(<LanguageGate detected="ja" onSelect={() => undefined} />);
+  expect(screen.queryByTestId("language-gate-logo")).toBeNull();
+  const logo = screen.getByTestId("language-gate-logo", { includeHiddenElements: true });
+  expect(logo.props.source.uri.startsWith("data:image/png;base64,iVBORw0KGgo")).toBe(true);
+  expect(screen.queryByText("🧭")).toBeNull();
+});

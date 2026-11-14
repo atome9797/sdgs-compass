@@ -13,6 +13,7 @@ import { useBoot } from "@/lib/session";
 import { GameTitle } from "./GameTitle";
 import { Splash } from "./Splash";
 import { LangToggle } from "./TopBar";
+import { BrandLogo } from "@/components/BrandLogo";
 
 const LOCALE_GLYPH: Record<Locale, string> = { ja: "あ", ko: "가" };
 
@@ -32,9 +33,7 @@ function LanguageGate() {
             <span lang="ja">{translate("settings.resetDone", "ja")}</span> / <span lang="ko">{translate("settings.resetDone", "ko")}</span>
           </p>
         ) : null}
-        <div className="gate__logo" aria-hidden="true">
-          🧭
-        </div>
+        <BrandLogo className="gate__logo" />
         {/* 게임 제목(#37)을 두 언어로 크게, 서비스 이름은 그 아래 작게 — 아직 언어를 고르기 전이라 둘 다 */}
         <div className="gate__brand">
           <p lang="ja">
@@ -103,9 +102,7 @@ function RoleGate({ locale }: { locale: Locale }) {
   return (
     <main className="gate" id="main">
       <div className="gate__card">
-        <div className="gate__logo" aria-hidden="true">
-          🧭
-        </div>
+        <BrandLogo className="gate__logo" />
         <div className="gate__titles">
           <h1 className="gate__title">{t("role.title")}</h1>
         </div>

@@ -3,15 +3,14 @@
 import { ButtonLink } from "@/components/ui";
 import { homeFor } from "@/lib/routes";
 import { useSession } from "@/lib/session";
+import { BrandLogo } from "@/components/BrandLogo";
 
 export default function NotFound() {
   const { t, role } = useSession();
   return (
     <main className="gate" id="main">
       <div className="gate__card">
-        <div className="gate__logo" aria-hidden="true">
-          🧭
-        </div>
+        <BrandLogo className="gate__logo" />
         <h1 className="gate__title">{t("error.notFound")}</h1>
         <ButtonLink href={homeFor(role)}>{role === "b2b" ? t("nav.dashboard") : role === "researcher" ? t("lab.nav.find") : t("nav.home")}</ButtonLink>
       </div>

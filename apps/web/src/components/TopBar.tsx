@@ -8,6 +8,7 @@ import { makeT } from "@sdgs-compass/core/messages";
 import { homeFor } from "@/lib/routes";
 import { useBoot, useSession } from "@/lib/session";
 import { GameTitle } from "./GameTitle";
+import { BrandLogo } from "@/components/BrandLogo";
 
 /** 日本語 | 한국어 — 게이트에서도 쓰므로 역할을 아직 몰라도 돼요 */
 export function LangToggle() {
@@ -51,9 +52,7 @@ export function Brand() {
   const { role, t } = useSession();
   return (
     <Link href={homeFor(role)} className="brand">
-      <span className="brand__logo" aria-hidden="true">
-        🧭
-      </span>
+      <BrandLogo className="brand__logo" />
       <span className="brand__text">
         <span className="brand__name">
           <GameTitle text={t("app.title")} />

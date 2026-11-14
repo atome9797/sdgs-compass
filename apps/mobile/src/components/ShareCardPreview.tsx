@@ -6,6 +6,7 @@ import { SdgMiniRow } from "@/components/SdgTile";
 import { Badge, Txt } from "@/components/ui";
 import { hashtagList } from "@/lib/shareText";
 import { CARD_SHADOW, COLORS, FONT_SIZE, RADIUS, SPACE } from "@/theme";
+import { BrandLogo } from "@/components/BrandLogo";
 
 export interface ShareCardPreviewProps {
   card: ShareCard;
@@ -23,9 +24,12 @@ export function ShareCardPreview({ card, brand, demoLabel, width, accessibilityL
   return (
     <View accessible accessibilityRole="image" accessibilityLabel={accessibilityLabel} style={[styles.card, { width, minHeight: width / card.aspect }]}>
       <View style={styles.band}>
-        <Text style={styles.brand} numberOfLines={1}>
-          🧭 {brand}
-        </Text>
+        <View style={styles.brandRow}>
+          <BrandLogo size={18} />
+          <Text style={styles.brand} numberOfLines={1}>
+            {brand}
+          </Text>
+        </View>
         <Badge tone="warning" label={demoLabel} />
       </View>
       <View style={styles.body}>
@@ -81,6 +85,7 @@ const styles = StyleSheet.create({
     paddingVertical: SPACE.sm + 2,
     backgroundColor: COLORS.primarySoft,
   },
+  brandRow: { flexShrink: 1, flexDirection: "row", alignItems: "center", gap: 6 },
   brand: { flexShrink: 1, fontSize: FONT_SIZE.md, fontWeight: "800", color: COLORS.primaryDark },
   body: { gap: SPACE.xs + 2, paddingHorizontal: SPACE.lg, paddingVertical: SPACE.md },
   stats: { flexDirection: "row", gap: SPACE.sm, paddingHorizontal: SPACE.lg },

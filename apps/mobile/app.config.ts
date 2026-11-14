@@ -6,9 +6,11 @@ import type { ExpoConfig } from "expo/config";
 // ios/·android/ 폴더는 `expo prebuild` 가 이 파일로 만드는 것이라 저장소에 넣지 않아요.
 
 const BUNDLE_ID = "com.sdgscompass.app";
-/** 디자인 토큰 COLORS.primary / COLORS.bg 와 같은 값 (설정 파일은 앱 코드를 불러오지 않아서 글자로 적어요) */
-const PRIMARY = "#2F5E50";
+// 색은 디자인 토큰과 같은 값을 글자로 적어요(설정 파일은 앱 코드를 불러오지 않아서) — appConfigColors.test 가 맞는지 봐요.
+/** 앱 바탕 = 디자인 토큰 COLORS.bg */
 const BACKGROUND = "#F4F6F4";
+/** 아이콘 · 스플래시의 바탕 = 나침반 로고의 밤바다(#44, core/brand.ts 의 LOGO_BACKGROUND) */
+const LOGO_NAVY = "#13213B";
 
 const config: ExpoConfig = {
   name: "勇者さま、助けてください！",
@@ -30,7 +32,7 @@ const config: ExpoConfig = {
     package: BUNDLE_ID,
     adaptiveIcon: {
       foregroundImage: "./assets/images/adaptive-icon.png",
-      backgroundColor: PRIMARY,
+      backgroundColor: LOGO_NAVY,
     },
     // Expo 템플릿이 기본으로 넣는 권한 중 이 앱에 필요 없는 것을 빼요. 파일·진동·다른 앱 위에 그리기를 쓰지 않고(저장은 앱 안 AsyncStorage 만),
     // "서버·로그인 없음"이라는 설명과 설치 화면의 권한 목록이 어긋나지 않게 하려는 거예요. 남는 것은 INTERNET(React Native 기본) 하나예요.
@@ -50,8 +52,8 @@ const config: ExpoConfig = {
       "expo-splash-screen",
       {
         image: "./assets/images/splash-icon.png",
-        imageWidth: 120,
-        backgroundColor: PRIMARY,
+        imageWidth: 140,
+        backgroundColor: LOGO_NAVY,
       },
     ],
   ],

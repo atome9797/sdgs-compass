@@ -1,5 +1,6 @@
 import type { ShareCard } from "@sdgs-compass/core/shareCard";
 import { getSdg, sdgTextColor } from "@sdgs-compass/core/sdg";
+import { BrandLogo } from "@/components/BrandLogo";
 
 /** SNS 카드뉴스 미리보기. 크기는 container query(cqw)로 카드 폭에 비례해서 Instagram 1:1·LinkedIn 1.91:1 모두 같은 구성이에요 */
 export function ShareCardPreview({ card, brand, demoLabel }: { card: ShareCard; brand: string; demoLabel: string }) {
@@ -27,7 +28,10 @@ export function ShareCardPreview({ card, brand, demoLabel }: { card: ShareCard; 
               </span>
             ))}
           </span>
-          <span>🧭 {brand}</span>
+          <span className="sharecard__brand">
+            <BrandLogo className="sharecard__logo" />
+            {brand}
+          </span>
           <span className="sharecard__demo">{demoLabel}</span>
         </div>
       </div>

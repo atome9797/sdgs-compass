@@ -7,6 +7,7 @@ import { Badge, Segmented } from "@/components/ui";
 import { useApp } from "@/lib/AppProvider";
 import { otherRole } from "@/lib/routes";
 import { COLORS, FONT_SIZE, RADIUS, SPACE } from "@/theme";
+import { BrandLogo } from "@/components/BrandLogo";
 
 const LANGUAGE_OPTIONS = LOCALES.map((locale) => ({ value: locale, label: LOCALE_NAMES[locale] }));
 
@@ -22,9 +23,7 @@ export function AppHeader({ variant = "full" }: { variant?: "full" | "brand" }) 
     <View style={styles.wrap}>
       <View style={styles.row}>
         <View style={styles.brand}>
-          <Text style={styles.emoji} accessible={false}>
-            🧭
-          </Text>
+          <BrandLogo size={30} testID="brand-logo" />
           <Text style={styles.name} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} accessibilityRole="header">
             {name}
           </Text>
@@ -70,7 +69,6 @@ const styles = StyleSheet.create({
   wrap: { paddingHorizontal: SPACE.lg, paddingTop: SPACE.sm, paddingBottom: SPACE.sm + 2, gap: SPACE.xs + 2 },
   row: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: SPACE.sm },
   brand: { flexDirection: "row", alignItems: "center", gap: SPACE.sm, flexShrink: 1 },
-  emoji: { fontSize: FONT_SIZE.xl },
   name: { fontSize: FONT_SIZE.lg, fontWeight: "800", color: COLORS.text, flexShrink: 1 },
   serviceRow: { flexDirection: "row", alignItems: "center", gap: SPACE.xs + 2, flexShrink: 1 },
   service: { fontSize: FONT_SIZE.xs, fontWeight: "700", color: COLORS.textMuted },

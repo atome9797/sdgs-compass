@@ -1623,6 +1623,37 @@ export interface MastheadVM {
 /** 신문의 첫 호(호수를 세는 날) */
 export const NEWSPAPER_FIRST_DAY = "2026-04-01";
 
+/** 기사의 머리(#48): 칸 머리 · 헤드라인 · 기업과 퀘스트 · 수상이면 동상 — 피드의 글과 글쓰기 미리보기가 같이 써요 */
+export type ArticleHeadVM = Pick<PostVM, "kicker" | "headline" | "subhead" | "statue">;
+
+/** 자랑 글의 머리: 실적(수상 · 제출 · 참가)으로 헤드라인, 그 밑에 「기업의 「퀘스트」」, 수상이면 금 · 은 · 동의 동상 */
+export function bragArticleHead(
+  record: { kind: ActivityKind; award?: AwardKind | null; title: string; companyName: string },
+  authorName: string,
+  locale: Locale,
+): ArticleHeadVM {
+  const award = record.award ? awardLabel(record.award, locale) : null;
+  const headlineKey = record.kind === "award" ? "news.headline.award" : record.kind === "submission" ? "news.headline.submission" : "news.headline.participation";
+  return {
+    kicker: translate("news.kicker.brag", locale),
+    headline: translate(headlineKey, locale, { name: authorName, award: award ?? "" }),
+    subhead: translate("news.subhead", locale, { company: record.companyName, quest: record.title }),
+    statue: record.award
+      ? {
+          award: record.award,
+          caption: translate("news.statue", locale),
+          plaque: [award ?? "", record.title, record.companyName],
+          ariaLabel: translate("news.statueAria", locale, { name: authorName, award: award ?? "" }),
+        }
+      : null,
+  };
+}
+
+/** 홍보 글의 머리: 칸 머리는 언제나 「広告（PR）」, 헤드라인은 제목 */
+export function prArticleHead(title: string, locale: Locale): ArticleHeadVM {
+  return { kicker: translate("news.kicker.pr", locale), headline: title, subhead: null, statue: null };
+}
+
 /** 글 카드에 보이는 공식 SNS 게시 신청 */
 export interface PostOfficialVM {
   /** author = 글을 쓴 회사가 보는 안내, public = 그 밖의 사람(학생·다른 기업)이 보는 안내 (게시된 뒤에만 있어요) */
@@ -1709,20 +1740,9 @@ function postVM(state: DemoState, post: SocialPost, locale: Locale, role: Role, 
       sdgIds: a.sdgIds,
       certificateId: index >= 0 ? certificateIdAt(index) : null,
     };
-    const headlineKey = a.kind === "award" ? "news.headline.award" : a.kind === "submission" ? "news.headline.submission" : "news.headline.participation";
     return {
       ...base,
-      kicker: translate("news.kicker.brag", locale),
-      headline: translate(headlineKey, locale, { name: post.authorName, award: award ?? "" }),
-      subhead: translate("news.subhead", locale, { company: achievement.companyName, quest: achievement.title }),
-      statue: a.award
-        ? {
-            award: a.award,
-            caption: translate("news.statue", locale),
-            plaque: [award ?? "", achievement.title, achievement.companyName],
-            ariaLabel: translate("news.statueAria", locale, { name: post.authorName, award: award ?? "" }),
-          }
-        : null,
+      ...bragArticleHead({ kind: a.kind, award: a.award, title: achievement.title, companyName: achievement.companyName }, post.authorName, locale),
       chipLabel: translate("feed.chip.brag", locale),
       authorName: post.authorName,
       authorMeta: translate("feed.skills", locale, { count: post.authorSkills }),
@@ -1744,10 +1764,7 @@ function postVM(state: DemoState, post: SocialPost, locale: Locale, role: Role, 
   const companyName = company ? pick(company.name, locale) : "";
   return {
     ...base,
-    kicker: translate("news.kicker.pr", locale),
-    headline: title,
-    subhead: null,
-    statue: null,
+    ...prArticleHead(title, locale),
     chipLabel: translate("feed.chip.pr", locale),
     authorName: companyName,
     authorMeta: company ? pick(company.industry, locale) : "",
@@ -1802,8 +1819,8 @@ export interface ComposerVM {
   maxSdgs: number;
   /** 글쓴이로 보이는 모습 (미리보기·머리말에 써요). mark = 홍보 글의 회사 이름 옆 SDGs 실천 마크 (#35 — 자랑 글·未取得은 null) */
   author: { name: string; meta: string; avatar: string; avatarColor: string | null; verified: boolean; mark: CertMarkVM | null };
-  /** 자랑 글: 고를 수 있는 내 실적(수상 → 제출·참가 순)과, 처음 선택된 것 */
-  activities: { id: string; label: string; sdgIds: SdgId[] }[];
+  /** 자랑 글: 고를 수 있는 내 실적(수상 → 제출·참가 순)과, 처음 선택된 것. article = 그 실적으로 올리면 신문에 뜨는 기사의 머리(#48) */
+  activities: { id: string; label: string; sdgIds: SdgId[]; article: ArticleHeadVM }[];
   selectedActivityId: string | null;
   /** 홍보 글: 연결할 수 있는 우리 회사 챌린지와, 미리 고른 것(없으면 null) */
   challenges: { id: string; title: string; sdgIds: SdgId[] }[];
@@ -1895,6 +1912,7 @@ export function selectComposer(state: DemoState, locale: Locale, kind: PostKind,
     id: a.id,
     label: `${a.award ? `🏆 ${awardLabel(a.award, locale)} · ` : ""}${pick(a.title, locale)}`,
     sdgIds: a.sdgIds.slice(0, POST_LIMITS.maxSdgs),
+    article: bragArticleHead({ kind: a.kind, award: a.award, title: pick(a.title, locale), companyName: pick(a.companyName, locale) }, state.me.nickname, locale),
   }));
   const selectedActivityId = activities.find((a) => a.id === preset.activityId)?.id ?? activities[0]?.id ?? null;
 

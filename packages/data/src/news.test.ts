@@ -1,6 +1,7 @@
 // #48 피드 = 용사의 업적을 전하는 「SDGs冒険新聞」: 제호 · 기사(헤드라인 · 기업과 퀘스트 · 수상은 동상) · 광고 칸(언제나 「広告（PR）」)
 import { describe, expect, it } from "vitest";
-import { selectFeed } from "@sdgs-compass/core/selectors";
+import { selectComposer, selectFeed } from "@sdgs-compass/core/selectors";
+import { reducer } from "@sdgs-compass/core/state";
 import { createInitialState } from "./seed";
 
 const state = createInitialState("2026-10-30");
@@ -31,6 +32,22 @@ describe("SDGs冒険新聞 (#48)", () => {
       expect(ad).toMatchObject({ kicker: "広告（PR）", headline: ad.title, subhead: null, statue: null });
     }
     expect(selectFeed(state, "ko", "b2b").posts.filter((p) => p.kind === "pr").every((p) => p.kicker === "광고(PR)")).toBe(true);
+  });
+
+  it("글쓰기의 실적마다 기사의 머리: 그 실적으로 올리면 피드에 뜨는 기사와 같아요(앱 미리보기가 써요)", () => {
+    for (const locale of ["ja", "ko"] as const) {
+      const composer = selectComposer(state, locale, "brag");
+      expect(composer.activities.length).toBeGreaterThan(0);
+      for (const activity of composer.activities) {
+        const id = `po${state.seq}`;
+        const next = reducer(state, { type: "createPost", draft: { kind: "brag", body: "よろしく", activityId: activity.id }, at: "2026-10-30T12:00" });
+        const posted = selectFeed(next, locale, "b2c").posts.find((p) => p.id === id)!;
+        expect(activity.article).toEqual({ kicker: posted.kicker, headline: posted.headline, subhead: posted.subhead, statue: posted.statue });
+      }
+    }
+    const awarded = selectComposer(state, "ja", "brag").activities.find((a) => a.label.startsWith("🏆"))!;
+    expect(awarded.article.statue).not.toBeNull();
+    expect(awarded.article.headline).toMatch(/^勇者Mina、.+に輝く！$/);
   });
 
   it("칸 이름: 전체 · 기업의 광고 · 용사의 업적", () => {

@@ -203,6 +203,10 @@ export function previewPost(composer: ComposerVM, form: PostFormState, t: TFunct
         }
       : null,
     shareText: "",
+    // 신문 기사의 머리(#48): 자랑 글은 고른 실적으로 피드와 같은 헤드라인 · 동상, 홍보 글은 「広告（PR）」 + 지금 쓴 제목
+    ...(isBrag
+      ? (activity?.article ?? { kicker: t("news.kicker.brag"), headline: "", subhead: null, statue: null })
+      : { kicker: t("news.kicker.pr"), headline: form.title.trim(), subhead: null, statue: null }),
   };
 }
 

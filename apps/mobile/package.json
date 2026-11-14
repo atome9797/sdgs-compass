@@ -59,7 +59,9 @@
         "expo-router",
         "expo-splash-screen",
         "react-native-safe-area-context",
-        "jest-expo"
+        "jest-expo",
+        "expo-font",
+        "expo-status-bar"
       ]
     }
   }

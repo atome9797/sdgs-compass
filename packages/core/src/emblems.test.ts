@@ -2,28 +2,22 @@ import { describe, expect, it } from "vitest";
 import { SDG_EMBLEMS, sdgEmblem } from "./emblems";
 import { SDG_IDS, getSdg } from "./sdg";
 
-describe("SDG 스킬 문장 (#42)", () => {
-  it("17개 목표마다 16×16 그림 · 이름(일본어 · 한국어) · 효과가 있어요", () => {
+describe("SDG 문장 (#42 · #45 — 스테이터스 항목과 수상으로 얻은 SDG 스킬의 아이콘 · 전투 효과)", () => {
+  it("17개 목표마다 16×16 그림과 효과가 있어요 — 목표마다의 기술 이름은 두지 않아요(이름은 목표의 공식 이름)", () => {
     expect(Object.keys(SDG_EMBLEMS)).toHaveLength(17);
     for (const id of SDG_IDS) {
       const image = sdgEmblem(id);
       expect([image.w, image.h], `${id}`).toEqual([16, 16]);
       expect(image.data.length).toBe(16 * 16 * 4);
-      const e = SDG_EMBLEMS[id];
-      expect(e.id).toBe(id);
-      expect(e.name.ja.length, `${id} ja`).toBeGreaterThan(0);
-      expect(e.name.ko.length, `${id} ko`).toBeGreaterThan(0);
-      expect(/[가-힣]/.test(e.name.ja), `${id} ja 에 한글`).toBe(false);
-      expect(/[ぁ-ゟ゠-ヿ]/.test(e.name.ko), `${id} ko 에 가나`).toBe(false);
+      expect(SDG_EMBLEMS[id]).toEqual({ id, effect: SDG_EMBLEMS[id].effect });
     }
   });
 
-  it("그림 · 이름 · 효과가 서로 달라요", () => {
+  it("그림 · 효과가 서로 달라요", () => {
     const pictures = new Set(SDG_IDS.map((id) => Array.from(sdgEmblem(id).data).join(",")));
     expect(pictures.size).toBe(17);
-    expect(new Set(SDG_IDS.map((id) => SDG_EMBLEMS[id].name.ja)).size).toBe(17);
-    expect(new Set(SDG_IDS.map((id) => SDG_EMBLEMS[id].name.ko)).size).toBe(17);
     expect(new Set(SDG_IDS.map((id) => SDG_EMBLEMS[id].effect)).size).toBe(17);
+    expect(SDG_EMBLEMS[14].effect).toBe("wave");
   });
 
   it("그림에는 테두리(INK)와 그 목표의 색이 들어가고, 가장자리 한 칸은 비어 있거나 테두리예요", () => {

@@ -9,7 +9,6 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import type { BattleSkillVM, BattleVM, DialogueLine, LookTopicVM, TopicId } from "@sdgs-compass/core/battle";
 import type { SkillEffectKind } from "@sdgs-compass/core/emblems";
-import { getSdg, sdgTextColor } from "@sdgs-compass/core/sdg";
 import { SdgEmblem } from "@/components/sdg";
 import type { Effect, EffectKind } from "@/lib/battle/scene";
 import { searchHref, submitHref } from "@/lib/routes";
@@ -121,7 +120,7 @@ export function BattlePanel({ vm }: { vm: BattleVM }) {
   const castSkill = (skill: BattleSkillVM) => {
     setMenu("commands");
     // 기술(#42): 그 SDG 의 효과 모양과 색 — 14 큰 파도 · 6 물대포 · 7 번개 …
-    play("skill", skill.move.color, skill.move.effect);
+    play("skill", skill.color, skill.effect);
     say([...skill.lines, vm.ask]);
   };
   const look = () => {
@@ -209,23 +208,20 @@ export function BattlePanel({ vm }: { vm: BattleVM }) {
         ) : (
           <div className="battle-skills" role="group" aria-label={t("battle.cmd.skill")} onKeyDown={moveInList}>
             {vm.skills.map((skill) => (
-              <button key={skill.id} type="button" className="battle-skill" onClick={() => castSkill(skill)} aria-label={skill.ariaLabel}>
-                <SdgEmblem id={skill.move.sdgId} size={30} />
+              <button key={skill.sdgId} type="button" className="battle-skill" onClick={() => castSkill(skill)} aria-label={skill.ariaLabel}>
+                <SdgEmblem id={skill.sdgId} size={30} />
+                {/* SDG 스킬(#45): 목표의 공식 이름 · 이 스킬이 된 수상 · 레벨(= 그 SDG 의 수상 수) */}
                 <span className="battle-skill__main">
-                  <span className="battle-skill__name">{skill.name}</span>
-                  {/* 목표의 공식 이름은 그대로 보여요 — 기술 이름은 그 위에 더한 게임의 이름 */}
                   <span className="battle-skill__goal">
-                    <span className="battle-skill__type" style={{ background: getSdg(skill.move.sdgId).color, color: sdgTextColor(skill.move.sdgId) }} aria-hidden="true">
-                      {skill.move.sdgId}
+                    <span className="battle-skill__type" style={{ background: skill.color, color: skill.textColor }} aria-hidden="true">
+                      {skill.sdgId}
                     </span>
-                    {skill.move.goal}
+                    {skill.goal}
                   </span>
-                  <span className="battle-skill__move">{t("battle.skill.move", { move: skill.move.name })}</span>
+                  <span className="battle-skill__records">{skill.recordsLabel}</span>
                 </span>
                 {skill.match ? <span className="battle-skill__match">{t("battle.skill.match")}</span> : null}
-                <span className="battle-skill__stars" aria-hidden="true">
-                  {"★".repeat(skill.stars)}
-                </span>
+                <span className="battle-skill__level">{skill.levelLabel}</span>
               </button>
             ))}
             <button type="button" className="battle-skill battle-skill--back" onClick={backToCommands}>

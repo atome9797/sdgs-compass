@@ -1,12 +1,12 @@
 "use client";
 
-// SCR-04 마이 포트폴리오 = 용사의 스테이터스(#38): 레벨 대신 스킬(수상 1건 = SDG 번호가 붙은 스킬 1개, 포인트 숫자는 보이지 않아요) · 스카우트 수신 설정(따로 된 줄) · 応募中の課題(#28, 낸 기획서가 있을 때만)
-// · 17개 SDGs 레이더 차트 · 강점 SDGs · 배지 · 참여 실적 · 증명서/요약/카드뉴스 단추 · 맨 아래 リワード残高 카드(#25 데모)
-// #30 기업이 내 기획서를 심사·표창하면 応募中の課題 카드에 「企業からの審査結果」(점수 3개 · 코멘트 · 반영 포인트 · 다음에 키울 점 · 수상)가 붙어요
+// SCR-04 마이 포트폴리오 = 용사의 프로필: 스킬(#38 · #45 — 수상으로 얻은 SDG 마다의 스킬과 레벨, 그 밑에 스킬이 된 수상) · 스카우트 수신 설정(따로 된 줄) · 応募中の課題(#28, 낸 기획서가 있을 때만)
+// · 용사의 스테이터스(#43 · #45 — SDGs 17항목, 기업의 평가 점수가 EXP 로 쌓여 레벨이 올라요) · 배지 · 참여 실적 · 증명서/요약/카드뉴스 단추 · 맨 아래 リワード残高 카드(#25 데모)
+// #30 기업이 내 기획서를 심사·표창하면 応募中の課題 카드에 「企業からの審査結果」(점수 3개 · 코멘트 · 받은 EXP 와 오른 레벨 · 다음에 키울 점 · 수상 · 얻은 스킬)가 붙어요
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useMemo } from "react";
-import { selectApplications, selectImpact, type ApplicationReviewVM, type HeroSkillVM } from "@sdgs-compass/core/selectors";
+import { selectApplications, selectImpact, type ApplicationReviewVM, type HeroSkillVM, type SdgSkillVM } from "@sdgs-compass/core/selectors";
 import { selectWallet } from "@sdgs-compass/core/walletView";
 import { HeroPortrait } from "@/components/battle/HeroPortrait";
 import { StatsWindow } from "@/components/StatsWindow";
@@ -31,14 +31,20 @@ function ReviewResult({ review, id }: { review: ApplicationReviewVM; id: string 
           </Tag>
         ) : null}
       </div>
-      {/* 수상하면 그 퀘스트의 SDG 번호가 붙은 스킬을 「おぼえた！」(#38) */}
+      {/* 수상하면 그 퀘스트의 SDG 마다 스킬을 「おぼえた！」 · 이미 있던 SDG 는 「レベルアップ！」(#38 · #45) */}
       {review.skillLearned ? (
-        <p className="skill-learned">
-          <span className="skill-learned__type" style={{ background: review.skillLearned.color, color: review.skillLearned.textColor }} aria-hidden="true">
-            {review.skillLearned.sdgId}
+        <div className="skill-learned">
+          <span className="skill-learned__icons" aria-hidden="true">
+            {review.skillLearned.sdgIds.map((id) => (
+              <SdgEmblem key={id} id={id} size={22} />
+            ))}
           </span>
-          {review.skillLearned.learnedLabel}
-        </p>
+          <span className="skill-learned__lines">
+            {review.skillLearned.learnedLines.map((line) => (
+              <span key={line}>{line}</span>
+            ))}
+          </span>
+        </div>
       ) : null}
       {/* 상품 보상이 걸린 퀘스트에서 수상하면 「〇〇を手に入れた！」(#37) */}
       {review.rewardItemLabel ? (
@@ -59,11 +65,22 @@ function ReviewResult({ review, id }: { review: ApplicationReviewVM; id: string 
           ))}
         </ul>
       ) : null}
-      {review.averageLabel || review.bonusLabel ? (
+      {/* 평가 점수는 상과 관계없이 그 퀘스트의 SDG 항목에 EXP 로 들어가요(#45) — 레벨이 오르면 한 줄씩 */}
+      {review.averageLabel || review.expLabel ? (
         <p className="review-result__total">
           {review.averageLabel ? <span className="strong">{review.averageLabel}</span> : null}
-          {review.bonusLabel ? <span className="review-result__bonus">{review.bonusLabel}</span> : null}
+          {review.expLabel ? <span className="review-result__exp">{review.expLabel}</span> : null}
         </p>
+      ) : null}
+      {review.statusLevelUps.length > 0 ? (
+        <ul className="review-levelups">
+          {review.statusLevelUps.map((line) => (
+            <li key={line}>
+              <span aria-hidden="true">⬆ </span>
+              {line}
+            </li>
+          ))}
+        </ul>
       ) : null}
       {review.improveLabel ? (
         <p className="review-result__improve">
@@ -81,7 +98,29 @@ function ReviewResult({ review, id }: { review: ApplicationReviewVM; id: string 
   );
 }
 
-/** 스킬 한 줄(#38): 왼쪽에 대표 SDG 번호(색 = 스킬의 「タイプ」), 이름 · ★(상의 세기) · 상 · 기업 · 날짜 · 수상한 퀘스트 · 모든 SDG 번호 */
+/** SDG 스킬 하나(#45): 문장 · 번호와 스킬 레벨(= 그 SDG 의 수상 수) · 공식 이름 · 「受賞 2件」 */
+function SdgSkillTile({ skill }: { skill: SdgSkillVM }) {
+  return (
+    <li className="sdg-skill" aria-label={skill.ariaLabel}>
+      <span className="sdg-skill__slot" aria-hidden="true">
+        <SdgEmblem id={skill.sdgId} size={30} />
+      </span>
+      <span className="sdg-skill__main" aria-hidden="true">
+        <span className="sdg-skill__head">
+          <span className="sdg-skill__no" style={{ background: skill.color, color: skill.textColor }}>
+            {skill.sdgId}
+          </span>
+          <span className="sdg-skill__level">{skill.levelLabel}</span>
+        </span>
+        {/* 목표의 공식 이름은 칸의 너비를 다 써서(좁은 화면에서도 낱말 중간에서 덜 끊기게) */}
+        <span className="sdg-skill__goal">{skill.goal}</span>
+        <span className="sdg-skill__count">{skill.countLabel}</span>
+      </span>
+    </li>
+  );
+}
+
+/** 스킬이 된 수상 한 줄(#38): 왼쪽에 대표 SDG 의 문장과 번호, 이름 · ★(상의 세기) · 상 · 기업 · 날짜 · 수상한 퀘스트 · 스킬을 얻은 SDG 번호 모두 */
 function SkillRow({ skill }: { skill: HeroSkillVM }) {
   return (
     <li className="skill" aria-label={skill.ariaLabel}>
@@ -124,7 +163,7 @@ export function ImpactScreen() {
           {t("impact.status")}
         </h2>
         <div className="profile__top">
-          <HeroPortrait skillSdgIds={vm.skills.flatMap((skill) => skill.sdgIds).filter((id, i, all) => all.indexOf(id) === i)} label={t("battle.heroName", { name: vm.nickname })} />
+          <HeroPortrait skillSdgIds={vm.sdgSkills.map((skill) => skill.sdgId)} label={t("battle.heroName", { name: vm.nickname })} />
           <div className="grow">
             <p className="status__name">{t("battle.heroName", { name: vm.nickname })}</p>
             <p className="small muted">
@@ -133,17 +172,25 @@ export function ImpactScreen() {
             <p className="profile__total">{vm.skillCountLabel}</p>
           </div>
         </div>
-        {/* 레벨 대신 스킬(#38): 수상 1건 = SDG 번호가 붙은 스킬 1개 — 실적은 포인트 숫자가 아니에요(돈과 무관한 기록) */}
+        {/* 스킬 = 수상 경력(#38 · #45): 수상한 퀘스트의 SDG 마다 스킬, 같은 SDG 의 수상이 쌓이면 레벨이 올라요(돈과 무관한 기록) */}
         <div className="stack stack--sm">
           <p className="section__title">{t("impact.skills")}</p>
-          {vm.skills.length === 0 ? (
+          {vm.sdgSkills.length === 0 ? (
             <p className="small muted">{t("impact.skillsEmpty")}</p>
           ) : (
-            <ul className="skill-list">
-              {vm.skills.map((skill) => (
-                <SkillRow key={skill.id} skill={skill} />
-              ))}
-            </ul>
+            <>
+              <ul className="sdg-skill-grid" data-testid="sdg-skills">
+                {vm.sdgSkills.map((skill) => (
+                  <SdgSkillTile key={skill.sdgId} skill={skill} />
+                ))}
+              </ul>
+              <p className="skill-records__title">{t("impact.skillRecords")}</p>
+              <ul className="skill-list">
+                {vm.skills.map((skill) => (
+                  <SkillRow key={skill.id} skill={skill} />
+                ))}
+              </ul>
+            </>
           )}
           <p className="small muted">{vm.skillsHint}</p>
         </div>
@@ -196,7 +243,7 @@ export function ImpactScreen() {
         </Section>
       ) : null}
 
-      {/* 능력치 창(#43): 17개 목표의 실적을 게임의 스테이터스처럼 — 예전의 레이더 차트와 「得意なSDGs」를 한 창에 */}
+      {/* 용사의 스테이터스(#43 · #45): SDGs 17항목 — 기업의 평가 점수가 EXP 로 쌓여 항목마다 레벨이 올라요 */}
       <StatsWindow stats={vm.stats} />
 
       <Section title={t("impact.badges")}>

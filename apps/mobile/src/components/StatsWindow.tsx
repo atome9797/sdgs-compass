@@ -1,6 +1,7 @@
-// 능력치 창(#43): 마이 Impact 의 SDGs 실적(0~100)을 게임의 스테이터스 화면처럼 — 웹 .stats 와 같은 모양.
-// 남색 게임 창 안에 17개 목표를 번호 순으로 한 줄씩: 스킬 문장(#42) · 번호와 공식 이름 · 10칸 막대 · 숫자. 가장 높은 3개는 금색 「得意」.
-// 화면 읽기 프로그램에는 한 줄을 「目標14 海の豊かさを守ろう 97（得意）」로 통째로 알려요.
+// 용사의 스테이터스 창(#43 · #45): SDGs 17개 항목을 게임의 스테이터스 화면처럼 — 웹 .stats 와 같은 모양.
+// 남색 게임 창 안에 번호 순으로 한 줄씩: 문장(#42) · 번호와 공식 이름 · 지금 레벨 안에서 채운 EXP 막대 · 「EXP 110」「次まで 90」 · 오른쪽에 「Lv.2」.
+// EXP 는 기업의 평가 점수로 쌓여요(수상하지 않아도). EXP 가 가장 높은 3개는 금색 「得意」.
+// 화면 읽기 프로그램에는 한 줄을 「目標14 海の豊かさを守ろう レベル2 経験値110、次のレベルまで90（得意）」로 통째로 알려요.
 import { StyleSheet, Text, View } from "react-native";
 import type { Locale } from "@sdgs-compass/core/i18n";
 import { makeT } from "@sdgs-compass/core/messages";
@@ -11,10 +12,10 @@ import { SdgEmblem } from "@/components/SdgEmblem";
 const SEGMENTS = 10;
 const MUTED = "#9AA6BD";
 
-function Bar({ score, color }: { score: number; color: string }) {
+function Bar({ progress, color }: { progress: number; color: string }) {
   return (
     <View style={styles.bar}>
-      <View style={[styles.fill, { width: `${score}%`, backgroundColor: color }]} />
+      <View style={[styles.fill, { width: `${progress}%`, backgroundColor: color }]} />
       {/* 10칸 눈금 */}
       {Array.from({ length: SEGMENTS - 1 }, (_, i) => (
         <View key={i} style={[styles.tick, { left: `${((i + 1) * 100) / SEGMENTS}%` }]} />
@@ -33,7 +34,7 @@ export function StatsWindow({ stats, locale, testID }: { stats: readonly SdgStat
       <Text style={styles.hint}>{t("impact.statsHint")}</Text>
       <View style={styles.list}>
         {stats.map((stat) => {
-          const zero = stat.score === 0;
+          const zero = stat.exp === 0;
           return (
             <View key={stat.id} style={[styles.row, stat.top ? styles.rowTop : null]} accessible accessibilityLabel={stat.ariaLabel} testID={testID ? `${testID}-${stat.id}` : undefined}>
               {/* 아이템 칸처럼 밝은 바탕 위에 문장(남색 창에서도 테두리가 보이게) */}
@@ -56,9 +57,13 @@ export function StatsWindow({ stats, locale, testID }: { stats: readonly SdgStat
                     </View>
                   ) : null}
                 </View>
-                <Bar score={stat.score} color={stat.color} />
+                <Bar progress={stat.progress} color={stat.color} />
+                <View style={styles.expRow}>
+                  <Text style={[styles.exp, zero ? styles.muted : null]}>{stat.expLabel}</Text>
+                  <Text style={[styles.next, stat.max ? styles.nextMax : null, zero ? styles.muted : null]}>{stat.nextLabel}</Text>
+                </View>
               </View>
-              <Text style={[styles.value, zero ? styles.muted : null]}>{stat.score}</Text>
+              <Text style={[styles.level, zero ? styles.muted : null]}>{stat.levelLabel}</Text>
             </View>
           );
         })}
@@ -77,7 +82,7 @@ const styles = StyleSheet.create({
   slot: { padding: 2, backgroundColor: GAME_COLORS.panel, borderWidth: 2, borderColor: "#0B1324", borderRadius: 6 },
   slotZero: { backgroundColor: "#C9CED8" },
   dim: { opacity: 0.75 },
-  main: { flex: 1, minWidth: 0, gap: 4 },
+  main: { flex: 1, minWidth: 0, gap: 3 },
   nameRow: { flexDirection: "row", alignItems: "center", gap: 6 },
   no: { minWidth: 22, height: 18, paddingHorizontal: 3, alignItems: "center", justifyContent: "center", borderRadius: 4 },
   noText: { fontSize: 11, fontWeight: "900" },
@@ -88,5 +93,9 @@ const styles = StyleSheet.create({
   bar: { height: 10, overflow: "hidden", backgroundColor: GAME_COLORS.hpTrack, borderWidth: 2, borderColor: "#0B1324", borderRadius: 3 },
   fill: { position: "absolute", top: 0, bottom: 0, left: 0 },
   tick: { position: "absolute", top: 0, bottom: 0, width: 2, marginLeft: -1, backgroundColor: "#0B1324" },
-  value: { minWidth: 30, textAlign: "right", fontSize: 16, fontWeight: "900", color: GAME_COLORS.frame },
+  expRow: { flexDirection: "row", justifyContent: "space-between", gap: 6 },
+  exp: { fontSize: 10, fontWeight: "800", color: "#C9D3E6" },
+  next: { fontSize: 10, fontWeight: "800", color: GAME_COLORS.reward },
+  nextMax: { color: GAME_COLORS.speaker },
+  level: { minWidth: 44, textAlign: "right", fontSize: 16, fontWeight: "900", color: GAME_COLORS.frame },
 });

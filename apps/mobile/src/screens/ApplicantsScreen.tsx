@@ -7,7 +7,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useMemo, useState } from "react";
 import { Linking, StyleSheet, View } from "react-native";
 import type { AwardKind, ProposalStatus } from "@sdgs-compass/core/domain";
-import { REVIEW_BONUS_MAX } from "@sdgs-compass/core/impact";
+import { REVIEW_EXP_MAX } from "@sdgs-compass/core/status";
 import { awardLabel } from "@sdgs-compass/core/labels";
 import { parseApplicantFilter, selectApplicants, type ApplicantVM } from "@sdgs-compass/core/selectors";
 import { prizeNotice } from "@sdgs-compass/core/walletView";
@@ -60,7 +60,7 @@ function ReviewForm({ applicant, onTouched }: { applicant: ApplicantVM; onTouche
       <Txt variant="heading" accessibilityRole="header">
         {t("review.title")}
       </Txt>
-      <Notice testID={`review-note-${applicant.id}`} tone="info" message={`👀 ${t("review.publicNote", { max: REVIEW_BONUS_MAX })}`} />
+      <Notice testID={`review-note-${applicant.id}`} tone="info" message={`👀 ${t("review.publicNote", { max: REVIEW_EXP_MAX })}`} />
       <RateStepper label={t("review.creativity")} value={form.creativity} onChange={(creativity) => edit({ creativity })} />
       <RateStepper label={t("review.feasibility")} value={form.feasibility} onChange={(feasibility) => edit({ feasibility })} />
       <RateStepper label={t("review.sdgContribution")} value={form.sdgContribution} onChange={(sdgContribution) => edit({ sdgContribution })} />

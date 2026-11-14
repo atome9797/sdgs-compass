@@ -13,7 +13,8 @@ import type {
 import { feeItems, PLATFORM_FEE_MIN_YEN, summarizeFees, type FeeKind } from "./fees";
 import { foeOf } from "./foe";
 import { dDayLabel, daysBetween, formatBytes, formatDate, formatDateShort, formatDateTime, formatMonthDayWeekday, formatPeople, formatYen } from "./format";
-import { computeBadges, computeImpactIndex, BADGE_EMOJI, REVIEW_SCORE_MAX, reviewBonus, type BadgeCode } from "./impact";
+import { computeBadges, computeImpactIndex, BADGE_EMOJI, REVIEW_SCORE_MAX, type BadgeCode } from "./impact";
+import { SDG_EMBLEMS, type SkillEffectKind } from "./emblems";
 import { pick, type Locale } from "./i18n";
 import { awardLabel, challengeStatusLabel, participationLabel, proposalStatusLabel, rewardLabel, scoutKindLabel, sdgLabel, sdgShort, skillLabel } from "./labels";
 import { makeT, translate, type TFunction } from "./messages";
@@ -26,7 +27,8 @@ import { qrMatrix } from "./qr";
 import { isOpenFor, recommendChallenges, scoreChallenge, type Reason, type Recommendation } from "./recommend";
 import { remainingScouts, SCOUT_DAILY_LIMIT, alreadyScouted, canSendScout } from "./scout";
 import { buildShareCard, type CardTemplate, type ShareCard } from "./shareCard";
-import { AWARD_STARS, skillSdgIds, sortSkills } from "./skills";
+import { AWARD_STARS, sdgSkills, skillLevel, skillSdgIds, sortSkills } from "./skills";
+import { computeSdgExp, reviewExp, statusLevel, statusLevelUps, topStatusSdgs } from "./status";
 import { getSdg, sdgTextColor, SDG_IDS, SDGS, type SdgId } from "./sdg";
 import { COLORS } from "./theme";
 
@@ -511,7 +513,7 @@ export interface ReviewScoreVM {
 
 /**
  * 내 기획서에 기업이 낸 결과 (#30): 심사(점수·코멘트)했거나 표창했으면 「応募中の課題」 카드에 보여요.
- * 점수의 평균은 지금도 reviewBonus 로 제출 실적 포인트에 더해져 레벨·레이더에 반영돼요 — 그 숫자를 학생이 볼 수 있게 해요.
+ * 점수는 상을 받지 못해도 그 퀘스트의 SDG 항목에 EXP 로 들어가요(#45 — status.ts 의 reviewExp) — 그 숫자와 오른 레벨을 학생이 볼 수 있게 해요.
  */
 export interface ApplicationReviewVM {
   /** 「企業からの審査結果」 */
@@ -526,10 +528,12 @@ export interface ApplicationReviewVM {
   comment: string | null;
   /** 「みなと海洋フーズ株式会社のコメント」 (코멘트가 없으면 null) */
   commentBy: string | null;
-  /** 제출 실적에 더해진 보너스 = reviewBonus(점수) (0~REVIEW_BONUS_MAX, 점수가 없으면 0) */
-  bonusPoints: number;
-  /** 「+64pt をマイImpactに反映」 (점수가 없으면 null) */
-  bonusLabel: string | null;
+  /** 이 평가로 SDG 항목마다 받은 EXP = reviewExp(점수) (0~REVIEW_EXP_MAX, 점수가 없으면 0) */
+  exp: number;
+  /** 「EXP +130（SDG 14・12）」 (점수가 없으면 null) */
+  expLabel: string | null;
+  /** 이 평가로 레벨이 오른 스테이터스 항목: 「14 海の豊かさを守ろう Lv.3にアップ！」 */
+  statusLevelUps: string[];
   /** 가장 낮은 항목이 하나뿐일 때만 「次に伸ばすポイント：実現可能性」 (같은 점수로 여럿이 가장 낮으면 null) */
   improveLabel: string | null;
   award: AwardKind | null;
@@ -537,14 +541,28 @@ export interface ApplicationReviewVM {
   awardLabel: string | null;
   /** 상품 보상이 걸린 퀘스트에서 수상했을 때 「報酬アイテム「…」を手に入れた！（…から届きます）」 (#37, 아니면 null) */
   rewardItemLabel: string | null;
-  /** 수상해서 얻은 스킬 「スキル「…」（SDG 14）をおぼえた！」 (#38, 아니면 null) */
+  /** 수상해서 얻은 스킬(#38 · #45): 「SDG 14・12の スキルを おぼえた！」 · 「SDG 14の スキルが レベルアップ！（Lv.2）」 (수상이 아니면 null) */
   skillLearned: HeroSkillVM | null;
-  /** 스크린 리더용 요약: 「企業からの審査結果：創造性 4/5・実現可能性 3/5・SDGs貢献度 5/5、総合 4.0/5.0。+64pt をマイImpactに反映」 */
+  /** 스크린 리더용 요약: 「企業からの審査結果：創造性 4/5・実現可能性 3/5・SDGs貢献度 5/5、総合 4.0/5.0。EXP +120（SDG 14・12）」 */
   summary: string;
 }
 
+/** applicationReview 에 넘기는 덧붙임 — 상품 보상 · 수상 기록 · EXP 가 들어간 SDG 와 지금의 EXP(레벨이 올랐는지) */
+export interface ReviewExtras {
+  rewardItemName?: string;
+  /** 이 기획서의 수상 기록(있으면 「…スキルを おぼえた！」) */
+  skill?: HeroSkill;
+  /** 가진 수상 기록 전체 — 스킬 레벨을 세요 */
+  allSkills?: readonly HeroSkill[];
+  /** 퀘스트의 SDG(EXP 가 들어간 곳) */
+  sdgIds?: readonly SdgId[];
+  /** 지금의 SDG 별 EXP(computeSdgExp) — 이 평가로 레벨이 올랐는지 봐요 */
+  statusExp?: Record<SdgId, number>;
+}
+
 /** 내 기획서 하나의 심사 결과 화면 모델. 기업이 아직 아무 결과도 내지 않았으면 null (#30) */
-export function applicationReview(proposal: Proposal, companyName: string, locale: Locale, rewardItemName?: string, skill?: HeroSkill): ApplicationReviewVM | null {
+export function applicationReview(proposal: Proposal, companyName: string, locale: Locale, extras: ReviewExtras = {}): ApplicationReviewVM | null {
+  const { rewardItemName, skill, allSkills, sdgIds = [], statusExp } = extras;
   const review = proposal.review;
   if (!review && !proposal.award) return null;
   const title = translate("impact.reviewTitle", locale);
@@ -565,17 +583,26 @@ export function applicationReview(proposal: Proposal, companyName: string, local
   }
   const average = averageScore(review);
   const averageLabel = average === null ? null : translate("applicants.average", locale, { score: average.toFixed(1) });
-  const bonusPoints = review ? reviewBonus(review) : 0;
-  const bonusLabel = review ? translate("impact.reviewBonus", locale, { points: bonusPoints }) : null;
+  const exp = reviewExp(review);
+  const sdgList = sdgIds.join(locale === "ja" ? "・" : ", ");
+  const expLabel = review ? translate(sdgIds.length > 0 ? "impact.reviewExp" : "impact.reviewExpPlain", locale, { exp, sdgs: sdgList }) : null;
+  const levelUps = review && statusExp ? statusLevelUps(statusExp, sdgIds, exp) : [];
+  const statusUps = levelUps.map((up) => translate("impact.reviewLevelUp", locale, { id: up.sdgId, name: pick(getSdg(up.sdgId).name, locale), level: up.level }));
   const weakest = scores.find((score) => score.lowest);
   const improveLabel = weakest ? translate("impact.reviewImprove", locale, { item: weakest.label }) : null;
   const comment = review && review.comment.trim() !== "" ? review.comment.trim() : null;
   const awardText = proposal.award ? translate("impact.reviewAward", locale, { award: awardLabel(proposal.award, locale) }) : null;
   // 요약: 점수·평균·반영 포인트 → 다음에 키울 점 → 수상 (문장 끝은 언어마다: 。 / .)
-  const head = average !== null && averageLabel && bonusLabel
-    ? translate("impact.reviewSummary", locale, { title, scores: scores.map((score) => `${score.label} ${score.valueLabel}`).join("・"), average: averageLabel, bonus: bonusLabel })
+  const head = average !== null && averageLabel && expLabel
+    ? translate("impact.reviewSummary", locale, { title, scores: scores.map((score) => `${score.label} ${score.valueLabel}`).join("・"), average: averageLabel, exp: expLabel })
     : title;
-  const summary = [head, improveLabel, awardText].filter((part): part is string => part !== null).map((part) => (locale === "ja" ? `${part}。` : `${part}.`)).join(locale === "ja" ? "" : " ");
+  const learned = proposal.award && skill ? heroSkillVM(skill, locale, allSkills ?? [skill]) : null;
+  // 요약: 점수·평균·EXP → 오른 레벨 → 다음에 키울 점 → 수상 → 얻은 스킬 (문장 끝은 언어마다: 。 / .)
+  const strip = (text: string) => text.replace(/[！!。.]+$/u, "");
+  const summary = [head, ...statusUps.map(strip), improveLabel, awardText, ...(learned ? learned.learnedLines.map(strip) : [])]
+    .filter((part): part is string => part !== null)
+    .map((part) => (locale === "ja" ? `${part}。` : `${part}.`))
+    .join(locale === "ja" ? "" : " ");
   return {
     title,
     scores,
@@ -583,13 +610,14 @@ export function applicationReview(proposal: Proposal, companyName: string, local
     averageLabel,
     comment,
     commentBy: comment ? translate("impact.reviewCommentBy", locale, { company: companyName }) : null,
-    bonusPoints,
-    bonusLabel,
+    exp,
+    expLabel,
+    statusLevelUps: statusUps,
     improveLabel,
     award: proposal.award,
     awardLabel: awardText,
     rewardItemLabel: proposal.award && rewardItemName ? translate("impact.rewardItemWon", locale, { item: rewardItemName, company: companyName }) : null,
-    skillLearned: proposal.award && skill ? heroSkillVM(skill, locale) : null,
+    skillLearned: learned,
     summary,
   };
 }
@@ -621,6 +649,7 @@ export interface ApplicationVM {
  */
 export function selectApplications(state: DemoState, locale: Locale): ApplicationVM[] {
   const rows: ApplicationVM[] = [];
+  const statusExp = computeSdgExp(deriveActivities(state));
   for (const proposal of state.proposals) {
     if (!proposal.mine) continue;
     const challenge = state.challenges.find((c) => c.id === proposal.challengeId);
@@ -646,7 +675,13 @@ export function selectApplications(state: DemoState, locale: Locale): Applicatio
       versionLabel: translate("challenge.submitted", locale, { version: latest.no }),
       submittedAt: latest.submittedAt,
       sdgIds: challenge.sdgIds,
-      review: applicationReview(proposal, companyName, locale, challenge.rewardItem ? pick(challenge.rewardItem.name, locale) : undefined, state.skills.find((skill) => skill.proposalId === proposal.id)),
+      review: applicationReview(proposal, companyName, locale, {
+        rewardItemName: challenge.rewardItem ? pick(challenge.rewardItem.name, locale) : undefined,
+        skill: state.skills.find((skill) => skill.proposalId === proposal.id),
+        allSkills: state.skills,
+        sdgIds: challenge.sdgIds,
+        statusExp,
+      }),
     });
   }
   // 최근에 낸 것이 위로 (같은 시각이면 과제 id 순서로 고정)
@@ -662,20 +697,31 @@ export interface BadgeVM {
   desc: string;
 }
 
-/** 능력치 창의 한 줄(#43) */
+/** 스테이터스 창의 한 줄(#43 · #45): SDG 항목 하나의 EXP 와 레벨 */
 export interface SdgStatVM {
   id: SdgId;
   /** 목표의 공식 이름: 「海の豊かさを守ろう」 */
   name: string;
   /** 짧은 이름: 「海」 */
   short: string;
-  /** 0~100 */
-  score: number;
+  /** 기업 평가로 쌓인 EXP */
+  exp: number;
+  level: number;
+  /** 「Lv.2」 */
+  levelLabel: string;
+  /** 「EXP 110」 */
+  expLabel: string;
+  /** 「次まで 90」 · 최고 레벨이면 「MAX」 */
+  nextLabel: string;
+  /** 지금 레벨 안에서 채운 정도 0~100 (막대) */
+  progress: number;
+  /** 최고 레벨(Lv.10) */
+  max: boolean;
   color: string;
   textColor: string;
-  /** 가장 높은 3개(「得意なSDGs」와 같은 기준) */
+  /** EXP 가 가장 높은 3개 — 「得意」 */
   top: boolean;
-  /** 화면 읽기 프로그램용: 「目標14 海の豊かさを守ろう 97（得意）」 */
+  /** 화면 읽기 프로그램용: 「目標14 海の豊かさを守ろう レベル2 経験値110、次のレベルまで90（得意）」 */
   ariaLabel: string;
 }
 
@@ -683,17 +729,17 @@ export interface ImpactVM {
   nickname: string;
   university: string;
   faculty: string;
-  /** 내부 점수(레이더 차트 · 정렬용) — 화면에는 숫자로 보여 주지 않아요 */
+  /** 내부 점수(정렬용) — 화면에는 숫자로 보여 주지 않아요 */
   totalPoints: number;
-  /** #38 레벨 대신 스킬: 수상 1건 = SDG 번호가 붙은 스킬 1개 (최근 것부터) */
+  /** 스킬(#45): 수상으로 얻은 SDG 마다의 스킬과 레벨(레벨이 높은 것부터) */
+  sdgSkills: SdgSkillVM[];
+  /** 스킬이 된 수상 기록(최근 것부터) */
   skills: HeroSkillVM[];
-  /** 「スキル 2」 */
+  /** 「スキル 4」 = SDG 스킬의 수 */
   skillCountLabel: string;
-  /** 「クエストで受賞すると、…スキルをおぼえます。」 */
+  /** 「クエストで受賞すると、…スキルのレベルが上がります。」 */
   skillsHint: string;
-  perSdg: { id: SdgId; score: number; color: string; short: string }[];
-  topSdgs: { id: SdgId; name: string; score: number }[];
-  /** 능력치 창(#43): 17개 목표를 번호 순으로 — 공식 이름 · 0~100 · 가장 높은 3개는 「得意」 */
+  /** 스테이터스 창(#43 · #45): 17개 항목을 번호 순으로 — 공식 이름 · Lv · EXP(기업 평가로 쌓여요) · EXP 가 가장 높은 3개는 「得意」 */
   stats: SdgStatVM[];
   badges: BadgeVM[];
   activities: ActivityVM[];
@@ -726,7 +772,7 @@ export function badgeVM(code: BadgeCode, locale: Locale): BadgeVM {
   return { code, emoji: BADGE_EMOJI[code], name: translate(`badge.${code}.name`, locale), desc: translate(`badge.${code}.desc`, locale) };
 }
 
-/** #38 스킬 1개의 화면 모델: 대표 SDG(첫 번째)의 색이 스킬의 「タイプ」, ★ 은 상의 세기(최우수상 ★★★) */
+/** 수상 기록 1개의 화면 모델(#38 · #45): 이 수상으로 퀘스트의 SDG 마다 스킬을 얻었어요. 대표 SDG(첫 번째)의 색 · ★ 은 상의 세기(최우수상 ★★★) */
 export interface HeroSkillVM {
   id: string;
   name: string;
@@ -742,16 +788,26 @@ export interface HeroSkillVM {
   questLabel: string;
   /** 화면 읽기 프로그램용 한 줄 */
   ariaLabel: string;
-  /** 「スキル「…」（SDG 14）をおぼえた！」 */
+  /** 이 수상으로 얻은 것: 「SDG 14・12の スキルを おぼえた！」 · 이미 있던 SDG 는 「SDG 14の スキルが レベルアップ！（Lv.2）」 */
+  learnedLines: string[];
+  /** learnedLines 를 한 줄로 */
   learnedLabel: string;
   activityId: string;
   proposalId: string | null;
 }
 
-export function heroSkillVM(skill: HeroSkill, locale: Locale): HeroSkillVM {
+/** 수상 기록 1개. all = 가진 기록 전체(이 수상 때 SDG 마다 몇 레벨이 됐는지 세요) */
+export function heroSkillVM(skill: HeroSkill, locale: Locale, all: readonly HeroSkill[] = [skill]): HeroSkillVM {
   const name = pick(skill.name, locale);
   const sdgId = skill.sdgIds[0] ?? 17;
   const award = awardLabel(skill.award, locale);
+  const sep = locale === "ja" ? "・" : ", ";
+  const levels = [...new Set(skill.sdgIds)].map((id) => ({ id, level: Math.max(1, skillLevel(all, id, skill.learnedOn)) }));
+  const fresh = levels.filter((entry) => entry.level === 1).map((entry) => entry.id);
+  const learnedLines = [
+    ...(fresh.length > 0 ? [translate("impact.skillLearnedNew", locale, { sdgs: fresh.join(sep) })] : []),
+    ...levels.filter((entry) => entry.level > 1).map((entry) => translate("impact.skillLevelUp", locale, { sdg: entry.id, level: entry.level })),
+  ];
   return {
     id: skill.id,
     name,
@@ -763,37 +819,98 @@ export function heroSkillVM(skill: HeroSkill, locale: Locale): HeroSkillVM {
     stars: AWARD_STARS[skill.award],
     metaLabel: translate("impact.skillMeta", locale, { award, company: pick(skill.companyName, locale), date: formatDate(skill.learnedOn, locale) }),
     questLabel: translate("impact.skillQuest", locale, { quest: pick(skill.questTitle, locale) }),
-    ariaLabel: translate("impact.skillAria", locale, { skill: name, sdgs: skill.sdgIds.join(locale === "ja" ? "・" : ", "), award }),
-    learnedLabel: translate("impact.skillLearned", locale, { skill: name, sdg: sdgId }),
+    ariaLabel: translate("impact.skillAria", locale, { skill: name, sdgs: skill.sdgIds.join(sep), award }),
+    learnedLines,
+    learnedLabel: learnedLines.join(locale === "ja" ? "" : " "),
     activityId: skill.activityId,
     proposalId: skill.proposalId ?? null,
   };
 }
 
 export function selectSkills(state: Pick<DemoState, "skills">, locale: Locale): HeroSkillVM[] {
-  return sortSkills(state.skills).map((skill) => heroSkillVM(skill, locale));
+  return sortSkills(state.skills).map((skill) => heroSkillVM(skill, locale, state.skills));
+}
+
+/** SDG 하나의 스킬(#45): 그 SDG 가 붙은 퀘스트에서 받은 상이 쌓여 레벨이 올라요 */
+export interface SdgSkillVM {
+  sdgId: SdgId;
+  /** 목표의 공식 이름: 「海の豊かさを守ろう」 */
+  goal: string;
+  short: string;
+  color: string;
+  textColor: string;
+  /** = 그 SDG 가 붙은 수상의 수 */
+  level: number;
+  /** 「スキルLv.2」 */
+  levelLabel: string;
+  /** 「受賞 2件」 */
+  countLabel: string;
+  /** 이 스킬이 된 수상의 이름(최근 것부터): 「エコ包装デザイン・プラごみ削減アイデア」 */
+  recordsLabel: string;
+  /** 전투에서 쓸 때의 효과 모양(#42 — 14 는 큰 파도) */
+  effect: SkillEffectKind;
+  /** 「SDG 14 海の豊かさを守ろうのスキル、レベル2、受賞2件」 */
+  ariaLabel: string;
+}
+
+export function selectSdgSkills(state: Pick<DemoState, "skills">, locale: Locale): SdgSkillVM[] {
+  return sdgSkills(state.skills).map((entry) => {
+    const goal = pick(getSdg(entry.sdgId).name, locale);
+    return {
+      sdgId: entry.sdgId,
+      goal,
+      short: sdgShort(entry.sdgId, locale),
+      color: getSdg(entry.sdgId).color,
+      textColor: sdgTextColor(entry.sdgId),
+      level: entry.level,
+      levelLabel: translate("impact.skillLevel", locale, { level: entry.level }),
+      countLabel: translate("impact.skillRecordCount", locale, { count: entry.records.length }),
+      recordsLabel: entry.records.map((record) => pick(record.name, locale)).join(locale === "ja" ? "・" : ", "),
+      effect: SDG_EMBLEMS[entry.sdgId].effect,
+      ariaLabel: translate("impact.sdgSkillAria", locale, { id: entry.sdgId, goal, level: entry.level, count: entry.records.length }),
+    };
+  });
 }
 
 export function selectImpact(state: DemoState, locale: Locale): ImpactVM {
   const activities = deriveActivities(state);
   const index = computeImpactIndex(activities);
+  const exp = computeSdgExp(activities);
+  const top = topStatusSdgs(exp);
   const t = makeT(locale);
   const skills = selectSkills(state, locale);
+  const owned = selectSdgSkills(state, locale);
   return {
     nickname: state.me.nickname,
     university: pick(state.me.university, locale),
     faculty: pick(state.me.faculty, locale),
     totalPoints: index.totalPoints,
+    sdgSkills: owned,
     skills,
-    skillCountLabel: t("impact.skillCount", { count: skills.length }),
+    skillCountLabel: t("impact.skillCount", { count: owned.length }),
     skillsHint: t("impact.skillsHint"),
-    perSdg: SDG_IDS.map((id) => ({ id, score: index.perSdg[id], color: getSdg(id).color, short: sdgShort(id, locale) })),
-    topSdgs: index.topSdgs.map((id) => ({ id, name: getSdg(id).name[locale], score: index.perSdg[id] })),
     stats: SDG_IDS.map((id) => {
       const name = getSdg(id).name[locale];
-      const score = index.perSdg[id];
-      const top = index.topSdgs.includes(id);
-      return { id, name, short: sdgShort(id, locale), score, color: getSdg(id).color, textColor: sdgTextColor(id), top, ariaLabel: t(top ? "impact.statAriaTop" : "impact.statAria", { id, name, score }) };
+      const level = statusLevel(exp[id]);
+      const max = level.nextAt === null;
+      const isTop = top.includes(id);
+      const aria = t("impact.statAria", { id, name, level: level.level, exp: exp[id], next: max ? t("impact.statAriaMax") : t("impact.statAriaNext", { remaining: level.remaining }) });
+      return {
+        id,
+        name,
+        short: sdgShort(id, locale),
+        exp: exp[id],
+        level: level.level,
+        levelLabel: t("impact.statLevel", { level: level.level }),
+        expLabel: t("impact.statExp", { exp: exp[id] }),
+        nextLabel: max ? t("impact.statMax") : t("impact.statNext", { next: level.remaining }),
+        progress: Math.round(level.ratio * 100),
+        max,
+        color: getSdg(id).color,
+        textColor: sdgTextColor(id),
+        top: isTop,
+        ariaLabel: isTop ? t("impact.statAriaTop", { label: aria }) : aria,
+      };
     }),
     badges: computeBadges(activities).map((code) => badgeVM(code, locale)),
     activities: activities.map((a) => activityVM(a, locale)),
@@ -875,7 +992,7 @@ export function selectShare(state: DemoState, locale: Locale, template: CardTemp
     activity: selected,
     rewardItemName: rewardItem ? pick(rewardItem.name, locale) : undefined,
     participationCount: all.filter((a) => a.kind === "participation" || a.kind === "submission").length,
-    skillCount: state.skills.length,
+    skillCount: sdgSkills(state.skills).length,
     skillSdgIds: skillSdgIds(state.skills),
     template,
     locale,

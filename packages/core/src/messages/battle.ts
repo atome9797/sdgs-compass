@@ -48,11 +48,10 @@ export const battle = {
 
   "battle.skill.pick": { ja: "どの スキルを つかう？", ko: "어떤 스킬을 쓸까?" },
   "battle.skill.none": { ja: "まだ スキルが ない！ クエストで 受賞すると スキルを おぼえる。", ko: "아직 스킬이 없다! 퀘스트에서 수상하면 스킬을 배운다." },
-  "battle.skill.use": { ja: "勇者{name}の「{skill}」！", ko: "용사 {name}의 「{skill}」!" },
-  "battle.skill.good": { ja: "{move}！ SDG {sdg}の 経験が いきる！ このクエストと 相性ばつぐんだ！", ko: "{move}! SDG {sdg}의 경험이 살아난다! 이 퀘스트와 상성이 아주 좋다!" },
-  "battle.skill.new": { ja: "{move}！ はじめての 分野だ。新しい スキルを おぼえる チャンス！", ko: "{move}! 처음 도전하는 분야다. 새 스킬을 배울 기회!" },
+  "battle.skill.use": { ja: "勇者{name}の SDG {sdg}スキル（Lv.{level}）！", ko: "용사 {name}의 SDG {sdg} 스킬(Lv.{level})!" },
+  "battle.skill.good": { ja: "SDG {sdg}の 経験が いきる！ このクエストと 相性ばつぐんだ！", ko: "SDG {sdg}의 경험이 살아난다! 이 퀘스트와 상성이 아주 좋다!" },
+  "battle.skill.new": { ja: "はじめての 分野だ。新しい スキルを おぼえる チャンス！", ko: "처음 도전하는 분야다. 새 스킬을 배울 기회!" },
   "battle.skill.match": { ja: "相性◎", ko: "상성◎" },
-  "battle.skill.move": { ja: "わざ：{move}", ko: "기술: {move}" },
 
   "battle.run": { ja: "勇者{name}は うまく にげきれた！", ko: "용사 {name}, 무사히 도망쳤다!" },
 

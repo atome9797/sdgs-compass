@@ -2,9 +2,9 @@
 // 메시지 창에는 노벨 게임처럼 이름표(누가 말하는지)가 있고(#41), 처음에 의뢰한 기업이 몬스터의 정체 = 과제를 쉬운 말로 알려 줘요.
 // 「しらべる」를 고르면 기업에게 선택지로 물어요(무엇이 곤란한지 · 할 일과 낼 것 · 마감과 보상).
 // 그림(WebGL)은 웹이 그려요(apps/web/src/lib/battle). 몬스터 · 배경 · HP · 대사 · 선택지 · 스킬 상성(相性)은 여기 한 곳에서 정해요.
-// 규칙: 기획서를 내면 몬스터의 HP 가 0 = 「クエスト達成！」(수령증과 같은 때). 수상하면 그 퀘스트의 SDG 번호가 붙은 스킬을 얻어요(skills.ts).
+// 규칙: 기획서를 내면 몬스터의 HP 가 0 = 「クエスト達成！」(수령증과 같은 때). 수상하면 그 퀘스트의 SDG 마다 스킬을 얻어요(skills.ts — 같은 SDG 의 수상이 쌓이면 스킬 레벨이 올라요).
+// 「スキル」 명령은 가진 SDG 스킬을 보여 줘요(#45): 이 퀘스트의 SDG 에 들어 있는 스킬이 「相性◎」.
 import type { DemoState, FoeKind } from "./domain";
-import { SDG_EMBLEMS, type SkillEffectKind } from "./emblems";
 import { foeOf } from "./foe";
 import { daysBetween, formatDate } from "./format";
 import { pick, type Locale } from "./i18n";
@@ -12,8 +12,8 @@ import { translate } from "./messages";
 import { TEAM_SIZE } from "./proposal";
 import { isOpenFor } from "./recommend";
 import { getSdg, type SdgId } from "./sdg";
-import { heroSkillVM, rewardsLineOf, type HeroSkillVM } from "./selectors";
-import { skillMatches, skillSdgIds, sortSkills } from "./skills";
+import { heroSkillVM, rewardsLineOf, selectSdgSkills, type SdgSkillVM } from "./selectors";
+import { skillSdgIds } from "./skills";
 
 export type SceneKind = "sea" | "sky" | "field" | "town";
 
@@ -50,13 +50,12 @@ export interface LookTopicVM {
   lines: DialogueLine[];
 }
 
-export interface BattleSkillVM extends HeroSkillVM {
-  /** 이 퀘스트와 SDG 가 하나라도 겹치는지 (相性◎) */
+/** 「スキル」 명령의 스킬 하나 = SDG 하나의 스킬(#45) — 공식 이름 · 레벨 · 효과 모양(#42) · 색은 SdgSkillVM 그대로 */
+export interface BattleSkillVM extends SdgSkillVM {
+  /** 이 퀘스트의 SDG 에 들어 있는지 (相性◎) */
   match: boolean;
   /** 고르면 메시지 창에 차례로 나오는 말 */
   lines: DialogueLine[];
-  /** 쓰는 기술(#42): 퀘스트와 겹치는 SDG 가 있으면 그 SDG, 없으면 스킬의 대표 SDG 의 문장 — 이름 · 효과 모양 · 색 · 목표의 공식 이름(「海の豊かさを守ろう」) */
-  move: { sdgId: SdgId; name: string; effect: SkillEffectKind; color: string; goal: string };
 }
 
 export interface BattleVM {
@@ -149,7 +148,7 @@ export function selectBattle(state: DemoState, challengeId: string, locale: Loca
             narrator(t("battle.cleared", { foe: foeName })),
             ...(learned
               ? [
-                  narrator(heroSkillVM(learned, locale).learnedLabel),
+                  ...heroSkillVM(learned, locale, state.skills).learnedLines.map(narrator),
                   ...(challenge.rewardItem ? [narrator(t("battle.clearedItem", { item: pick(challenge.rewardItem.name, locale) }))] : []),
                 ]
               : [client(t("battle.clearedWait"))]),
@@ -190,23 +189,15 @@ export function selectBattle(state: DemoState, challengeId: string, locale: Loca
     },
   ];
 
-  const skills: BattleSkillVM[] = sortSkills(state.skills).map((skill) => {
-    const vm = heroSkillVM(skill, locale);
-    const match = skillMatches(skill, challenge.sdgIds);
-    const shared = skill.sdgIds.find((id) => challenge.sdgIds.includes(id));
-    const moveSdg = match && shared ? shared : vm.sdgId;
-    const move = { sdgId: moveSdg, name: pick(SDG_EMBLEMS[moveSdg].name, locale), effect: SDG_EMBLEMS[moveSdg].effect, color: getSdg(moveSdg).color, goal: pick(getSdg(moveSdg).name, locale) };
+  const skills: BattleSkillVM[] = selectSdgSkills(state, locale).map((skill) => {
+    const match = challenge.sdgIds.includes(skill.sdgId);
     return {
-      ...vm,
+      ...skill,
       match,
-      move,
-      lines: [
-        narrator(t("battle.skill.use", { name, skill: vm.name })),
-        narrator(match && shared ? t("battle.skill.good", { move: move.name, sdg: shared }) : t("battle.skill.new", { move: move.name })),
-      ],
+      lines: [narrator(t("battle.skill.use", { name, sdg: skill.sdgId, level: skill.level })), narrator(match ? t("battle.skill.good", { sdg: skill.sdgId }) : t("battle.skill.new"))],
     };
   });
-  // 상성이 좋은 스킬을 먼저 (같으면 최근 것부터 — sortSkills 의 순서)
+  // 상성이 좋은 스킬을 먼저 (같으면 레벨이 높은 것부터 — sdgSkills 의 순서)
   skills.sort((a, b) => Number(b.match) - Number(a.match));
 
   return {
@@ -223,7 +214,7 @@ export function selectBattle(state: DemoState, challengeId: string, locale: Loca
       hpAria: t("battle.hpAria", { foe: foeName, percent: hpPercent }),
       defeated: phase === "cleared",
     },
-    hero: { name: t("battle.heroName", { name }), skillsLabel: t("battle.heroSkills", { count: state.skills.length }), skillSdgIds: skillSdgIds(state.skills) },
+    hero: { name: t("battle.heroName", { name }), skillsLabel: t("battle.heroSkills", { count: skills.length }), skillSdgIds: skillSdgIds(state.skills) },
     speakers: { client: { name: companyName, emoji: company?.emoji ?? "🏢" }, hero: { name: t("battle.heroName", { name }) } },
     sceneAlt: t("battle.sceneAlt", { foe: foeName, name }),
     intro,

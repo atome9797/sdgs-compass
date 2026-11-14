@@ -57,7 +57,8 @@ test("고르는 화면(과제 만들기·인재·글쓰기)의 칩에는 숫자�
 
 test("홈 타일의 오른쪽 위에 그 목표의 스킬 문장(#42) — 웹과 같은 그림을 PNG 데이터 URI 로, 목표마다 한 번만 만들어요", async () => {
   await render(<SdgGrid tiles={selectHome(demo, "ja").sdgTiles} onPress={() => undefined} />);
-  const emblem = screen.getByTestId("sdg-tile-14-emblem");
+  // 문장은 장식이라 화면 읽기 프로그램에서 숨겨요(칸의 이름에 목표가 다 들어가요) — 숨긴 요소까지 찾아요
+  const emblem = screen.getByTestId("sdg-tile-14-emblem", { includeHiddenElements: true });
   expect(emblem.props.source.uri.startsWith("data:image/png;base64,iVBORw0KGgo")).toBe(true);
   expect(emblemPng(14)).toBe(emblemPng(14));
   expect(emblemPng(14)).not.toBe(emblemPng(6));

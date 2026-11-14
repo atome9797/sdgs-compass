@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_FOE_NAMES, foeOf, sceneOf, selectBattle, splitSentences, type BattleVM, type TopicId } from "@sdgs-compass/core/battle";
 import type { DemoState } from "@sdgs-compass/core/domain";
+import { pick } from "@sdgs-compass/core/i18n";
 import type { ProposalDraft } from "@sdgs-compass/core/proposal";
 import { selectHome, selectSearch } from "@sdgs-compass/core/selectors";
 import { reducer } from "@sdgs-compass/core/state";
@@ -115,7 +116,7 @@ describe("퀘스트 전투 화면 (#38)", () => {
   it("몬스터의 정체가 적혀 있지 않은 퀘스트는 요약을 그대로 말해요", () => {
     const old = initial.challenges.find((c) => c.foe === undefined)!;
     const vm = selectBattle(initial, old.id, "ko")!;
-    expect(said(vm.intro)[1]).toBe(`client: ${old.summary.ko}`);
+    expect(said(vm.intro)[1]).toBe(`client: ${pick(old.summary, "ko")}`);
   });
 
   it("스킬이 없는 용사: 「まだ スキルが ない！」", () => {
@@ -199,7 +200,7 @@ describe("퀘스트 의뢰서 (#39 · #41) — 목록 카드의 과제 · 몬스
     const old = initial.challenges.find((c) => c.foe === undefined)!;
     const oldCard = selectSearch(initial, "ja", { query: "", sdgIds: [] }).find((c) => c.id === old.id)!;
     expect(oldCard.foe.about).toBeNull();
-    expect(oldCard.problem).toBe(old.summary.ja);
+    expect(oldCard.problem).toBe(pick(old.summary, "ja"));
   });
 
   it("보상 한 줄: 상금 → 상품 → 그 밖의 특전, 의뢰 창의 보상 줄과 같아요", () => {

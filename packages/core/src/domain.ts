@@ -16,6 +16,16 @@ export type ChallengeStatus = "open" | "judging" | "closed";
 export type Participation = "individual" | "team" | "both";
 export type RewardKind = "prize" | "internship" | "offer";
 
+/**
+ * 퀘스트(과제)의 상품 보상 「報酬アイテム」(#37): 기업이 고른 팀에게 직접 건네는 자사 상품 · 서비스.
+ * 상금(prizeYen)과 함께 걸 수도 있고 상품만 걸 수도 있어요. retailYen 은 정가 상당액(화면 표시용, 샘플은 가상의 값).
+ * DB(db/schema.sql)에는 아직 열이 없어요 — 보상 종류(reward_kind)와 스키마는 그대로 둬요.
+ */
+export interface RewardItem {
+  name: Text;
+  retailYen: number;
+}
+
 export interface Company {
   id: string;
   name: Text;
@@ -52,6 +62,8 @@ export interface Challenge {
   skills: SkillId[];
   prizeYen: number;
   rewards: RewardKind[];
+  /** 상품 보상(報酬アイテム) — 없으면 상금 · 인턴 등 rewards 만 (#37) */
+  rewardItem?: RewardItem;
   participation: Participation;
   /** 참가·제출로 얻는 Impact 포인트의 기본값 (예: +120 pt) */
   impactPoints: number;

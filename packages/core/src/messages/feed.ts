@@ -38,7 +38,7 @@ export const feed = {
   "post.postAs": { ja: "投稿者：{name}", ko: "작성자: {name}" },
   "post.activityLabel": { ja: "投稿する実績", ko: "올릴 실적" },
   "post.activityHint": { ja: "受賞・提出・参加の実績から1件選びます", ko: "수상·제출·참가 실적 중 1건을 골라요" },
-  "post.noActivity": { ja: "投稿できる実績がまだありません。まず課題に応募してみましょう。", ko: "올릴 실적이 아직 없어요. 먼저 챌린지에 응모해 보세요." },
+  "post.noActivity": { ja: "投稿できる実績がまだありません。まずクエストに挑戦してみましょう。", ko: "올릴 실적이 아직 없어요. 먼저 퀘스트에 도전해 보세요." },
   "post.titleLabel": { ja: "タイトル", ko: "제목" },
   "post.titlePlaceholder": { ja: "例：漁港の朝市で、使い捨て容器を減らしました", ko: "예: 어항 아침시장에서 일회용 용기를 줄였어요" },
   "post.bodyLabel": { ja: "本文", ko: "본문" },

@@ -18,6 +18,7 @@ import {
   APPLICANT_FILTERS,
   certificateVM,
   parseApplicantFilter,
+  pleaOf,
   selectApplicants,
   selectApplications,
   selectB2bDashboard,
@@ -293,17 +294,17 @@ describe("홈 SDG 타일의 숫자 = 목표별 모집 중 과제 수 (#29)", () 
   it("문구: 단위는 件/개, 스크린 리더용 이름에 목표 번호·정식 이름·모집 중 개수가 다 들어가요", () => {
     const ja = selectHome(initial, "ja").sdgTiles.find((t) => t.id === 14)!;
     const ko = selectHome(initial, "ko").sdgTiles.find((t) => t.id === 14)!;
-    expect([ja.unit, ja.label, ja.short]).toEqual(["件", "目標14 海の豊かさを守ろう・募集中の課題 2件", "海"]);
-    expect([ko.unit, ko.label, ko.short]).toEqual(["개", "목표 14 해양 생태계 보전 · 모집 중인 챌린지 2개", "해양"]);
-    expect(selectHome(initial, "ja").sdgTiles.find((t) => t.id === 1)?.label).toBe("目標1 貧困をなくそう・募集中の課題 0件");
+    expect([ja.unit, ja.label, ja.short]).toEqual(["件", "目標14 海の豊かさを守ろう・募集中のクエスト 2件", "海"]);
+    expect([ko.unit, ko.label, ko.short]).toEqual(["개", "목표 14 해양 생태계 보전 · 모집 중인 퀘스트 2개", "해양"]);
+    expect(selectHome(initial, "ja").sdgTiles.find((t) => t.id === 1)?.label).toBe("目標1 貧困をなくそう・募集中のクエスト 0件");
   });
 
   it("검색 결과 줄: 심사 중·종료가 섞이면 「うち募集中」 수를 함께, 모두 모집 중이면 그대로", () => {
     const sdg14 = (locale: Locale) => searchResultsLabel(selectSearch(initial, locale, { query: "", sdgIds: [14] }), locale);
     const sdg2 = (locale: Locale) => searchResultsLabel(selectSearch(initial, locale, { query: "", sdgIds: [2] }), locale);
-    expect([sdg14("ja"), sdg14("ko")]).toEqual(["5件の課題（うち募集中 2件）", "챌린지 5건 (모집 중 2건)"]);
-    expect([sdg2("ja"), sdg2("ko")]).toEqual(["2件の課題", "챌린지 2건"]);
-    expect(searchResultsLabel([], "ja")).toBe("0件の課題");
+    expect([sdg14("ja"), sdg14("ko")]).toEqual(["5件のクエスト（うち募集中 2件）", "퀘스트 5건 (모집 중 2건)"]);
+    expect([sdg2("ja"), sdg2("ko")]).toEqual(["2件のクエスト", "퀘스트 2건"]);
+    expect(searchResultsLabel([], "ja")).toBe("0件のクエスト");
   });
 
   it("과제 만들기·인재 검색·글쓰기에서 고르는 타일(selectSdgTiles)에는 개수가 없어요", () => {
@@ -368,14 +369,14 @@ describe("챌린지 상세", () => {
   it("응모 조건: 한 팀 3~5명(대학생 · 대학원생) · 권장 기간 1~2개월(이 과제의 모집 기간) · 수업 · 세미나", () => {
     const ja = selectChallengeDetail(initial, "ch-plastic", "ja")!;
     expect(ja.conditions).toEqual([
-      { label: "チーム", value: "1チーム3〜5人（大学生・大学院生）" },
-      { label: "期間の目安", value: "1〜2か月（この課題の募集期間は44日）" },
-      { label: "授業・ゼミ", value: "大学の授業・ゼミで取り組むチームは、応募のときにゼミ・授業名と指導教員を書けます（書かなくても応募できます）。" },
+      { label: "パーティ", value: "1パーティ3〜5人（大学生・大学院生）" },
+      { label: "期間の目安", value: "1〜2か月（このクエストの募集期間は44日）" },
+      { label: "授業・ゼミ", value: "大学の授業・ゼミで取り組むパーティは、応募のときにゼミ・授業名と指導教員を書けます（書かなくても応募できます）。" },
     ]);
-    expect(ja.card.teamRuleLabel).toBe("3〜5人チーム");
+    expect(ja.card.teamRuleLabel).toBe("3〜5人パーティ");
     const ko = selectChallengeDetail(initial, "ch-plastic", "ko")!;
-    expect(ko.conditions.map((c) => c.value).slice(0, 2)).toEqual(["한 팀 3~5명(대학생 · 대학원생)", "1~2개월(이 챌린지의 모집 기간은 44일)"]);
-    expect(ko.card.teamRuleLabel).toBe("3~5명 팀");
+    expect(ko.conditions.map((c) => c.value).slice(0, 2)).toEqual(["한 파티 3~5명(대학생 · 대학원생)", "1~2개월(이 퀘스트의 모집 기간은 44일)"]);
+    expect(ko.card.teamRuleLabel).toBe("3~5명 파티");
   });
 
   it("응모자 카드: 팀 인원, 그리고 세미나 · 수업에서 준비한 팀은 그 이름(「ゼミで参加」)", () => {
@@ -1268,5 +1269,67 @@ describe("SDGs 실천 마크 — ★5 만점 · 0.5 단위, 학생에게도 회�
     );
     expect(selectEsg(top, "ja")).toMatchObject({ total: 100, stars: 5, starsLabel: "★5.0", nextLabel: "最高の★5.0です" });
     expect(selectEsg(top, "ko").nextLabel).toBe("최고 단계 ★5.0이에요");
+  });
+});
+
+describe("게임 테마 — 용사 · 퀘스트 · 보상 아이템 (#37)", () => {
+  it("홈 맨 위의 의뢰 창: 추천 1순위(모집 중) 퀘스트의 기업이 용사에게 부탁해요", () => {
+    for (const locale of LOCALES) {
+      const home = selectHome(initial, locale);
+      expect(home.plea).not.toBeNull();
+      expect(home.plea!.challengeId).toBe(home.recommended[0].id);
+      expect(home.plea!.from).toContain(home.recommended[0].companyName);
+      expect(home.plea!.line).toContain(home.recommended[0].title);
+    }
+    const ja = selectHome(initial, "ja").plea!;
+    expect(ja.line.startsWith("勇者さま、助けてください！")).toBe(true);
+    expect(selectHome(initial, "ko").plea!.line.startsWith("용사님, 구해 주세요!")).toBe(true);
+  });
+
+  it("의뢰 창의 보상 줄: 상금 · 상품 보상(🎁) · 인턴 순서", () => {
+    const plea = pleaOf(initial, initial.challenges.find((c) => c.id === "ch-plastic")!, "ja");
+    expect(plea.rewards).toBe(`報酬：賞金 ${formatYen(100_000, "ja")} ／ 🎁 みなとの干物ギフトセット ／ インターン`);
+    const plain = pleaOf(initial, initial.challenges.find((c) => c.id === "ch-foodloss")!, "ko");
+    expect(plain.rewards).toBe(`보상: 상금 ${formatYen(50_000, "ko")}`);
+  });
+
+  it("모집 중인 퀘스트가 없으면 의뢰 창도 없어요", () => {
+    const quiet = { ...initial, challenges: initial.challenges.map((c) => ({ ...c, status: "closed" as const })) };
+    expect(selectHome(quiet, "ja").plea).toBeNull();
+  });
+
+  it("상품 보상이 걸린 퀘스트: 카드에 🎁 태그, 상세에 이름과 정가 상당액", () => {
+    const ja = selectChallengeDetail(initial, "ch-plastic", "ja")!;
+    expect(ja.card.rewardLabels).toEqual(["賞金", "インターン", "🎁 報酬アイテム"]);
+    expect(ja.card.rewardItemLabel).toBe(`みなとの干物ギフトセット（定価 ${formatYen(5_000, "ja")} 相当）`);
+    const ko = selectChallengeDetail(initial, "ch-plastic", "ko")!;
+    expect(ko.card.rewardItemLabel).toBe(`미나토 건어물 선물 세트(정가 ${formatYen(5_000, "ko")} 상당)`);
+    const none = selectChallengeDetail(initial, "ch-foodloss", "ja")!;
+    expect(none.card.rewardItemLabel).toBeNull();
+    expect(none.card.rewardLabels).toEqual(["賞金"]);
+  });
+
+  it("수상하면 「〇〇を手に入れた！」 — 상품 보상이 걸린 퀘스트만", () => {
+    const awarded = run(initial, { type: "submitProposal", challengeId: "ch-plastic", draft, at: AT }, { type: "awardProposal", proposalId: mineId, award: "grand" });
+    const ja = selectApplications(awarded, "ja")[0].review!;
+    expect(ja.rewardItemLabel).toBe("報酬アイテム「みなとの干物ギフトセット」を手に入れた！（みなと海洋フーズ株式会社から届きます）");
+    expect(selectApplications(awarded, "ko")[0].review!.rewardItemLabel).toBe("보상 아이템 「미나토 건어물 선물 세트」 획득! (미나토 해양푸드(주)에서 보내요)");
+    const reviewedOnly = run(initial, { type: "submitProposal", challengeId: "ch-plastic", draft, at: AT }, {
+      type: "reviewProposal", proposalId: mineId, review: { creativity: 4, feasibility: 4, sdgContribution: 4, comment: "" }, at: "2026-10-30T11:00",
+    });
+    expect(selectApplications(reviewedOnly, "ja")[0].review!.rewardItemLabel).toBeNull();
+  });
+
+  it("수상 카드뉴스: 상품 보상은 「提供」 표시와 함께 카드와 공유 글에 들어가요", () => {
+    const awarded = run(initial, { type: "submitProposal", challengeId: "ch-plastic", draft, at: AT }, { type: "awardProposal", proposalId: mineId, award: "grand" });
+    const award = selectShare(awarded, "ja", "instagram", null);
+    expect(award.card!.subtitle).toContain("報酬アイテム「みなとの干物ギフトセット」（提供）");
+    expect(award.card!.caption).toContain("（みなと海洋フーズ株式会社提供）");
+    expect(selectShare(awarded, "ko", "instagram", null).card!.caption).toContain("(미나토 해양푸드(주) 제공)");
+    // 수상하지 않은 제출 카드에는 상품 보상이 없어요
+    const submitted = run(initial, { type: "submitProposal", challengeId: "ch-plastic", draft, at: AT });
+    const first = selectShare(submitted, "ja", "instagram", null);
+    const mine = first.options.find((o) => o.label.includes("海洋プラスチック"));
+    if (mine) expect(selectShare(submitted, "ja", "instagram", mine.id).card!.caption).not.toContain("提供");
   });
 });

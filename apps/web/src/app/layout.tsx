@@ -6,10 +6,12 @@ import { AppProvider } from "@/lib/session";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: { default: "SDGsコンパス · SDGs 컴파스", template: "%s | SDGsコンパス" },
-  description: "企業のSDGs課題と学生のアイデアをつなぐマッチングプラットフォームのデモ版（サンプルデータ） / 기업의 SDGs 과제와 학생의 아이디어를 잇는 매칭 플랫폼 데모(샘플 데이터)",
-  applicationName: "SDGsコンパス",
-  appleWebApp: { capable: true, title: "SDGsコンパス", statusBarStyle: "default" },
+  // 게임 제목(#37): 「勇者さま、助けてください！」 — 서비스 이름(SDGsコンパス)은 뒤에 함께
+  title: { default: "勇者さま、助けてください！｜SDGsコンパス", template: "%s | 勇者さま、助けてください！" },
+  description:
+    "企業（依頼主）のSDGsの課題を、学生（勇者）がアイデアで解決するクエスト型マッチングのデモ版（サンプルデータ） / 기업(의뢰인)의 SDGs 과제를 학생(용사)이 아이디어로 해결하는 퀘스트형 매칭 데모(샘플 데이터)",
+  applicationName: "勇者さま、助けてください！",
+  appleWebApp: { capable: true, title: "勇者さま、助けて", statusBarStyle: "default" },
   formatDetection: { telephone: false },
 };
 

@@ -31,6 +31,12 @@ function ReviewResult({ review, id }: { review: ApplicationReviewVM; id: string 
           </Tag>
         ) : null}
       </div>
+      {/* 상품 보상이 걸린 퀘스트에서 수상하면 「〇〇を手に入れた！」(#37) */}
+      {review.rewardItemLabel ? (
+        <p className="item-won">
+          <span aria-hidden="true">🎁</span> {review.rewardItemLabel}
+        </p>
+      ) : null}
       {review.scores.length > 0 ? (
         <ul className="review-scores">
           {review.scores.map((score) => (
@@ -95,7 +101,8 @@ export function ImpactScreen() {
           <p className="profile__total">{vm.levelLabel}</p>
         </div>
         <div className="stack stack--sm">
-          <div className="progress" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={vm.progressPercent} aria-label={vm.nextLevelLabel}>
+          {/* 경험치(EXP) 막대 — 게임 테마(#37) */}
+          <div className="progress progress--exp" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={vm.progressPercent} aria-label={vm.nextLevelLabel}>
             <div className="progress__bar" style={{ width: `${vm.progressPercent}%` }} />
           </div>
           <p className="small muted">{vm.nextLevelLabel}</p>

@@ -15,7 +15,7 @@ import { Badge, Button, Card, Empty, Notice, ProgressBar, Section, Txt } from "@
 import { useApp } from "@/lib/AppProvider";
 import { squareSizeFor } from "@/lib/geometry";
 import { certificateHref, challengeHref, paramText, receiptHref, ROUTES } from "@/lib/nav";
-import { COLORS, RADIUS, SPACE } from "@/theme";
+import { COLORS, GAME_COLORS, RADIUS, SPACE } from "@/theme";
 
 /**
  * #30 기업의 심사 결과: 점수는 막대 + 「4/5」 글자(색만으로 구분하지 않아요), 가장 낮은 항목은 「次に伸ばすポイント」 한 줄로도 알려요.
@@ -31,6 +31,14 @@ function ReviewResult({ review, id }: { review: ApplicationReviewVM; id: string 
           </Txt>
           {review.awardLabel ? <Badge tone="warning" label={`🏆 ${review.awardLabel}`} /> : null}
         </View>
+        {/* 상품 보상이 걸린 퀘스트에서 수상하면 「〇〇を手に入れた！」(#37) */}
+        {review.rewardItemLabel ? (
+          <View style={styles.itemWon} testID={`impact-item-${id}`}>
+            <Txt variant="small" bold style={styles.itemWonText}>
+              🎁 {review.rewardItemLabel}
+            </Txt>
+          </View>
+        ) : null}
         {review.scores.map((score) => (
           <View key={score.key} style={styles.scoreRow} testID={`review-score-${score.key}`}>
             <Txt variant="small" bold style={styles.scoreLabel}>
@@ -107,7 +115,8 @@ export function ImpactScreen() {
         <Txt variant="display" testID="impact-total">
           {vm.levelLabel}
         </Txt>
-        <ProgressBar ratio={vm.progressPercent / 100} accessibilityLabel={t("impact.total")} valueText={vm.nextLevelLabel} />
+        {/* 경험치(EXP) 막대 — 게임 테마(#37) */}
+        <ProgressBar ratio={vm.progressPercent / 100} color={GAME_COLORS.expTo} accessibilityLabel={t("impact.total")} valueText={vm.nextLevelLabel} />
         <Txt variant="small" tone="muted">
           {vm.nextLevelLabel}
         </Txt>
@@ -273,6 +282,9 @@ export function ImpactScreen() {
 }
 
 const styles = StyleSheet.create({
+  // 수상 뒤 「〇〇を手に入れた！」(#37): 남색 바탕 · 금색 글자 (웹 .item-won 과 같은 색)
+  itemWon: { marginTop: SPACE.xs, paddingVertical: SPACE.sm, paddingHorizontal: SPACE.md, borderRadius: RADIUS.md, backgroundColor: GAME_COLORS.window },
+  itemWonText: { color: GAME_COLORS.speaker },
   rowBetween: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: SPACE.sm },
   shrink: { flexShrink: 1 },
   walletTitle: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: SPACE.xs + 2, flexShrink: 1 },

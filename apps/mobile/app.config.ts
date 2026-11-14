@@ -2,6 +2,7 @@ import type { ExpoConfig } from "expo/config";
 
 // SDGsコンパス (공모전 시연용 데모 앱). 서버·로그인·푸시가 없어서 비밀 값도 필요 없어요 — 환경 변수 없이 그대로 빌드됩니다.
 // 앱 이름은 일본어로 두고, 앱 안에서 일본어/한국어를 고를 수 있어요(첫 실행 때 언어 선택, 설정에서 변경).
+// 앱 이름 = 게임 제목(#37) 「勇者さま、助けてください！」. 서비스 이름(SDGsコンパス)은 앱 안의 머리글에 작게 보여요.
 // ios/·android/ 폴더는 `expo prebuild` 가 이 파일로 만드는 것이라 저장소에 넣지 않아요.
 
 const BUNDLE_ID = "com.sdgscompass.app";
@@ -10,7 +11,7 @@ const PRIMARY = "#2F5E50";
 const BACKGROUND = "#F4F6F4";
 
 const config: ExpoConfig = {
-  name: "SDGsコンパス",
+  name: "勇者さま、助けてください！",
   slug: "sdgs-compass",
   scheme: "sdgscompass",
   version: "0.1.0",

@@ -134,7 +134,7 @@ describe("샘플 데이터", () => {
     expect(impact.totalPoints).toBe(1476);
     expect(impact.level).toBe(3);
     expect(impact.progressPercent).toBe(97);
-    expect(impact.nextLevelLabel).toBe("次のLv.4への進み具合 97%");
+    expect(impact.nextLevelLabel).toBe("次のLv.4まで EXP 97%");
     expect(impact.nextLevelLabel).not.toContain("pt");
     expect(impact.topSdgs[0].id).toBe(14);
     const badgeCodes = impact.badges.map((b) => b.code);

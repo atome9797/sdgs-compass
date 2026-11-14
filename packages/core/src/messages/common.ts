@@ -4,6 +4,8 @@ import type { LocalizedText } from "../i18n";
 
 export const common = {
   "app.name": { ja: "SDGsコンパス", ko: "SDGs 컴파스" },
+  // 게임 제목(#37): 기업(NPC · 의뢰인)이 용사(학생)에게 도움을 청하는 말. 화면 맨 위에 크게, 서비스 이름(app.name)은 그 아래 작게 보여요
+  "app.title": { ja: "勇者さま、助けてください！", ko: "용사님 구해주세요!" },
   "app.tagline": { ja: "提案で選ばれるSDGsインターン", ko: "제안으로 뽑히는 SDGs 인턴십" },
   "app.demoBadge": { ja: "デモ版", ko: "데모 버전" },
   "app.demoNote": { ja: "サンプルデータで動作する試作版です", ko: "샘플 데이터로 동작하는 시제품입니다" },
@@ -40,7 +42,7 @@ export const common = {
   "common.none": { ja: "なし", ko: "없음" },
 
   "nav.home": { ja: "ホーム", ko: "홈" },
-  "nav.search": { ja: "検索", ko: "검색" },
+  "nav.search": { ja: "クエスト", ko: "퀘스트" },
   "nav.impact": { ja: "マイImpact", ko: "마이 임팩트" },
   "nav.messages": { ja: "メッセージ", ko: "메시지" },
   "nav.dashboard": { ja: "ダッシュボード", ko: "대시보드" },
@@ -51,10 +53,10 @@ export const common = {
 
   "role.title": { ja: "利用タイプを選んでください", ko: "이용 유형을 선택하세요" },
   "role.subtitle": { ja: "デモ用のアカウントで始めます。あとから設定で切り替えられます。", ko: "데모용 계정으로 시작해요. 나중에 설정에서 바꿀 수 있어요." },
-  "role.b2c": { ja: "学生・個人", ko: "학생·개인" },
-  "role.b2cDesc": { ja: "課題に挑戦して、実績とキャリアをつくる", ko: "챌린지에 참여해 실적과 커리어를 만들어요" },
-  "role.b2b": { ja: "企業・団体", ko: "기업·단체" },
-  "role.b2bDesc": { ja: "SDGs課題を出題して、若い発想と人材に出会う", ko: "SDGs 과제를 출제하고 젊은 아이디어와 인재를 만나요" },
+  "role.b2c": { ja: "勇者（学生・個人）", ko: "용사(학생·개인)" },
+  "role.b2cDesc": { ja: "クエストに挑戦して、実績とキャリアをつくる", ko: "퀘스트에 도전해 실적과 커리어를 만들어요" },
+  "role.b2b": { ja: "依頼主（企業・団体）", ko: "의뢰인(기업·단체)" },
+  "role.b2bDesc": { ja: "SDGsの課題をクエストとして依頼し、勇者（学生）の発想と人材に出会う", ko: "SDGs 과제를 퀘스트로 의뢰하고 용사(학생)의 아이디어와 인재를 만나요" },
   // 연구자(대학원생)는 웹 데모에만 있어요 (모바일 앱의 역할 선택은 학생·기업 두 가지)
   "role.researcher": { ja: "研究者（大学院生）", ko: "연구자(대학원생)" },
   "role.researcherDesc": { ja: "企業の研究依頼を引き受けて、成果を届ける", ko: "기업의 연구 의뢰를 맡아 성과를 전해요" },
@@ -95,11 +97,11 @@ export const common = {
   "award.special": { ja: "特別賞", ko: "특별상" },
 
   "level.label": { ja: "Lv.{level} {name}", ko: "Lv.{level} {name}" },
-  "level.1": { ja: "はじめの一歩", ko: "첫걸음" },
-  "level.2": { ja: "チャレンジャー", ko: "챌린저" },
-  "level.3": { ja: "マスター", ko: "마스터" },
-  "level.4": { ja: "エキスパート", ko: "엑스퍼트" },
-  "level.5": { ja: "レジェンド", ko: "레전드" },
+  "level.1": { ja: "見習い勇者", ko: "견습 용사" },
+  "level.2": { ja: "駆け出し勇者", ko: "신참 용사" },
+  "level.3": { ja: "一人前の勇者", ko: "어엿한 용사" },
+  "level.4": { ja: "熟練の勇者", ko: "숙련된 용사" },
+  "level.5": { ja: "伝説の勇者", ko: "전설의 용사" },
 
   "badge.firstStep.name": { ja: "はじめの一歩", ko: "첫걸음" },
   "badge.firstStep.desc": { ja: "最初の課題に応募した", ko: "첫 챌린지에 참여했어요" },

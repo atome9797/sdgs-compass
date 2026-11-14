@@ -30,7 +30,7 @@ export const summary = {
   "summary.rangeAll": { ja: "全期間（〜 {to}）", ko: "전체 기간(~ {to})" },
   "summary.holder.name": { ja: "表示名", ko: "표시 이름" },
   "summary.holder.affiliation": { ja: "所属", ko: "소속" },
-  "summary.holder.level": { ja: "インパクトレベル", ko: "임팩트 레벨" },
+  "summary.holder.level": { ja: "勇者レベル", ko: "용사 레벨" },
   "summary.holder.period": { ja: "対象期間", ko: "대상 기간" },
   "summary.stat.participations": { ja: "参加", ko: "참가" },
   "summary.stat.submissions": { ja: "企画書の提出", ko: "기획서 제출" },

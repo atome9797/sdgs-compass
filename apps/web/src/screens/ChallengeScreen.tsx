@@ -159,6 +159,18 @@ function ChallengeView({ id }: { id: string }) {
               <span className="fact__value">{card.impactLabel}</span>
             </div>
           </div>
+          {card.rewardItemLabel ? (
+            <div className="item-box">
+              <span className="item-box__icon" aria-hidden="true">
+                🎁
+              </span>
+              <div className="item-box__main">
+                <p className="item-box__label">{t("challenge.rewardItem")}</p>
+                <p className="item-box__name">{card.rewardItemLabel}</p>
+                <p className="small muted">{t("challenge.rewardItemNote", { company: vm.company.name })}</p>
+              </div>
+            </div>
+          ) : null}
           <p className="small muted">
             {card.applicantsLabel} · {card.teamRuleLabel}
           </p>

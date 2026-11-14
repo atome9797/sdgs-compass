@@ -35,6 +35,8 @@ export interface ShareCardInput {
   awardCount: number;
   template: CardTemplate;
   locale: Locale;
+  /** 수상한 퀘스트에 걸린 상품 보상(報酬アイテム)의 이름 — 수상 카드에만 쓰고, 기업이 제공했다는 표시와 함께 넣어요(#37) */
+  rewardItemName?: string;
 }
 
 export function buildShareCard(input: ShareCardInput): ShareCard {
@@ -45,13 +47,17 @@ export function buildShareCard(input: ShareCardInput): ShareCard {
   const awardText = activity.award ? awardLabel(activity.award, locale) : "";
   const sdgTags = activity.sdgIds.map((id) => `#SDGs${id}`).join(" ");
   const hashtags = [translate("share.hashtags", locale), sdgTags].filter(Boolean).join(" ");
-  const caption = `${translate(isAward ? "share.captionAward" : "share.captionParticipation", locale, { challenge: title, award: awardText, sdgs: sdgTags })}\n${translate("share.hashtags", locale)}`;
+  // 상품 보상(#37): 기업이 건넨 상품을 SNS 에 소개하는 글이 되므로, 카드와 글에 「提供」(제공받았다는 표시)을 꼭 넣어요
+  const item = isAward && input.rewardItemName ? input.rewardItemName : "";
+  const itemLine = item ? `\n${translate("share.captionItem", locale, { company, item })}` : "";
+  const caption = `${translate(isAward ? "share.captionAward" : "share.captionParticipation", locale, { challenge: title, award: awardText, sdgs: sdgTags })}${itemLine}\n${translate("share.hashtags", locale)}`;
+  const subtitleParts = [company, awardText, item ? translate("share.itemNote", locale, { item }) : ""].filter(Boolean);
   return {
     template,
     aspect: CARD_ASPECT[template],
     headline: translate(isAward ? "share.headlineAward" : "share.headlineParticipation", locale, { name: nickname }),
     title,
-    subtitle: awardText ? `${company} · ${awardText}` : company,
+    subtitle: subtitleParts.join(" · "),
     stats: [
       // 실적은 포인트 숫자가 아니라 레벨로 보여요
       { label: translate("share.statPoints", locale), value: `Lv.${index.level}` },

@@ -4,7 +4,7 @@
 import { Platform, type ViewStyle } from "react-native";
 import { COLORS } from "@sdgs-compass/core/theme";
 
-export { CHART_COLORS, COLORS, ESG_COLORS, FONT_SIZE, PHONE_WIDTH, RADIUS, SDG_TILE_TINT, SPACE, coverColors, tint } from "@sdgs-compass/core/theme";
+export { CHART_COLORS, COLORS, ESG_COLORS, FONT_SIZE, GAME_COLORS, MARK_COLORS, PHONE_WIDTH, RADIUS, SDG_TILE_TINT, SPACE, coverColors, tint } from "@sdgs-compass/core/theme";
 // tint(hex, 0~1) 는 흰색과 섞은 불투명한 옅은 색이에요(웹과 같은 함수). lib/color.ts 의 tint 는 투명도(#RRGGBBAA)를 붙이는 다른 도우미예요.
 
 /** 누를 수 있는 곳의 최소 높이·너비(dp) */

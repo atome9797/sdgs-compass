@@ -1,7 +1,7 @@
 import { readFileSync, existsSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { CHART_COLORS, COLORS, FONT_SIZE, MARK_COLORS, PHONE_WIDTH, RADIUS, SPACE } from "@sdgs-compass/core/theme";
+import { CHART_COLORS, COLORS, FONT_SIZE, GAME_COLORS, MARK_COLORS, PHONE_WIDTH, RADIUS, SPACE } from "@sdgs-compass/core/theme";
 
 // globals.css 의 :root 값이 core 의 theme.ts(웹·모바일 공용 디자인 토큰)와 같은지 확인해요.
 function readCss(file = "globals.css"): string {
@@ -38,6 +38,14 @@ describe("globals.css 와 theme.ts 의 토큰", () => {
   it("SDGs 실천 마크의 별 색(--mark-star · --mark-star-soft)이 core 의 MARK_COLORS 와 같아요 (#35)", () => {
     expect(norm(vars.get("--mark-star") ?? "")).toBe(norm(MARK_COLORS.star));
     expect(norm(vars.get("--mark-star-soft") ?? "")).toBe(norm(MARK_COLORS.starSoft));
+  });
+
+  it("게임 테마의 색(--game-*)이 core 의 GAME_COLORS 와 같아요 (#37)", () => {
+    for (const [key, value] of Object.entries(GAME_COLORS)) expect(norm(vars.get(`--game-${kebab(key)}`) ?? ""), key).toBe(norm(value));
+  });
+
+  it("의뢰 창의 「クエストを受ける」는 누르는 곳 44px 이에요 (#37)", () => {
+    expect(css).toMatch(/\.rpg-window__choice\s*\{[^}]*min-height:\s*var\(--tap\)/);
   });
 
   it("마크 단추(.cmark)는 누르는 곳 44px · 인쇄해도 별 색이 남아요 (#35)", () => {

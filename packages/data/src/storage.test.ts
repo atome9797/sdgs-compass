@@ -359,3 +359,21 @@ describe("팀 인원 · 세미나(2026-11-09)가 생기기 전에 저장된 데�
     expect(parseState(serializeState(current))).toEqual(current);
   });
 });
+
+describe("상품 보상(報酬アイテム, #37)이 생기기 전에 저장한 상태", () => {
+  const current = createInitialState(TODAY);
+  const old = { ...current, challenges: current.challenges.map(({ rewardItem: _item, ...rest }) => rest) };
+
+  it("버리지 않고, 샘플 퀘스트의 상품 보상을 채워서 이어 써요", () => {
+    const parsed = parseState(JSON.stringify(old))!;
+    expect(parsed).not.toBeNull();
+    expect(parsed.challenges.find((c) => c.id === "ch-plastic")!.rewardItem).toEqual(current.challenges.find((c) => c.id === "ch-plastic")!.rewardItem);
+    expect(parsed.challenges.find((c) => c.id === "ch-foodloss")!.rewardItem).toBeUndefined();
+  });
+
+  it("데모에서 기업이 새로 낸 퀘스트(샘플에 없는 id)는 그대로 — 상품 보상 없음", () => {
+    const created = reducer(current, { type: "createChallenge", draft: { title: "新しいクエスト", summary: "説明", sdgIds: [4], prizeYen: 10_000, days: 30, participation: "both", internship: false } });
+    const mine = created.challenges.find((c) => !current.challenges.some((s) => s.id === c.id))!;
+    expect(parseState(serializeState(created))!.challenges.find((c) => c.id === mine.id)!.rewardItem).toBeUndefined();
+  });
+});

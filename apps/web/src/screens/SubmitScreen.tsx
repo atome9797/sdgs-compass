@@ -277,9 +277,10 @@ function ReceiptView({ id }: { id: string }) {
     <div className="screen">
       <ScreenHead title={t("receipt.title")} />
       <section className="card receipt" aria-labelledby="receipt-thanks">
-        <div className="receipt__head">
+        {/* 제출이 접수되면 「クエスト達成！」(#37) */}
+        <div className="receipt__head receipt__head--quest">
           <span className="receipt__check" aria-hidden="true">
-            ✅
+            ⚔️
           </span>
           <h2 id="receipt-thanks" className="strong">
             {t("receipt.thanks")}

@@ -167,6 +167,8 @@ function buildChallenges(today: string): Challenge[] {
       skills: ["design", "research", "planning"],
       prizeYen: 100_000,
       rewards: ["prize", "internship"],
+      // 상품 보상(報酬アイテム, #37) — 가상의 상품 · 정가 상당액
+      rewardItem: { name: { ja: "みなとの干物ギフトセット", ko: "미나토 건어물 선물 세트" }, retailYen: 5_000 },
       participation: "team",
       impactPoints: 120,
       opensOn: d(-32),
@@ -231,6 +233,8 @@ function buildChallenges(today: string): Challenge[] {
       skills: ["planning", "video", "writing"],
       prizeYen: 150_000,
       rewards: ["prize"],
+      // 상품 보상(報酬アイテム, #37) — 가상의 상품 · 정가 상당액
+      rewardItem: { name: { ja: "ソーラーパネルつきポータブル電源", ko: "태양광 패널 포함 휴대용 전원" }, retailYen: 30_000 },
       participation: "team",
       impactPoints: 140,
       opensOn: d(-29),
@@ -289,6 +293,8 @@ function buildChallenges(today: string): Challenge[] {
       skills: ["design", "marketing"],
       prizeYen: 60_000,
       rewards: ["prize"],
+      // 상품 보상(報酬アイテム, #37) — 가상의 상품 · 정가 상당액
+      rewardItem: { name: { ja: "規格外野菜の定期便（3か月分）", ko: "규격 외 채소 정기 배송(3개월분)" }, retailYen: 9_000 },
       participation: "team",
       impactPoints: 100,
       opensOn: d(-26),
@@ -347,6 +353,8 @@ function buildChallenges(today: string): Challenge[] {
       skills: ["marketing", "programming"],
       prizeYen: 70_000,
       rewards: ["prize"],
+      // 상품 보상(報酬アイテム, #37) — 가상의 상품 · 정가 상당액
+      rewardItem: { name: { ja: "釣り船の乗船券（パーティ全員分）", ko: "낚싯배 승선권(파티 전원)" }, retailYen: 20_000 },
       participation: "team",
       impactPoints: 100,
       opensOn: d(-24),

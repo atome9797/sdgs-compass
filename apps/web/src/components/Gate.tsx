@@ -10,6 +10,7 @@ import { detectLocale, LOCALE_NAMES, LOCALES, pick, type Locale } from "@sdgs-co
 import { LANGUAGE_PICKER, makeT, translate } from "@sdgs-compass/core/messages";
 import { buildHref, guardRedirect, isAdminPath, ROUTES } from "@/lib/routes";
 import { useBoot } from "@/lib/session";
+import { GameTitle } from "./GameTitle";
 import { Splash } from "./Splash";
 import { LangToggle } from "./TopBar";
 
@@ -34,9 +35,18 @@ function LanguageGate() {
         <div className="gate__logo" aria-hidden="true">
           🧭
         </div>
-        <p className="gate__brand">
-          <span lang="ja">{translate("app.name", "ja")}</span> · <span lang="ko">{translate("app.name", "ko")}</span>
-        </p>
+        {/* 게임 제목(#37)을 두 언어로 크게, 서비스 이름은 그 아래 작게 — 아직 언어를 고르기 전이라 둘 다 */}
+        <div className="gate__brand">
+          <p lang="ja">
+            <GameTitle text={translate("app.title", "ja")} />
+          </p>
+          <p lang="ko" className="gate__brand-ko">
+            <GameTitle text={translate("app.title", "ko")} />
+          </p>
+          <p className="gate__service">
+            <span lang="ja">{translate("app.name", "ja")}</span> · <span lang="ko">{translate("app.name", "ko")}</span>
+          </p>
+        </div>
         <div className="gate__titles">
           <h1 className="gate__title" lang="ja">
             {LANGUAGE_PICKER.title.ja}

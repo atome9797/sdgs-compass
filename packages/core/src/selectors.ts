@@ -168,6 +168,8 @@ export interface ChallengeCardVM {
   isOpen: boolean;
   prizeLabel: string | null;
   rewardLabels: string[];
+  /** 「海の幸ギフトセット（定価 ¥5,000 相当）」 — 상품 보상(報酬アイテム, #37)이 걸린 퀘스트만 (없으면 null) */
+  rewardItemLabel: string | null;
   participationLabel: string;
   /** 「3〜5人チーム」 — 응모는 한 팀 3~5명(대학생 · 대학원생) */
   teamRuleLabel: string;
@@ -203,7 +205,11 @@ export function challengeCard(state: DemoState, challenge: Challenge, locale: Lo
     statusLabel: challengeStatusLabel(challenge.status, locale),
     isOpen: isOpenFor(challenge, state.today),
     prizeLabel: challenge.prizeYen > 0 ? formatYen(challenge.prizeYen, locale) : null,
-    rewardLabels: challenge.rewards.map((r) => rewardLabel(r, locale)),
+    // 상품 보상이 걸린 퀘스트는 특전 목록 끝에 「報酬アイテム」을 더해요 — 카드의 태그와 상세의 特典 에 그대로 보여요(#37)
+    rewardLabels: [...challenge.rewards.map((r) => rewardLabel(r, locale)), ...(challenge.rewardItem ? [`🎁 ${translate("challenge.rewardItem", locale)}`] : [])],
+    rewardItemLabel: challenge.rewardItem
+      ? translate("challenge.rewardItemValue", locale, { name: pick(challenge.rewardItem.name, locale), amount: formatYen(challenge.rewardItem.retailYen, locale) })
+      : null,
     participationLabel: participationLabel(challenge.participation, locale),
     teamRuleLabel: translate("challenge.teamRule", locale, { min: TEAM_SIZE.min, max: TEAM_SIZE.max }),
     // 실적은 포인트 숫자로 보여 주지 않아요 — 참가·수상이 임팩트 레벨에 반영된다는 것만
@@ -218,8 +224,41 @@ export function challengeCard(state: DemoState, challenge: Challenge, locale: Lo
 
 // ───────── 홈(SCR-01)·검색 ─────────
 
+/**
+ * 홈 맨 위의 의뢰 창(#37): 기업(NPC · 의뢰인)이 용사(학생)에게 말을 거는 게임 대화 상자.
+ * 추천 1순위(모집 중) 퀘스트로 만들고, 누르면 그 퀘스트 상세로 가요. 모집 중인 퀘스트가 없으면 null.
+ */
+export interface PleaVM {
+  challengeId: string;
+  companyEmoji: string;
+  /** 「みなと海洋フーズ株式会社からの依頼」 */
+  from: string;
+  /** 「勇者さま、助けてください！「…」に挑戦してくれる勇者を探しています。」 */
+  line: string;
+  /** 「報酬：賞金 ¥100,000 ／ 🎁 みなとの干物ギフトセット ／ インターン」 (보상이 하나도 없으면 null) */
+  rewards: string | null;
+}
+
+export function pleaOf(state: DemoState, challenge: Challenge, locale: Locale): PleaVM {
+  const company = companyOf(state, challenge.companyId);
+  const parts = [
+    challenge.prizeYen > 0 ? `${rewardLabel("prize", locale)} ${formatYen(challenge.prizeYen, locale)}` : null,
+    challenge.rewardItem ? `🎁 ${pick(challenge.rewardItem.name, locale)}` : null,
+    ...challenge.rewards.filter((r) => r !== "prize").map((r) => rewardLabel(r, locale)),
+  ].filter((part): part is string => part !== null);
+  return {
+    challengeId: challenge.id,
+    companyEmoji: company?.emoji ?? "🏢",
+    from: translate("home.pleaFrom", locale, { company: company ? pick(company.name, locale) : "" }),
+    line: translate("home.pleaLine", locale, { quest: pick(challenge.title, locale) }),
+    rewards: parts.length > 0 ? translate("home.pleaReward", locale, { rewards: parts.join(locale === "ja" ? " ／ " : " / ") }) : null,
+  };
+}
+
 export interface HomeVM {
   nickname: string;
+  /** 의뢰 창 (#37) */
+  plea: PleaVM | null;
   sdgTiles: SdgCountTileVM[];
   recommended: ChallengeCardVM[];
   soon: ChallengeCardVM[];
@@ -235,7 +274,9 @@ export function selectHome(state: DemoState, locale: Locale): HomeVM {
     .slice(0, 3)
     .map((c) => challengeCard(state, c, locale));
   const activities = deriveActivities(state).filter((a) => a.kind !== "share").slice(0, 3).map((a) => activityVM(a, locale));
-  return { nickname: state.me.nickname, sdgTiles: selectSdgCountTiles(state, locale), recommended, soon, activities };
+  const first = recs.map((rec) => rec.challenge).find((c) => isOpenFor(c, state.today));
+  const plea = first ? pleaOf(state, first, locale) : null;
+  return { nickname: state.me.nickname, plea, sdgTiles: selectSdgCountTiles(state, locale), recommended, soon, activities };
 }
 
 function searchText(state: DemoState, challenge: Challenge): string {
@@ -468,12 +509,14 @@ export interface ApplicationReviewVM {
   award: AwardKind | null;
   /** 「最優秀賞を受賞」 */
   awardLabel: string | null;
+  /** 상품 보상이 걸린 퀘스트에서 수상했을 때 「報酬アイテム「…」を手に入れた！（…から届きます）」 (#37, 아니면 null) */
+  rewardItemLabel: string | null;
   /** 스크린 리더용 요약: 「企業からの審査結果：創造性 4/5・実現可能性 3/5・SDGs貢献度 5/5、総合 4.0/5.0。+64pt をマイImpactに反映」 */
   summary: string;
 }
 
 /** 내 기획서 하나의 심사 결과 화면 모델. 기업이 아직 아무 결과도 내지 않았으면 null (#30) */
-export function applicationReview(proposal: Proposal, companyName: string, locale: Locale): ApplicationReviewVM | null {
+export function applicationReview(proposal: Proposal, companyName: string, locale: Locale, rewardItemName?: string): ApplicationReviewVM | null {
   const review = proposal.review;
   if (!review && !proposal.award) return null;
   const title = translate("impact.reviewTitle", locale);
@@ -517,6 +560,7 @@ export function applicationReview(proposal: Proposal, companyName: string, local
     improveLabel,
     award: proposal.award,
     awardLabel: awardText,
+    rewardItemLabel: proposal.award && rewardItemName ? translate("impact.rewardItemWon", locale, { item: rewardItemName, company: companyName }) : null,
     summary,
   };
 }
@@ -573,7 +617,7 @@ export function selectApplications(state: DemoState, locale: Locale): Applicatio
       versionLabel: translate("challenge.submitted", locale, { version: latest.no }),
       submittedAt: latest.submittedAt,
       sdgIds: challenge.sdgIds,
-      review: applicationReview(proposal, companyName, locale),
+      review: applicationReview(proposal, companyName, locale, challenge.rewardItem ? pick(challenge.rewardItem.name, locale) : undefined),
     });
   }
   // 최근에 낸 것이 위로 (같은 시각이면 과제 id 순서로 고정)
@@ -741,9 +785,13 @@ export function selectShare(state: DemoState, locale: Locale, template: CardTemp
   const selected = ordered.find((a) => a.id === activityId) ?? ordered[0] ?? null;
   if (!selected) return { options, selectedId: null, card: null };
   const all = deriveActivities(state);
+  // 수상한 퀘스트에 상품 보상이 걸려 있으면 카드와 공유 글에 「◯◯提供」 표시와 함께 넣어요(#37)
+  const proposal = selected.proposalId ? state.proposals.find((p) => p.id === selected.proposalId) : undefined;
+  const rewardItem = proposal ? state.challenges.find((c) => c.id === proposal.challengeId)?.rewardItem : undefined;
   const card = buildShareCard({
     nickname: state.me.nickname,
     activity: selected,
+    rewardItemName: rewardItem ? pick(rewardItem.name, locale) : undefined,
     index: computeImpactIndex(all),
     participationCount: all.filter((a) => a.kind === "participation" || a.kind === "submission").length,
     awardCount: all.filter((a) => a.kind === "award").length,

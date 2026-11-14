@@ -7,6 +7,7 @@ import { DEFAULT_LOCALE, LOCALES, LOCALE_NAMES } from "@sdgs-compass/core/i18n";
 import { makeT } from "@sdgs-compass/core/messages";
 import { homeFor } from "@/lib/routes";
 import { useBoot, useSession } from "@/lib/session";
+import { GameTitle } from "./GameTitle";
 
 /** 日本語 | 한국어 — 게이트에서도 쓰므로 역할을 아직 몰라도 돼요 */
 export function LangToggle() {
@@ -45,6 +46,7 @@ export function RolePill() {
   );
 }
 
+/** 맨 위 제목: 게임 제목 「勇者さま、助けてください！」(#37) — 서비스 이름(SDGsコンパス)과 데모 배지는 그 아래 작게 */
 export function Brand() {
   const { role, t } = useSession();
   return (
@@ -53,8 +55,13 @@ export function Brand() {
         🧭
       </span>
       <span className="brand__text">
-        <span className="brand__name">{t("app.name")}</span>
-        <span className="demo-badge">{t("app.demoBadge")}</span>
+        <span className="brand__name">
+          <GameTitle text={t("app.title")} />
+        </span>
+        <span className="brand__sub">
+          <span>{t("app.name")}</span>
+          <span className="demo-badge">{t("app.demoBadge")}</span>
+        </span>
       </span>
     </Link>
   );

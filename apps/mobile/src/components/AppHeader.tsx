@@ -1,4 +1,4 @@
-// 모든 화면 위의 머리글: 앱 이름 + 데모 배지, 언어 전환(日本語 | 한국어), 이용 유형 전환 알약.
+// 모든 화면 위의 머리글: 게임 제목(#37 「勇者さま、助けてください！」) + 서비스 이름·데모 배지, 언어 전환(日本語 | 한국어), 이용 유형 전환 알약.
 // 첫 화면(언어 선택, variant="brand")에서는 아직 언어를 고르기 전이라 두 언어를 함께 쓰고 전환 단추는 숨겨요.
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { LOCALE_NAMES, LOCALES } from "@sdgs-compass/core/i18n";
@@ -13,7 +13,8 @@ const LANGUAGE_OPTIONS = LOCALES.map((locale) => ({ value: locale, label: LOCALE
 export function AppHeader({ variant = "full" }: { variant?: "full" | "brand" }) {
   const { app, t, dispatch } = useApp();
   const bilingual = variant === "brand";
-  const name = bilingual ? MESSAGES["app.name"].ja : t("app.name");
+  const name = bilingual ? MESSAGES["app.title"].ja : t("app.title");
+  const service = bilingual ? MESSAGES["app.name"].ja : t("app.name");
   const demo = bilingual ? `${MESSAGES["app.demoBadge"].ja} / ${MESSAGES["app.demoBadge"].ko}` : t("app.demoBadge");
   const role = app.role;
 
@@ -24,7 +25,7 @@ export function AppHeader({ variant = "full" }: { variant?: "full" | "brand" }) 
           <Text style={styles.emoji} accessible={false}>
             🧭
           </Text>
-          <Text style={styles.name} numberOfLines={1} accessibilityRole="header">
+          <Text style={styles.name} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} accessibilityRole="header">
             {name}
           </Text>
         </View>
@@ -39,7 +40,12 @@ export function AppHeader({ variant = "full" }: { variant?: "full" | "brand" }) 
         )}
       </View>
       <View style={styles.row}>
-        <Badge tone="warning" label={demo} accessibilityLabel={bilingual ? demo : `${t("app.demoBadge")}: ${t("app.demoNote")}`} />
+        <View style={styles.serviceRow}>
+          <Text style={styles.service} numberOfLines={1}>
+            {service}
+          </Text>
+          <Badge tone="warning" label={demo} accessibilityLabel={bilingual ? demo : `${t("app.demoBadge")}: ${t("app.demoNote")}`} />
+        </View>
         {!bilingual && role !== null ? (
           <Pressable
             testID="role-switch"
@@ -66,6 +72,8 @@ const styles = StyleSheet.create({
   brand: { flexDirection: "row", alignItems: "center", gap: SPACE.sm, flexShrink: 1 },
   emoji: { fontSize: FONT_SIZE.xl },
   name: { fontSize: FONT_SIZE.lg, fontWeight: "800", color: COLORS.text, flexShrink: 1 },
+  serviceRow: { flexDirection: "row", alignItems: "center", gap: SPACE.xs + 2, flexShrink: 1 },
+  service: { fontSize: FONT_SIZE.xs, fontWeight: "700", color: COLORS.textMuted },
   rolePill: {
     minHeight: 32,
     flexDirection: "row",

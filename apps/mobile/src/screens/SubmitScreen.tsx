@@ -275,7 +275,7 @@ function ReceiptView({ id }: { id: string }) {
       <Card>
         <View style={styles.receiptHead}>
           <Txt style={styles.check} accessibilityElementsHidden importantForAccessibility="no">
-            ✅
+            ⚔️
           </Txt>
           <Txt variant="title" center accessibilityRole="header">
             {t("receipt.thanks")}

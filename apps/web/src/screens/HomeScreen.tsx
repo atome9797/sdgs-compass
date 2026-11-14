@@ -1,14 +1,14 @@
 "use client";
 
-// SCR-01 메인 홈: 인사 · 검색 · SDGs 17 타일(목표별 모집 중 과제 수) · 추천 · 마감 임박 · 참여 실적
+// SCR-01 메인 홈: 인사 · 의뢰 창(#37, 기업 NPC 의 부탁) · 검색 · SDGs 17 타일(목표별 모집 중 과제 수) · 추천 · 마감 임박 · 참여 실적
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, type FormEvent } from "react";
-import { selectHome, type ActivityVM } from "@sdgs-compass/core/selectors";
+import { selectHome, type ActivityVM, type PleaVM } from "@sdgs-compass/core/selectors";
 import { ChallengeCard, ChallengeRow } from "@/components/ChallengeCard";
 import { SdgMiniRow, SdgTileGrid } from "@/components/sdg";
 import { Button, Empty, Section } from "@/components/ui";
-import { buildHref, ROUTES, searchHref } from "@/lib/routes";
+import { buildHref, challengeHref, ROUTES, searchHref } from "@/lib/routes";
 import { useSession } from "@/lib/session";
 
 const ACTIVITY_ICON: Record<ActivityVM["kind"], string> = { participation: "🙌", submission: "📝", award: "🏆", share: "📣" };
@@ -31,6 +31,23 @@ export function ActivityItem({ activity }: { activity: ActivityVM }) {
   );
 }
 
+/** 의뢰 창(#37): 기업(NPC · 의뢰인)이 용사에게 말을 거는 RPG 대화 상자 — 「クエストを受ける」를 누르면 그 퀘스트 상세로 */
+export function PleaWindow({ plea }: { plea: PleaVM }) {
+  const { t } = useSession();
+  return (
+    <section className="rpg-window" aria-labelledby="plea-from">
+      <p id="plea-from" className="rpg-window__speaker">
+        <span aria-hidden="true">{plea.companyEmoji}</span> {plea.from}
+      </p>
+      <p className="rpg-window__line">{plea.line}</p>
+      {plea.rewards ? <p className="rpg-window__reward">{plea.rewards}</p> : null}
+      <Link className="rpg-window__choice" href={challengeHref(plea.challengeId)}>
+        {t("home.pleaAccept")}
+      </Link>
+    </section>
+  );
+}
+
 export function HomeScreen() {
   const { demo, locale, t } = useSession();
   const router = useRouter();
@@ -48,6 +65,8 @@ export function HomeScreen() {
         <h1 className="greeting__name">{t("home.greeting", { name: vm.nickname })}</h1>
         <p className="muted small">{t("app.tagline")}</p>
       </section>
+
+      {vm.plea ? <PleaWindow plea={vm.plea} /> : null}
 
       <form className="searchbox" role="search" onSubmit={onSearch}>
         <label className="sr-only" htmlFor="home-search">

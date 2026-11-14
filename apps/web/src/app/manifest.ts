@@ -8,9 +8,9 @@ export const dynamic = "force-static";
 export default function manifest(): MetadataRoute.Manifest {
   return {
     id: withBase("/"),
-    name: "SDGsコンパス（デモ版）",
-    short_name: "SDGsコンパス",
-    description: "企業のSDGs課題と学生のアイデアをつなぐマッチングプラットフォーム（サンプルデータのデモ）",
+    name: "勇者さま、助けてください！｜SDGsコンパス（デモ版）",
+    short_name: "勇者さま、助けて",
+    description: "企業（依頼主）のSDGsの課題を、学生（勇者）がアイデアで解決するクエスト型マッチング（サンプルデータのデモ）",
     lang: "ja",
     start_url: withBase("/"),
     scope: withBase("/"),

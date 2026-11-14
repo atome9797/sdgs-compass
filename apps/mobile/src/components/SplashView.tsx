@@ -13,7 +13,8 @@ export function SplashView() {
       <Text style={styles.emoji} accessible={false}>
         🧭
       </Text>
-      <Text style={styles.name}>{MESSAGES["app.name"].ja}</Text>
+      <Text style={styles.name}>{MESSAGES["app.title"].ja}</Text>
+      <Text style={styles.service}>{MESSAGES["app.name"].ja}</Text>
       <ActivityIndicator color={COLORS.onPrimary} style={styles.spinner} />
     </View>
   );
@@ -22,6 +23,7 @@ export function SplashView() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: COLORS.primary, alignItems: "center", justifyContent: "center", gap: SPACE.md },
   emoji: { fontSize: 72 },
-  name: { fontSize: 26, fontWeight: "800", color: COLORS.onPrimary },
+  name: { fontSize: 24, fontWeight: "800", color: COLORS.onPrimary, textAlign: "center", paddingHorizontal: SPACE.lg },
+  service: { fontSize: 15, fontWeight: "700", color: COLORS.onPrimary, opacity: 0.85 },
   spinner: { marginTop: SPACE.lg },
 });

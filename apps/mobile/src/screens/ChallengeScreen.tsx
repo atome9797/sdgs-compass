@@ -16,7 +16,7 @@ import { useApp } from "@/lib/AppProvider";
 import { paramText, receiptHref, ROUTES, submitHref } from "@/lib/nav";
 import { SAMPLE_TEAM_POST } from "@/lib/samples";
 import { nowIso } from "@/lib/time";
-import { CARD_SHADOW, COLORS, RADIUS, SPACE } from "@/theme";
+import { CARD_SHADOW, COLORS, MARK_COLORS, RADIUS, SPACE } from "@/theme";
 
 type TabId = "detail" | "team";
 
@@ -245,6 +245,20 @@ function ChallengeView({ id }: { id: string }) {
               <Fact label={t("challenge.rewards")} value={card.rewardLabels.join(" / ") || t("common.none")} />
               <Fact label={t("challenge.impact")} value={card.impactLabel} />
             </View>
+            {card.rewardItemLabel ? (
+              <View style={styles.itemBox} testID="challenge-reward-item" accessible accessibilityLabel={`${t("challenge.rewardItem")}: ${card.rewardItemLabel}. ${t("challenge.rewardItemNote", { company: vm.company.name })}`}>
+                <Txt style={styles.itemIcon}>🎁</Txt>
+                <View style={styles.itemMain}>
+                  <Txt variant="small" bold tone="warning">
+                    {t("challenge.rewardItem")}
+                  </Txt>
+                  <Txt bold>{card.rewardItemLabel}</Txt>
+                  <Txt variant="small" tone="muted">
+                    {t("challenge.rewardItemNote", { company: vm.company.name })}
+                  </Txt>
+                </View>
+              </View>
+            ) : null}
             <Txt variant="small" tone="muted">
               {card.applicantsLabel} · {card.teamRuleLabel}
             </Txt>
@@ -298,6 +312,10 @@ const styles = StyleSheet.create({
   heroBody: { padding: SPACE.lg, gap: SPACE.sm },
   facts: { flexDirection: "row", flexWrap: "wrap", gap: SPACE.sm },
   fact: { flexBasis: "48%", flexGrow: 1, gap: 2, padding: SPACE.md, borderRadius: RADIUS.md, backgroundColor: COLORS.bg },
+  // 상품 보상(報酬アイテム, #37): 금색 점선 상자 (웹 .item-box 와 같은 색)
+  itemBox: { flexDirection: "row", alignItems: "flex-start", gap: SPACE.md, padding: SPACE.md, borderRadius: RADIUS.md, borderWidth: 2, borderStyle: "dashed", borderColor: MARK_COLORS.star, backgroundColor: MARK_COLORS.starSoft },
+  itemIcon: { fontSize: 28, lineHeight: 34 },
+  itemMain: { flex: 1, gap: 2 },
   rowBetween: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: SPACE.sm },
   companyRow: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: SPACE.xs + 2 },
   shrink: { flexShrink: 1 },

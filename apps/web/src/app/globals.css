@@ -51,6 +51,12 @@
   --donation-ink: #87455F; /* 그 위의 글자: --donation-soft 와 5.8:1 */
   --mark-star: #A87612; /* SDGs 실천 마크의 별 (theme.ts MARK_COLORS.star — 흰 바탕과 3:1 이상, 글자에는 쓰지 않아요) */
   --mark-star-soft: #F5EEDC; /* 빈 별·마크 단추의 옅은 바탕 (MARK_COLORS.starSoft) */
+  --game-window: #13213B; /* 게임 테마(#37) 의뢰 창 바탕 (GAME_COLORS.window) */
+  --game-frame: #FFFFFF; /* 의뢰 창 테두리·글자 (GAME_COLORS.frame) */
+  --game-speaker: #FFD75E; /* 말하는 기업 이름 (GAME_COLORS.speaker) */
+  --game-reward: #CFE3FF; /* 보상 줄 (GAME_COLORS.reward) */
+  --game-exp-from: #FFD75E; /* 경험치 막대 (GAME_COLORS.expFrom → expTo) */
+  --game-exp-to: #F2994A;
   --shadow: 0 1px 2px rgba(30, 41, 37, 0.05), 0 6px 18px rgba(30, 41, 37, 0.06);
   --font: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans", "Noto Sans JP", "Noto Sans CJK JP", "Noto Sans KR", "Noto Sans CJK KR", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
   color-scheme: light;
@@ -87,7 +93,9 @@ svg { display: block; }
 .gate { min-height: 100dvh; display: grid; place-items: center; padding: 24px 16px; background: linear-gradient(180deg, var(--primary-soft) 0%, var(--bg) 60%); }
 .gate__card { width: 100%; max-width: 460px; display: flex; flex-direction: column; align-items: center; gap: 20px; text-align: center; }
 .gate__logo { width: 84px; height: 84px; border-radius: 50%; background: var(--primary); display: grid; place-items: center; font-size: 44px; box-shadow: 0 8px 24px color-mix(in srgb, var(--primary) 30%, transparent); }
-.gate__brand { font-size: var(--fs-xl); font-weight: 800; letter-spacing: 0.01em; }
+.gate__brand { display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: var(--fs-xxl); font-weight: 800; line-height: 1.3; letter-spacing: 0.01em; }
+.gate__brand-ko { font-size: var(--fs-xl); color: var(--text-muted); }
+.gate__service { margin-top: 4px; font-size: var(--fs-sm); font-weight: 700; color: var(--text-muted); }
 .gate__titles { display: flex; flex-direction: column; gap: 4px; }
 .gate__title { font-size: var(--fs-xxl); font-weight: 800; line-height: 1.25; }
 .gate__title--ko { font-size: var(--fs-xl); color: var(--text-muted); }
@@ -114,7 +122,12 @@ svg { display: block; }
 .brand:hover { text-decoration: none; }
 .brand__logo { width: 32px; height: 32px; flex: none; border-radius: 50%; background: var(--primary); display: grid; place-items: center; font-size: 18px; }
 .brand__text { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; min-width: 0; }
-.brand__name { font-size: var(--fs-md); font-weight: 800; line-height: 1.15; white-space: nowrap; }
+.brand__name { font-size: var(--fs-md); font-weight: 800; line-height: 1.2; }
+/* 게임 제목(#37): 「、」 뒤나 띄어쓰기에서만 줄이 바뀌어요 */
+.title-part { display: inline-block; white-space: nowrap; }
+.brand__sub { display: inline-flex; align-items: center; gap: 6px; font-size: var(--fs-xs); font-weight: 700; color: var(--text-muted); white-space: nowrap; }
+/* 아주 좁은 화면(≤380px)에서는 나침반을 숨기고 제목을 조금 작게 — 언어·역할 단추와 겹치지 않게 */
+@media (max-width: 380px) { .brand__logo { display: none; } .brand__name { font-size: var(--fs-sm); } }
 .demo-badge { display: inline-block; padding: 0 7px; border-radius: var(--radius-pill); border: 1px solid #E2D3AB; background: var(--warning-soft); color: var(--warning); font-size: 10px; font-weight: 800; line-height: 16px; letter-spacing: 0.02em; white-space: nowrap; }
 .topbar__controls { display: flex; align-items: center; gap: 6px; flex: none; }
 .seg { display: inline-flex; background: var(--primary-soft); border-radius: var(--radius-pill); padding: 0; }
@@ -255,6 +268,9 @@ svg { display: block; }
 .tabs__tab[aria-selected="true"] { color: var(--primary); border-bottom-color: var(--primary); }
 .progress { height: 10px; border-radius: var(--radius-pill); background: var(--primary-soft); overflow: hidden; }
 .progress__bar { height: 100%; border-radius: var(--radius-pill); background: var(--primary); }
+/* 경험치(EXP) 막대 — 게임 테마(#37): 남색 틀 안에 금색 → 주황 */
+.progress--exp { height: 14px; background: var(--game-window); border: 2px solid var(--game-window); }
+.progress--exp .progress__bar { background: linear-gradient(90deg, var(--game-exp-from), var(--game-exp-to)); }
 .kv { display: grid; grid-template-columns: fit-content(38%) 1fr; gap: 8px 14px; font-size: var(--fs-sm); }
 .kv--stack { grid-template-columns: 1fr; gap: 0; }
 .kv--stack dd { margin: 2px 0 12px; font-size: var(--fs-md); }
@@ -367,6 +383,9 @@ svg { display: block; }
 .receipt { overflow: hidden; }
 .receipt__head { background: var(--success); color: #fff; padding: 18px 16px; display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center; }
 .receipt__check { font-size: 34px; line-height: 1; }
+/* 「クエスト達成！」(#37): 남색 바탕 · 금색 제목 */
+.receipt__head--quest { background: var(--game-window); color: var(--game-frame); }
+.receipt__head--quest h2 { color: var(--game-speaker); font-size: var(--fs-xl); line-height: 1.4; }
 .receipt__no { font-size: var(--fs-xl); font-weight: 800; letter-spacing: 0.04em; }
 .receipt__body { padding: 16px; display: flex; flex-direction: column; gap: 14px; }
 .hash { font-size: var(--fs-xs); word-break: break-all; color: var(--text-muted); background: var(--bg); border-radius: var(--radius-sm); padding: 8px 10px; }
@@ -707,3 +726,25 @@ a.chip { text-decoration: none; }
 @media (min-width: 1024px) {
   .card-list--grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
 }
+
+/* ───────── 게임 테마(#37): 의뢰 창(RPG 대화 상자) · 상품 보상 ───────── */
+/* 남색 바탕에 흰 이중 테두리(테두리 3px + 바깥 고리 3px) — 옛 RPG 의 메시지 창 */
+.rpg-window { position: relative; display: flex; flex-direction: column; gap: 8px; margin: 3px; padding: 14px 16px 12px; background: var(--game-window); color: var(--game-frame); border: 3px solid var(--game-frame); border-radius: 10px; box-shadow: 0 0 0 3px var(--game-window), var(--shadow); }
+.rpg-window__speaker { font-size: var(--fs-sm); font-weight: 800; color: var(--game-speaker); }
+.rpg-window__line { font-size: var(--fs-md); font-weight: 700; line-height: 1.7; }
+.rpg-window__reward { font-size: var(--fs-sm); line-height: 1.6; color: var(--game-reward); }
+.rpg-window__choice { align-self: flex-start; position: relative; display: inline-flex; align-items: center; min-height: var(--tap); padding: 0 12px 0 28px; border-radius: 6px; color: var(--game-frame); font-weight: 800; }
+.rpg-window__choice::before { content: "▶"; position: absolute; left: 9px; animation: rpg-blink 1s steps(1) infinite; }
+.rpg-window__choice:hover, .rpg-window__choice:focus-visible { background: rgba(255, 255, 255, 0.14); text-decoration: none; }
+.rpg-window__choice:focus-visible { outline-color: var(--game-speaker); }
+@keyframes rpg-blink { 50% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .rpg-window__choice::before { animation: none; } }
+
+/* 퀘스트 상세의 상품 보상(報酬アイテム) */
+.item-box { display: flex; gap: 12px; align-items: flex-start; padding: 12px 14px; border: 2px dashed var(--mark-star); border-radius: var(--radius-md); background: var(--mark-star-soft); }
+.item-box__icon { font-size: 28px; line-height: 1; flex: none; }
+.item-box__main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.item-box__label { font-size: var(--fs-xs); font-weight: 800; color: var(--warning); letter-spacing: 0.04em; }
+.item-box__name { font-size: var(--fs-md); font-weight: 800; color: var(--text); }
+/* 수상 뒤 「〇〇を手に入れた！」 */
+.item-won { margin-top: 6px; padding: 8px 12px; border-radius: var(--radius-md); background: var(--game-window); color: var(--game-speaker); font-size: var(--fs-sm); font-weight: 800; line-height: 1.6; }

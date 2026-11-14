@@ -1,18 +1,59 @@
-// SNS 피드의 글 카드(F-503 학생 자랑 글 · F-504 기업 홍보 글): 글쓴이 · 종류 칩(홍보 글은 항상 "PR") · 제목/본문 · 붙은 실적 · SDGs · 공식 SNS 게시 · 좋아요/공유/바로가기/삭제.
+// SNS 피드의 글 = 「SDGs冒険新聞」의 기사(#48, 웹 .news 와 같은 모양): 칸 머리(「勇者の業績」 · 홍보 글은 언제나 「広告（PR）」) · 헤드라인 · 기업과 퀘스트 ·
+// 수상이면 용사의 동상(금 · 은 · 동) · 글쓴이 · 본인의 한마디(인용) · 실적 · SDGs · 공식 SNS 게시 · 좋아요/공유/바로가기/삭제.
 // 값은 모두 core 의 PostVM 이고 이 조각은 그리기만 해요. 삭제는 경고창 대신 카드 안에서 한 번 더 확인해요.
 // preview 이면 동작 단추 없이 모양만 보여 줘요 (글쓰기 화면의 미리보기).
 import { useState } from "react";
-import { Linking, Pressable, StyleSheet, Text, View } from "react-native";
+import { Image, Linking, Platform, Pressable, StyleSheet, Text, View } from "react-native";
+import type { Locale } from "@sdgs-compass/core/i18n";
 import { sdgLabel } from "@sdgs-compass/core/labels";
-import type { PostAchievementVM, PostOfficialVM, PostVM } from "@sdgs-compass/core/selectors";
+import { pngDataUri } from "@sdgs-compass/core/png";
+import type { PostAchievementVM, PostOfficialVM, PostVM, StatueVM } from "@sdgs-compass/core/selectors";
+import { heroStatue } from "@sdgs-compass/core/statue";
 import { CertMarkButton, CertMarkDetail } from "@/components/CertMark";
 import { CompanyAvatar } from "@/components/CompanyAvatar";
 import { SdgMiniRow } from "@/components/SdgTile";
-import { Badge, Button, Card, Notice, Txt } from "@/components/ui";
+import { Badge, Button, Notice, Txt } from "@/components/ui";
 import { useApp } from "@/lib/AppProvider";
 import { COLORS, FONT_SIZE, HIT, RADIUS, SPACE } from "@/theme";
 
 const AVATAR_SIZE = 40;
+/** 신문의 색(웹 --news-* 와 같아요) */
+const NEWS = { paper: "#F6F1E4", ink: "#1F1B16", sub: "#5C5346", rule: "#B9AE97", ad: "#FFFDF6", adTag: "#F3D98B", adTagText: "#5A4100" } as const;
+
+/** 제호 · 헤드라인의 명조체(기기에 있는 것) */
+export function newsSerif(locale: Locale): string {
+  if (Platform.OS === "ios") return locale === "ko" ? "AppleMyungjo" : "Hiragino Mincho ProN";
+  return "serif";
+}
+
+const statueUris = new Map<string, string>();
+function statueUri(award: StatueVM["award"]): string {
+  let uri = statueUris.get(award);
+  if (!uri) {
+    uri = pngDataUri(heroStatue(award), 6);
+    statueUris.set(award, uri);
+  }
+  return uri;
+}
+
+/** 수상 기사의 동상: 그림 + 명판(상 · 퀘스트 · 기업) */
+function Statue({ statue, locale, testID }: { statue: StatueVM; locale: Locale; testID: string }) {
+  const serif = newsSerif(locale);
+  const awardColor = statue.award === "grand" ? "#8A5E00" : statue.award === "excellence" ? "#4A5568" : "#8E5A30";
+  return (
+    <View style={styles.statue} testID={testID}>
+      <Image source={{ uri: statueUri(statue.award) }} style={styles.statueImg} resizeMode="contain" accessible accessibilityRole="image" accessibilityLabel={statue.ariaLabel} />
+      <View style={styles.plaque}>
+        <Text style={[styles.plaqueCaption, { fontFamily: serif }]}>{statue.caption}</Text>
+        {statue.plaque.map((line, i) => (
+          <Text key={`${i}-${line}`} style={[i === 0 ? styles.plaqueAward : styles.plaqueLine, { fontFamily: serif }, i === 0 ? { color: awardColor } : null]}>
+            {line}
+          </Text>
+        ))}
+      </View>
+    </View>
+  );
+}
 
 /** 카드 아래에 놓이는 바로가기 단추 하나 (어디로 갈지는 화면이 정해요) */
 export interface PostLink {
@@ -42,25 +83,13 @@ function InitialAvatar({ letter }: { letter: string }) {
   );
 }
 
-/** 자랑 글에 붙은 실적: 종류 · 수상 · 제목 · 기업 */
+/** 자랑 글에 붙은 실적: 종류 · 수상 (퀘스트 · 기업은 헤드라인 밑 줄에) */
 function Achievement({ achievement, testID }: { achievement: PostAchievementVM; testID: string }) {
   const label = [achievement.kindLabel, achievement.awardLabel, achievement.title, achievement.companyName].filter((part) => part && part !== "").join(", ");
   return (
-    <View testID={testID} accessible accessibilityLabel={label} style={styles.achievement}>
-      {achievement.kindLabel !== "" || achievement.awardLabel ? (
-        <View style={styles.badges}>
-          {achievement.kindLabel !== "" ? <Badge label={achievement.kindLabel} /> : null}
-          {achievement.awardLabel ? <Badge tone="warning" label={`🏆 ${achievement.awardLabel}`} /> : null}
-        </View>
-      ) : null}
-      <Txt bold numberOfLines={3}>
-        {achievement.title}
-      </Txt>
-      {achievement.companyName !== "" ? (
-        <Txt variant="small" tone="muted" numberOfLines={1}>
-          {achievement.companyName}
-        </Txt>
-      ) : null}
+    <View testID={testID} accessible accessibilityLabel={label} style={styles.record}>
+      {achievement.kindLabel !== "" ? <Text style={styles.recordKind}>{achievement.kindLabel}</Text> : null}
+      {achievement.awardLabel ? <Text style={styles.recordAward}>🏆 {achievement.awardLabel}</Text> : null}
     </View>
   );
 }
@@ -143,9 +172,17 @@ export function PostCard({ post, preview = false, onLike, onDelete, onShare, lin
   const isPr = post.kind === "pr";
   const showMeta = post.dateLabel !== "" || (post.mine && !preview);
 
+  const serif = newsSerif(locale);
   return (
     <View testID={testID}>
-      <Card>
+      <View style={[styles.news, isPr ? styles.ad : null, post.mine && !preview ? styles.mine : null]}>
+        {/* 신문 기사(#48): 칸 머리 → 헤드라인 → 기업과 퀘스트 → (수상이면 동상) → 글쓴이 → 본문 */}
+        <Text style={[styles.kicker, isPr ? styles.kickerAd : null]}>{post.kicker}</Text>
+        <Text style={[styles.headline, isPr ? styles.headlineAd : null, { fontFamily: serif }]} accessibilityRole="header">
+          {post.headline}
+        </Text>
+        {post.subhead ? <Text style={[styles.subhead, { fontFamily: serif }]}>{post.subhead}</Text> : null}
+        {post.statue ? <Statue testID={`post-statue-${post.id}`} statue={post.statue} locale={locale} /> : null}
         <View style={styles.head}>
           {isPr ? <CompanyAvatar emoji={post.avatar} accent={post.avatarColor ?? COLORS.primary} size={AVATAR_SIZE} /> : <InitialAvatar letter={post.avatar} />}
           <View style={styles.headText}>
@@ -165,12 +202,21 @@ export function PostCard({ post, preview = false, onLike, onDelete, onShare, lin
         </View>
         {post.companyMark && markOpen ? <CertMarkDetail testID={`post-mark-note-${post.id}`} mark={post.companyMark} /> : null}
 
-        {post.title ? (
-          <Txt variant="heading" accessibilityRole="header">
-            {post.title}
-          </Txt>
+        {/* 자랑 글의 본문 = 본인의 한마디(인용), 홍보 글의 본문 = 광고 글 */}
+        {post.body !== "" ? (
+          post.achievement ? (
+            <View style={styles.quote}>
+              <Text style={styles.quoteLabel}>{t("news.comment")}</Text>
+              <Text selectable style={[styles.body, { fontFamily: serif }]}>
+                {post.body}
+              </Text>
+            </View>
+          ) : (
+            <Text selectable style={[styles.body, { fontFamily: serif }]}>
+              {post.body}
+            </Text>
+          )
         ) : null}
-        {post.body !== "" ? <Txt selectable>{post.body}</Txt> : null}
 
         {post.achievement ? <Achievement testID={`post-achievement-${post.id}`} achievement={post.achievement} /> : null}
 
@@ -221,7 +267,7 @@ export function PostCard({ post, preview = false, onLike, onDelete, onShare, lin
             <Button testID={`post-delete-cancel-${post.id}`} variant="secondary" label={t("common.cancel")} onPress={() => setConfirming(false)} />
           </View>
         ) : null}
-      </Card>
+      </View>
     </View>
   );
 }
@@ -242,15 +288,27 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   initialLetter: { fontSize: FONT_SIZE.lg, fontWeight: "800", color: COLORS.primaryDark },
-  badges: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: SPACE.xs + 2 },
-  achievement: {
-    gap: SPACE.xs + 2,
-    padding: SPACE.md,
-    borderRadius: RADIUS.md,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    backgroundColor: COLORS.bg,
-  },
+  // #48 신문 기사 · 광고 칸
+  news: { gap: SPACE.sm, padding: SPACE.md + 2, backgroundColor: NEWS.paper, borderWidth: 1, borderColor: NEWS.rule },
+  ad: { backgroundColor: NEWS.ad, borderWidth: 3, borderColor: NEWS.ink },
+  mine: { borderLeftWidth: 4, borderLeftColor: COLORS.primary },
+  kicker: { alignSelf: "flex-start", paddingHorizontal: 8, paddingVertical: 1, fontSize: 11, fontWeight: "900", letterSpacing: 1.2, color: NEWS.paper, backgroundColor: NEWS.ink },
+  kickerAd: { color: NEWS.adTagText, backgroundColor: NEWS.adTag },
+  headline: { fontSize: 22, fontWeight: "900", lineHeight: 30, color: NEWS.ink },
+  headlineAd: { fontSize: 18, lineHeight: 25 },
+  subhead: { paddingBottom: 6, fontSize: 13, fontWeight: "700", lineHeight: 20, color: NEWS.sub, borderBottomWidth: 1, borderBottomColor: NEWS.rule, borderStyle: "dashed" },
+  statue: { flexDirection: "row", alignItems: "flex-end", gap: 14, padding: SPACE.md, backgroundColor: "#E9DFC8", borderWidth: 1, borderColor: NEWS.rule },
+  statueImg: { width: 80, height: 112 },
+  plaque: { flex: 1, gap: 2, paddingBottom: 6 },
+  plaqueCaption: { fontSize: 11, fontWeight: "900", letterSpacing: 3, color: NEWS.sub },
+  plaqueAward: { fontSize: 17, fontWeight: "900" },
+  plaqueLine: { fontSize: 11, fontWeight: "700", lineHeight: 17, color: NEWS.ink },
+  quote: { gap: 2, paddingLeft: SPACE.md, borderLeftWidth: 3, borderLeftColor: NEWS.ink },
+  quoteLabel: { fontSize: 11, fontWeight: "800", letterSpacing: 1, color: NEWS.sub },
+  body: { fontSize: 15, lineHeight: 26, color: NEWS.ink },
+  record: { flexDirection: "row", flexWrap: "wrap", gap: SPACE.sm },
+  recordKind: { fontSize: 11, fontWeight: "800", color: NEWS.sub },
+  recordAward: { fontSize: 11, fontWeight: "800", color: "#8A5E00" },
   official: { gap: SPACE.xs, padding: SPACE.md, borderRadius: RADIUS.md, backgroundColor: COLORS.warningSoft },
   officialPosted: { backgroundColor: COLORS.primarySoft },
   officialText: { gap: 2 },

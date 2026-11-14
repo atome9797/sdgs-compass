@@ -1591,7 +1591,37 @@ export interface PostVM {
   official: PostOfficialVM | null;
   /** 공유·복사로 내보낼 글 (홍보 글은 맨 앞에 [PR] 이 붙어요) */
   shareText: string;
+  /** 신문(#48)의 칸 머리: 「勇者の業績」 · 홍보 글은 「広告（PR）」 */
+  kicker: string;
+  /** 신문의 헤드라인: 자랑 글은 실적으로(「勇者Mina、優秀賞に輝く！」), 홍보 글은 제목 */
+  headline: string;
+  /** 헤드라인 밑의 한 줄: 「みなと海洋フーズ株式会社の「…」」 (홍보 글은 null) */
+  subhead: string | null;
+  /** 수상 기사의 용사 동상(#48 — 금 · 은 · 동). 수상이 아니면 null */
+  statue: StatueVM | null;
 }
+
+/** 수상 기사의 동상: 그림은 statue.ts 의 heroStatue(award) */
+export interface StatueVM {
+  award: AwardKind;
+  /** 「英雄の像」 */
+  caption: string;
+  /** 명판: 상 · 퀘스트 · 기업 */
+  plaque: string[];
+  /** 「勇者Minaの像（優秀賞）」 */
+  ariaLabel: string;
+}
+
+/** 신문의 제호(#48): 「SDGs冒険新聞」 · 한 줄 소개 · 날짜 · 호수 */
+export interface MastheadVM {
+  title: string;
+  tagline: string;
+  dateLabel: string;
+  issueLabel: string;
+}
+
+/** 신문의 첫 호(호수를 세는 날) */
+export const NEWSPAPER_FIRST_DAY = "2026-04-01";
 
 /** 글 카드에 보이는 공식 SNS 게시 신청 */
 export interface PostOfficialVM {
@@ -1642,6 +1672,8 @@ export interface FeedVM {
   filter: FeedFilter;
   filters: { id: FeedFilter; label: string; count: number }[];
   posts: PostVM[];
+  /** 신문의 제호(#48) */
+  masthead: MastheadVM;
 }
 
 function hashtagsOf(sdgIds: readonly SdgId[], locale: Locale): string {
@@ -1677,8 +1709,20 @@ function postVM(state: DemoState, post: SocialPost, locale: Locale, role: Role, 
       sdgIds: a.sdgIds,
       certificateId: index >= 0 ? certificateIdAt(index) : null,
     };
+    const headlineKey = a.kind === "award" ? "news.headline.award" : a.kind === "submission" ? "news.headline.submission" : "news.headline.participation";
     return {
       ...base,
+      kicker: translate("news.kicker.brag", locale),
+      headline: translate(headlineKey, locale, { name: post.authorName, award: award ?? "" }),
+      subhead: translate("news.subhead", locale, { company: achievement.companyName, quest: achievement.title }),
+      statue: a.award
+        ? {
+            award: a.award,
+            caption: translate("news.statue", locale),
+            plaque: [award ?? "", achievement.title, achievement.companyName],
+            ariaLabel: translate("news.statueAria", locale, { name: post.authorName, award: award ?? "" }),
+          }
+        : null,
       chipLabel: translate("feed.chip.brag", locale),
       authorName: post.authorName,
       authorMeta: translate("feed.skills", locale, { count: post.authorSkills }),
@@ -1700,6 +1744,10 @@ function postVM(state: DemoState, post: SocialPost, locale: Locale, role: Role, 
   const companyName = company ? pick(company.name, locale) : "";
   return {
     ...base,
+    kicker: translate("news.kicker.pr", locale),
+    headline: title,
+    subhead: null,
+    statue: null,
     chipLabel: translate("feed.chip.pr", locale),
     authorName: companyName,
     authorMeta: company ? pick(company.industry, locale) : "",
@@ -1729,6 +1777,12 @@ export function selectFeed(state: DemoState, locale: Locale, role: Role, filter:
       { id: "brag", label: translate("feed.filter.brag", locale), count: count("brag") },
     ],
     posts: sorted.filter((p) => filter === "all" || p.kind === filter).map((p) => postVM(state, p, locale, role, showable)),
+    masthead: {
+      title: translate("news.title", locale),
+      tagline: translate("news.tagline", locale),
+      dateLabel: formatDate(state.today, locale),
+      issueLabel: translate("news.issue", locale, { no: Math.max(1, daysBetween(NEWSPAPER_FIRST_DAY, state.today) + 1) }),
+    },
   };
 }
 

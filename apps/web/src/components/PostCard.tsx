@@ -1,10 +1,13 @@
 "use client";
 
-// SNS 피드의 글 카드 (학생 자랑 글 F-503 · 기업 홍보 글 F-504). 보여 줄 값은 core 의 selectFeed 가 다 계산해 두었고,
-// 여기서는 그리기와 "단추를 눌렀다"고 알리는 일만 해요. 글쓰기 화면의 미리보기에도 같은 카드를 써요(preview).
+// SNS 피드의 글 = 「SDGs冒険新聞」의 기사(#48): 학생 자랑 글(F-503)은 용사의 업적 기사(헤드라인 · 기업과 퀘스트 · 본인의 한마디),
+// 수상 기사는 용사의 동상(금 · 은 · 동)을 세우고, 기업 홍보 글(F-504)은 「広告（PR）」 칸이에요. 보여 줄 값은 core 의 selectFeed 가 다 계산해 두었고,
+// 여기서는 그리기와 "단추를 눌렀다"고 알리는 일만 해요. 글쓰기 화면의 미리보기에도 같은 기사를 써요(preview).
 import Link from "next/link";
 import { useEffect, useId, useRef, useState } from "react";
-import type { PostVM } from "@sdgs-compass/core/selectors";
+import { pngDataUri } from "@sdgs-compass/core/png";
+import type { PostVM, StatueVM } from "@sdgs-compass/core/selectors";
+import { heroStatue } from "@sdgs-compass/core/statue";
 import { CertMarkButton, CertMarkNote, useMarkDisclosure } from "@/components/CertMark";
 import { SdgMiniRow } from "@/components/sdg";
 import { Tag } from "@/components/ui";
@@ -32,6 +35,34 @@ export interface PostCardProps {
   onShare?: (post: PostVM) => void;
 }
 
+/** 동상 그림(상마다 한 번만 만들어요) */
+const statueUris = new Map<string, string>();
+function statueUri(award: StatueVM["award"]): string {
+  let uri = statueUris.get(award);
+  if (!uri) {
+    uri = pngDataUri(heroStatue(award), 4);
+    statueUris.set(award, uri);
+  }
+  return uri;
+}
+
+/** 수상 기사의 동상: 그림 + 명판(상 · 퀘스트 · 기업) */
+function Statue({ statue }: { statue: StatueVM }) {
+  return (
+    <figure className="news__statue" data-award={statue.award}>
+      <span className="news__statue-img" role="img" aria-label={statue.ariaLabel} style={{ backgroundImage: `url(${statueUri(statue.award)})` }} />
+      <figcaption className="news__plaque">
+        <span className="news__plaque-caption">{statue.caption}</span>
+        {statue.plaque.map((line, i) => (
+          <span key={`${i}-${line}`} className={i === 0 ? "news__plaque-award" : "news__plaque-line"}>
+            {line}
+          </span>
+        ))}
+      </figcaption>
+    </figure>
+  );
+}
+
 export function PostCard({ post, links, highlight = false, preview, onLike, onDelete, onShare }: PostCardProps) {
   const { t } = useSession();
   const nameId = useId();
@@ -44,21 +75,29 @@ export function PostCard({ post, links, highlight = false, preview, onLike, onDe
     if (confirming) cancelRef.current?.focus();
   }, [confirming]);
 
-  const className = ["card", "fcard", post.kind === "pr" ? "fcard--pr" : "fcard--brag", post.mine && !preview ? "fcard--mine" : "", highlight ? "fcard--new" : "", preview?.placeholder ? "fcard--draft" : ""]
+  const className = ["news", "fcard", post.kind === "pr" ? "news--ad fcard--pr" : "news--article fcard--brag", post.mine && !preview ? "fcard--mine" : "", highlight ? "fcard--new" : "", preview?.placeholder ? "fcard--draft" : ""]
     .filter(Boolean)
     .join(" ");
   const achievement = post.achievement;
   // "내 글"·"미리보기" 표시는 머리말 위에 따로 한 줄로 둬요 (회사 이름이 긴 좁은 화면에서도 이름이 꺾이지 않게)
   const flag = preview ? t("post.preview") : post.mine ? t("feed.mine") : null;
 
+  const headlineId = `${nameId}-headline`;
   return (
-    <article className={className} aria-labelledby={nameId}>
+    <article className={className} aria-labelledby={headlineId}>
       {flag ? (
         <div className="fcard__flag">
           <Tag tone={preview ? undefined : "success"}>{flag}</Tag>
         </div>
       ) : null}
-      <header className="fcard__head">
+      {/* 신문 기사(#48): 칸 머리 → 헤드라인 → 기업과 퀘스트 → (수상이면 동상) → 쓴 사람 · 날짜 → 본문 */}
+      <p className="news__kicker">{post.kicker}</p>
+      <h2 className="news__headline" id={headlineId}>
+        {post.headline}
+      </h2>
+      {post.subhead ? <p className="news__subhead">{post.subhead}</p> : null}
+      {post.statue ? <Statue statue={post.statue} /> : null}
+      <header className="fcard__head news__byline">
         <span className="fcard__avatar" style={post.avatarColor ? { background: post.avatarColor } : undefined} aria-hidden="true">
           {post.avatar}
         </span>
@@ -81,18 +120,21 @@ export function PostCard({ post, links, highlight = false, preview, onLike, onDe
       </header>
       {post.companyMark ? <CertMarkNote mark={post.companyMark} open={mark.open} noteId={mark.noteId} /> : null}
 
-      {post.title ? <h2 className="fcard__title">{post.title}</h2> : null}
-      <p className="fcard__body">{post.body}</p>
+      {/* 자랑 글의 본문 = 본인의 한마디(인용), 홍보 글의 본문 = 광고 글 */}
+      {achievement ? (
+        <blockquote className="fcard__body news__quote">
+          <span className="news__quote-label">{t("news.comment")}</span>
+          {post.body}
+        </blockquote>
+      ) : (
+        <p className="fcard__body news__body">{post.body}</p>
+      )}
 
       {achievement ? (
-        <div className="fcard__ach">
-          <div className="fcard__ach-head">
-            <Tag tone="info">{achievement.kindLabel}</Tag>
-            {achievement.awardLabel ? <Tag tone="warning">🏆 {achievement.awardLabel}</Tag> : null}
-          </div>
-          <p className="fcard__ach-title">{achievement.title}</p>
-          <p className="small muted">{achievement.companyName}</p>
-        </div>
+        <p className="news__record">
+          <span className="news__record-kind">{achievement.kindLabel}</span>
+          {achievement.awardLabel ? <span className="news__record-award">🏆 {achievement.awardLabel}</span> : null}
+        </p>
       ) : null}
 
       {post.challenge ? (

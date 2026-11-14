@@ -1,16 +1,17 @@
-// SNS 피드(F-503 학생 자랑 글 · F-504 기업 홍보 글, 학생·기업이 함께 쓰는 탭): 글 목록(최신순) · 필터(전체/기업 홍보/학생 자랑) · 좋아요 · 공유 · 삭제 · 글쓰기.
+// SNS 피드(F-503 학생 자랑 글 · F-504 기업 홍보 글, 학생·기업이 함께 쓰는 탭) = 용사의 업적을 전하는 「SDGs冒険新聞」(#48):
+// 제호(호수 · 날짜) 아래에 기사(자랑 글 — 수상은 용사의 동상)와 광고 칸(홍보 글)이 최신순으로 · 필터(전체/기업의 광고/용사의 업적) · 좋아요 · 공유 · 삭제 · 글쓰기.
 // 목록은 core 의 selectFeed 가 만들어요. 글을 올리면 이 탭이 ?posted=1 로 열려서 맨 위에 "올렸어요" 안내가 떠요 (닫으면 값을 지워요).
 // 좋아요는 학생·기업 계정이 따로 세고, 삭제는 글을 쓴 계정에서만 돼요 (규칙은 core 의 reducer).
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useMemo, useState } from "react";
-import { Share, StyleSheet, View } from "react-native";
+import { Share, StyleSheet, Text, View } from "react-native";
 import type { Role } from "@sdgs-compass/core/domain";
 import { formatDate } from "@sdgs-compass/core/format";
 import { officialChannelLabel } from "@sdgs-compass/core/post";
 import { selectFeed, type FeedFilter, type PostVM } from "@sdgs-compass/core/selectors";
-import { PostCard, type PostLink } from "@/components/PostCard";
-import { Screen, ScreenTitle } from "@/components/Screen";
-import { Button, Chip, Empty, Notice, type NoticeTone } from "@/components/ui";
+import { newsSerif, PostCard, type PostLink } from "@/components/PostCard";
+import { Screen } from "@/components/Screen";
+import { Button, Chip, Empty, Notice, Txt, type NoticeTone } from "@/components/ui";
 import { useApp } from "@/lib/AppProvider";
 import { bragActivityId, FEED_LINK_ICON, FEED_LINK_LABEL, feedLinks, kindOfRole } from "@/lib/feed";
 import { composeHref } from "@/lib/nav";
@@ -73,7 +74,20 @@ export function FeedScreen({ role }: { role: Role }) {
 
   return (
     <Screen tabbed testID="screen-feed">
-      <ScreenTitle title={t("feed.title")} subtitle={t(role === "b2c" ? "feed.subtitle.b2c" : "feed.subtitle.b2b")} />
+      {/* 신문의 제호(#48): 호수 · 날짜 · 「SDGs冒険新聞」 · 한 줄 소개 */}
+      <View style={styles.masthead} testID="feed-masthead">
+        <View style={styles.edition}>
+          <Text style={styles.editionText}>{vm.masthead.issueLabel}</Text>
+          <Text style={styles.editionText}>{vm.masthead.dateLabel}</Text>
+        </View>
+        <Text style={[styles.title, { fontFamily: newsSerif(locale) }]} accessibilityRole="header">
+          {vm.masthead.title}
+        </Text>
+        <Text style={[styles.tagline, { fontFamily: newsSerif(locale) }]}>{vm.masthead.tagline}</Text>
+      </View>
+      <Txt variant="small" tone="muted">
+        {t(role === "b2c" ? "feed.subtitle.b2c" : "feed.subtitle.b2b")}
+      </Txt>
 
       <Button testID="feed-write" icon="✍️" label={t(role === "b2c" ? "feed.write.b2c" : "feed.write.b2b")} onPress={() => router.push(composeHref(kindOfRole(role)))} />
 
@@ -124,6 +138,12 @@ export function FeedScreen({ role }: { role: Role }) {
 }
 
 const styles = StyleSheet.create({
+  // #48 제호: 신문 종이 · 위아래 두 줄 괘선(웹 .newspaper__masthead 와 같은 색)
+  masthead: { alignItems: "center", gap: 2, paddingTop: 8, paddingBottom: 12, paddingHorizontal: 12, backgroundColor: "#F6F1E4", borderTopWidth: 5, borderBottomWidth: 5, borderColor: "#1F1B16" },
+  edition: { flexDirection: "row", justifyContent: "space-between", alignSelf: "stretch", paddingBottom: 4, borderBottomWidth: 1, borderBottomColor: "#B9AE97" },
+  editionText: { fontSize: 11, fontWeight: "700", color: "#5C5346" },
+  title: { marginTop: 6, fontSize: 30, fontWeight: "900", letterSpacing: 2, color: "#1F1B16", textAlign: "center" },
+  tagline: { fontSize: 13, fontWeight: "700", color: "#5C5346", textAlign: "center" },
   filters: { flexDirection: "row", flexWrap: "wrap", gap: SPACE.sm },
   closePosted: { alignSelf: "flex-end" },
   list: { gap: SPACE.md },

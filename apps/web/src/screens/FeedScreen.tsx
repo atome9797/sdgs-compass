@@ -1,6 +1,7 @@
 "use client";
 
-// SNS 피드(F-503 학생 자랑 글 · F-504 기업 홍보 글): 최신순으로 보고, 좋아요·공유·삭제를 하고, 글쓰기로 가요.
+// SNS 피드(F-503 학생 자랑 글 · F-504 기업 홍보 글) = 용사의 업적을 전하는 「SDGs冒険新聞」(#48): 제호(날짜 · 호수) 아래에
+// 기사(자랑 글 — 수상은 용사의 동상)와 광고 칸(홍보 글 — 언제나 「広告（PR）」)이 최신순으로 이어져요. 좋아요·공유·삭제 · 글쓰기는 그대로.
 // 학생과 기업이 같은 화면을 써요 — 역할에 따라 "내 글"과 단추가 달라져요(계산은 core 의 selectFeed). 설계는 docs/sns-feed.md.
 import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -9,7 +10,7 @@ import { formatDate } from "@sdgs-compass/core/format";
 import { authorRole, officialChannelLabel } from "@sdgs-compass/core/post";
 import { selectFeed, type FeedFilter, type PostVM } from "@sdgs-compass/core/selectors";
 import { PostCard, type PostLinks } from "@/components/PostCard";
-import { Banner, ButtonLink, Empty, ScreenHead } from "@/components/ui";
+import { Banner, ButtonLink, Empty } from "@/components/ui";
 import { browserShareEnv, shareOrCopy } from "@/lib/clipboard";
 import { applicantsHref, certificateHref, challengeHref, postNewHref, shareHref } from "@/lib/routes";
 import { useSession } from "@/lib/session";
@@ -73,15 +74,21 @@ export function FeedScreen() {
 
   const writeKey = role === "b2b" ? "feed.write.b2b" : "feed.write.b2c";
   return (
-    <div className={role === "b2c" ? "screen" : "stack stack--lg"}>
-      <ScreenHead
-        title={t("feed.title")}
-        side={
+    <div className={role === "b2c" ? "screen newspaper" : "stack stack--lg newspaper"}>
+      {/* 신문의 제호(#48): 호수 · 날짜 · 「SDGs冒険新聞」 · 한 줄 소개 — 글쓰기 단추는 제호 오른쪽 위 */}
+      <header className="newspaper__masthead">
+        <div className="newspaper__edition">
+          <span>{vm.masthead.issueLabel}</span>
+          <span>{vm.masthead.dateLabel}</span>
+        </div>
+        <h1 className="newspaper__title">{vm.masthead.title}</h1>
+        <p className="newspaper__tagline">{vm.masthead.tagline}</p>
+        <div className="newspaper__write">
           <ButtonLink href={postNewHref(role)} size="sm">
             <span aria-hidden="true">✏️</span> {t(writeKey)}
           </ButtonLink>
-        }
-      />
+        </div>
+      </header>
       <p className="small muted">{t(role === "b2b" ? "feed.subtitle.b2b" : "feed.subtitle.b2c")}</p>
 
       <div className="live" aria-live="polite">
@@ -100,7 +107,7 @@ export function FeedScreen() {
       {vm.posts.length === 0 ? (
         <Empty>{t("feed.empty")}</Empty>
       ) : (
-        <ul className={role === "b2b" ? "card-list feed-list feed-list--wide" : "card-list feed-list"}>
+        <ul className={role === "b2b" ? "card-list feed-list feed-list--wide newspaper__list" : "card-list feed-list newspaper__list"}>
           {vm.posts.map((post) => (
             <li key={post.id}>
               <PostCard post={post} links={linksFor(post, role, activityIdOf(rawPosts.get(post.id)))} highlight={post.id === postedId && postedText !== null} onLike={like} onDelete={remove} onShare={share} />

@@ -167,6 +167,10 @@
   상품을 고른 경우의 수수료는 팀이 정할 일이에요(지금은 없음).
 - 화면 모델은 `selectQuestClear`(`packages/core/src/questClear.ts`), 보상 규칙은 `rewardOptionsFor` · `rewardChosen` · `rewardPending`(`wallet.ts`), 동작은 reducer 의 `celebrateQuest` · `chooseReward`.
 
+## 피드 = 용사의 업적 신문 (#48)
+
+SNS 피드를 **「SDGs冒険新聞」** 으로 바꿨어요(웹 · 앱). 학생의 자랑 글은 업적 기사(헤드라인 · 기업과 퀘스트 · 본인의 한마디), **수상 기사에는 용사의 동상**(금 · 은 · 동 픽셀 그림 + 명판)이 서고, 기업의 홍보 글은 언제나 「広告（PR）」 칸이에요. 자세히는 [sns-feed.md](sns-feed.md) 의 3-1.
+
 ## 앱 아이콘 · 로고 (#44) — 항해 나침반
 
 해적의 항해 · 보물 지도를 떠올리게 하는 **오리지널 나침반**으로 앱의 얼굴을 바꿨어요(시안 3개 중 A 「真鍮の航海コンパス」). 어떤 작품의 소품도 본뜨지 않았어요.

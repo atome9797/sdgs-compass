@@ -178,9 +178,11 @@ export function PostCard({ post, preview = false, onLike, onDelete, onShare, lin
       <View style={[styles.news, isPr ? styles.ad : null, post.mine && !preview ? styles.mine : null]}>
         {/* 신문 기사(#48): 칸 머리 → 헤드라인 → 기업과 퀘스트 → (수상이면 동상) → 글쓴이 → 본문 */}
         <Text style={[styles.kicker, isPr ? styles.kickerAd : null]}>{post.kicker}</Text>
-        <Text style={[styles.headline, isPr ? styles.headlineAd : null, { fontFamily: serif }]} accessibilityRole="header">
-          {post.headline}
-        </Text>
+        {post.headline !== "" ? (
+          <Text style={[styles.headline, isPr ? styles.headlineAd : null, { fontFamily: serif }]} accessibilityRole="header">
+            {post.headline}
+          </Text>
+        ) : null}
         {post.subhead ? <Text style={[styles.subhead, { fontFamily: serif }]}>{post.subhead}</Text> : null}
         {post.statue ? <Statue testID={`post-statue-${post.id}`} statue={post.statue} locale={locale} /> : null}
         <View style={styles.head}>

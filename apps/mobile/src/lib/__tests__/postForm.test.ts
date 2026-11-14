@@ -316,6 +316,16 @@ test("자랑 글 미리보기: 고른 실적의 이름·SDGs 가 붙고, 동작 
     official: null,
   });
   expect(preview.achievement).toMatchObject({ title: "🏆 특별상 · 다국어 방재 지도 제안", sdgIds: [11, 10], certificateId: null });
+  // 신문 기사의 머리(#48): 피드와 같은 헤드라인 · 기업과 퀘스트 · 동메달색 동상
+  expect(preview).toMatchObject({ kicker: "용사의 업적", headline: "용사 Mina, 특별상 수상!" });
+  expect(preview.subhead).toContain("「다국어 방재 지도 제안」");
+  expect(preview.statue).toMatchObject({ award: "special", caption: "영웅의 동상" });
+});
+
+test("홍보 글 미리보기의 신문 머리: 칸 머리는 언제나 「광고(PR)」, 헤드라인은 지금 쓴 제목(앞뒤 공백 빼고)", () => {
+  const pr = prComposer();
+  const preview = previewPost(pr, withBody(initialPostForm(pr), "본문", "  새 퀘스트를 열었어요  "), t);
+  expect(preview).toMatchObject({ kicker: "광고(PR)", headline: "새 퀘스트를 열었어요", subhead: null, statue: null });
 });
 
 test("미리보기의 회사 이름 옆 SDGs 실천 마크(#35): 홍보 글은 우리 회사의 지금 마크(ESG 입력에서 ★2.5), 자랑 글은 없음 — 피드 카드와 같아요", () => {

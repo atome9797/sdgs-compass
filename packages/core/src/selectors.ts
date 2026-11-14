@@ -7,10 +7,11 @@ import {
 } from "./certification";
 import { certificateFromActivity, certificateIdAt, qrPayload, verifyCode, type Certificate } from "./certificate";
 import type {
-  Activity, ActivityKind, AwardKind, Candidate, Challenge, ChallengeStatus, CertCriterionId, Company, DemoState, HeroSkill, OfficialChannel, OfficialShare, PostKind, Proposal, ProposalStatus,
+  Activity, ActivityKind, AwardKind, Candidate, Challenge, ChallengeStatus, CertCriterionId, Company, DemoState, FoeKind, HeroSkill, OfficialChannel, OfficialShare, PostKind, Proposal, ProposalStatus,
   Review, Role, ScoutKind, ScoutStatus, SkillId, SocialPost,
 } from "./domain";
 import { feeItems, PLATFORM_FEE_MIN_YEN, summarizeFees, type FeeKind } from "./fees";
+import { foeOf } from "./foe";
 import { dDayLabel, daysBetween, formatBytes, formatDate, formatDateShort, formatDateTime, formatMonthDayWeekday, formatPeople, formatYen } from "./format";
 import { computeBadges, computeImpactIndex, BADGE_EMOJI, REVIEW_SCORE_MAX, reviewBonus, type BadgeCode } from "./impact";
 import { pick, type Locale } from "./i18n";
@@ -182,6 +183,20 @@ export interface ChallengeCardVM {
   /** 매칭률 0~100 (추천 계산을 한 경우만) */
   match: number | null;
   reasons: string[];
+  /** 의뢰서(#39)의 「討伐対象」: 이 퀘스트의 과제 몬스터(전투 화면과 같아요) — 색은 대표 SDG 색 */
+  foe: { name: string; kind: FoeKind; color: string };
+  /** 의뢰서의 「報酬」 한 줄: 「賞金 ¥100,000 ／ 🎁 みなとの干物ギフトセット ／ インターン」 (없으면 null) */
+  rewardsLine: string | null;
+}
+
+/** 보상을 한 줄로: 상금 → 상품(🎁) → 그 밖의 특전 (의뢰 창 · 의뢰서가 같이 써요) */
+function rewardsLineOf(challenge: Challenge, locale: Locale): string | null {
+  const parts = [
+    challenge.prizeYen > 0 ? `${rewardLabel("prize", locale)} ${formatYen(challenge.prizeYen, locale)}` : null,
+    challenge.rewardItem ? `🎁 ${pick(challenge.rewardItem.name, locale)}` : null,
+    ...challenge.rewards.filter((r) => r !== "prize").map((r) => rewardLabel(r, locale)),
+  ].filter((part): part is string => part !== null);
+  return parts.length > 0 ? parts.join(locale === "ja" ? " ／ " : " / ") : null;
 }
 
 export function challengeCard(state: DemoState, challenge: Challenge, locale: Locale, recommendation?: Recommendation): ChallengeCardVM {
@@ -220,6 +235,11 @@ export function challengeCard(state: DemoState, challenge: Challenge, locale: Lo
     submittedVersion: mine ? mine.versions.length : null,
     match: rec.score,
     reasons: rec.reasons.map((r) => reasonText(r, locale)),
+    foe: (() => {
+      const foe = foeOf(challenge);
+      return { name: pick(foe.name, locale), kind: foe.kind, color: getSdg(challenge.sdgIds[0] ?? 17).color };
+    })(),
+    rewardsLine: rewardsLineOf(challenge, locale),
   };
 }
 
@@ -242,17 +262,13 @@ export interface PleaVM {
 
 export function pleaOf(state: DemoState, challenge: Challenge, locale: Locale): PleaVM {
   const company = companyOf(state, challenge.companyId);
-  const parts = [
-    challenge.prizeYen > 0 ? `${rewardLabel("prize", locale)} ${formatYen(challenge.prizeYen, locale)}` : null,
-    challenge.rewardItem ? `🎁 ${pick(challenge.rewardItem.name, locale)}` : null,
-    ...challenge.rewards.filter((r) => r !== "prize").map((r) => rewardLabel(r, locale)),
-  ].filter((part): part is string => part !== null);
+  const rewards = rewardsLineOf(challenge, locale);
   return {
     challengeId: challenge.id,
     companyEmoji: company?.emoji ?? "🏢",
     from: translate("home.pleaFrom", locale, { company: company ? pick(company.name, locale) : "" }),
     line: translate("home.pleaLine", locale, { quest: pick(challenge.title, locale) }),
-    rewards: parts.length > 0 ? translate("home.pleaReward", locale, { rewards: parts.join(locale === "ja" ? " ／ " : " / ") }) : null,
+    rewards: rewards ? translate("home.pleaReward", locale, { rewards }) : null,
   };
 }
 

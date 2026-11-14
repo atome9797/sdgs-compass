@@ -75,7 +75,7 @@ export const feed = {
   "post.channelFormat.facebook": { ja: "ページ投稿", ko: "페이지 게시" },
   "post.preview": { ja: "プレビュー", ko: "미리보기" },
   "post.submit": { ja: "投稿する", ko: "올리기" },
-  "post.privacy.brag": { ja: "ニックネームとレベルだけが表示されます。メールアドレスや電話番号は書けません。", ko: "닉네임과 레벨만 보여요. 이메일 주소나 전화번호는 쓸 수 없어요." },
+  "post.privacy.brag": { ja: "ニックネームとスキルの数だけが表示されます。メールアドレスや電話番号は書けません。", ko: "닉네임과 스킬 수만 보여요. 이메일 주소나 전화번호는 쓸 수 없어요." },
   "post.privacy.pr": { ja: "「PR」表示が必ず付きます。メールアドレスや電話番号は書けません。", ko: "'PR' 표시가 항상 붙어요. 이메일 주소나 전화번호는 쓸 수 없어요." },
   "post.posted": { ja: "投稿しました", ko: "올렸어요" },
   "post.postedOfficial": { ja: "投稿しました（公式SNS掲載予定：{channel} · {date}）", ko: "올렸어요(공식 SNS 게시 예정: {channel} · {date})" },

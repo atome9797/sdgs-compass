@@ -51,6 +51,15 @@ describe("globals.css 와 theme.ts 의 토큰", () => {
     expect(css).toMatch(/@media \(prefers-reduced-motion: reduce\)\s*\{[^}]*\.battle-msg__next/);
   });
 
+  it("퀘스트 의뢰서(#39): 종이 전체가 상세로 가는 링크이고, 북마크 · 마크 단추는 그 위에서 따로 눌려요", () => {
+    expect(css).toMatch(/\.scroll__link::after\s*\{[^}]*inset:\s*0[^}]*z-index:\s*1/);
+    expect(css).toMatch(/\.scroll__mark\s*\{[^}]*z-index:\s*2/);
+    expect(css).toMatch(/\.bookmark\s*\{[^}]*z-index:\s*2[^}]*min-width:\s*var\(--tap\)/);
+    // 도장 · 두루마리는 누름을 가로채지 않아요
+    for (const sel of ["\\.seal", "\\.scroll__cleared"]) expect(css).toMatch(new RegExp(`${sel}\\s*\\{[^}]*pointer-events:\\s*none`));
+    expect(css).toMatch(/\.scroll::before, \.scroll::after\s*\{[^}]*pointer-events:\s*none/);
+  });
+
   it("의뢰 창의 「クエストを受ける」는 누르는 곳 44px 이에요 (#37)", () => {
     expect(css).toMatch(/\.rpg-window__choice\s*\{[^}]*min-height:\s*var\(--tap\)/);
   });

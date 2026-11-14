@@ -48,4 +48,16 @@ export const battle = {
   "battle.heroName": { ja: "勇者 {name}", ko: "용사 {name}" },
   "battle.heroSkills": { ja: "スキル {count}", ko: "스킬 {count}" },
   "battle.foeSdgs": { ja: "SDG {ids}", ko: "SDG {ids}" },
+
+  // 퀘스트 목록의 의뢰서(#39): 양피지 두루마리 모양의 카드 — 의뢰인 · 토벌 대상(과제 몬스터) · 보상 · 남은 날 도장
+  "scroll.title": { ja: "依頼書", ko: "의뢰서" },
+  "scroll.client": { ja: "依頼主", ko: "의뢰인" },
+  "scroll.foe": { ja: "討伐対象", ko: "토벌 대상" },
+  "scroll.reward": { ja: "報酬", ko: "보상" },
+  "scroll.party": { ja: "募集", ko: "모집" },
+  "scroll.daysLeft": { ja: "あと", ko: "남은 날" },
+  "scroll.days": { ja: "{days}日", ko: "{days}일" },
+  "scroll.today": { ja: "本日締切", ko: "오늘 마감" },
+  "scroll.cleared": { ja: "達成", ko: "달성" },
+  "scroll.foeAlt": { ja: "討伐対象：{foe}", ko: "토벌 대상: {foe}" },
 } as const satisfies Record<string, LocalizedText>;

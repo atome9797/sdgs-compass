@@ -1,60 +1,100 @@
 "use client";
 
+// 퀘스트 목록(#39): 양피지 두루마리 모양의 「依頼書」. 위아래로 말린 두루마리, 의뢰인 · 토벌 대상(과제 몬스터의 픽셀 그림) · SDG 번호 · 보상,
+// 오른쪽 위에는 남은 날을 도장으로(마감 · 심사 중이면 그 상태). 기획서를 낸 퀘스트에는 붉은 「達成」 도장이 찍혀요.
+// 종이 어디를 눌러도 퀘스트 상세(전투 화면)로 가요 — 북마크 · 실천 마크 단추는 따로 눌러요.
 import Link from "next/link";
-import { coverColors } from "@sdgs-compass/core/theme";
 import type { ChallengeCardVM } from "@sdgs-compass/core/selectors";
 import { challengeHref } from "@/lib/routes";
 import { useSession } from "@/lib/session";
+import { FoeIcon } from "./battle/FoeIcon";
 import { CertMarkButton, CertMarkNote, useMarkDisclosure } from "./CertMark";
-import { Tag } from "./ui";
 import { SdgMiniRow } from "./sdg";
 
-/** 챌린지 카드: 표지(그라데이션 + 회사 이모지 + D-day + 매칭률) · 제목 · 기업(+ SDGs 실천 마크, #35) · SDG 타일 · 상금/특전 · 응모자 · 북마크 */
+/** 남은 날 도장: 「あと 12日」 · 「本日締切」 · 마감 뒤에는 상태(審査中 · 終了) */
+function Seal({ vm, small = false }: { vm: ChallengeCardVM; small?: boolean }) {
+  const { t } = useSession();
+  const cls = `seal${small ? " seal--small" : ""}${vm.isOpen ? "" : " seal--muted"}`;
+  if (!vm.isOpen) {
+    return (
+      <span className={cls}>
+        <span className="seal__big">{vm.statusLabel}</span>
+      </span>
+    );
+  }
+  if (vm.daysLeft <= 0) {
+    return (
+      <span className={cls}>
+        <span className="seal__big">{t("scroll.today")}</span>
+      </span>
+    );
+  }
+  return (
+    <span className={cls}>
+      <span className="seal__small">{t("scroll.daysLeft")}</span>
+      <span className="seal__big">{t("scroll.days", { days: vm.daysLeft })}</span>
+    </span>
+  );
+}
+
+/** 의뢰서 한 장 (홈의 추천 · 검색 결과) */
 export function ChallengeCard({ vm, showReasons = false }: { vm: ChallengeCardVM; showReasons?: boolean }) {
   const { t, dispatch } = useSession();
   const mark = useMarkDisclosure();
-  const { from, to } = coverColors(vm.hue);
-  const prizeWord = t("reward.prize");
-  const rewards = vm.rewardLabels.filter((label) => label !== prizeWord);
   return (
-    <article className="card ccard">
-      <div className="ccard__cover" style={{ background: `linear-gradient(135deg, ${from}, ${to})` }}>
-        <span className="ccard__emoji" aria-hidden="true">
-          {vm.companyEmoji}
-        </span>
-        {!vm.isOpen ? <span className="ccard__pill ccard__pill--status">{vm.statusLabel}</span> : null}
-        <span className="ccard__pill ccard__pill--dday">{vm.dDay}</span>
-        {vm.isOpen && vm.match !== null ? <span className="ccard__pill ccard__pill--match">{t("home.matchRate", { rate: vm.match })}</span> : null}
-      </div>
-      <div className="ccard__body">
-        <h3 className="ccard__title">
-          <Link href={challengeHref(vm.id)}>{vm.title}</Link>
-        </h3>
-        <div className="ccard__company-row">
-          <p className="ccard__company">🏢 {vm.companyName}</p>
-          {vm.companyMark ? <CertMarkButton mark={vm.companyMark} open={mark.open} noteId={mark.noteId} onToggle={mark.toggle} /> : null}
+    <article className="scroll" data-testid={`quest-scroll-${vm.id}`}>
+      <div className="scroll__paper">
+        <p className="scroll__label">
+          <span>{t("scroll.title")}</span>
+          {vm.isOpen && vm.match !== null ? <span className="scroll__match">{t("home.matchRate", { rate: vm.match })}</span> : null}
+        </p>
+        <Seal vm={vm} />
+        <div className="scroll__main">
+          <span className="scroll__wanted">
+            <FoeIcon kind={vm.foe.kind} color={vm.foe.color} label={t("scroll.foeAlt", { foe: vm.foe.name })} />
+          </span>
+          <div className="scroll__lines">
+            <h3 className="scroll__title">
+              <Link className="scroll__link" href={challengeHref(vm.id)}>
+                {vm.title}
+              </Link>
+            </h3>
+            <p className="scroll__row">
+              <span className="scroll__key">{t("scroll.client")}</span>
+              <span>
+                <span aria-hidden="true">{vm.companyEmoji} </span>
+                {vm.companyName}
+              </span>
+            </p>
+            <p className="scroll__row">
+              <span className="scroll__key">{t("scroll.foe")}</span>
+              <span className="scroll__foe">{vm.foe.name}</span>
+            </p>
+          </div>
         </div>
+        {vm.companyMark ? (
+          <div className="scroll__mark">
+            <CertMarkButton mark={vm.companyMark} open={mark.open} noteId={mark.noteId} onToggle={mark.toggle} />
+          </div>
+        ) : null}
         {vm.companyMark ? <CertMarkNote mark={vm.companyMark} open={mark.open} noteId={mark.noteId} /> : null}
         <SdgMiniRow ids={vm.sdgIds} />
-        <div className="chips">
-          {vm.prizeLabel ? <Tag tone="warning">💰 {vm.prizeLabel}</Tag> : null}
-          {rewards.map((label) => (
-            <Tag key={label} tone="success">
-              {label}
-            </Tag>
-          ))}
-          <Tag>👥 {vm.teamRuleLabel}</Tag>
-        </div>
+        {vm.rewardsLine ? (
+          <p className="scroll__row scroll__reward">
+            <span className="scroll__key">{t("scroll.reward")}</span>
+            <span>{vm.rewardsLine}</span>
+          </p>
+        ) : null}
         {showReasons && vm.reasons.length > 0 ? (
-          <ul className="ccard__reasons">
+          <ul className="scroll__reasons">
             {vm.reasons.slice(0, 2).map((reason) => (
               <li key={reason}>{reason}</li>
             ))}
           </ul>
         ) : null}
-        <div className="ccard__foot">
+        <div className="scroll__foot">
           <span>
-            {vm.applicantsLabel}
+            {vm.teamRuleLabel} · {vm.applicantsLabel}
             {vm.submittedVersion !== null ? (
               <>
                 {" · "}
@@ -66,25 +106,38 @@ export function ChallengeCard({ vm, showReasons = false }: { vm: ChallengeCardVM
             <span aria-hidden="true">{vm.bookmarked ? "★" : "☆"}</span>
           </button>
         </div>
+        {vm.submittedVersion !== null ? (
+          <span className="scroll__cleared" aria-hidden="true">
+            {t("scroll.cleared")}
+          </span>
+        ) : null}
       </div>
     </article>
   );
 }
 
-/** 한 줄짜리 챌린지 목록 항목 (홈의 "마감 임박"처럼 카드가 너무 클 때) */
+/** 작은 의뢰서 한 줄 (홈의 「締切が近いクエスト」) */
 export function ChallengeRow({ vm }: { vm: ChallengeCardVM }) {
-  const { from, to } = coverColors(vm.hue);
+  const { t } = useSession();
   return (
-    <Link href={challengeHref(vm.id)} className="card mgmt-row" style={{ color: "inherit" }}>
-      <span className="mgmt-row__cover" style={{ background: `linear-gradient(135deg, ${from}, ${to})` }} aria-hidden="true">
-        {vm.companyEmoji}
-      </span>
-      <span className="mgmt-row__main">
-        <span className="mgmt-row__title">{vm.title}</span>
-        <span className="mgmt-row__meta">
-          <Tag tone={vm.isOpen ? "danger" : undefined}>{vm.dDay}</Tag>
-          <span>{vm.companyName}</span>
+    <Link href={challengeHref(vm.id)} className="scroll scroll--slip" data-testid={`quest-slip-${vm.id}`}>
+      <span className="scroll__paper">
+        <span className="scroll__wanted">
+          <FoeIcon kind={vm.foe.kind} color={vm.foe.color} />
         </span>
+        <span className="scroll__lines">
+          <span className="scroll__title">{vm.title}</span>
+          <span className="scroll__row">
+            <span className="scroll__key">{t("scroll.client")}</span>
+            <span>{vm.companyName}</span>
+          </span>
+        </span>
+        <Seal vm={vm} small />
+        {vm.submittedVersion !== null ? (
+          <span className="scroll__cleared scroll__cleared--small" aria-hidden="true">
+            {t("scroll.cleared")}
+          </span>
+        ) : null}
       </span>
     </Link>
   );

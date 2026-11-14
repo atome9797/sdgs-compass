@@ -1,8 +1,9 @@
 // 퀘스트 전투 화면(#38)의 화면 모델 — 턴제 RPG 처럼, 위에 과제 몬스터 · 아래에 용사 파티 · 메시지 창 · 명령 4개(たたかう · スキル · しらべる · にげる).
 // 그림(WebGL)은 웹이 그려요(apps/web/src/lib/battle). 몬스터 · 배경 · HP · 문구 · 스킬 상성(相性)은 여기 한 곳에서 정해요.
 // 규칙: 기획서를 내면 몬스터의 HP 가 0 = 「クエスト達成！」(수령증과 같은 때). 수상하면 그 퀘스트의 SDG 번호가 붙은 스킬을 얻어요(skills.ts).
-import type { Challenge, DemoState, FoeKind, QuestFoe } from "./domain";
-import { pick, type Locale, type LocalizedText } from "./i18n";
+import type { DemoState, FoeKind } from "./domain";
+import { foeOf } from "./foe";
+import { pick, type Locale } from "./i18n";
 import { translate } from "./messages";
 import { isOpenFor } from "./recommend";
 import { getSdg, type SdgId } from "./sdg";
@@ -11,27 +12,7 @@ import { skillMatches, skillSdgIds, sortSkills } from "./skills";
 
 export type SceneKind = "sea" | "sky" | "field" | "town";
 
-/** 퀘스트에 몬스터(foe)가 없을 때(데모에서 기업이 새로 낸 퀘스트 등) 대표 SDG 로 고르는 모양 */
-const FOE_BY_SDG: Record<SdgId, FoeKind> = {
-  1: "ghost", 2: "ghost", 3: "ghost", 4: "wall", 5: "wall", 6: "jelly", 7: "smog", 8: "bird", 9: "bird",
-  10: "wall", 11: "bird", 12: "bottle", 13: "smog", 14: "jelly", 15: "ghost", 16: "wall", 17: "wall",
-};
-
-/** 모양마다의 기본 이름 */
-export const DEFAULT_FOE_NAMES: Record<FoeKind, LocalizedText> = {
-  jelly: { ja: "プラごみクラゲ", ko: "플라스틱 해파리" },
-  bottle: { ja: "つかいすてボトル", ko: "일회용 페트병" },
-  smog: { ja: "くろけむり", ko: "검은 연기" },
-  ghost: { ja: "もったいないの影", ko: "아까운 그림자" },
-  wall: { ja: "みえない壁", ko: "보이지 않는 벽" },
-  bird: { ja: "カンコドリ", ko: "썰렁새" },
-};
-
-export function foeOf(challenge: Pick<Challenge, "foe" | "sdgIds">): QuestFoe {
-  if (challenge.foe) return challenge.foe;
-  const kind = FOE_BY_SDG[challenge.sdgIds[0] ?? 17];
-  return { kind, name: DEFAULT_FOE_NAMES[kind] };
-}
+export { DEFAULT_FOE_NAMES, foeOf } from "./foe";
 
 /** 배경: 퀘스트의 SDG 중에 바다(6 · 14)가 있으면 바다, 다음은 하늘(7 · 13), 들판(2 · 15), 그 밖은 거리 */
 export function sceneOf(sdgIds: readonly SdgId[]): SceneKind {

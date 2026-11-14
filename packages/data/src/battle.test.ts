@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { DEFAULT_FOE_NAMES, foeOf, sceneOf, selectBattle } from "@sdgs-compass/core/battle";
 import type { DemoState } from "@sdgs-compass/core/domain";
 import type { ProposalDraft } from "@sdgs-compass/core/proposal";
+import { selectHome } from "@sdgs-compass/core/selectors";
 import { reducer } from "@sdgs-compass/core/state";
 import { createInitialState } from "./seed";
 
@@ -92,5 +93,26 @@ describe("퀘스트 전투 화면 (#38)", () => {
     expect(vm.skills).toEqual([]);
     expect(vm.skillPick).toBe("まだ スキルが ない！ クエストで 受賞すると スキルを おぼえる。");
     expect(vm.hero.skillsLabel).toBe("スキル 0");
+  });
+});
+
+describe("퀘스트 의뢰서 (#39) — 목록 카드의 토벌 대상 · 보상 한 줄", () => {
+  it("카드에 전투 화면과 같은 몬스터(이름 · 모양 · 대표 SDG 색)가 붙어요", () => {
+    const home = selectHome(initial, "ja");
+    for (const card of [...home.recommended, ...home.soon]) {
+      const challenge = initial.challenges.find((c) => c.id === card.id)!;
+      expect(card.foe.kind, card.id).toBe(foeOf(challenge).kind);
+      expect(card.foe.name, card.id).toBe(selectBattle(initial, card.id, "ja")!.foe.name);
+      expect(card.foe.color, card.id).toBe(selectBattle(initial, card.id, "ja")!.foe.color);
+    }
+  });
+
+  it("보상 한 줄: 상금 → 상품 → 그 밖의 특전, 의뢰 창의 보상 줄과 같아요", () => {
+    const card = selectHome(initial, "ja").recommended.find((c) => c.id === "ch-plastic")!;
+    expect(card.rewardsLine).toBe("賞金 ¥100,000 ／ 🎁 みなとの干物ギフトセット ／ インターン");
+    const plea = selectHome(initial, "ja").plea!;
+    expect(plea.rewards).toBe(`報酬：${card.rewardsLine}`);
+    const ko = selectHome(initial, "ko").recommended.find((c) => c.id === "ch-plastic")!;
+    expect(ko.rewardsLine).toBe("상금 100,000엔 / 🎁 미나토 건어물 선물 세트 / 인턴십");
   });
 });

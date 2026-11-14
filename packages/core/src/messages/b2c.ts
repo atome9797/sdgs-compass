@@ -45,7 +45,7 @@ export const b2c = {
     ko: "선택된 파티에게 {company}에서 직접 보내요. SNS에 소개할 때는 카드에 「제공」 표시가 들어가요.",
   },
   "challenge.impact": { ja: "Impact", ko: "Impact" },
-  "challenge.impactValue": { ja: "レベルに反映", ko: "레벨에 반영" },
+  "challenge.impactValue": { ja: "受賞でスキル獲得", ko: "수상하면 스킬 획득" },
   "challenge.applicants": { ja: "応募者 {count}", ko: "응모자 {count}" },
   "challenge.tabDetail": { ja: "クエストの内容", ko: "퀘스트 내용" },
   "challenge.tabTeam": { ja: "パーティ募集の掲示板", ko: "파티원 모집 게시판" },

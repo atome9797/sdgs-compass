@@ -3,6 +3,9 @@ import { base64, crc32, encodePng, pngDataUri, scaleNearest } from "./png";
 import { PixelGrid, type PixelImage } from "./pixels";
 import { foeSprite } from "./sprites";
 
+/** 글자(ASCII) → 바이트 — core 는 DOM 타입 없이 검사해서 TextEncoder 를 쓰지 않아요 */
+const ascii = (text: string) => Uint8Array.from(text, (ch) => ch.charCodeAt(0));
+
 /** 시험용: PNG 를 조각으로 나누고, 「저장」 블록만 있는 zlib 을 풀어요 */
 function readPng(bytes: Uint8Array) {
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
@@ -31,10 +34,10 @@ function readPng(bytes: Uint8Array) {
 
 describe("PNG (#39 앱의 의뢰서 몬스터 그림)", () => {
   it("CRC-32 · Base64 는 표준 값과 같아요", () => {
-    expect(crc32(new TextEncoder().encode("123456789"))).toBe(0xcbf43926);
-    expect(base64(new TextEncoder().encode("Man"))).toBe("TWFu");
-    expect(base64(new TextEncoder().encode("Ma"))).toBe("TWE=");
-    expect(base64(new TextEncoder().encode("M"))).toBe("TQ==");
+    expect(crc32(ascii("123456789"))).toBe(0xcbf43926);
+    expect(base64(ascii("Man"))).toBe("TWFu");
+    expect(base64(ascii("Ma"))).toBe("TWE=");
+    expect(base64(ascii("M"))).toBe("TQ==");
   });
 
   it("가장 가까운 이웃으로 키워요 (칸이 번지지 않게)", () => {

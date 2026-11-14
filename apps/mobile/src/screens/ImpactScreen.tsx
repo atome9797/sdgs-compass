@@ -8,6 +8,7 @@ import { StyleSheet, View } from "react-native";
 import { selectApplications, selectCertificates, selectImpact, type ApplicationReviewVM, type HeroSkillVM, type SdgSkillVM } from "@sdgs-compass/core/selectors";
 import { selectWallet } from "@sdgs-compass/core/walletView";
 import { ActivityRow } from "@/components/ActivityRow";
+import { useQuestClear } from "@/components/QuestClearModal";
 import { Screen, ScreenTitle } from "@/components/Screen";
 import { SdgEmblem } from "@/components/SdgEmblem";
 import { StatsWindow } from "@/components/StatsWindow";
@@ -21,7 +22,9 @@ import { COLORS, GAME_COLORS, RADIUS, SPACE } from "@/theme";
  * #30 기업의 심사 결과: 점수는 막대 + 「4/5」 글자(색만으로 구분하지 않아요), 가장 낮은 항목은 「次に伸ばすポイント」 한 줄로도 알려요.
  * 스크린 리더는 점수·평균·받은 EXP 와 오른 레벨·다음에 키울 점·수상·얻은 스킬을 요약 한 문장(summary)으로, 코멘트는 따로 읽어요.
  */
-function ReviewResult({ review, id }: { review: ApplicationReviewVM; id: string }) {
+function ReviewResult({ review, id, proposalId }: { review: ApplicationReviewVM; id: string; proposalId: string }) {
+  const { t } = useApp();
+  const clear = useQuestClear();
   return (
     <View style={styles.result} testID={`impact-review-${id}`}>
       <View accessible accessibilityLabel={review.summary} style={styles.resultMain}>
@@ -48,12 +51,27 @@ function ReviewResult({ review, id }: { review: ApplicationReviewVM; id: string 
             </View>
           </View>
         ) : null}
-        {/* 상품 보상이 걸린 퀘스트에서 수상하면 「〇〇を手に入れた！」(#37) */}
+        {/* 받은 보상(#37 · #47): 상품이면 「〇〇を手に入れた！」, 상금이면 「賞金 …を受け取りました」, 아직 고르지 않았으면 고르는 단추 */}
         {review.rewardItemLabel ? (
           <View style={styles.itemWon} testID={`impact-item-${id}`}>
             <Txt variant="small" bold style={styles.itemWonText}>
               🎁 {review.rewardItemLabel}
             </Txt>
+          </View>
+        ) : null}
+        {review.prizeLabel ? (
+          <View style={styles.itemWon} testID={`impact-prize-${id}`}>
+            <Txt variant="small" bold style={styles.itemWonText}>
+              💴 {review.prizeLabel}
+            </Txt>
+          </View>
+        ) : null}
+        {review.rewardPending ? (
+          <View style={[styles.itemWon, styles.pendingBox]} testID={`impact-reward-pending-${id}`}>
+            <Txt variant="small" bold style={styles.itemWonText}>
+              {t("impact.rewardPending")}
+            </Txt>
+            <Button small icon="🎁" label={t("clear.choose")} onPress={() => clear?.open(proposalId)} testID={`reward-open-${id}`} />
           </View>
         ) : null}
         {review.scores.map((score) => (
@@ -198,7 +216,7 @@ export function ImpactScreen() {
                     </Txt>
                   ) : null}
                   <SdgMiniRow ids={app.sdgIds} size={20} />
-                  {app.review ? <ReviewResult review={app.review} id={app.challengeId} /> : null}
+                  {app.review ? <ReviewResult review={app.review} id={app.challengeId} proposalId={app.proposalId} /> : null}
                   <View style={styles.appliedLinks}>
                     <Button variant="ghost" small label={t("impact.viewChallenge")} onPress={() => router.push(challengeHref(app.challengeId))} />
                     <Button variant="ghost" small label={t("challenge.viewReceipt")} onPress={() => router.push(receiptHref(app.challengeId))} />
@@ -347,6 +365,7 @@ const styles = StyleSheet.create({
   skillBadge: { alignItems: "center", gap: 4 },
   skillType: { minWidth: 32, height: 24, paddingHorizontal: 4, alignItems: "center", justifyContent: "center", borderRadius: 5, borderWidth: 2, borderColor: GAME_COLORS.ink },
   learnedIcons: { flexDirection: "row", gap: 3, padding: 2, borderRadius: 5, backgroundColor: GAME_COLORS.panel },
+  pendingBox: { gap: SPACE.sm },
   // #45 SDG 스킬 칸(한 칸 150 이상 — 좁은 화면은 1열, 보통 2열): 남색 게임 창 · 금색 레벨
   sdgSkillGrid: { flexDirection: "row", flexWrap: "wrap", gap: SPACE.xs + 2 },
   sdgSkill: { flexBasis: "48%", minWidth: 150, flexGrow: 1, flexDirection: "row", alignItems: "center", gap: SPACE.sm, padding: SPACE.sm, borderRadius: 8, borderWidth: 2, borderColor: GAME_COLORS.ink, backgroundColor: GAME_COLORS.window },

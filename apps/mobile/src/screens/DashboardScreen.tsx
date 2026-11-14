@@ -113,7 +113,7 @@ function PrizeSection({ prize }: { prize: PrizePaymentsVM }) {
               {row.title}
             </Txt>
             <View style={styles.prizeMeta}>
-              <Badge label={row.statusLabel} tone={row.status === "paid" ? "success" : row.status === "promised" ? "primary" : "neutral"} />
+              <Badge label={row.statusLabel} tone={row.status === "paid" ? "success" : row.status === "promised" || row.status === "choosing" ? "primary" : "neutral"} />
               <Txt variant="small" tone="muted">
                 {row.dateLabel}
               </Txt>

@@ -116,9 +116,10 @@ export interface PrizePaymentsVM {
 export function selectPrizePayments(state: DemoState, locale: Locale): PrizePaymentsVM {
   const mine = state.prizePayments.filter((p) => p.companyId === state.myCompanyId);
   const sum = (status: PrizePaymentStatus) => mine.filter((p) => p.status === status).reduce((total, p) => total + p.amountYen, 0);
-  const order: Record<PrizePaymentStatus, number> = { promised: 0, paid: 1, noWinner: 2 };
+  const order: Record<PrizePaymentStatus, number> = { promised: 0, choosing: 1, paid: 2, itemChosen: 3, noWinner: 4 };
   return {
-    promisedLabel: formatYen(sum("promised"), locale),
+    // 아직 지급하지 않은 상금 = 표창 전 + 수상 팀이 고르는 중(#47)
+    promisedLabel: formatYen(sum("promised") + sum("choosing"), locale),
     paidLabel: formatYen(sum("paid"), locale),
     rows: mine
       .slice()
@@ -129,7 +130,8 @@ export function selectPrizePayments(state: DemoState, locale: Locale): PrizePaym
           challengeId: p.challengeId,
           title: challenge ? pick(challenge.title, locale) : p.challengeId,
           amountLabel: formatYen(p.amountYen, locale),
-          feeLabel: p.status === "noWinner" ? "—" : formatYen(platformFeeFor(p.amountYen), locale),
+          // 상금을 지급하지 않는 경우(최우수상 없음 · 상품을 고름, #47)는 수수료도 없어요
+          feeLabel: p.status === "noWinner" || p.status === "itemChosen" ? "—" : formatYen(platformFeeFor(p.amountYen), locale),
           status: p.status,
           statusLabel: prizeStatusLabel(p.status, locale),
           dateLabel: formatDate(p.paidOn ?? p.promisedOn, locale),

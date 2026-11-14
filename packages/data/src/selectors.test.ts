@@ -1323,19 +1323,32 @@ describe("게임 테마 — 용사 · 퀘스트 · 보상 아이템 (#37)", () =
     expect(none.card.rewardLabels).toEqual(["賞金"]);
   });
 
-  it("수상하면 「〇〇を手に入れた！」 — 상품 보상이 걸린 퀘스트만", () => {
+  it("수상하면 「〇〇を手に入れた！」 — 상품 보상이 걸린 퀘스트만 (상금과 둘 다 걸린 최우수상은 상품을 고른 때, #47)", () => {
+    // 우수상: 상금은 최우수상만이라 상품 하나 → 바로 받아요
+    const excellence = run(initial, { type: "submitProposal", challengeId: "ch-plastic", draft, at: AT }, { type: "awardProposal", proposalId: mineId, award: "excellence" });
+    expect(selectApplications(excellence, "ja")[0].review!).toMatchObject({ rewardItemLabel: "報酬アイテム「みなとの干物ギフトセット」を手に入れた！（みなと海洋フーズ株式会社から届きます）", prizeLabel: null, rewardPending: false });
+    // 최우수상: 상금(¥100,000)과 상품 중에서 고르기 전에는 「報酬を えらぶ」
     const awarded = run(initial, { type: "submitProposal", challengeId: "ch-plastic", draft, at: AT }, { type: "awardProposal", proposalId: mineId, award: "grand" });
-    const ja = selectApplications(awarded, "ja")[0].review!;
-    expect(ja.rewardItemLabel).toBe("報酬アイテム「みなとの干物ギフトセット」を手に入れた！（みなと海洋フーズ株式会社から届きます）");
-    expect(selectApplications(awarded, "ko")[0].review!.rewardItemLabel).toBe("보상 아이템 「미나토 건어물 선물 세트」 획득! (미나토 해양푸드(주)에서 보내요)");
+    expect(selectApplications(awarded, "ja")[0].review!).toMatchObject({ rewardItemLabel: null, prizeLabel: null, rewardPending: true });
+    const item = run(awarded, { type: "chooseReward", proposalId: mineId, reward: "item" });
+    const ja = selectApplications(item, "ja")[0].review!;
+    expect(ja).toMatchObject({ rewardItemLabel: "報酬アイテム「みなとの干物ギフトセット」を手に入れた！（みなと海洋フーズ株式会社から届きます）", prizeLabel: null, rewardPending: false });
+    expect(selectApplications(item, "ko")[0].review!.rewardItemLabel).toBe("보상 아이템 「미나토 건어물 선물 세트」 획득! (미나토 해양푸드(주)에서 보내요)");
+    const prize = run(awarded, { type: "chooseReward", proposalId: mineId, reward: "prize" });
+    expect(selectApplications(prize, "ja")[0].review!).toMatchObject({ rewardItemLabel: null, prizeLabel: "賞金 ¥100,000を受け取りました（企業から直接お振込み）", rewardPending: false });
     const reviewedOnly = run(initial, { type: "submitProposal", challengeId: "ch-plastic", draft, at: AT }, {
       type: "reviewProposal", proposalId: mineId, review: { creativity: 4, feasibility: 4, sdgContribution: 4, comment: "" }, at: "2026-10-30T11:00",
     });
     expect(selectApplications(reviewedOnly, "ja")[0].review!.rewardItemLabel).toBeNull();
   });
 
-  it("수상 카드뉴스: 상품 보상은 「提供」 표시와 함께 카드와 공유 글에 들어가요", () => {
-    const awarded = run(initial, { type: "submitProposal", challengeId: "ch-plastic", draft, at: AT }, { type: "awardProposal", proposalId: mineId, award: "grand" });
+  it("수상 카드뉴스: 상품 보상(받은 것)은 「提供」 표시와 함께 카드와 공유 글에 들어가요", () => {
+    const awarded = run(
+      initial,
+      { type: "submitProposal", challengeId: "ch-plastic", draft, at: AT },
+      { type: "awardProposal", proposalId: mineId, award: "grand" },
+      { type: "chooseReward", proposalId: mineId, reward: "item" },
+    );
     const award = selectShare(awarded, "ja", "instagram", null);
     expect(award.card!.subtitle).toContain("報酬アイテム「みなとの干物ギフトセット」（提供）");
     expect(award.card!.caption).toContain("（みなと海洋フーズ株式会社提供）");

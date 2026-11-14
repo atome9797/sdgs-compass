@@ -192,4 +192,18 @@ describe("스킬 효과 (#42) — SDG 목표마다 다른 모양", () => {
     expect(mid.filter((i) => i.tex === "dot").length).toBeGreaterThan(30);
     expect(layout({ ...stage, reduced: true, effects, t: DURATION.skill * 0.5 }).some((i) => i.tex === "dot")).toBe(false);
   });
+
+  it("#47 승리 연출: 쓰러지지 않은 몬스터도 「clear」 효과가 시작되면 그때 번쩍이다 흐려져요", () => {
+    const effects: Effect[] = [{ kind: "intro", start: 0 }, { kind: "clear", start: 3000 }];
+    const foeAt = (t: number) => layout({ ...stage, defeated: false, effects, t }).find((i) => i.tex === "foe")!;
+    // clear 전: 서 있어요
+    expect(foeAt(2900)).toMatchObject({ gray: 0, alpha: 1 });
+    // clear 뒤: 회색 · 흐림
+    const after = foeAt(3000 + DURATION.clear);
+    expect(after.gray).toBe(1);
+    expect(after.alpha).toBeLessThan(1);
+    // 쓰러질 때 반짝이(움직임 줄이기면 없어요)
+    expect(layout({ ...stage, defeated: false, effects, t: 3000 + DURATION.clear * 0.4 }).some((i) => i.tex === "dot")).toBe(true);
+    expect(layout({ ...stage, defeated: false, reduced: true, effects, t: 3000 + DURATION.clear * 0.4 }).some((i) => i.tex === "dot")).toBe(false);
+  });
 });

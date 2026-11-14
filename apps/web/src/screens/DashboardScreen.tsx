@@ -184,7 +184,7 @@ function PrizeSection({ prize }: { prize: PrizePaymentsVM }) {
                       {row.feeLabel}
                     </td>
                     <td data-label={t("prize.col.status")}>
-                      <Tag tone={row.status === "paid" ? "success" : row.status === "promised" ? "info" : undefined}>{row.statusLabel}</Tag>
+                      <Tag tone={row.status === "paid" ? "success" : row.status === "promised" || row.status === "choosing" ? "info" : undefined}>{row.statusLabel}</Tag>
                     </td>
                     <td className="nowrap" data-label={t("prize.col.date")}>
                       {row.dateLabel}

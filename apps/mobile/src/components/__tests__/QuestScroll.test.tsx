@@ -29,7 +29,7 @@ test("의뢰서: 依頼書 · 몬스터 이름 · 依頼主 · 「課題」(쉬�
   expect(onPress).toHaveBeenCalledTimes(1);
 });
 
-test("기획서를 낸 퀘스트: 몬스터 그림 위에 「達成」 도장, 스크린 리더에도 제출 여부", async () => {
+test("기획서를 낸 퀘스트: 몬스터 그림 위에 「挑戦中」 도장 → 기업이 고르면(수상) 「達成」(#47), 스크린 리더에도 제출 여부", async () => {
   const submitted = reducer(demo, {
     type: "submitProposal",
     challengeId: "ch-plastic",
@@ -38,8 +38,13 @@ test("기획서를 낸 퀘스트: 몬스터 그림 위에 「達成」 도장, �
   });
   const card = plasticOf(submitted, "ja");
   await render(<QuestScroll testID="scroll" card={card} locale="ja" onPress={() => undefined} />);
-  expect(screen.getByText("達成")).toBeOnTheScreen();
+  expect(screen.getByText("挑戦中")).toBeOnTheScreen();
+  expect(screen.queryByText("達成")).not.toBeOnTheScreen();
   expect(screen.getByTestId("scroll").props.accessibilityLabel).toContain("提出済み（第1版）");
+  const mine = submitted.proposals.find((p) => p.mine)!;
+  const won = reducer(submitted, { type: "awardProposal", proposalId: mine.id, award: "excellence" });
+  await render(<QuestScroll testID="scroll" card={plasticOf(won, "ja")} locale="ja" onPress={() => undefined} />);
+  expect(screen.getByText("達成")).toBeOnTheScreen();
 });
 
 test("작은 의뢰서(마감 임박) · 한국어: 「남은 날 12일」 도장과 의뢰인 한 줄", async () => {

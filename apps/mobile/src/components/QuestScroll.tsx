@@ -86,9 +86,10 @@ export function QuestScroll({ card, locale, onPress, showMatch = false, compact 
   const wanted = (
     <View style={[styles.wanted, compact ? styles.wantedSmall : null]}>
       <FoeImage kind={card.foe.kind} color={card.foe.color} size={compact ? 44 : 64} testID={testID ? `${testID}-foe` : undefined} />
-      {cleared ? (
-        <View style={[styles.cleared, compact ? styles.clearedSmall : null]}>
-          <Text style={[styles.clearedText, compact ? styles.clearedTextSmall : null, { fontFamily: serif }]}>{t("scroll.cleared")}</Text>
+      {/* 도장(#47): 기획서를 냈으면 「挑戦中」, 기업이 고르면(수상) 「達成」 */}
+      {card.stampLabel ? (
+        <View style={[styles.cleared, compact ? styles.clearedSmall : null]} testID={testID ? `${testID}-stamp` : undefined}>
+          <Text style={[styles.clearedText, compact ? styles.clearedTextSmall : null, { fontFamily: serif }]}>{card.stampLabel}</Text>
         </View>
       ) : null}
     </View>

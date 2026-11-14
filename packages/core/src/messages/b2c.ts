@@ -132,7 +132,7 @@ export const b2c = {
   "submit.video": { ja: "追加：動画URL（任意）", ko: "추가: 동영상 URL(선택)" },
   "submit.videoPh": { ja: "https://", ko: "https://" },
   "submit.confirmTitle": { ja: "内容の確認", ko: "내용 확인" },
-  "submit.finalSubmit": { ja: "提出してクエスト達成", ko: "제출하고 퀘스트 달성" },
+  "submit.finalSubmit": { ja: "提出してクエストに挑戦", ko: "제출하고 퀘스트 도전" },
   "submit.resubmitNote": { ja: "提出済みの企画書があります。再提出すると新しい版（第{version}版）として保存されます。", ko: "제출한 기획서가 있어요. 다시 제출하면 새 버전({version}차 제출)으로 저장돼요." },
   "submit.error.team_name_required": { ja: "チーム名を入力してください", ko: "팀 이름을 입력해 주세요" },
   "submit.error.team_name_too_long": { ja: "チーム名は30字以内で入力してください", ko: "팀 이름은 30자 이내로 입력해 주세요" },
@@ -153,8 +153,8 @@ export const b2c = {
   "submit.error.deadline_passed": { ja: "このクエストは締切を過ぎています", ko: "이 퀘스트는 마감이 지났어요" },
 
   "receipt.title": { ja: "提出受領書", ko: "제출 수령증" },
-  // 제출이 접수되면 「クエスト達成！」(#37) — 경험치(マイImpact)와 증명서가 생겨요. 상품 · 상금은 기업이 고른 팀에게 가요
-  "receipt.thanks": { ja: "クエスト達成！提出が完了しました", ko: "퀘스트 달성! 제출이 완료되었어요" },
+  // 제출이 접수되면 「クエストに挑戦！」 — 퀘스트 달성은 기업이 고른 때(#47). 평가를 받으면 EXP(#45), 뽑히면 스킬 · 보상(상금 또는 상품)
+  "receipt.thanks": { ja: "クエストに挑戦！企画書の提出が完了しました", ko: "퀘스트 도전! 기획서 제출이 완료됐어요" },
   "receipt.no": { ja: "受付番号", ko: "접수 번호" },
   // 어느 기업의 어느 과제에 냈는지 수령증에서 바로 보이게(#28)
   "receipt.company": { ja: "企業", ko: "기업" },
@@ -200,6 +200,9 @@ export const b2c = {
   "impact.reviewAward": { ja: "{award}を受賞", ko: "{award} 수상" },
   // 수상한 퀘스트에 상품 보상이 걸려 있으면(#37): 「〇〇を手に入れた！」 — 기업이 고른 팀에게 직접 보내요
   "impact.rewardItemWon": { ja: "報酬アイテム「{item}」を手に入れた！（{company}から届きます）", ko: "보상 아이템 「{item}」 획득! ({company}에서 보내요)" },
+  // #47 최우수상의 보상: 상금을 골랐으면 받은 줄, 아직 고르지 않았으면 고르는 단추(퀘스트 달성 창을 다시 열어요)
+  "impact.prizeWon": { ja: "賞金 {amount}を受け取りました（企業から直接お振込み）", ko: "상금 {amount} 받기 완료(기업이 직접 송금해요)" },
+  "impact.rewardPending": { ja: "最優秀賞の報酬（賞金か商品）を えらんでください", ko: "최우수상 보상(상금 또는 상품)을 골라 주세요" },
   "impact.reviewSummary": { ja: "{title}：{scores}、{average}。{exp}", ko: "{title}: {scores}, {average}. {exp}" },
   // 용사의 스테이터스(#43 · #45): SDGs 17개 항목마다 기업의 평가 점수가 EXP 로 쌓여 레벨이 올라요 — 레벨은 항목마다만(용사 전체의 레벨은 없어요)
   "impact.statsTitle": { ja: "勇者のステータス", ko: "용사의 스테이터스" },
@@ -225,9 +228,10 @@ export const b2c = {
   "impact.profileScoutOff": { ja: "企業の人材検索には表示されません", ko: "기업의 인재 검색에 보이지 않아요" },
   "impact.scoutChange": { ja: "設定で変更", ko: "설정에서 바꾸기" },
 
-  "activity.participation": { ja: "クエスト挑戦", ko: "퀘스트 도전" },
-  "activity.submission": { ja: "クエスト達成", ko: "퀘스트 달성" },
-  "activity.award": { ja: "受賞", ko: "수상" },
+  // #47 참가 → 기획서로 도전 → 기업이 고르면(수상) 퀘스트 달성 — 수상은 뒤에 상 이름이 붙어요(「クエスト達成（優秀賞）」)
+  "activity.participation": { ja: "クエスト参加", ko: "퀘스트 참가" },
+  "activity.submission": { ja: "クエスト挑戦", ko: "퀘스트 도전" },
+  "activity.award": { ja: "クエスト達成", ko: "퀘스트 달성" },
   "activity.share": { ja: "発信", ko: "공유" },
 
   "cert.title": { ja: "デジタル証明書", ko: "디지털 증명서" },

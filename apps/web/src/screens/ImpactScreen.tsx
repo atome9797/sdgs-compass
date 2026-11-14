@@ -9,6 +9,7 @@ import { useMemo } from "react";
 import { selectApplications, selectImpact, type ApplicationReviewVM, type HeroSkillVM, type SdgSkillVM } from "@sdgs-compass/core/selectors";
 import { selectWallet } from "@sdgs-compass/core/walletView";
 import { HeroPortrait } from "@/components/battle/HeroPortrait";
+import { useQuestClear } from "@/components/battle/QuestClear";
 import { StatsWindow } from "@/components/StatsWindow";
 import { SdgEmblem, SdgMiniRow } from "@/components/sdg";
 import { ButtonLink, Empty, ScreenHead, Section, Tag } from "@/components/ui";
@@ -17,8 +18,10 @@ import { useSession } from "@/lib/session";
 import { ActivityItem } from "./HomeScreen";
 
 /** #30 기업의 심사 결과: 점수는 막대 + 「4/5」 글자로(색만으로 구분하지 않아요), 가장 낮은 항목은 「次に伸ばすポイント」 한 줄로도 알려요 */
-function ReviewResult({ review, id }: { review: ApplicationReviewVM; id: string }) {
+function ReviewResult({ review, id, proposalId }: { review: ApplicationReviewVM; id: string; proposalId: string }) {
   const titleId = `review-result-${id}`;
+  const clear = useQuestClear();
+  const { t } = useSession();
   return (
     <div className="review-result" role="group" aria-labelledby={titleId}>
       <div className="review-result__head">
@@ -46,11 +49,24 @@ function ReviewResult({ review, id }: { review: ApplicationReviewVM; id: string 
           </span>
         </div>
       ) : null}
-      {/* 상품 보상이 걸린 퀘스트에서 수상하면 「〇〇を手に入れた！」(#37) */}
+      {/* 받은 보상(#37 · #47): 상품이면 「〇〇を手に入れた！」, 상금이면 「賞金 …を受け取りました」, 아직 고르지 않았으면 고르는 단추 */}
       {review.rewardItemLabel ? (
         <p className="item-won">
           <span aria-hidden="true">🎁</span> {review.rewardItemLabel}
         </p>
+      ) : null}
+      {review.prizeLabel ? (
+        <p className="item-won">
+          <span aria-hidden="true">💴</span> {review.prizeLabel}
+        </p>
+      ) : null}
+      {review.rewardPending ? (
+        <div className="reward-pending">
+          <p>{t("impact.rewardPending")}</p>
+          <button type="button" className="btn reward-pending__btn" onClick={() => clear?.open(proposalId)} data-testid={`reward-open-${id}`}>
+            🎁 {t("clear.choose")}
+          </button>
+        </div>
       ) : null}
       {review.scores.length > 0 ? (
         <ul className="review-scores">
@@ -227,7 +243,7 @@ export function ImpactScreen() {
                   </div>
                   {app.deadlineLabel ? <p className="applied__meta">{app.deadlineLabel}</p> : null}
                   <SdgMiniRow ids={app.sdgIds} />
-                  {app.review ? <ReviewResult review={app.review} id={app.challengeId} /> : null}
+                  {app.review ? <ReviewResult review={app.review} id={app.challengeId} proposalId={app.proposalId} /> : null}
                   <div className="applied__links">
                     <Link className="link-more" href={challengeHref(app.challengeId)}>
                       {t("impact.viewChallenge")} →

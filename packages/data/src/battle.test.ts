@@ -84,12 +84,34 @@ describe("퀘스트 전투 화면 (#38)", () => {
     expect(ko.fight.lines[0].text).toBe("용사 Mina의 팀이 퀘스트에 도전했다!");
   });
 
-  it("기획서를 내면 HP 0 = 「クエスト達成！」, 기업이 고마워하고, 마감 전이면 다시 낼 수 있어요", () => {
-    const vm = selectBattle(submitAndAward(initial, "ch-plastic", null), "ch-plastic", "ja")!;
-    expect(vm.phase).toBe("cleared");
-    expect(vm.foe).toMatchObject({ hpPercent: 0, defeated: true, hpAria: "プラごみクラゲの のこりHP 0%" });
-    expect(said(vm.intro)).toEqual(["narrator: プラごみクラゲを やっつけた！ クエスト達成！", "client: 企画書をありがとうございます！ 審査の結果を、少しお待ちください。"]);
-    expect(vm.fight).toEqual({ lines: [{ speaker: "narrator", text: "クエスト達成ずみ！ 締切までは 企画書を 出しなおせる。" }], go: "submit" });
+  it("기획서를 내면 큰 데미지(HP 30%) — 기업이 고마워하고, 평가를 받으면 EXP, 마감 전이면 다시 낼 수 있어요 (#47)", () => {
+    const submitted = submitAndAward(initial, "ch-plastic", null);
+    const vm = selectBattle(submitted, "ch-plastic", "ja")!;
+    expect(vm.phase).toBe("challenged");
+    expect(vm.foe).toMatchObject({ hpPercent: 30, defeated: false, hpAria: "プラごみクラゲの のこりHP 30%" });
+    expect(said(vm.intro)).toEqual(["narrator: 勇者Minaの 企画書！ プラごみクラゲに 大ダメージ！", "client: 企画書をありがとうございます！ 審査の結果を、少しお待ちください。"]);
+    expect(vm.fight).toEqual({ lines: [{ speaker: "narrator", text: "企画書で こうげきずみ！ 締切までは 出しなおせる。" }], go: "submit" });
+    // 기업이 평가하면(수상 전) EXP 한 줄
+    const id = submitted.proposals.find((p) => p.mine)!.id;
+    const reviewed = reducer(submitted, { type: "reviewProposal", proposalId: id, review: { creativity: 4, feasibility: 4, sdgContribution: 5, comment: "" }, at: AT });
+    expect(said(selectBattle(reviewed, "ch-plastic", "ja")!.intro)[2]).toBe("narrator: 企業の 評価で EXP +130（SDG 14・12）！ あとは えらばれるのを 待とう。");
+    // 뽑히지 않고 끝나면(접수 끝 · 수상 없음) 몬스터는 달아나고 EXP 는 남아요
+    const ended = { ...reviewed, challenges: reviewed.challenges.map((c) => (c.id === "ch-plastic" ? { ...c, status: "closed" as const } : c)) };
+    const endedVm = selectBattle(ended, "ch-plastic", "ko")!;
+    expect(endedVm.phase).toBe("ended");
+    expect(endedVm.intro.map((line) => line.text)).toEqual(["플라스틱 해파리 퇴각… 이번에는 뽑히지 않았다.", "그래도 경험은 남는다! 기업의 평가로 EXP +130 (SDG 14, 12)"]);
+  });
+
+  it("기업이 고르면(수상) HP 0 = 「クエスト達成！」 — 상금과 상품이 둘 다 걸린 최우수상은 보상을 고르라고 해요 (#47)", () => {
+    const won = submitAndAward(initial, "ch-plastic", "grand");
+    const vm = selectBattle(won, "ch-plastic", "ja")!;
+    expect(vm.phase).toBe("won");
+    expect(vm.foe).toMatchObject({ hpPercent: 0, defeated: true });
+    expect(said(vm.intro).at(-1)).toBe("narrator: 報酬を えらぼう！（マイImpactの カードから）");
+    expect(vm.fight).toEqual({ lines: [{ speaker: "narrator", text: "クエスト達成ずみ！ つぎの クエストを さがそう。" }], go: null });
+    const id = won.proposals.find((p) => p.mine)!.id;
+    const prize = reducer(won, { type: "chooseReward", proposalId: id, reward: "prize" });
+    expect(said(selectBattle(prize, "ch-plastic", "ja")!.intro).at(-1)).toBe("narrator: 賞金 ¥100,000を 手に入れた！");
   });
 
   it("수상하면 그 퀘스트의 SDG 마다 스킬을 얻어요 — 이미 있는 SDG 는 레벨 업 · 상품 보상도 「手に入れた！」", () => {

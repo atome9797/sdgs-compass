@@ -184,7 +184,8 @@ describe("신청 요약 한 장", () => {
     expect(vm.shareText).toContain(vm.rangeLabel);
     expect(vm.shareText).toContain("参加 1件・企画書の提出 1件・受賞 1件・関連するSDGs 2目標");
     expect(vm.shareText).not.toContain(" pt");
-    expect(vm.shareText).toContain("受賞（");
+    // 수상은 「クエスト達成」 + 상 이름(#47)
+    expect(vm.shareText).toContain("クエスト達成（優秀賞）");
     for (const c of vm.certificates) expect(vm.shareText).toContain(c.id);
     expect(vm.shareText.trim().endsWith(translate("summary.note.sample", "ja"))).toBe(true);
   });

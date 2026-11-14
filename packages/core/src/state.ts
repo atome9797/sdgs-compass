@@ -3,7 +3,7 @@
 import { showableActivities } from "./activities";
 import { buildChallenge, validateChallengeDraft, type ChallengeDraft } from "./challenge";
 import { clampCertValue } from "./certification";
-import type { AwardKind, BragPost, CertCriterionId, DemoState, Match, PrPost, Proposal, RaterRole, Review, Role, Scout, ScoutKind, SkillId, TeamPost } from "./domain";
+import type { AwardKind, BragPost, CertCriterionId, DemoState, Match, PrPost, Proposal, QuestReward, RaterRole, Review, Role, Scout, ScoutKind, SkillId, TeamPost } from "./domain";
 import { addDays, daysBetween } from "./format";
 import { applyWorkRequest, chooseWorkApplicant, completeWork, deliverWork, postWorkRequest, rate, respondWorkRequest, type RatingDraft, type WorkDraft } from "./network";
 import { authorRole, DEFAULT_OFFICIAL_CHANNEL, OFFICIAL_SHARE_FEE_YEN, POST_LIMITS, postContext, resolveOfficialDate, uniqueSdgs, validatePostDraft, type PostDraft } from "./post";
@@ -12,7 +12,7 @@ import { canSendScout } from "./scout";
 import { isOpenFor } from "./recommend";
 import { acceptResearchRequest, completeResearchRequest, postResearchRequest, submitResearchResult, type ResearchDraft, type ResearchResultDraft } from "./research";
 import { syncSkills } from "./skills";
-import { payPrize, promisePrize } from "./wallet";
+import { holdPrize, payPrize, promisePrize, releasePrize, rewardOptionsFor, settlePrizeChoice } from "./wallet";
 
 export type Action =
   | { type: "hydrate"; state: DemoState }
@@ -24,6 +24,10 @@ export type Action =
   | { type: "createChallenge"; draft: ChallengeDraft }
   | { type: "reviewProposal"; proposalId: string; review: Omit<Review, "reviewedAt">; at: string }
   | { type: "awardProposal"; proposalId: string; award: AwardKind }
+  /** #47 학생이 퀘스트 달성 연출을 봤어요(다음부터 저절로 뜨지 않아요) */
+  | { type: "celebrateQuest"; proposalId: string }
+  /** #47 학생이 퀘스트 달성의 보상을 받아요(상금과 상품이 둘 다 걸린 최우수상이면 하나를 골라요 — 한 번 고르면 바꿀 수 없어요) */
+  | { type: "chooseReward"; proposalId: string; reward: QuestReward }
   | { type: "adoptProposal"; proposalId: string; at: string }
   | { type: "sendScout"; candidateId: string; kind: ScoutKind; message: string; at: string }
   | { type: "respondScout"; scoutId: string; response: "accepted" | "declined" }
@@ -176,10 +180,30 @@ export function reducer(state: DemoState, action: Action): DemoState {
     case "awardProposal": {
       const proposal = state.proposals.find((p) => p.id === action.proposalId);
       if (!proposal || proposal.status === "adopted") return state;
+      const challenge = state.challenges.find((c) => c.id === proposal.challengeId);
       const awarded = { ...state, proposals: state.proposals.map((p) => (p.id === proposal.id ? { ...p, award: action.award, status: "awarded" as const } : p)) };
-      // 최우수상이면 걸어 둔 상금을 기업이 수상 팀에 직접 지급한 것으로 기록해요 (데모 — 수수료는 fees.ts 가 지급 기록에서 계산해요)
-      // 내 기획서의 수상이면 그 퀘스트의 SDG 번호가 붙은 스킬을 하나 얻어요(#38 — 레벨 대신)
-      return syncSkills(payPrize(awarded, proposal, action.award));
+      // 내 기획서의 수상이면 그 퀘스트의 SDG 마다 스킬을 얻어요(#38 · #45 — syncSkills)
+      // #47 상금과 상품이 둘 다 걸린 퀘스트의 최우수상(내 기획서)이면 학생이 고를 때까지 상금을 미뤄요(「受賞者が選択中」)
+      if (proposal.mine && challenge && rewardOptionsFor(challenge, action.award).length > 1) return syncSkills(holdPrize(awarded, proposal));
+      // 그 밖의 최우수상은 걸어 둔 상금을 기업이 수상 팀에 직접 지급한 것으로 기록해요 (데모 — 수수료는 fees.ts 가 지급 기록에서 계산해요)
+      return syncSkills(payPrize(releasePrize(awarded, proposal), proposal, action.award));
+    }
+
+    case "celebrateQuest": {
+      const proposal = state.proposals.find((p) => p.id === action.proposalId && p.mine && p.award);
+      if (!proposal || proposal.celebrated) return state;
+      return { ...state, proposals: state.proposals.map((p) => (p.id === proposal.id ? { ...p, celebrated: true } : p)) };
+    }
+
+    case "chooseReward": {
+      const proposal = state.proposals.find((p) => p.id === action.proposalId && p.mine);
+      const challenge = proposal ? state.challenges.find((c) => c.id === proposal.challengeId) : undefined;
+      if (!proposal?.award || proposal.rewardChoice || !challenge) return state;
+      const options = rewardOptionsFor(challenge, proposal.award);
+      if (!options.includes(action.reward)) return state;
+      const chosen = { ...state, proposals: state.proposals.map((p) => (p.id === proposal.id ? { ...p, rewardChoice: action.reward, celebrated: true } : p)) };
+      // 둘 중에서 골랐으면 상금을 정산해요(상금 → 지급 · 받은 상금에 한 줄 / 상품 → 상금은 지급하지 않음). 하나뿐이면 수상 때 이미 끝났어요
+      return options.length > 1 ? settlePrizeChoice(chosen, proposal, action.reward) : chosen;
     }
 
     case "adoptProposal": {

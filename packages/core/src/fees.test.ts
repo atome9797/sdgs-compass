@@ -50,6 +50,23 @@ describe("수수료의 근거가 된 거래 (지급한 상금 + 완료한 연구
     expect(feeItems(state).length).toBe(2);
     expect(feeItems(state, "co2")).toEqual([]);
   });
+
+  it("상금 대신 상품을 고른 최우수상(#51): 상금액으로 수수료, 직접 간 돈의 합에는 넣지 않아요", () => {
+    const withItem = {
+      ...state,
+      prizePayments: [
+        ...state.prizePayments,
+        { challengeId: "chD", companyId: "co1", amountYen: 150_000, status: "itemChosen" as const, promisedOn: "2026-09-10", paidOn: "2026-10-25", proposalId: null },
+      ],
+    };
+    const items = feeItems(withItem, "co1");
+    expect(items.map((i) => [i.id, i.kind, i.baseYen, i.feeYen, i.date])).toEqual([
+      ["prize:chD", "prizeItem", 150_000, 15_000, "2026-10-25"],
+      ["research:rr1", "research", 80_000, 9_000, "2026-10-15"],
+      ["prize:chA", "prize", 100_000, 10_000, "2026-10-01"],
+    ]);
+    expect(summarizeFees(items)).toEqual({ count: 3, baseYen: 180_000, feeYen: 34_000 });
+  });
 });
 
 describe("(레거시) 이전 채택 수수료 — DB 대조용", () => {

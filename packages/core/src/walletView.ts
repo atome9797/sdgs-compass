@@ -101,7 +101,7 @@ export interface PrizeRowVM {
   feeLabel: string;
   status: PrizePaymentStatus;
   statusLabel: string;
-  /** 상금을 건 날, 또는 지급한 날 */
+  /** 상금을 건 날, 또는 지급한 날 · 상품을 고른 날 */
   dateLabel: string;
 }
 
@@ -130,8 +130,8 @@ export function selectPrizePayments(state: DemoState, locale: Locale): PrizePaym
           challengeId: p.challengeId,
           title: challenge ? pick(challenge.title, locale) : p.challengeId,
           amountLabel: formatYen(p.amountYen, locale),
-          // 상금을 지급하지 않는 경우(최우수상 없음 · 상품을 고름, #47)는 수수료도 없어요
-          feeLabel: p.status === "noWinner" || p.status === "itemChosen" ? "—" : formatYen(platformFeeFor(p.amountYen), locale),
+          // 최우수상 없이 끝나면 수수료도 없어요. 상품을 골라도(#47) 상금액의 수수료는 같아요(#51)
+          feeLabel: p.status === "noWinner" ? "—" : formatYen(platformFeeFor(p.amountYen), locale),
           status: p.status,
           statusLabel: prizeStatusLabel(p.status, locale),
           dateLabel: formatDate(p.paidOn ?? p.promisedOn, locale),

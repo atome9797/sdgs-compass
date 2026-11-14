@@ -1133,7 +1133,8 @@ export function selectFees(state: DemoState, locale: Locale): FeeVM {
       kindLabel: translate(`fee.kind.${item.kind}`, locale),
       title: pick(item.title, locale),
       dateLabel: formatDate(item.date, locale),
-      baseLabel: formatYen(item.baseYen, locale),
+      // 상품을 고른 최우수상(#51)은 상금을 지급하지 않아서 「상금 ¥… 대신 상품」 — 수수료는 그 상금액으로
+      baseLabel: item.kind === "prizeItem" ? translate("fee.baseItem", locale, { amount: formatYen(item.baseYen, locale) }) : formatYen(item.baseYen, locale),
       feeLabel: formatYen(item.feeYen, locale),
     })),
     note: translate("fee.note", locale),

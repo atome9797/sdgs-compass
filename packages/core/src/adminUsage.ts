@@ -148,10 +148,12 @@ export interface UsageTotals {
   scoutsByStatus: Record<ScoutStatus, number>;
   /** 채택(인턴 참가 결정) 수 — 무료 */
   matches: number;
-  /** 운영 수수료의 합: 지급한 상금 + 완료한 연구 의뢰의 10%(최저 ¥9,000) (fees.ts) */
+  /** 운영 수수료의 합: 지급한 상금 · 상품을 고른 최우수상의 상금액(#51) · 완료한 연구 의뢰의 10%(최저 ¥9,000) (fees.ts) */
   feeYen: number;
   /** 수수료의 근거가 된 상금·연구 의뢰비의 합 (기업이 학생·연구자에게 직접 지급) */
   feeBaseYen: number;
+  /** 상금 대신 상품을 고른 최우수상의 상금액 합(#51): 지급하지 않았지만 수수료는 이 금액으로 받아요 */
+  feeItemPrizeYen: number;
   teamPosts: number;
   posts: number;
   bragPosts: number;
@@ -178,7 +180,8 @@ function countOfficialByChannel(prPosts: readonly PrPost[]): Record<OfficialChan
 
 export function summarizeTotals(state: DemoState): UsageTotals {
   const students = [state.me, ...state.talent];
-  const fees = summarizeFees(feeItems(state));
+  const feeRecords = feeItems(state);
+  const fees = summarizeFees(feeRecords);
   const challengesByStatus: Record<ChallengeStatus, number> = { open: 0, judging: 0, closed: 0 };
   for (const challenge of state.challenges) challengesByStatus[challenge.status] += 1;
   const proposalsByStatus: Record<ProposalStatus, number> = { submitted: 0, reviewed: 0, awarded: 0, adopted: 0 };
@@ -204,6 +207,7 @@ export function summarizeTotals(state: DemoState): UsageTotals {
     matches: state.matches.length,
     feeYen: fees.feeYen,
     feeBaseYen: fees.baseYen,
+    feeItemPrizeYen: feeRecords.reduce((sum, item) => sum + (item.kind === "prizeItem" ? item.baseYen : 0), 0),
     teamPosts: state.teamPosts.length,
     posts: state.posts.length,
     bragPosts,
@@ -310,7 +314,16 @@ export function usageCurrentInsights(summary: UsageSummary, locale: Locale): str
     lines.push(translate("admin.usage.insight.feed", locale, { posts: totals.posts, brag: totals.bragPosts, pr: totals.prPosts, likes: totals.likes }));
   }
   if (totals.matches > 0) lines.push(translate("admin.usage.insight.matches", locale, { matches: totals.matches }));
-  if (totals.feeYen > 0) lines.push(translate("admin.usage.insight.fees", locale, { fee: formatYen(totals.feeYen, locale), base: formatYen(totals.feeBaseYen, locale) }));
+  if (totals.feeYen > 0) {
+    const fee = formatYen(totals.feeYen, locale);
+    const base = formatYen(totals.feeBaseYen, locale);
+    // 상품을 고른 최우수상이 있으면 그 상금액도 수수료의 근거라고 함께 말해요(#51)
+    lines.push(
+      totals.feeItemPrizeYen > 0
+        ? translate("admin.usage.insight.feesWithItems", locale, { fee, base, item: formatYen(totals.feeItemPrizeYen, locale) })
+        : translate("admin.usage.insight.fees", locale, { fee, base }),
+    );
+  }
   if (totals.scouts > 0) {
     lines.push(translate("admin.usage.insight.scouts", locale, { total: totals.scouts, accepted: totals.scoutsByStatus.accepted, read: totals.scoutsByStatus.read }));
   }

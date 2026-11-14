@@ -2,6 +2,7 @@
 import { describe, expect, it } from "vitest";
 import type { DemoState } from "@sdgs-compass/core/domain";
 import { feeItems, summarizeFees } from "@sdgs-compass/core/fees";
+import { selectFees } from "@sdgs-compass/core/selectors";
 import { pendingCelebration, selectQuestClear } from "@sdgs-compass/core/questClear";
 import type { ProposalDraft } from "@sdgs-compass/core/proposal";
 import { reducer, type Action } from "@sdgs-compass/core/state";
@@ -53,15 +54,35 @@ describe("보상(#47): 상금은 최우수상만, 상품은 어느 상이든 —
     expect(rewardPending(prize, mine(prize))).toBe(false);
   });
 
-  it("상품을 고르면 상금은 지급하지 않아요(「商品を選択（賞金なし）」 · 수수료도 없어요)", () => {
+  it("상품을 고르면 상금은 지급하지 않지만(「商品を選択（賞金なし）」), 상금액의 수수료는 상금을 고를 때와 같아요(#51)", () => {
     const item = run(grand, { type: "chooseReward", proposalId: mineId, reward: "item" });
+    const prize = run(grand, { type: "chooseReward", proposalId: mineId, reward: "prize" });
     expect(mine(item).rewardChoice).toBe("item");
-    expect(payment(item)).toMatchObject({ status: "itemChosen", paidOn: null });
+    expect(payment(item)).toMatchObject({ status: "itemChosen", paidOn: TODAY });
     expect(item.wallet.entries).toEqual(grand.wallet.entries);
-    expect(fees(item)).toBe(fees(grand));
+    // 수수료: 상금 ¥100,000 의 10% = ¥10,000 — 어느 보상을 골라도 같아요
+    expect(fees(item) - fees(grand)).toBe(10_000);
+    expect(fees(item)).toBe(fees(prize));
+    expect(feeItems(item).find((i) => i.id === "prize:ch-plastic")).toMatchObject({ kind: "prizeItem", baseYen: 100_000, feeYen: 10_000, date: TODAY });
+    // 학생에게 직접 간 돈의 합에는 넣지 않아요(상금을 지급하지 않았으니까)
+    expect(summarizeFees(feeItems(item)).baseYen).toBe(summarizeFees(feeItems(grand)).baseYen);
+    expect(summarizeFees(feeItems(prize)).baseYen - summarizeFees(feeItems(grand)).baseYen).toBe(100_000);
     const row = selectPrizePayments(item, "ko").rows.find((r) => r.challengeId === "ch-plastic")!;
-    expect([row.statusLabel, row.feeLabel]).toEqual(["상품 선택(상금 없음)", "—"]);
-    expect(prizeNotice(item, "ch-plastic", "ja")?.text).toBe("最優秀賞の「Mina & Rin」は商品を選びました。賞金 ¥100,000 の支払いと手数料はありません。商品をお届けください。");
+    expect([row.statusLabel, row.feeLabel]).toEqual(["상품 선택(상금 없음)", "10,000엔"]);
+    expect(prizeNotice(item, "ch-plastic", "ja")?.text).toBe(
+      "最優秀賞の「Mina & Rin」は商品を選びました。賞金 ¥100,000 のお支払いはありません。商品をお届けください。手数料 ¥10,000（賞金額で計算）は当社から別にご請求します。",
+    );
+    expect(prizeNotice(grand, "ch-plastic", "ko")?.text).toContain("수수료 10,000엔은 어느 쪽이든 같고");
+  });
+
+  it("기업의 수수료 표: 상품을 고른 최우수상은 「賞金（商品を選択）」 · 「賞金 ¥100,000 の代わりに商品」 · 手数料 ¥10,000(#51)", () => {
+    const item = run(grand, { type: "chooseReward", proposalId: mineId, reward: "item" });
+    const owner = { ...item, myCompanyId: payment(item).companyId };
+    const vm = selectFees(owner, "ja");
+    expect(vm.rows.find((r) => r.id === "prize:ch-plastic")).toMatchObject({ kind: "prizeItem", kindLabel: "賞金（商品を選択）", baseLabel: "賞金 ¥100,000 の代わりに商品", feeLabel: "¥10,000" });
+    const before = selectFees({ ...grand, myCompanyId: payment(grand).companyId }, "ja");
+    expect([vm.totals.count, vm.totals.base]).toEqual([before.totals.count + 1, before.totals.base]);
+    expect(selectFees(owner, "ko").rows.find((r) => r.id === "prize:ch-plastic")).toMatchObject({ kindLabel: "상금(상품 선택)", baseLabel: "상금 100,000엔 대신 상품" });
   });
 
   it("한 번 고르면 바꿀 수 없고, 받을 수 없는 보상은 고를 수 없어요", () => {
@@ -86,6 +107,15 @@ describe("보상(#47): 상금은 최우수상만, 상품은 어느 상이든 —
       expect(isDemoState(JSON.parse(serializeState(state)))).toBe(true);
       expect(parseState(serializeState(state))?.prizePayments).toEqual(state.prizePayments);
     }
+  });
+
+  it("#51 전에 저장한 상품 선택(고른 날 없음)도 열리고, 수수료의 날짜는 상금을 건 날이에요 · 지급 전 상태에 날짜가 있으면 깨진 데이터", () => {
+    const item = run(grand, { type: "chooseReward", proposalId: mineId, reward: "item" });
+    const old = { ...item, prizePayments: item.prizePayments.map((p) => (p.status === "itemChosen" ? { ...p, paidOn: null } : p)) };
+    expect(isDemoState(JSON.parse(serializeState(old)))).toBe(true);
+    expect(feeItems(old).find((i) => i.id === "prize:ch-plastic")).toMatchObject({ kind: "prizeItem", feeYen: 10_000, date: payment(old).promisedOn });
+    const broken = { ...grand, prizePayments: grand.prizePayments.map((p) => (p.status === "choosing" ? { ...p, paidOn: TODAY } : p)) };
+    expect(isDemoState(JSON.parse(serializeState(broken)))).toBe(false);
   });
 });
 

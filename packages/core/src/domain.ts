@@ -377,7 +377,8 @@ export interface Wallet {
  */
 /**
  * 상금의 상태: promised(표창 전) → paid(지급) / noWinner(최우수상 없음).
- * #47 상금과 상품이 둘 다 걸린 퀘스트는 최우수상이 정해지면 choosing(수상 팀이 고르는 중) → paid(상금을 고름) / itemChosen(상품을 고름 — 상금은 지급하지 않아요)
+ * #47 상금과 상품이 둘 다 걸린 퀘스트는 최우수상이 정해지면 choosing(수상 팀이 고르는 중) → paid(상금을 고름) / itemChosen(상품을 고름 — 상금은 지급하지 않아요).
+ * 상품을 골라도 상금액의 수수료는 받아요(#51 — fees.ts 의 prizeItem).
  */
 export type PrizePaymentStatus = "promised" | "choosing" | "paid" | "itemChosen" | "noWinner";
 export interface PrizePayment {
@@ -387,7 +388,7 @@ export interface PrizePayment {
   status: PrizePaymentStatus;
   /** 상금을 건 날(과제를 낸 날) */
   promisedOn: string;
-  /** 지급한 날 (paid 일 때만) */
+  /** 정산한 날: 상금을 지급한 날(paid) · 수상 팀이 상품을 고른 날(itemChosen, 수수료의 날짜 — #51 전의 기록은 null). 그 밖은 null */
   paidOn: string | null;
   /** 상금을 받은 기획서 (paid 일 때만, 데모 밖의 샘플 팀이면 null) */
   proposalId: string | null;

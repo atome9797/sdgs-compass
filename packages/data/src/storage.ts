@@ -191,12 +191,14 @@ function isWallet(value: unknown): boolean {
   return isObject(value) && Array.isArray(value.entries) && value.entries.every(isWalletEntry);
 }
 
-/** 과제의 상금 지급: 지급일은 지급했을 때(paid)만 */
+/** 과제의 상금 지급: 정산한 날은 지급했을 때(paid)는 꼭, 상품을 골랐을 때(itemChosen)는 있을 수도(#51 전의 기록은 없어요), 그 밖은 없어요 */
 function isPrizePayment(value: unknown): boolean {
   return (
     isObject(value) && typeof value.challengeId === "string" && typeof value.companyId === "string" && isYen(value.amountYen) &&
     (value.status === "promised" || value.status === "choosing" || value.status === "paid" || value.status === "itemChosen" || value.status === "noWinner") && isDay(value.promisedOn) &&
-    (value.paidOn === null || isDay(value.paidOn)) && (value.status === "paid") === (value.paidOn !== null) && (value.proposalId === null || typeof value.proposalId === "string")
+    (value.paidOn === null || isDay(value.paidOn)) &&
+    (value.status === "paid" ? value.paidOn !== null : value.status === "itemChosen" || value.paidOn === null) &&
+    (value.proposalId === null || typeof value.proposalId === "string")
   );
 }
 

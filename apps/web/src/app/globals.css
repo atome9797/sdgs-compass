@@ -503,6 +503,8 @@ svg { display: block; }
   .table--stack td::before { content: attr(data-label); flex: none; font-size: var(--fs-xs); font-weight: 800; color: var(--text-muted); text-align: left; }
   .table--stack td:first-child { display: block; padding-bottom: 6px; font-weight: 800; text-align: left; }
   .table--stack td:first-child::before { content: none; }
+  /* 카드 모양에서는 금액 칸도 줄바꿈해요 — 「상금 100,000엔 대신 상품」(#51)처럼 긴 값이 320px 에서 잘리지 않게(숫자 자체는 끊기지 않아요) */
+  .table--stack td.num { white-space: normal; }
 }
 
 .applicant { display: flex; flex-direction: column; gap: 10px; padding: 14px; }

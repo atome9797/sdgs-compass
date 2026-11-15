@@ -170,7 +170,8 @@ function buildChallenges(today: string): Challenge[] {
       skills: ["design", "research", "planning"],
       prizeYen: 100_000,
       rewards: ["prize", "internship"],
-      // 상품 보상(報酬アイテム, #37) — 가상의 상품 · 정가 상당액
+      // 상품 보상(報酬アイテム) — 가상의 상품 · 정가 상당액: 최우수상이 상금 대신 고를 수 있는 상품(상금과 같은 값, #53) · 우수상 · 특별상의 부상(#37)
+      prizeItem: { name: { ja: "みなとの海の幸 1年分の定期便（12回）", ko: "미나토 해산물 1년 정기 배송(12회)" }, retailYen: 100_000 },
       rewardItem: { name: { ja: "みなとの干物ギフトセット", ko: "미나토 건어물 선물 세트" }, retailYen: 5_000 },
       participation: "team",
       impactPoints: 120,
@@ -240,7 +241,8 @@ function buildChallenges(today: string): Challenge[] {
       skills: ["planning", "video", "writing"],
       prizeYen: 150_000,
       rewards: ["prize"],
-      // 상품 보상(報酬アイテム, #37) — 가상의 상품 · 정가 상당액
+      // 상품 보상(報酬アイテム) — 가상의 상품 · 정가 상당액: 상금 대신(#53) · 부상(#37)
+      prizeItem: { name: { ja: "ポータブル電源とソーラーパネル（チーム全員分・5セット）", ko: "휴대용 전원과 태양광 패널(팀 전원분 · 5세트)" }, retailYen: 150_000 },
       rewardItem: { name: { ja: "ソーラーパネルつきポータブル電源", ko: "태양광 패널 포함 휴대용 전원" }, retailYen: 30_000 },
       participation: "team",
       impactPoints: 140,
@@ -304,7 +306,8 @@ function buildChallenges(today: string): Challenge[] {
       skills: ["design", "marketing"],
       prizeYen: 60_000,
       rewards: ["prize"],
-      // 상품 보상(報酬アイテム, #37) — 가상의 상품 · 정가 상당액
+      // 상품 보상(報酬アイテム) — 가상의 상품 · 정가 상당액: 상금 대신(#53) · 부상(#37)
+      prizeItem: { name: { ja: "規格外野菜の定期便（1年分）と農園の収穫体験（チーム全員）", ko: "규격 외 채소 정기 배송(1년분)과 농장 수확 체험(팀 전원)" }, retailYen: 60_000 },
       rewardItem: { name: { ja: "規格外野菜の定期便（3か月分）", ko: "규격 외 채소 정기 배송(3개월분)" }, retailYen: 9_000 },
       participation: "team",
       impactPoints: 100,
@@ -368,7 +371,8 @@ function buildChallenges(today: string): Challenge[] {
       skills: ["marketing", "programming"],
       prizeYen: 70_000,
       rewards: ["prize"],
-      // 상품 보상(報酬アイテム, #37) — 가상의 상품 · 정가 상당액
+      // 상품 보상(報酬アイテム) — 가상의 상품 · 정가 상당액: 상금 대신(#53) · 부상(#37)
+      prizeItem: { name: { ja: "釣り船の貸し切りクルーズ（チーム全員・1日）", ko: "낚싯배 전세 크루즈(팀 전원 · 하루)" }, retailYen: 70_000 },
       rewardItem: { name: { ja: "釣り船の乗船券（チーム全員分）", ko: "낚싯배 승선권(팀 전원)" }, retailYen: 20_000 },
       participation: "team",
       impactPoints: 100,

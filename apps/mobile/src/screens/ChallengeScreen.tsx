@@ -245,14 +245,27 @@ function ChallengeView({ id }: { id: string }) {
               <Fact label={t("challenge.rewards")} value={card.rewardLabels.join(" / ") || t("common.none")} />
               <Fact label={t("challenge.impact")} value={card.impactLabel} />
             </View>
-            {card.rewardItemLabel ? (
-              <View style={styles.itemBox} testID="challenge-reward-item" accessible accessibilityLabel={`${t("challenge.rewardItem")}: ${card.rewardItemLabel}. ${t("challenge.rewardItemNote", { company: vm.company.name })}`}>
+            {card.rewardItems.length > 0 ? (
+              <View
+                style={styles.itemBox}
+                testID="challenge-reward-item"
+                accessible
+                accessibilityLabel={`${t("challenge.rewardItem")}: ${card.rewardItems.map((item) => `${item.forLabel} ${item.label}`).join(". ")}. ${t("challenge.rewardItemNote", { company: vm.company.name })}`}
+              >
                 <Txt style={styles.itemIcon}>🎁</Txt>
                 <View style={styles.itemMain}>
                   <Txt variant="small" bold tone="warning">
                     {t("challenge.rewardItem")}
                   </Txt>
-                  <Txt bold>{card.rewardItemLabel}</Txt>
+                  {/* 상품은 상에 따라(#53): 최우수상이 상금 대신 고를 수 있는 상품 → 우수상 · 특별상의 부상 */}
+                  {card.rewardItems.map((item) => (
+                    <View key={item.forLabel}>
+                      <Txt variant="small" tone="muted" bold>
+                        {item.forLabel}
+                      </Txt>
+                      <Txt bold>{item.label}</Txt>
+                    </View>
+                  ))}
                   <Txt variant="small" tone="muted">
                     {t("challenge.rewardItemNote", { company: vm.company.name })}
                   </Txt>

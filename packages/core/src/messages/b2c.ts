@@ -40,6 +40,14 @@ export const b2c = {
   // 상품 보상(報酬アイテム, #37): 기업이 고른 팀에게 직접 건네는 자사 상품 · 서비스 — 카드의 태그 · 상세의 한 줄 · 안내
   "challenge.rewardItem": { ja: "報酬アイテム", ko: "보상 아이템" },
   "challenge.rewardItemValue": { ja: "{name}（定価 {amount} 相当）", ko: "{name}(정가 {amount} 상당)" },
+  // #53 상품은 두 가지: 최우수상이 상금 대신 고를 수 있는 상품(상금에 맞먹는 것) · 우수상 · 특별상의 부상
+  "challenge.rewardItemFor.grandChoice": { ja: "最優秀賞（賞金の代わりに選べます）", ko: "최우수상(상금 대신 고를 수 있어요)" },
+  "challenge.rewardItemFor.grand": { ja: "最優秀賞", ko: "최우수상" },
+  "challenge.rewardItemFor.others": { ja: "優秀賞・特別賞", ko: "우수상 · 특별상" },
+  "challenge.rewardItemFor.all": { ja: "受賞チーム", ko: "수상 팀" },
+  "challenge.prizeOrItem": { ja: "賞金 {amount} か 🎁 {item}", ko: "상금 {amount} 또는 🎁 {item}" },
+  "challenge.grandItem": { ja: "🎁 {item}（最優秀賞）", ko: "🎁 {item}(최우수상)" },
+  "challenge.minorItem": { ja: "🎁 {item}（優秀賞・特別賞）", ko: "🎁 {item}(우수상 · 특별상)" },
   "challenge.rewardItemNote": {
     ja: "選ばれたチームに、{company}から直接届きます。SNSで紹介するときは、カードに「提供」の表示が入ります。",
     ko: "선택된 팀에게 {company}에서 직접 보내요. SNS에 소개할 때는 카드에 「제공」 표시가 들어가요.",

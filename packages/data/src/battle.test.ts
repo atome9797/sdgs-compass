@@ -112,6 +112,9 @@ describe("퀘스트 전투 화면 (#38)", () => {
     const id = won.proposals.find((p) => p.mine)!.id;
     const prize = reducer(won, { type: "chooseReward", proposalId: id, reward: "prize" });
     expect(said(selectBattle(prize, "ch-plastic", "ja")!.intro).at(-1)).toBe("narrator: 賞金 ¥100,000を 手に入れた！");
+    // 상금 대신 상품을 고르면 상금에 맞먹는 상품(#53) — 우수상 · 특별상의 부상이 아니에요
+    const item = reducer(won, { type: "chooseReward", proposalId: id, reward: "item" });
+    expect(said(selectBattle(item, "ch-plastic", "ja")!.intro).at(-1)).toBe("narrator: 報酬アイテム「みなとの海の幸 1年分の定期便（12回）」を 手に入れた！");
   });
 
   it("수상하면 그 퀘스트의 SDG 마다 스킬을 얻어요 — 이미 있는 SDG 는 레벨 업 · 상품 보상도 「手に入れた！」", () => {
@@ -209,7 +212,9 @@ describe("「しらべる」 — 의뢰한 기업에게 선택지로 묻기 (#41
       `client: お礼として、${card.rewardsLine} をご用意しています。`,
     ]);
     const ko = selectBattle(initial, "ch-plastic", "ko")!;
-    expect(said(topic(ko, "reward").lines)[1]).toBe("client: 사례로 드릴 것: 상금 100,000엔 / 🎁 미나토 건어물 선물 세트 / 인턴십");
+    expect(said(topic(ko, "reward").lines)[1]).toBe(
+      "client: 사례로 드릴 것: 상금 100,000엔 또는 🎁 미나토 해산물 1년 정기 배송(12회) / 🎁 미나토 건어물 선물 세트(우수상 · 특별상) / 인턴십",
+    );
   });
 });
 
@@ -236,12 +241,12 @@ describe("퀘스트 의뢰서 (#39 · #41) — 목록 카드의 과제 · 몬스
     expect(oldCard.problem).toBe(pick(old.summary, "ja"));
   });
 
-  it("보상 한 줄: 상금 → 상품 → 그 밖의 특전, 의뢰 창의 보상 줄과 같아요", () => {
+  it("보상 한 줄: 최우수상(상금 또는 상금에 맞먹는 상품) → 우수상 · 특별상의 부상 → 그 밖의 특전, 의뢰 창의 보상 줄과 같아요(#53)", () => {
     const card = selectHome(initial, "ja").recommended.find((c) => c.id === "ch-plastic")!;
-    expect(card.rewardsLine).toBe("賞金 ¥100,000 ／ 🎁 みなとの干物ギフトセット ／ インターン");
+    expect(card.rewardsLine).toBe("賞金 ¥100,000 か 🎁 みなとの海の幸 1年分の定期便（12回） ／ 🎁 みなとの干物ギフトセット（優秀賞・特別賞） ／ インターン");
     const plea = selectHome(initial, "ja").plea!;
     expect(plea.rewards).toBe(`報酬：${card.rewardsLine}`);
     const ko = selectHome(initial, "ko").recommended.find((c) => c.id === "ch-plastic")!;
-    expect(ko.rewardsLine).toBe("상금 100,000엔 / 🎁 미나토 건어물 선물 세트 / 인턴십");
+    expect(ko.rewardsLine).toBe("상금 100,000엔 또는 🎁 미나토 해산물 1년 정기 배송(12회) / 🎁 미나토 건어물 선물 세트(우수상 · 특별상) / 인턴십");
   });
 });

@@ -29,7 +29,7 @@ import { remainingScouts, SCOUT_DAILY_LIMIT, alreadyScouted, canSendScout } from
 import { buildShareCard, type CardTemplate, type ShareCard } from "./shareCard";
 import { AWARD_STARS, sdgSkills, skillLevel, skillSdgIds, sortSkills } from "./skills";
 import { computeSdgExp, reviewExp, statusLevel, statusLevelUps, topStatusSdgs } from "./status";
-import { rewardChosen, rewardPending } from "./wallet";
+import { rewardChosen, rewardItemFor, rewardPending } from "./wallet";
 import { getSdg, sdgTextColor, SDG_IDS, SDGS, type SdgId } from "./sdg";
 import { COLORS } from "./theme";
 
@@ -173,8 +173,11 @@ export interface ChallengeCardVM {
   isOpen: boolean;
   prizeLabel: string | null;
   rewardLabels: string[];
-  /** 「海の幸ギフトセット（定価 ¥5,000 相当）」 — 상품 보상(報酬アイテム, #37)이 걸린 퀘스트만 (없으면 null) */
-  rewardItemLabel: string | null;
+  /**
+   * 상품 보상(報酬アイテム, #37 · #53): 최우수상이 상금 대신 고를 수 있는 상품 → 우수상 · 특별상의 부상 순.
+   * forLabel = 받는 상(「最優秀賞（賞金の代わりに選べます）」), label = 「みなとの干物ギフトセット（定価 ¥5,000 相当）」. 없으면 빈 배열
+   */
+  rewardItems: { forLabel: string; label: string }[];
   participationLabel: string;
   /** 「3〜5人チーム」 — 응모는 한 팀 3~5명(대학생 · 대학원생) */
   teamRuleLabel: string;
@@ -194,18 +197,45 @@ export interface ChallengeCardVM {
   foe: { name: string; kind: FoeKind; color: string; about: string | null };
   /** 의뢰서의 「課題」(#41): 과제를 쉬운 말로 — 몬스터의 정체, 없으면 퀘스트의 요약 */
   problem: string;
-  /** 의뢰서의 「報酬」 한 줄: 「賞金 ¥100,000 ／ 🎁 みなとの干物ギフトセット ／ インターン」 (없으면 null) */
+  /** 의뢰서의 「報酬」 한 줄: 「賞金 ¥100,000 か 🎁 みなとの海の幸… ／ 🎁 みなとの干物ギフトセット（優秀賞・特別賞） ／ インターン」 (없으면 null) */
   rewardsLine: string | null;
 }
 
-/** 보상을 한 줄로: 상금 → 상품(🎁) → 그 밖의 특전 (의뢰 창 · 의뢰서 · 퀘스트 상세의 대화가 같이 써요) */
+/** 최우수상의 보상이 있나요(상금 또는 상금 대신 고를 수 있는 상품) — 있으면 부상(rewardItem)은 우수상 · 특별상의 것(#53) */
+const hasGrandReward = (challenge: Challenge): boolean => challenge.prizeYen > 0 || challenge.prizeItem !== undefined;
+
+/**
+ * 보상을 한 줄로: 최우수상(상금 · 상금 대신 고를 수 있는 상품) → 우수상 · 특별상의 부상(🎁) → 그 밖의 특전
+ * (의뢰 창 · 의뢰서 · 퀘스트 상세의 대화가 같이 써요)
+ */
 export function rewardsLineOf(challenge: Challenge, locale: Locale): string | null {
-  const parts = [
-    challenge.prizeYen > 0 ? `${rewardLabel("prize", locale)} ${formatYen(challenge.prizeYen, locale)}` : null,
-    challenge.rewardItem ? `🎁 ${pick(challenge.rewardItem.name, locale)}` : null,
-    ...challenge.rewards.filter((r) => r !== "prize").map((r) => rewardLabel(r, locale)),
-  ].filter((part): part is string => part !== null);
+  const amount = formatYen(challenge.prizeYen, locale);
+  const grandItem = challenge.prizeItem ? pick(challenge.prizeItem.name, locale) : null;
+  const grand =
+    challenge.prizeYen > 0
+      ? grandItem
+        ? translate("challenge.prizeOrItem", locale, { amount, item: grandItem })
+        : `${rewardLabel("prize", locale)} ${amount}`
+      : grandItem
+        ? translate("challenge.grandItem", locale, { item: grandItem })
+        : null;
+  const minor = challenge.rewardItem
+    ? hasGrandReward(challenge)
+      ? translate("challenge.minorItem", locale, { item: pick(challenge.rewardItem.name, locale) })
+      : `🎁 ${pick(challenge.rewardItem.name, locale)}`
+    : null;
+  const parts = [grand, minor, ...challenge.rewards.filter((r) => r !== "prize").map((r) => rewardLabel(r, locale))].filter((part): part is string => part !== null);
   return parts.length > 0 ? parts.join(locale === "ja" ? " ／ " : " / ") : null;
+}
+
+/** 상세의 상품 상자(#53): 상금 대신 고를 수 있는 상품(최우수상) → 부상(우수상 · 특별상, 최우수상의 보상이 없으면 수상 팀 모두) */
+function rewardItemsOf(challenge: Challenge, locale: Locale): { forLabel: string; label: string }[] {
+  const value = (item: { name: Challenge["title"]; retailYen: number }) =>
+    translate("challenge.rewardItemValue", locale, { name: pick(item.name, locale), amount: formatYen(item.retailYen, locale) });
+  const items: { forLabel: string; label: string }[] = [];
+  if (challenge.prizeItem) items.push({ forLabel: translate(challenge.prizeYen > 0 ? "challenge.rewardItemFor.grandChoice" : "challenge.rewardItemFor.grand", locale), label: value(challenge.prizeItem) });
+  if (challenge.rewardItem) items.push({ forLabel: translate(hasGrandReward(challenge) ? "challenge.rewardItemFor.others" : "challenge.rewardItemFor.all", locale), label: value(challenge.rewardItem) });
+  return items;
 }
 
 /** 과제를 쉬운 말로(#41): 몬스터의 정체(foe.about), 없으면 퀘스트의 요약 — 의뢰서의 「課題」와 퀘스트 상세의 첫 대화가 같이 써요 */
@@ -237,10 +267,11 @@ export function challengeCard(state: DemoState, challenge: Challenge, locale: Lo
     isOpen: isOpenFor(challenge, state.today),
     prizeLabel: challenge.prizeYen > 0 ? formatYen(challenge.prizeYen, locale) : null,
     // 상품 보상이 걸린 퀘스트는 특전 목록 끝에 「報酬アイテム」을 더해요 — 카드의 태그와 상세의 特典 에 그대로 보여요(#37)
-    rewardLabels: [...challenge.rewards.map((r) => rewardLabel(r, locale)), ...(challenge.rewardItem ? [`🎁 ${translate("challenge.rewardItem", locale)}`] : [])],
-    rewardItemLabel: challenge.rewardItem
-      ? translate("challenge.rewardItemValue", locale, { name: pick(challenge.rewardItem.name, locale), amount: formatYen(challenge.rewardItem.retailYen, locale) })
-      : null,
+    rewardLabels: [
+      ...challenge.rewards.map((r) => rewardLabel(r, locale)),
+      ...(challenge.rewardItem || challenge.prizeItem ? [`🎁 ${translate("challenge.rewardItem", locale)}`] : []),
+    ],
+    rewardItems: rewardItemsOf(challenge, locale),
     participationLabel: participationLabel(challenge.participation, locale),
     teamRuleLabel: translate("challenge.teamRule", locale, { min: TEAM_SIZE.min, max: TEAM_SIZE.max }),
     // 실적은 포인트 숫자로 보여 주지 않아요 — 참가·수상이 임팩트 레벨에 반영된다는 것만
@@ -698,7 +729,8 @@ export function selectApplications(state: DemoState, locale: Locale): Applicatio
       sdgIds: challenge.sdgIds,
       proposalId: proposal.id,
       review: applicationReview(proposal, companyName, locale, {
-        rewardItemName: challenge.rewardItem ? pick(challenge.rewardItem.name, locale) : undefined,
+        // 그 상으로 받는 상품(#53): 최우수상은 상금 대신 고를 수 있는 상품, 우수상 · 특별상은 부상
+        rewardItemName: proposal.award && rewardItemFor(challenge, proposal.award) ? pick(rewardItemFor(challenge, proposal.award)!.name, locale) : undefined,
         rewardChoice: rewardChosen(state, proposal),
         rewardPending: rewardPending(state, proposal),
         prizeAmount: challenge.prizeYen > 0 ? formatYen(challenge.prizeYen, locale) : undefined,
@@ -1012,7 +1044,8 @@ export function selectShare(state: DemoState, locale: Locale, template: CardTemp
   // 수상한 퀘스트에 상품 보상이 걸려 있으면 카드와 공유 글에 「◯◯提供」 표시와 함께 넣어요(#37)
   const proposal = selected.proposalId ? state.proposals.find((p) => p.id === selected.proposalId) : undefined;
   // #47 상품을 받은 수상만(상금을 골랐으면 상품은 없어요)
-  const rewardItem = proposal && rewardChosen(state, proposal) === "item" ? state.challenges.find((c) => c.id === proposal.challengeId)?.rewardItem : undefined;
+  const wonChallenge = proposal?.award ? state.challenges.find((c) => c.id === proposal.challengeId) : undefined;
+  const rewardItem = proposal?.award && wonChallenge && rewardChosen(state, proposal) === "item" ? rewardItemFor(wonChallenge, proposal.award) : undefined;
   const card = buildShareCard({
     nickname: state.me.nickname,
     activity: selected,

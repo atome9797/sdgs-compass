@@ -2,7 +2,7 @@
 // 기업은 과제에 상금을 걸고(약속), 최우수상이 정해지면 그 팀에 직접 지급해요. 운영사는 상금을 맡지 않고 수수료만 따로 받아요(fees.ts).
 // 학생 화면의 「受け取った賞金」은 받은 상금과, 흑자 뒤 운영사가 내는 학생 특별상(운영 환원)의 기록이에요 — 잔액·출금은 없어요.
 import { awardActivityId } from "./activities";
-import type { AwardKind, Challenge, DemoState, PrizePayment, Proposal, QuestReward, WalletEntry } from "./domain";
+import type { AwardKind, Challenge, DemoState, PrizePayment, Proposal, QuestReward, RewardItem, WalletEntry } from "./domain";
 
 /** 과제의 상금(prizeYen)을 받는 상: 최우수상(grand) — 과제당 1팀 */
 export const PRIZE_AWARD: AwardKind = "grand";
@@ -91,11 +91,20 @@ export const WITHDRAWAL_MAX_YEN = 1_000_000;
 /** (레거시) 출금 1회 하한 */
 export const WITHDRAWAL_MIN_YEN = 1;
 
-/** #47 이 상으로 받을 수 있는 보상: 상금은 최우수상(과제당 1팀)이고 상금이 걸려 있을 때, 상품은 상품이 걸려 있으면 어느 상이든 */
-export function rewardOptionsFor(challenge: Pick<Challenge, "prizeYen" | "rewardItem">, award: AwardKind): QuestReward[] {
+/**
+ * #53 이 상으로 받는 상품: 최우수상은 상금 대신 고를 수 있는 상품(prizeItem — 상금에 맞먹는 것),
+ * 우수상 · 특별상은 부상(rewardItem). 상금이 없는 퀘스트의 최우수상은 상금 대신 상품이 없으면 부상을 받아요.
+ */
+export function rewardItemFor(challenge: Pick<Challenge, "prizeYen" | "prizeItem" | "rewardItem">, award: AwardKind): RewardItem | undefined {
+  if (award === PRIZE_AWARD) return challenge.prizeItem ?? (challenge.prizeYen > 0 ? undefined : challenge.rewardItem);
+  return challenge.rewardItem;
+}
+
+/** #47 이 상으로 받을 수 있는 보상: 상금은 최우수상(과제당 1팀)이고 상금이 걸려 있을 때, 상품은 그 상의 상품이 있을 때(#53 rewardItemFor) */
+export function rewardOptionsFor(challenge: Pick<Challenge, "prizeYen" | "prizeItem" | "rewardItem">, award: AwardKind): QuestReward[] {
   const options: QuestReward[] = [];
   if (award === PRIZE_AWARD && challenge.prizeYen > 0) options.push("prize");
-  if (challenge.rewardItem) options.push("item");
+  if (rewardItemFor(challenge, award)) options.push("item");
   return options;
 }
 

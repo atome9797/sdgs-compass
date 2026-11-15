@@ -18,7 +18,8 @@ export type RewardKind = "prize" | "internship" | "offer";
 
 /**
  * 퀘스트(과제)의 상품 보상 「報酬アイテム」(#37): 기업이 고른 팀에게 직접 건네는 자사 상품 · 서비스.
- * 상금(prizeYen)과 함께 걸 수도 있고 상품만 걸 수도 있어요. retailYen 은 정가 상당액(화면 표시용, 샘플은 가상의 값).
+ * 두 가지예요(#53, 2026-11-15 결정): 최우수상이 상금 대신 고를 수 있는 상품(Challenge.prizeItem — 상금에 맞먹는 것)과
+ * 우수상 · 특별상의 부상(Challenge.rewardItem — 작은 상품). retailYen 은 정가 상당액(화면 표시용, 샘플은 가상의 값).
  * DB(db/schema.sql)에는 아직 열이 없어요 — 보상 종류(reward_kind)와 스키마는 그대로 둬요.
  */
 export interface RewardItem {
@@ -73,8 +74,13 @@ export interface Challenge {
   skills: SkillId[];
   prizeYen: number;
   rewards: RewardKind[];
-  /** 상품 보상(報酬アイテム) — 없으면 상금 · 인턴 등 rewards 만 (#37) */
+  /**
+   * 우수상 · 특별상의 부상(報酬アイテム, #37 · #53) — 작은 상품. 상금이 없는 퀘스트는 최우수상도 이것을 받아요.
+   * 없으면 상금 · 인턴 등 rewards 만
+   */
   rewardItem?: RewardItem;
+  /** 최우수상이 상금 대신 고를 수 있는 상품(#53) — 상금에 맞먹는 것(정가 상당액 = 상금액). 수수료는 상금을 고를 때와 같아요(#51) */
+  prizeItem?: RewardItem;
   /** 이 퀘스트에서 수상하면 얻는 스킬의 이름(#38). 없으면 퀘스트 이름을 그대로 써요 */
   skillName?: Text;
   /** 전투 화면(#38)에 나오는 「과제 몬스터」. 없으면 대표 SDG 로 정한 기본 몬스터(battle.ts 의 defaultFoe) */

@@ -330,7 +330,7 @@ function normalizeOfficial(post: unknown): unknown {
  * - 팀 인원 · 세미나(2026-11-09)가 생기기 전의 기획서에는 teamSize · seminar 가 없어요 → 샘플 기획서는 샘플 값으로,
  *   그 밖(데모에서 낸 기획서 등)은 3명 · 세미나 없음으로 채워요. 이미 값이 있으면 그대로 두고 isDemoState 가 판단해요.
  * - 상품 보상(報酬アイテム, #37)이 생기기 전에 저장한 상태에는 샘플 퀘스트의 rewardItem 이 없어요 → 같은 id 의 샘플 퀘스트에서 채워요
- *   (데모에서 기업이 새로 낸 퀘스트는 그대로 — 상품 보상 없음).
+ *   (데모에서 기업이 새로 낸 퀘스트는 그대로 — 상품 보상 없음). 최우수상이 상금 대신 고를 수 있는 상품(prizeItem, #53)도 같아요.
  */
 /** 이전 돈의 모양(리워드 잔액 · 상금 예치 · 채택 수수료)을 직접 지급 모델의 모양으로 (모르는 값은 그대로 두고 isDemoState 가 판단해요) */
 function upgradeMoney(state: Record<string, unknown>): Record<string, unknown> {
@@ -462,10 +462,13 @@ function upgradeSaved(data: unknown): unknown {
     };
   }
   if (Array.isArray(next.challenges) && isDay(data.today)) {
-    const items = new Map(sample().challenges.flatMap((c) => (c.rewardItem ? [[c.id, c.rewardItem] as const] : [])));
-    if (next.challenges.some((c) => isObject(c) && c.rewardItem === undefined && items.has(String(c.id)))) {
-      next = { ...next, challenges: next.challenges.map((c) => (isObject(c) && c.rewardItem === undefined && items.has(String(c.id)) ? { ...c, rewardItem: items.get(String(c.id)) } : c)) };
+    const samples = new Map(sample().challenges.map((c) => [c.id, c] as const));
+    let challenges: unknown[] = next.challenges;
+    for (const key of ["rewardItem", "prizeItem"] as const) {
+      const missing = (c: unknown): c is Record<string, unknown> => isObject(c) && c[key] === undefined && samples.get(String(c.id))?.[key] !== undefined;
+      if (challenges.some(missing)) challenges = challenges.map((c) => (missing(c) ? { ...c, [key]: samples.get(String(c.id))![key] } : c));
     }
+    if (challenges !== next.challenges) next = { ...next, challenges };
   }
   next = upgradeSkills(next, sample);
   if (Array.isArray(next.companies) && next.companies.some((c) => isObject(c) && c.certScore === undefined) && isDay(data.today)) {

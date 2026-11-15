@@ -17,7 +17,7 @@ import { getSdg, type SdgId } from "./sdg";
 import { heroSkillVM, rewardsLineOf, selectSdgSkills, type SdgSkillVM } from "./selectors";
 import { skillSdgIds } from "./skills";
 import { reviewExp } from "./status";
-import { rewardChosen, rewardPending } from "./wallet";
+import { rewardChosen, rewardItemFor, rewardPending } from "./wallet";
 
 export type SceneKind = "sea" | "sky" | "field" | "town";
 
@@ -154,7 +154,7 @@ export function selectBattle(state: DemoState, challengeId: string, locale: Loca
   if (proposal?.award) {
     const choice = rewardChosen(state, proposal);
     if (choice === "prize") rewardLines.push(narrator(t("battle.clearedPrize", { amount: formatYen(challenge.prizeYen, locale) })));
-    else if (choice === "item" && challenge.rewardItem) rewardLines.push(narrator(t("battle.clearedItem", { item: pick(challenge.rewardItem.name, locale) })));
+    else if (choice === "item" && rewardItemFor(challenge, proposal.award)) rewardLines.push(narrator(t("battle.clearedItem", { item: pick(rewardItemFor(challenge, proposal.award)!.name, locale) })));
     else if (rewardPending(state, proposal)) rewardLines.push(narrator(t("battle.rewardPending")));
   }
 

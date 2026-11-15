@@ -158,12 +158,12 @@ describe("퀘스트 달성 연출(#47)", () => {
     expect(vm.expLabel).toBeNull();
   });
 
-  it("보상 고르기: 상금 · 상품 두 장 → 고른 뒤에는 받은 줄", () => {
+  it("보상 고르기: 상금 · 상금에 맞먹는 상품(#53) 두 장 → 고른 뒤에는 받은 줄", () => {
     const vm = selectQuestClear(grand, "ja")!;
     expect(vm.reward).toMatchObject({ choose: true, chosen: null, chosenLabel: null, prompt: "報酬を ひとつ えらんでください", confirmLabel: "この報酬に決める" });
-    expect(vm.reward!.options.map((o) => [o.kind, o.icon, o.label])).toEqual([
-      ["prize", "💴", "賞金 ¥100,000"],
-      ["item", "🎁", "みなとの干物ギフトセット"],
+    expect(vm.reward!.options.map((o) => [o.kind, o.icon, o.label, o.detail])).toEqual([
+      ["prize", "💴", "賞金 ¥100,000", "企業から直接お振込み（運営はお金を預かりません）"],
+      ["item", "🎁", "みなとの海の幸 1年分の定期便（12回）", "定価相当 ¥100,000・みなと海洋フーズ株式会社から届きます"],
     ]);
     expect(vm.reward!.note).toBe("どちらか ひとつです。あとから かえられません。");
     const prize = run(grand, { type: "chooseReward", proposalId: mineId, reward: "prize" });
@@ -173,10 +173,10 @@ describe("퀘스트 달성 연출(#47)", () => {
     expect(again.fresh).toBe(false);
     expect(again.reward).toMatchObject({ chosen: "prize", chosenLabel: "賞金 ¥100,000を 受け取りました（企業から 直接 振り込まれます）" });
     const item = selectQuestClear(run(grand, { type: "chooseReward", proposalId: mineId, reward: "item" }), "ko", mineId)!;
-    expect(item.reward?.chosenLabel).toBe("「미나토 건어물 선물 세트」 선택 완료(미나토 해양푸드(주)에서 보내요)");
+    expect(item.reward?.chosenLabel).toBe("「미나토 해산물 1년 정기 배송(12회)」 선택 완료(미나토 해양푸드(주)에서 보내요)");
   });
 
-  it("상품만 걸린 상(우수상)은 고를 것 없이 받은 줄 · 보상이 없는 상은 보상 칸이 없어요", () => {
+  it("상품만 걸린 상(우수상)은 고를 것 없이 부상(작은 상품)을 받은 줄 · 보상이 없는 상은 보상 칸이 없어요", () => {
     const excellence = run(reviewed, { type: "awardProposal", proposalId: mineId, award: "excellence" });
     expect(selectQuestClear(excellence, "ja")!.reward).toMatchObject({ choose: false, chosen: "item", chosenLabel: "「みなとの干物ギフトセット」を 手に入れた！（みなと海洋フーズ株式会社から 届きます）" });
     const solarSubmitted = run(initial, { type: "submitProposal", challengeId: "ch-solar", draft, at: AT });

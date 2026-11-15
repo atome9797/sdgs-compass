@@ -163,14 +163,22 @@ function ChallengeView({ id }: { id: string }) {
               <span className="fact__value">{card.impactLabel}</span>
             </div>
           </div>
-          {card.rewardItemLabel ? (
+          {card.rewardItems.length > 0 ? (
             <div className="item-box">
               <span className="item-box__icon" aria-hidden="true">
                 🎁
               </span>
               <div className="item-box__main">
                 <p className="item-box__label">{t("challenge.rewardItem")}</p>
-                <p className="item-box__name">{card.rewardItemLabel}</p>
+                {/* 상품은 상에 따라(#53): 최우수상이 상금 대신 고를 수 있는 상품 → 우수상 · 특별상의 부상 */}
+                <dl className="item-box__list">
+                  {card.rewardItems.map((item) => (
+                    <div key={item.forLabel} className="item-box__row">
+                      <dt className="item-box__for">{item.forLabel}</dt>
+                      <dd className="item-box__name">{item.label}</dd>
+                    </div>
+                  ))}
+                </dl>
                 <p className="small muted">{t("challenge.rewardItemNote", { company: vm.company.name })}</p>
               </div>
             </div>

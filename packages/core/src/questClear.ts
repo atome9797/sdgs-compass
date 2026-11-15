@@ -15,7 +15,7 @@ import { heroSkillVM, selectSdgSkills } from "./selectors";
 import { AWARD_STARS } from "./skills";
 import { getSdg, type SdgId } from "./sdg";
 import { computeSdgExp, reviewExp, statusLevelUps } from "./status";
-import { rewardChosen, rewardOptionsFor } from "./wallet";
+import { rewardChosen, rewardItemFor, rewardOptionsFor } from "./wallet";
 
 /** 승리 연출에서 가진 다른 스킬은 몇 개까지 쓰는지(이번 수상의 스킬은 모두) */
 export const VICTORY_EXTRA_SKILLS = 2;
@@ -132,14 +132,16 @@ export function selectQuestClear(state: DemoState, locale: Locale, proposalId?: 
 
   // ── 보상 ──
   const kinds = rewardOptionsFor(challenge, proposal.award);
+  // 상품은 상에 따라(#53): 최우수상은 상금 대신 고를 수 있는 상품(상금에 맞먹는 것), 우수상 · 특별상은 부상
+  const item = rewardItemFor(challenge, proposal.award);
   const options: RewardOptionVM[] = kinds.map((kind) =>
     kind === "prize"
       ? { kind, icon: "💴", label: t("clear.reward.prize", { amount: formatYen(challenge.prizeYen, locale) }), detail: t("clear.reward.prizeDetail") }
       : {
           kind,
           icon: "🎁",
-          label: challenge.rewardItem ? pick(challenge.rewardItem.name, locale) : "",
-          detail: t("clear.reward.itemDetail", { yen: formatYen(challenge.rewardItem?.retailYen ?? 0, locale), company: companyName }),
+          label: item ? pick(item.name, locale) : "",
+          detail: t("clear.reward.itemDetail", { yen: formatYen(item?.retailYen ?? 0, locale), company: companyName }),
         },
   );
   const chosen = rewardChosen(state, proposal);

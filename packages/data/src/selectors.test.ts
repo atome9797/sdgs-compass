@@ -1300,9 +1300,9 @@ describe("게임 테마 — 용사 · 퀘스트 · 보상 아이템 (#37)", () =
     expect(selectHome(initial, "ko").plea!.line.startsWith("용사님, 구해 주세요!")).toBe(true);
   });
 
-  it("의뢰 창의 보상 줄: 상금 · 상품 보상(🎁) · 인턴 순서", () => {
+  it("의뢰 창의 보상 줄: 최우수상(상금 또는 상금에 맞먹는 상품) · 우수상 · 특별상의 부상(🎁) · 인턴 순서(#53)", () => {
     const plea = pleaOf(initial, initial.challenges.find((c) => c.id === "ch-plastic")!, "ja");
-    expect(plea.rewards).toBe(`報酬：賞金 ${formatYen(100_000, "ja")} ／ 🎁 みなとの干物ギフトセット ／ インターン`);
+    expect(plea.rewards).toBe(`報酬：賞金 ${formatYen(100_000, "ja")} か 🎁 みなとの海の幸 1年分の定期便（12回） ／ 🎁 みなとの干物ギフトセット（優秀賞・特別賞） ／ インターン`);
     const plain = pleaOf(initial, initial.challenges.find((c) => c.id === "ch-foodloss")!, "ko");
     expect(plain.rewards).toBe(`보상: 상금 ${formatYen(50_000, "ko")}`);
   });
@@ -1312,19 +1312,35 @@ describe("게임 테마 — 용사 · 퀘스트 · 보상 아이템 (#37)", () =
     expect(selectHome(quiet, "ja").plea).toBeNull();
   });
 
-  it("상품 보상이 걸린 퀘스트: 카드에 🎁 태그, 상세에 이름과 정가 상당액", () => {
+  it("상품 보상이 걸린 퀘스트: 카드에 🎁 태그, 상세에 상마다 이름과 정가 상당액(최우수상은 상금 대신 · 우수상 · 특별상은 부상, #53)", () => {
     const ja = selectChallengeDetail(initial, "ch-plastic", "ja")!;
     expect(ja.card.rewardLabels).toEqual(["賞金", "インターン", "🎁 報酬アイテム"]);
-    expect(ja.card.rewardItemLabel).toBe(`みなとの干物ギフトセット（定価 ${formatYen(5_000, "ja")} 相当）`);
+    expect(ja.card.rewardItems).toEqual([
+      { forLabel: "最優秀賞（賞金の代わりに選べます）", label: `みなとの海の幸 1年分の定期便（12回）（定価 ${formatYen(100_000, "ja")} 相当）` },
+      { forLabel: "優秀賞・特別賞", label: `みなとの干物ギフトセット（定価 ${formatYen(5_000, "ja")} 相当）` },
+    ]);
     const ko = selectChallengeDetail(initial, "ch-plastic", "ko")!;
-    expect(ko.card.rewardItemLabel).toBe(`미나토 건어물 선물 세트(정가 ${formatYen(5_000, "ko")} 상당)`);
+    expect(ko.card.rewardItems.map((i) => i.forLabel)).toEqual(["최우수상(상금 대신 고를 수 있어요)", "우수상 · 특별상"]);
+    expect(ko.card.rewardItems[1].label).toBe(`미나토 건어물 선물 세트(정가 ${formatYen(5_000, "ko")} 상당)`);
     const none = selectChallengeDetail(initial, "ch-foodloss", "ja")!;
-    expect(none.card.rewardItemLabel).toBeNull();
+    expect(none.card.rewardItems).toEqual([]);
     expect(none.card.rewardLabels).toEqual(["賞金"]);
+    // 상금도 상금 대신 상품도 없는 퀘스트의 부상은 수상 팀 모두의 것
+    const itemOnly = { ...initial, challenges: initial.challenges.map((c) => (c.id === "ch-plastic" ? { ...c, prizeYen: 0, prizeItem: undefined } : c)) };
+    expect(selectChallengeDetail(itemOnly, "ch-plastic", "ja")!.card.rewardItems).toEqual([{ forLabel: "受賞チーム", label: `みなとの干物ギフトセット（定価 ${formatYen(5_000, "ja")} 相当）` }]);
   });
 
-  it("수상하면 「〇〇を手に入れた！」 — 상품 보상이 걸린 퀘스트만 (상금과 둘 다 걸린 최우수상은 상품을 고른 때, #47)", () => {
-    // 우수상: 상금은 최우수상만이라 상품 하나 → 바로 받아요
+  it("샘플의 상품(#53): 상금 대신 고를 수 있는 상품은 상금과 같은 값, 우수상 · 특별상의 부상은 상금보다 작아요", () => {
+    const withItems = initial.challenges.filter((c) => c.prizeItem || c.rewardItem);
+    expect(withItems.length).toBeGreaterThan(0);
+    for (const c of withItems) {
+      expect(c.prizeItem?.retailYen, c.id).toBe(c.prizeYen);
+      if (c.rewardItem) expect(c.rewardItem.retailYen, c.id).toBeLessThan(c.prizeYen);
+    }
+  });
+
+  it("수상하면 「〇〇を手に入れた！」 — 상품 보상이 걸린 퀘스트만 (상금과 둘 다 걸린 최우수상은 상금에 맞먹는 상품을 고른 때, #47 · #53)", () => {
+    // 우수상: 상금은 최우수상만이라 부상 하나 → 바로 받아요
     const excellence = run(initial, { type: "submitProposal", challengeId: "ch-plastic", draft, at: AT }, { type: "awardProposal", proposalId: mineId, award: "excellence" });
     expect(selectApplications(excellence, "ja")[0].review!).toMatchObject({ rewardItemLabel: "報酬アイテム「みなとの干物ギフトセット」を手に入れた！（みなと海洋フーズ株式会社から届きます）", prizeLabel: null, rewardPending: false });
     // 최우수상: 상금(¥100,000)과 상품 중에서 고르기 전에는 「報酬を えらぶ」
@@ -1332,8 +1348,8 @@ describe("게임 테마 — 용사 · 퀘스트 · 보상 아이템 (#37)", () =
     expect(selectApplications(awarded, "ja")[0].review!).toMatchObject({ rewardItemLabel: null, prizeLabel: null, rewardPending: true });
     const item = run(awarded, { type: "chooseReward", proposalId: mineId, reward: "item" });
     const ja = selectApplications(item, "ja")[0].review!;
-    expect(ja).toMatchObject({ rewardItemLabel: "報酬アイテム「みなとの干物ギフトセット」を手に入れた！（みなと海洋フーズ株式会社から届きます）", prizeLabel: null, rewardPending: false });
-    expect(selectApplications(item, "ko")[0].review!.rewardItemLabel).toBe("보상 아이템 「미나토 건어물 선물 세트」 획득! (미나토 해양푸드(주)에서 보내요)");
+    expect(ja).toMatchObject({ rewardItemLabel: "報酬アイテム「みなとの海の幸 1年分の定期便（12回）」を手に入れた！（みなと海洋フーズ株式会社から届きます）", prizeLabel: null, rewardPending: false });
+    expect(selectApplications(item, "ko")[0].review!.rewardItemLabel).toBe("보상 아이템 「미나토 해산물 1년 정기 배송(12회)」 획득! (미나토 해양푸드(주)에서 보내요)");
     const prize = run(awarded, { type: "chooseReward", proposalId: mineId, reward: "prize" });
     expect(selectApplications(prize, "ja")[0].review!).toMatchObject({ rewardItemLabel: null, prizeLabel: "賞金 ¥100,000を受け取りました（企業から直接お振込み）", rewardPending: false });
     const reviewedOnly = run(initial, { type: "submitProposal", challengeId: "ch-plastic", draft, at: AT }, {
@@ -1350,7 +1366,7 @@ describe("게임 테마 — 용사 · 퀘스트 · 보상 아이템 (#37)", () =
       { type: "chooseReward", proposalId: mineId, reward: "item" },
     );
     const award = selectShare(awarded, "ja", "instagram", null);
-    expect(award.card!.subtitle).toContain("報酬アイテム「みなとの干物ギフトセット」（提供）");
+    expect(award.card!.subtitle).toContain("報酬アイテム「みなとの海の幸 1年分の定期便（12回）」（提供）");
     expect(award.card!.caption).toContain("（みなと海洋フーズ株式会社提供）");
     expect(selectShare(awarded, "ko", "instagram", null).card!.caption).toContain("(미나토 해양푸드(주) 제공)");
     // 수상하지 않은 제출 카드에는 상품 보상이 없어요

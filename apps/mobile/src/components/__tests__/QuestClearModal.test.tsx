@@ -39,7 +39,8 @@ test("창: 상금 · 상품 중에서 고르기 전에는 정할 수 없고, 고
   const onClose = jest.fn();
   await render(<QuestClearModal vm={vm} onSeen={jest.fn()} onChoose={onChoose} onClose={onClose} />);
   expect(screen.getByText("賞金 ¥100,000")).toBeOnTheScreen();
-  expect(screen.getByText("みなとの干物ギフトセット")).toBeOnTheScreen();
+  // 최우수상은 상금 대신 상금에 맞먹는 상품을 고를 수 있어요(#53)
+  expect(screen.getByText("みなとの海の幸 1年分の定期便（12回）")).toBeOnTheScreen();
   expect(screen.getByText("企業の評価で EXP +130（SDG 14・12）")).toBeOnTheScreen();
   expect(screen.getByTestId("reward-confirm")).toBeDisabled();
   await fireEvent.press(screen.getByTestId("reward-option-item"));

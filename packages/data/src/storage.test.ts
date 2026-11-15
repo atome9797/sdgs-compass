@@ -374,7 +374,17 @@ describe("상품 보상(報酬アイテム, #37)이 생기기 전에 저장한 �
   it("데모에서 기업이 새로 낸 퀘스트(샘플에 없는 id)는 그대로 — 상품 보상 없음", () => {
     const created = reducer(current, { type: "createChallenge", draft: { title: "新しいクエスト", summary: "説明", sdgIds: [4], prizeYen: 10_000, days: 30, participation: "both", internship: false } });
     const mine = created.challenges.find((c) => !current.challenges.some((s) => s.id === c.id))!;
-    expect(parseState(serializeState(created))!.challenges.find((c) => c.id === mine.id)!.rewardItem).toBeUndefined();
+    const parsed = parseState(serializeState(created))!.challenges.find((c) => c.id === mine.id)!;
+    expect([parsed.rewardItem, parsed.prizeItem]).toEqual([undefined, undefined]);
+  });
+
+  it("상금 대신 고를 수 있는 상품(#53)이 생기기 전에 저장한 상태에도 샘플의 상품을 채워요 — 부상은 그대로", () => {
+    const before53 = { ...current, challenges: current.challenges.map(({ prizeItem: _prize, ...rest }) => rest) };
+    const parsed = parseState(JSON.stringify(before53))!;
+    const plastic = parsed.challenges.find((c) => c.id === "ch-plastic")!;
+    const sample = current.challenges.find((c) => c.id === "ch-plastic")!;
+    expect([plastic.prizeItem, plastic.rewardItem]).toEqual([sample.prizeItem, sample.rewardItem]);
+    expect(parsed.challenges.find((c) => c.id === "ch-foodloss")!.prizeItem).toBeUndefined();
   });
 });
 

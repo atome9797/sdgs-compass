@@ -45,7 +45,7 @@ export const b2c = {
   "challenge.rewardItemFor.grand": { ja: "最優秀賞", ko: "최우수상" },
   "challenge.rewardItemFor.others": { ja: "優秀賞・特別賞", ko: "우수상 · 특별상" },
   "challenge.rewardItemFor.all": { ja: "受賞チーム", ko: "수상 팀" },
-  "challenge.prizeOrItem": { ja: "賞金 {amount} か 🎁 {item}", ko: "상금 {amount} 또는 🎁 {item}" },
+  "challenge.prizeOrItem": { ja: "賞金 {amount} または 🎁 {item}", ko: "상금 {amount} 또는 🎁 {item}" },
   "challenge.grandItem": { ja: "🎁 {item}（最優秀賞）", ko: "🎁 {item}(최우수상)" },
   "challenge.minorItem": { ja: "🎁 {item}（優秀賞・特別賞）", ko: "🎁 {item}(우수상 · 특별상)" },
   "challenge.rewardItemNote": {
@@ -210,7 +210,7 @@ export const b2c = {
   "impact.rewardItemWon": { ja: "報酬アイテム「{item}」を手に入れた！（{company}から届きます）", ko: "보상 아이템 「{item}」 획득! ({company}에서 보내요)" },
   // #47 최우수상의 보상: 상금을 골랐으면 받은 줄, 아직 고르지 않았으면 고르는 단추(퀘스트 달성 창을 다시 열어요)
   "impact.prizeWon": { ja: "賞金 {amount}を受け取りました（企業から直接お振込み）", ko: "상금 {amount} 받기 완료(기업이 직접 송금해요)" },
-  "impact.rewardPending": { ja: "最優秀賞の報酬（賞金か商品）を えらんでください", ko: "최우수상 보상(상금 또는 상품)을 골라 주세요" },
+  "impact.rewardPending": { ja: "最優秀賞の報酬（賞金または商品）を えらんでください", ko: "최우수상 보상(상금 또는 상품)을 골라 주세요" },
   "impact.reviewSummary": { ja: "{title}：{scores}、{average}。{exp}", ko: "{title}: {scores}, {average}. {exp}" },
   // 용사의 스테이터스(#43 · #45): SDGs 17개 항목마다 기업의 평가 점수가 EXP 로 쌓여 레벨이 올라요 — 레벨은 항목마다만(용사 전체의 레벨은 없어요)
   "impact.statsTitle": { ja: "勇者のステータス", ko: "용사의 스테이터스" },

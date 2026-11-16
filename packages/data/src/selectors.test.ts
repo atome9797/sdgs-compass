@@ -1302,7 +1302,7 @@ describe("게임 테마 — 용사 · 퀘스트 · 보상 아이템 (#37)", () =
 
   it("의뢰 창의 보상 줄: 최우수상(상금 또는 상금에 맞먹는 상품) · 우수상 · 특별상의 부상(🎁) · 인턴 순서(#53)", () => {
     const plea = pleaOf(initial, initial.challenges.find((c) => c.id === "ch-plastic")!, "ja");
-    expect(plea.rewards).toBe(`報酬：賞金 ${formatYen(100_000, "ja")} か 🎁 みなとの海の幸 1年分の定期便（12回） ／ 🎁 みなとの干物ギフトセット（優秀賞・特別賞） ／ インターン`);
+    expect(plea.rewards).toBe(`報酬：賞金 ${formatYen(100_000, "ja")} または 🎁 みなとの海の幸 1年分の定期便（12回） ／ 🎁 みなとの干物ギフトセット（優秀賞・特別賞） ／ インターン`);
     const plain = pleaOf(initial, initial.challenges.find((c) => c.id === "ch-foodloss")!, "ko");
     expect(plain.rewards).toBe(`보상: 상금 ${formatYen(50_000, "ko")}`);
   });

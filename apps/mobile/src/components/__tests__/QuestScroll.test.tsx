@@ -19,7 +19,7 @@ test("의뢰서: 依頼書 · 몬스터 이름 · 依頼主 · 「課題」(쉬�
   expect(screen.getByText("商品の包装から出るプラスチックごみ")).toBeOnTheScreen();
   expect(screen.queryByText("討伐対象")).not.toBeOnTheScreen();
   expect(screen.getByText(/3〜5人チーム/)).toBeOnTheScreen();
-  expect(screen.getByText("賞金 ¥100,000 か 🎁 みなとの海の幸 1年分の定期便（12回） ／ 🎁 みなとの干物ギフトセット（優秀賞・特別賞） ／ インターン")).toBeOnTheScreen();
+  expect(screen.getByText("賞金 ¥100,000 または 🎁 みなとの海の幸 1年分の定期便（12回） ／ 🎁 みなとの干物ギフトセット（優秀賞・特別賞） ／ インターン")).toBeOnTheScreen();
   expect(screen.getByText("あと")).toBeOnTheScreen();
   expect(screen.getByText(`${card.daysLeft}日`)).toBeOnTheScreen();
   expect(screen.queryByText("達成")).not.toBeOnTheScreen();

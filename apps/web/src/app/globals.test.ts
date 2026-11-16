@@ -1,7 +1,8 @@
 import { readFileSync, existsSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { CHART_COLORS, COLORS, FONT_SIZE, GAME_COLORS, MARK_COLORS, PHONE_WIDTH, RADIUS, SCROLL_COLORS, SPACE } from "@sdgs-compass/core/theme";
+import { CHART_COLORS, COLORS, FONT_SIZE, GAME_COLORS, MAP_COLORS, MARK_COLORS, PHONE_WIDTH, RADIUS, SCROLL_COLORS, SPACE } from "@sdgs-compass/core/theme";
+import { MAP_GRID } from "@sdgs-compass/core/adventureMap";
 
 // globals.css 의 :root 값이 core 의 theme.ts(웹·모바일 공용 디자인 토큰)와 같은지 확인해요.
 function readCss(file = "globals.css"): string {
@@ -69,6 +70,14 @@ describe("globals.css 와 theme.ts 의 토큰", () => {
     // 도장 · 두루마리는 누름을 가로채지 않아요
     for (const sel of ["\\.seal", "\\.scroll__cleared"]) expect(css).toMatch(new RegExp(`${sel}\\s*\\{[^}]*pointer-events:\\s*none`));
     expect(css).toMatch(/\.scroll::before, \.scroll::after\s*\{[^}]*pointer-events:\s*none/);
+  });
+
+  it("홈의 모험 지도(#57): --map-* 가 core 의 MAP_COLORS 와 같고, 모눈은 MAP_GRID 칸 · 장식은 글자 아래에서 누름을 가로채지 않아요", () => {
+    for (const [key, value] of Object.entries(MAP_COLORS)) expect(norm(vars.get(`--map-${kebab(key)}`) ?? ""), key).toBe(norm(value));
+    expect(css).toMatch(new RegExp(`\\.screen--map\\s*\\{[^}]*background-color:\\s*var\\(--map-paper\\)[^}]*background-size:\\s*${MAP_GRID}px ${MAP_GRID}px`));
+    expect(css).toMatch(/\.screen--map\s*\{[^}]*isolation:\s*isolate/);
+    expect(css).toMatch(/\.map-decor\s*\{[^}]*z-index:\s*-1[^}]*image-rendering:\s*pixelated[^}]*pointer-events:\s*none/);
+    expect(css).toMatch(/\.screen--map \.greeting__name\s*\{[^}]*color:\s*var\(--map-ink\)/);
   });
 
   it("의뢰 창의 「クエストを受ける」는 누르는 곳 44px 이에요 (#37)", () => {

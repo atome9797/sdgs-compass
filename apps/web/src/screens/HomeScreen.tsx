@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState, type FormEvent } from "react";
 import { selectHome, type ActivityVM, type PleaVM } from "@sdgs-compass/core/selectors";
 import { ChallengeCard, ChallengeRow } from "@/components/ChallengeCard";
+import { MapDecor } from "@/components/MapDecor";
 import { SdgMiniRow, SdgTileGrid } from "@/components/sdg";
 import { Button, Empty, Section } from "@/components/ui";
 import { buildHref, challengeHref, ROUTES, searchHref } from "@/lib/routes";
@@ -60,7 +61,8 @@ export function HomeScreen() {
   };
 
   return (
-    <div className="screen">
+    <div className="screen screen--map">
+      <MapDecor />
       <section className="greeting">
         <h1 className="greeting__name">{t("home.greeting", { name: vm.nickname })}</h1>
         <p className="muted small">{t("app.tagline")}</p>

@@ -20,7 +20,10 @@
   min-height: 100dvh;
   display: flex;
   flex-direction: column;
-  background: var(--bg);
+  /* #59 모든 화면과 같은 「모험 지도」 바탕(양피지 + 24px 모눈, globals.css 의 --map-*) — 표 · 그래프는 흰 카드 위에 그대로예요 */
+  background-color: var(--map-paper);
+  background-image: var(--map-grid-image);
+  background-size: 24px 24px;
 }
 
 /* ───────── 틀: 위쪽 줄 + 탭 ───────── */

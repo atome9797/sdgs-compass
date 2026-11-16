@@ -84,7 +84,7 @@ export const SCROLL_COLORS = {
 } as const;
 
 /**
- * 홈의 「모험 지도」 바탕(#57, 웹·앱 같은 값): 양피지(paper) 위에 옅은 모눈(grid), 인사말은 지도의 먹색(ink) · 부제(sub).
+ * 「모험 지도」 바탕(#57 홈 → #59 모든 화면, 웹·앱 같은 값): 양피지(paper) 위에 옅은 모눈(grid), 화면 제목 · 인사말은 지도의 먹색(ink) · 부제(sub).
  * 오른쪽 위 장식 그림(adventureMap.ts)의 점선 항로 · 보물 표시(×)는 route 색이에요. 웹은 globals.css 의 --map-* 가 같은 값이에요(globals.test.ts).
  * 바탕 위에 바로 놓이는 글자(text · textMuted · primary · ink · sub)는 paper · grid 둘 다와 4.5:1 이상이에요(theme.test.ts).
  */

@@ -9,11 +9,12 @@ import type { ComponentRef, ReactNode, RefObject } from "react";
 import { KeyboardAvoidingView, Pressable, ScrollView, StyleSheet, Text, View, type StyleProp, type ViewStyle } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { AppHeader } from "@/components/AppHeader";
+import { MapGrid } from "@/components/MapPaper";
 import { Txt } from "@/components/ui";
 import { useApp } from "@/lib/AppProvider";
 import { goBack } from "@/lib/nav";
 import { GATE_HREF } from "@/lib/routes";
-import { COLORS, FONT_SIZE, HIT, PHONE_WIDTH, SPACE } from "@/theme";
+import { COLORS, FONT_SIZE, HIT, MAP_COLORS, PHONE_WIDTH, SPACE } from "@/theme";
 
 export interface ScreenProps {
   children: ReactNode;
@@ -31,9 +32,11 @@ export interface ScreenProps {
   testID?: string;
   /** 본문 스크롤을 화면이 직접 움직일 때 (#33 대시보드 숫자 카드 → 같은 화면 안의 칸으로 scrollTo) */
   scrollRef?: RefObject<ComponentRef<typeof ScrollView> | null>;
+  /** 본문의 바탕: "map" 이면 모험 지도(양피지 + 모눈, #57 — 홈). 없으면 보통 바탕 */
+  paper?: "map";
 }
 
-export function Screen({ children, header = "full", tabbed = false, backTitle, fixed = false, footer, contentStyle, testID, scrollRef }: ScreenProps) {
+export function Screen({ children, header = "full", tabbed = false, backTitle, fixed = false, footer, contentStyle, testID, scrollRef, paper }: ScreenProps) {
   const insets = useSafeAreaInsets();
   const bottomInset = tabbed ? 0 : insets.bottom;
   const content = [styles.content, contentStyle];
@@ -47,15 +50,16 @@ export function Screen({ children, header = "full", tabbed = false, backTitle, f
       {backTitle !== undefined ? <BackBar title={backTitle} /> : null}
       <KeyboardAvoidingView style={styles.flex} behavior="padding">
         {fixed ? (
-          <View style={[styles.flex, styles.maxWidth, content]}>{children}</View>
+          <View style={[styles.flex, styles.maxWidth, paper === "map" && styles.mapPaper, content]}>{children}</View>
         ) : (
           <ScrollView
             ref={scrollRef}
-            style={styles.flex}
+            style={[styles.flex, paper === "map" && styles.mapPaper]}
             contentContainerStyle={[styles.scrollContent, { paddingBottom: SPACE.xxl + bottomInset }]}
             keyboardShouldPersistTaps="handled"
             keyboardDismissMode="on-drag"
           >
+            {paper === "map" ? <MapGrid testID={testID ? `${testID}-map-grid` : undefined} /> : null}
             <View style={[styles.maxWidth, content]}>{children}</View>
           </ScrollView>
         )}
@@ -88,14 +92,16 @@ function BackBar({ title }: { title: string }) {
 }
 
 /** 탭 화면 맨 위의 큰 제목 (+ 설명) */
-export function ScreenTitle({ title, subtitle }: { title: string; subtitle?: string }) {
+/** 화면 맨 위의 제목 + 한 줄. tone="map" 이면 모험 지도 위의 먹색 글자(#57 — 홈) */
+export function ScreenTitle({ title, subtitle, tone }: { title: string; subtitle?: string; tone?: "map" }) {
+  const map = tone === "map";
   return (
     <View style={styles.titleWrap}>
-      <Txt variant="display" accessibilityRole="header">
+      <Txt variant="display" accessibilityRole="header" style={map ? styles.mapTitle : undefined}>
         {title}
       </Txt>
       {subtitle ? (
-        <Txt tone="muted" variant="small">
+        <Txt tone="muted" variant="small" style={map ? styles.mapSubtitle : undefined}>
           {subtitle}
         </Txt>
       ) : null}
@@ -105,6 +111,10 @@ export function ScreenTitle({ title, subtitle }: { title: string; subtitle?: str
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: COLORS.bg },
+  /** #57 모험 지도 바탕(모눈은 MapGrid 가 그어요) · 그 위의 제목 글자 */
+  mapPaper: { backgroundColor: MAP_COLORS.paper },
+  mapTitle: { color: MAP_COLORS.ink },
+  mapSubtitle: { color: MAP_COLORS.sub },
   flex: { flex: 1 },
   headerWrap: { backgroundColor: COLORS.card, borderBottomWidth: 1, borderBottomColor: COLORS.border, alignItems: "center" },
   /** 태블릿·가로 폭이 넓은 화면에서도 본문은 휴대폰 폭으로 가운데에 */

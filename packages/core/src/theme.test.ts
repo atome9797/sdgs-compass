@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CHART_COLORS, COLORS, coverColors, ESG_COLORS, MARK_COLORS, PHONE_WIDTH, RADIUS, SDG_TILE_TINT, SPACE, tint } from "./theme";
+import { CHART_COLORS, COLORS, coverColors, ESG_COLORS, MAP_COLORS, MARK_COLORS, PHONE_WIDTH, RADIUS, SDG_TILE_TINT, SPACE, tint } from "./theme";
 import { SDGS } from "./sdg";
 import { pointsAttr, radarPolygon, radarRing, radarVertex, segmentsOf } from "./radar";
 
@@ -18,6 +18,16 @@ const contrast = (a: string, b: string) => {
 describe("디자인 토큰", () => {
   it("색은 모두 #RRGGBB (또는 rgba)이에요", () => {
     for (const [name, value] of Object.entries(COLORS)) expect(value, name).toMatch(/^(#[0-9A-Fa-f]{6}|rgba\(.+\))$/);
+  });
+
+  it("홈의 모험 지도(#57): 바탕에 바로 놓이는 글자는 양피지 · 모눈 둘 다와 4.5:1 이상이에요", () => {
+    for (const [name, fg] of Object.entries({ text: COLORS.text, textMuted: COLORS.textMuted, primary: COLORS.primary, ink: MAP_COLORS.ink, sub: MAP_COLORS.sub })) {
+      expect(contrast(fg, MAP_COLORS.paper), `${name} / paper`).toBeGreaterThanOrEqual(4.5);
+      expect(contrast(fg, MAP_COLORS.grid), `${name} / grid`).toBeGreaterThanOrEqual(4.5);
+    }
+    // 모눈은 바탕과 거의 같은 옅은 선이에요(글자보다 눈에 띄지 않게)
+    expect(contrast(MAP_COLORS.grid, MAP_COLORS.paper)).toBeLessThan(1.3);
+    for (const value of Object.values(MAP_COLORS)) expect(value).toMatch(/^#[0-9A-F]{6}$/);
   });
 
   it("읽기 쉬운 대비(WCAG AA 4.5:1)를 지켜요", () => {

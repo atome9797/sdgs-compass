@@ -72,9 +72,13 @@ describe("globals.css 와 theme.ts 의 토큰", () => {
     expect(css).toMatch(/\.scroll::before, \.scroll::after\s*\{[^}]*pointer-events:\s*none/);
   });
 
-  it("홈의 모험 지도(#57): --map-* 가 core 의 MAP_COLORS 와 같고, 모눈은 MAP_GRID 칸 · 장식은 글자 아래에서 누름을 가로채지 않아요", () => {
+  it("모든 화면의 바탕 = 모험 지도(#57 · #59): --map-* 가 core 의 MAP_COLORS 와 같고, 셸 · 시작 화면 · 운영 화면이 양피지 + MAP_GRID 칸 모눈이에요", () => {
     for (const [key, value] of Object.entries(MAP_COLORS)) expect(norm(vars.get(`--map-${kebab(key)}`) ?? ""), key).toBe(norm(value));
-    expect(css).toMatch(new RegExp(`\\.screen--map\\s*\\{[^}]*background-color:\\s*var\\(--map-paper\\)[^}]*background-size:\\s*${MAP_GRID}px ${MAP_GRID}px`));
+    expect(norm(vars.get("--map-grid-image") ?? "")).toContain("var(--map-grid)1px");
+    const paper = `[^}]*background-color:\\s*var\\(--map-paper\\)[^}]*background-image:\\s*var\\(--map-grid-image\\)[^}]*background-size:\\s*${MAP_GRID}px ${MAP_GRID}px`;
+    expect(css).toMatch(new RegExp(`\\.phone, \\.b2b-shell, \\.gate, \\.splash\\s*\\{${paper}`));
+    expect(readCss("admin.css")).toMatch(new RegExp(`\\.adm\\s*\\{${paper}`));
+    // 홈에만 있는 장식(나침반 · 항로 · ×)은 글자 아래에서 누름을 가로채지 않아요
     expect(css).toMatch(/\.screen--map\s*\{[^}]*isolation:\s*isolate/);
     expect(css).toMatch(/\.map-decor\s*\{[^}]*z-index:\s*-1[^}]*image-rendering:\s*pixelated[^}]*pointer-events:\s*none/);
     expect(css).toMatch(/\.screen--map \.greeting__name\s*\{[^}]*color:\s*var\(--map-ink\)/);

@@ -45,14 +45,15 @@
 화면 모델은 `selectHome(...).plea`(`PleaVM`), 그리는 곳은 웹 `PleaWindow`(HomeScreen) · 앱 `components/PleaWindow.tsx` 예요.
 색은 `GAME_COLORS`(core/theme.ts) 한 곳에서 정하고, 웹 `--game-*` 변수와 같은지 `globals.test.ts` 가 확인해요.
 
-## 홈의 바탕 = 모험 지도 (#57)
+## 바탕 = 모험 지도 (#57 홈 → #59 모든 화면)
 
-학생 홈의 바탕을 **양피지 지도**로 깔았어요. 화면 배치는 그대로이고, 의뢰 창 · 검색 칸 · 카드는 지도 위에 놓여요. 다른 화면의 바탕은 그대로예요.
+모든 화면의 바탕을 **양피지 지도**로 깔았어요 — 학생 · 기업 · 연구자 화면, 시작 화면(이용 타입 선택 · 404), 불러오는 화면, 운영 화면(웹), 앱의 모든 화면.
+화면 배치는 그대로이고, 카드 · 의뢰 창 · 표는 지도 위에 놓여요. 오른쪽 위의 나침반 장식은 **홈에만** 있어요.
 
-- 바탕: 양피지(`MAP_COLORS.paper`) + 옅은 모눈(`MAP_COLORS.grid`, 24px 칸 = `MAP_GRID`). 웹은 CSS(`.screen--map`), 앱은 1dp 선(`components/MapPaper.tsx` 의 `MapGrid`)이라 간격 · 색이 같아요.
+- 바탕: 양피지(`MAP_COLORS.paper`) + 옅은 모눈(`MAP_COLORS.grid`, 24px 칸 = `MAP_GRID`). 웹은 CSS(셸 `.phone` · `.b2b-shell` · `.gate` · `.splash`, 운영 화면 `.adm` — `--map-grid-image`), 앱은 `Screen` 의 기본 바탕(1dp 선, `components/MapPaper.tsx` 의 `MapGrid`)이라 간격 · 색이 같아요.
 - 오른쪽 위 장식: 나침반(방위표 · N) · 점선 항로 · 보물 표시(×) · 물결 — `core/adventureMap.ts` 의 80×44 픽셀 그림을 2배(160×88)로 보여 줘요(웹 `components/MapDecor.tsx` · 앱 `MapDecor`, 같은 PNG).
   반투명 먹색 · 붉은색이라 모눈이 비치고, 글자 · 카드 아래에 깔려요. 장식이라 누름을 가로채지 않고, 화면 읽기 프로그램은 건너뛰어요.
-- 인사말은 지도의 먹색(`MAP_COLORS.ink` · `sub`). 바탕에 바로 놓이는 글자(인사말 · 소제목 · 안내 · 「すべて見る」)는 양피지 · 모눈 둘 다와 4.5:1 이상이에요(`theme.test.ts`).
+- 인사말 · 앱의 화면 제목은 지도의 먹색(`MAP_COLORS.ink` · `sub`). 바탕에 바로 놓이는 글자(제목 · 소제목 · 안내 · 링크)는 양피지 · 모눈 둘 다와 4.5:1 이상, 오류 · 완료 · 주의 글자도 양피지와 4.5:1 이상이에요(`theme.test.ts`).
 - 그림은 이 앱만의 픽셀 그림이에요(다른 작품의 지도 · 캐릭터를 본뜨지 않았어요).
 
 ## 상품 보상 「報酬アイテム」

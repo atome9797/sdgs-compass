@@ -20,12 +20,16 @@ describe("디자인 토큰", () => {
     for (const [name, value] of Object.entries(COLORS)) expect(value, name).toMatch(/^(#[0-9A-Fa-f]{6}|rgba\(.+\))$/);
   });
 
-  it("홈의 모험 지도(#57): 바탕에 바로 놓이는 글자는 양피지 · 모눈 둘 다와 4.5:1 이상이에요", () => {
+  it("모험 지도 바탕(#57 · #59): 바탕에 바로 놓이는 글자는 양피지 · 모눈 둘 다와 4.5:1 이상이에요", () => {
     for (const [name, fg] of Object.entries({ text: COLORS.text, textMuted: COLORS.textMuted, primary: COLORS.primary, ink: MAP_COLORS.ink, sub: MAP_COLORS.sub })) {
       expect(contrast(fg, MAP_COLORS.paper), `${name} / paper`).toBeGreaterThanOrEqual(4.5);
       expect(contrast(fg, MAP_COLORS.grid), `${name} / grid`).toBeGreaterThanOrEqual(4.5);
     }
-    // 모눈은 바탕과 거의 같은 옅은 선이에요(글자보다 눈에 띄지 않게)
+    // 모든 화면의 바탕이 되면서(#59) 바탕에 바로 놓일 수 있는 오류 · 완료 · 주의 글자도 양피지와 4.5:1 이상이에요.
+    // 모눈은 양피지와 1.3:1 미만인 1px 의 옅은 선이라 글자 읽기를 막지 않아요.
+    for (const [name, fg] of Object.entries({ danger: COLORS.danger, success: COLORS.success, warning: COLORS.warning })) {
+      expect(contrast(fg, MAP_COLORS.paper), `${name} / paper`).toBeGreaterThanOrEqual(4.5);
+    }
     expect(contrast(MAP_COLORS.grid, MAP_COLORS.paper)).toBeLessThan(1.3);
     for (const value of Object.values(MAP_COLORS)) expect(value).toMatch(/^#[0-9A-F]{6}$/);
   });

@@ -1,4 +1,4 @@
-// SCR-01 홈(바탕 = 모험 지도, #57): 인사 · 의뢰 창(#37, 기업 NPC 의 부탁) · 검색 칸 · SDGs 17목표 타일 · AI 추천 챌린지(매칭률+이유) · 마감 임박 · 내 참여 실적.
+// SCR-01 홈(바탕 = 모험 지도 + 오른쪽 위 나침반 장식, #57): 인사 · 의뢰 창(#37, 기업 NPC 의 부탁) · 검색 칸 · SDGs 17목표 타일 · AI 추천 챌린지(매칭률+이유) · 마감 임박 · 내 참여 실적.
 // 계산은 core 의 selectHome 이 하고, 이 화면은 그 결과를 그려요. 검색 칸·SDGs 타일을 누르면 검색 탭으로 조건을 채워서 넘어가요.
 import { useRouter } from "expo-router";
 import { useMemo, useState } from "react";
@@ -30,9 +30,9 @@ export function HomeScreen() {
   };
 
   return (
-    <Screen tabbed paper="map" testID="screen-home">
+    <Screen tabbed testID="screen-home">
       <MapDecor testID="home-map-decor" />
-      <ScreenTitle tone="map" title={t("home.greeting", { name: vm.nickname })} subtitle={t("app.tagline")} />
+      <ScreenTitle title={t("home.greeting", { name: vm.nickname })} subtitle={t("app.tagline")} />
       {vm.plea ? <PleaWindow testID="home-plea" plea={vm.plea} acceptLabel={t("home.pleaAccept")} onAccept={() => router.push(challengeHref(vm.plea!.challengeId))} /> : null}
       <SearchBox
         testID="home-search"

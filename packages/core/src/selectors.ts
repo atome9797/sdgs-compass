@@ -197,7 +197,7 @@ export interface ChallengeCardVM {
   foe: { name: string; kind: FoeKind; color: string; about: string | null };
   /** 의뢰서의 「課題」(#41): 과제를 쉬운 말로 — 몬스터의 정체, 없으면 퀘스트의 요약 */
   problem: string;
-  /** 의뢰서의 「報酬」 한 줄: 「賞金 ¥100,000 か 🎁 みなとの海の幸… ／ 🎁 みなとの干物ギフトセット（優秀賞・特別賞） ／ インターン」 (없으면 null) */
+  /** 의뢰서의 「報酬」 한 줄: 「賞金 ¥100,000 または 🎁 みなとの海の幸… ／ 🎁 みなとの干物ギフトセット（優秀賞・特別賞） ／ インターン」 (없으면 null) */
   rewardsLine: string | null;
 }
 

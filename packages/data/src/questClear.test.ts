@@ -41,7 +41,7 @@ describe("보상(#47): 상금은 최우수상만, 상품은 어느 상이든 —
     expect(rewardPending(grand, mine(grand))).toBe(true);
     const row = selectPrizePayments(grand, "ja").rows.find((r) => r.challengeId === "ch-plastic")!;
     expect(row.statusLabel).toBe("受賞チームが選択中");
-    expect(prizeNotice(grand, "ch-plastic", "ja")?.text).toContain("賞金 ¥100,000 か商品かを選んでいます");
+    expect(prizeNotice(grand, "ch-plastic", "ja")?.text).toContain("賞金 ¥100,000 と商品のどちらにするかを選んでいます");
   });
 
   it("상금을 고르면 지급 · 받은 상금에 한 줄 · 수수료가 생겨요", () => {

@@ -243,7 +243,7 @@ describe("퀘스트 의뢰서 (#39 · #41) — 목록 카드의 과제 · 몬스
 
   it("보상 한 줄: 최우수상(상금 또는 상금에 맞먹는 상품) → 우수상 · 특별상의 부상 → 그 밖의 특전, 의뢰 창의 보상 줄과 같아요(#53)", () => {
     const card = selectHome(initial, "ja").recommended.find((c) => c.id === "ch-plastic")!;
-    expect(card.rewardsLine).toBe("賞金 ¥100,000 か 🎁 みなとの海の幸 1年分の定期便（12回） ／ 🎁 みなとの干物ギフトセット（優秀賞・特別賞） ／ インターン");
+    expect(card.rewardsLine).toBe("賞金 ¥100,000 または 🎁 みなとの海の幸 1年分の定期便（12回） ／ 🎁 みなとの干物ギフトセット（優秀賞・特別賞） ／ インターン");
     const plea = selectHome(initial, "ja").plea!;
     expect(plea.rewards).toBe(`報酬：${card.rewardsLine}`);
     const ko = selectHome(initial, "ko").recommended.find((c) => c.id === "ch-plastic")!;

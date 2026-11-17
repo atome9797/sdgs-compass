@@ -50,7 +50,7 @@ export interface ResearchCardVM {
   statusLabel: string;
   statusTone: ResearchTone;
   feeLabel: string;
-  /** 운영 수수료(의뢰비의 10%, 최저 ¥9,000) — 기업이 의뢰비와 따로 내요 */
+  /** 운영 수수료(의뢰비의 10%, 최저 ¥6,000) — 기업이 의뢰비와 따로 내요 */
   platformFeeLabel: string;
   /** 「2026年12月20日まで」 */
   dueLabel: string;

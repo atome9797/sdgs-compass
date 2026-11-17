@@ -97,7 +97,7 @@ export interface PrizeRowVM {
   challengeId: string;
   title: string;
   amountLabel: string;
-  /** 지급했거나 지급할 때의 수수료 (상금의 10%, 최저 ¥9,000) */
+  /** 지급했거나 지급할 때의 수수료 (상금의 10%, 최저 ¥6,000) */
   feeLabel: string;
   status: PrizePaymentStatus;
   statusLabel: string;

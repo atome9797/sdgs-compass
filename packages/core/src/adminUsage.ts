@@ -148,7 +148,7 @@ export interface UsageTotals {
   scoutsByStatus: Record<ScoutStatus, number>;
   /** 채택(인턴 참가 결정) 수 — 무료 */
   matches: number;
-  /** 운영 수수료의 합: 지급한 상금 · 상품을 고른 최우수상의 상금액(#51) · 완료한 연구 의뢰의 10%(최저 ¥9,000) (fees.ts) */
+  /** 운영 수수료의 합: 지급한 상금 · 상품을 고른 최우수상의 상금액(#51) · 완료한 연구 의뢰의 10%(최저 ¥6,000) (fees.ts) */
   feeYen: number;
   /** 수수료의 근거가 된 상금·연구 의뢰비의 합 (기업이 학생·연구자에게 직접 지급) */
   feeBaseYen: number;

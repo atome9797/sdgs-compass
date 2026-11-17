@@ -1,16 +1,19 @@
 import { describe, expect, it } from "vitest";
 import { makeUsageState } from "./adminFixtures";
 import { DONATION_RATIO, feeItems, MATCH_FEE_YEN, PLATFORM_FEE_MIN_YEN, PLATFORM_FEE_RATE, platformFeeFor, splitMatchFee, summarizeFees } from "./fees";
+import { translate } from "./messages";
 
-describe("운영 수수료 = 상금·연구 의뢰비의 10% (최저 ¥9,000)", () => {
+describe("운영 수수료 = 상금·연구 의뢰비의 10% (최저 ¥6,000)", () => {
   it("요율과 최저액", () => {
     expect(PLATFORM_FEE_RATE).toBe(0.1);
-    expect(PLATFORM_FEE_MIN_YEN).toBe(9_000);
+    expect(PLATFORM_FEE_MIN_YEN).toBe(6_000);
   });
 
   it("10% 가 최저액보다 작으면 최저액, 크면 10% (엔 미만 버림)", () => {
-    expect(platformFeeFor(30_000)).toBe(9_000);
-    expect(platformFeeFor(80_000)).toBe(9_000);
+    expect(platformFeeFor(30_000)).toBe(6_000);
+    expect(platformFeeFor(50_000)).toBe(6_000);
+    expect(platformFeeFor(60_000)).toBe(6_000);
+    expect(platformFeeFor(80_000)).toBe(8_000);
     expect(platformFeeFor(90_000)).toBe(9_000);
     expect(platformFeeFor(100_000)).toBe(10_000);
     expect(platformFeeFor(123_456)).toBe(12_345);
@@ -19,6 +22,14 @@ describe("운영 수수료 = 상금·연구 의뢰비의 10% (최저 ¥9,000)", 
 
   it("0엔 이하·숫자가 아니면 수수료도 0엔", () => {
     for (const base of [0, -1, Number.NaN, Number.POSITIVE_INFINITY]) expect(platformFeeFor(base), String(base)).toBe(0);
+  });
+
+  it("최저액을 글자로 쓴 안내 문구 3개도 PLATFORM_FEE_MIN_YEN 과 같아요 (2026-11-17 ¥9,000 → ¥6,000)", () => {
+    const min = String(PLATFORM_FEE_MIN_YEN).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+    for (const key of ["wallet.about.prize", "prize.newNote", "prize.companyNote"] as const) {
+      expect(translate(key, "ja"), key).toContain(`最低${min}円`);
+      expect(translate(key, "ko"), key).toContain(`최저 ${min}엔`);
+    }
   });
 });
 
@@ -40,10 +51,10 @@ describe("수수료의 근거가 된 거래 (지급한 상금 + 완료한 연구
   it("지급한 상금과 완료한 연구만, 최신 순", () => {
     const items = feeItems(state, "co1");
     expect(items.map((i) => [i.id, i.baseYen, i.feeYen, i.date])).toEqual([
-      ["research:rr1", 80_000, 9_000, "2026-10-15"],
+      ["research:rr1", 80_000, 8_000, "2026-10-15"],
       ["prize:chA", 100_000, 10_000, "2026-10-01"],
     ]);
-    expect(summarizeFees(items)).toEqual({ count: 2, baseYen: 180_000, feeYen: 19_000 });
+    expect(summarizeFees(items)).toEqual({ count: 2, baseYen: 180_000, feeYen: 18_000 });
   });
 
   it("회사를 비우면 모든 기업 것 (운영자 화면)", () => {
@@ -62,10 +73,10 @@ describe("수수료의 근거가 된 거래 (지급한 상금 + 완료한 연구
     const items = feeItems(withItem, "co1");
     expect(items.map((i) => [i.id, i.kind, i.baseYen, i.feeYen, i.date])).toEqual([
       ["prize:chD", "prizeItem", 150_000, 15_000, "2026-10-25"],
-      ["research:rr1", "research", 80_000, 9_000, "2026-10-15"],
+      ["research:rr1", "research", 80_000, 8_000, "2026-10-15"],
       ["prize:chA", "prize", 100_000, 10_000, "2026-10-01"],
     ]);
-    expect(summarizeFees(items)).toEqual({ count: 3, baseYen: 180_000, feeYen: 34_000 });
+    expect(summarizeFees(items)).toEqual({ count: 3, baseYen: 180_000, feeYen: 33_000 });
   });
 });
 

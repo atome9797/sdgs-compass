@@ -142,7 +142,7 @@ describe("기업(B2B) 동작", () => {
     expect(run(initial, { type: "reviewProposal", proposalId: "없음", review: { creativity: 3, feasibility: 3, sdgContribution: 3, comment: "" }, at: AT })).toBe(initial);
   });
 
-  it("채택(인턴)은 무료라서 돈 없이 기록되고, 최우수상 상금을 지급하면 그 수수료(10%, 최저 ¥9,000)가 생겨요", () => {
+  it("채택(인턴)은 무료라서 돈 없이 기록되고, 최우수상 상금을 지급하면 그 수수료(10%, 최저 ¥6,000)가 생겨요", () => {
     const before = selectB2bDashboard(initial, "ja");
     const next = run(initial, { type: "awardProposal", proposalId: "pb-1", award: "grand" }, { type: "adoptProposal", proposalId: "pb-1", at: AT });
     const p = next.proposals.find((x) => x.id === "pb-1")!;
@@ -151,8 +151,8 @@ describe("기업(B2B) 동작", () => {
     const added = next.matches[next.matches.length - 1];
     expect(added).toEqual({ id: added.id, challengeId: "ch-bottle", proposalId: "pb-1", companyId: "co-minato", matchedOn: TODAY });
     const after = selectB2bDashboard(next, "ja");
-    expect(before.kpis.find((k) => k.id === "fees")?.value).toBe("¥9,000");
-    expect(after.kpis.find((k) => k.id === "fees")?.value).toBe("¥18,000");
+    expect(before.kpis.find((k) => k.id === "fees")?.value).toBe("¥6,000");
+    expect(after.kpis.find((k) => k.id === "fees")?.value).toBe("¥12,000");
     expect(after.kpis.find((k) => k.id === "matches")?.value).toBe("3");
     expect(after.fee.rows).toHaveLength(2);
   });
@@ -346,8 +346,8 @@ describe("발표 시나리오 한 바퀴 (학생 ↔ 기업)", () => {
     for (const c of certs) expect(verifyCertificate(c.cert)).toBe(true);
     expect(certs[0].awardLabel).not.toBeNull();
 
-    // 5) 기업 대시보드: 최우수상 상금(¥80,000)을 직접 지급 → 수수료 ¥9,000(최저액)이 더해지고, 채택(인턴)은 무료
-    expect(selectB2bDashboard(store.getState(), "ja").kpis.find((k) => k.id === "fees")?.value).toBe("¥18,000");
+    // 5) 기업 대시보드: 최우수상 상금(¥80,000)을 직접 지급 → 수수료 ¥8,000(10%)이 더해지고, 채택(인턴)은 무료
+    expect(selectB2bDashboard(store.getState(), "ja").kpis.find((k) => k.id === "fees")?.value).toBe("¥14,000");
   });
 });
 

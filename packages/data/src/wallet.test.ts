@@ -73,19 +73,19 @@ describe("기업: 상금을 걸고 → 최우수상 팀에 직접 지급 (수수
     const vm = selectPrizePayments(initial, "ja");
     expect([vm.promisedLabel, vm.paidLabel]).toEqual(["¥220,000", "¥30,000"]);
     expect(vm.rows.map((r) => r.status)).toEqual(["promised", "promised", "promised", "paid", "noWinner"]);
-    expect(vm.rows.find((r) => r.challengeId === "ch-old1")).toMatchObject({ statusLabel: "支払い済み", feeLabel: "¥9,000" });
+    expect(vm.rows.find((r) => r.challengeId === "ch-old1")).toMatchObject({ statusLabel: "支払い済み", feeLabel: "¥6,000" });
     expect(vm.rows.find((r) => r.challengeId === "ch-old2")).toMatchObject({ statusLabel: "最優秀賞なし", feeLabel: "—" });
   });
 
   it("다른 학생의 기획서(pb-1)에 최우수상 → 지급으로 기록되고, 내 기록은 그대로", () => {
     expect(prizeNotice(initial, "ch-bottle", "ja")?.text).toBe(
-      "最優秀賞を決めたら、賞金 ¥50,000 を受賞チームへ直接お支払いください（満額が学生に届きます）。手数料 ¥9,000 は当社から別にご請求します。",
+      "最優秀賞を決めたら、賞金 ¥50,000 を受賞チームへ直接お支払いください（満額が学生に届きます）。手数料 ¥6,000 は当社から別にご請求します。",
     );
     const next = run(initial, { type: "awardProposal", proposalId: "pb-1", award: "grand" });
     expect(next.prizePayments.find((p) => p.challengeId === "ch-bottle")).toMatchObject({ status: "paid", proposalId: "pb-1", paidOn: TODAY });
     expect(next.wallet).toBe(initial.wallet);
-    expect(prizeNotice(next, "ch-bottle", "ja")).toEqual({ status: "paid", text: "賞金 ¥50,000 を「ボトルフレンズ」へ支払い済みとして記録しました（デモ）。手数料 ¥9,000" });
-    expect(prizeNotice(next, "ch-bottle", "ko")?.text).toBe("상금 50,000엔을 「ボトルフレンズ」에 지급한 것으로 기록했어요(데모). 수수료 9,000엔");
+    expect(prizeNotice(next, "ch-bottle", "ja")).toEqual({ status: "paid", text: "賞金 ¥50,000 を「ボトルフレンズ」へ支払い済みとして記録しました（デモ）。手数料 ¥6,000" });
+    expect(prizeNotice(next, "ch-bottle", "ko")?.text).toBe("상금 50,000엔을 「ボトルフレンズ」에 지급한 것으로 기록했어요(데모). 수수료 6,000엔");
     const dash = selectPrizePayments(next, "ja");
     expect([dash.promisedLabel, dash.paidLabel]).toEqual(["¥170,000", "¥80,000"]);
   });
@@ -101,7 +101,7 @@ describe("기업: 상금을 걸고 → 최우수상 팀에 직접 지급 (수수
   });
 
   it("샘플의 끝난 과제: 받은 기획서가 목록에 없으면 팀 이름 없이, 최우수상 없음은 그 안내", () => {
-    expect(prizeNotice(initial, "ch-old1", "ja")?.text).toBe("賞金 ¥30,000 は受賞チームへ支払い済みです。手数料 ¥9,000");
+    expect(prizeNotice(initial, "ch-old1", "ja")?.text).toBe("賞金 ¥30,000 は受賞チームへ支払い済みです。手数料 ¥6,000");
     expect(prizeNotice(initial, "ch-old2", "ja")?.text).toBe("最優秀賞なしで終わったため、賞金 ¥30,000 の支払いと手数料はありません");
     expect(prizeNotice(initial, null, "ja")).toBeNull();
     expect(prizeNotice(initial, "없음", "ja")).toBeNull();

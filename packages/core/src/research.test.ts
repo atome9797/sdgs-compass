@@ -242,7 +242,7 @@ describe("화면용 데이터", () => {
     expect(vm.canCreate).toBe(true);
   });
 
-  it("상세: 진행 단계 · 할 수 있는 일 · 거래 조건(운영 수수료는 의뢰비의 10%·최저 ¥9,000 — 기업이 따로)", () => {
+  it("상세: 진행 단계 · 할 수 있는 일 · 거래 조건(운영 수수료는 의뢰비의 10%·최저 ¥6,000 — 기업이 따로)", () => {
     const open = selectResearchDetail(s, "a", "ja");
     expect(open?.steps.map((st) => st.state)).toEqual(["current", "todo", "todo", "todo"]);
     expect(open).toMatchObject({ canAccept: true, canSubmit: false, takenByOther: false, expired: false, canComplete: false });
@@ -260,7 +260,7 @@ describe("화면용 데이터", () => {
       expect(terms).toHaveLength(4);
       const fee = terms[3].value;
       expect(fee).toMatch(locale === "ja" ? /企業が別に支払います。依頼費は満額/ : /기업이 따로 내요\. 의뢰비는 전액/);
-      expect(fee).toContain(locale === "ja" ? "¥9,000" : "9,000엔");
+      expect(fee).toContain(locale === "ja" ? "¥6,000" : "6,000엔");
     }
   });
 
@@ -268,7 +268,7 @@ describe("화면용 데이터", () => {
     expect(selectResearchForm(s, "ja", "p5").selectedId).toBe("p5");
     expect(selectResearchForm(s, "ja", "p1").selectedId).toBe("p4");
     expect(selectResearchForm(s, "ja", null).ideas.map((i) => i.id)).toEqual(["p4", "p5"]);
-    expect(selectResearchForm(s, "ja", null).feeHint).toBe("研究者に満額支払う金額です（¥10,000〜¥1,000,000）。当社の手数料は、この10%（最低¥9,000）を別にご請求します。");
+    expect(selectResearchForm(s, "ja", null).feeHint).toBe("研究者に満額支払う金額です（¥10,000〜¥1,000,000）。当社の手数料は、この10%（最低¥6,000）を別にご請求します。");
     const none = makeUsageState({ myCompanyId: "co2", researcher: RESEARCHER, researchRequests: [] });
     expect(selectResearchForm(none, "ja", null)).toMatchObject({ ideas: [], selectedId: null });
   });
@@ -281,7 +281,7 @@ describe("화면용 데이터", () => {
     expect(researchFlow("ko")[4]).toContain("은행");
     const pay = researchPayTimings("ja");
     expect(pay.items).toHaveLength(4);
-    expect(pay.items[0]).toContain("最低¥9,000");
+    expect(pay.items[0]).toContain("最低¥6,000");
     expect(pay.items[1]).toContain("無料");
     expect(pay.items[3]).toContain("手数料なし");
     expect(pay.note).toContain("預かりません");

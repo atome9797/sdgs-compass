@@ -22,6 +22,7 @@ import {
   authorRole, bodyLimit, DEFAULT_OFFICIAL_CHANNEL, defaultPrSdgs, OFFICIAL_CHANNELS, OFFICIAL_SHARE_FEE_YEN, OFFICIAL_SHARE_MONTHLY_LIMIT, OFFICIAL_SHARE_WINDOW_DAYS,
   officialChannelFormat, officialChannelLabel, officialChannelName, officialDateChoices, officialShareLink, officialUsageByMonth, POST_LIMITS,
 } from "./post";
+import { PARTNER_BANNERS } from "./partners";
 import { TEAM_SIZE } from "./proposal";
 import { qrMatrix } from "./qr";
 import { isOpenFor, recommendChallenges, scoreChallenge, type Reason, type Recommendation } from "./recommend";
@@ -321,10 +322,41 @@ export function pleaOf(state: DemoState, challenge: Challenge, locale: Locale): 
   };
 }
 
+/** 첫 화면의 협력 단체 배너 한 장 (Swiper 처럼 저절로 넘어가는 광고 배너) */
+export interface PartnerBannerVM {
+  id: string;
+  name: string;
+  kind: string;
+  headline: string;
+  body: string;
+  emoji: string;
+  /** 배너 바탕색 (흰 글자와 대비 4.5:1 이상) */
+  accent: string;
+  sdgIds: SdgId[];
+  /** 가상의 샘플 단체면 「サンプル」 표시 */
+  sample: boolean;
+}
+
+export function selectPartnerBanners(locale: Locale): PartnerBannerVM[] {
+  return PARTNER_BANNERS.map((p) => ({
+    id: p.id,
+    name: pick(p.name, locale),
+    kind: pick(p.kind, locale),
+    headline: pick(p.headline, locale),
+    body: pick(p.body, locale),
+    emoji: p.emoji,
+    accent: p.accent,
+    sdgIds: [...p.sdgIds],
+    sample: p.sample,
+  }));
+}
+
 export interface HomeVM {
   nickname: string;
   /** 의뢰 창 (#37) */
   plea: PleaVM | null;
+  /** 협력 단체 배너 (검색 칸 아래) */
+  partners: PartnerBannerVM[];
   sdgTiles: SdgCountTileVM[];
   recommended: ChallengeCardVM[];
   soon: ChallengeCardVM[];
@@ -342,7 +374,7 @@ export function selectHome(state: DemoState, locale: Locale): HomeVM {
   const activities = deriveActivities(state).filter((a) => a.kind !== "share").slice(0, 3).map((a) => activityVM(a, locale));
   const first = recs.map((rec) => rec.challenge).find((c) => isOpenFor(c, state.today));
   const plea = first ? pleaOf(state, first, locale) : null;
-  return { nickname: state.me.nickname, plea, sdgTiles: selectSdgCountTiles(state, locale), recommended, soon, activities };
+  return { nickname: state.me.nickname, plea, partners: selectPartnerBanners(locale), sdgTiles: selectSdgCountTiles(state, locale), recommended, soon, activities };
 }
 
 function searchText(state: DemoState, challenge: Challenge): string {

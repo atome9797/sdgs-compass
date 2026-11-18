@@ -1,5 +1,5 @@
-// SCR-01 홈(바탕 = 모험 지도 + 오른쪽 위 나침반 장식, #57): 인사 · 의뢰 창(#37, 기업 NPC 의 부탁) · 검색 칸 · SDGs 17목표 타일 · AI 추천 챌린지(매칭률+이유) · 마감 임박 · 내 참여 실적.
-// 계산은 core 의 selectHome 이 하고, 이 화면은 그 결과를 그려요. 검색 칸·SDGs 타일을 누르면 검색 탭으로 조건을 채워서 넘어가요.
+// SCR-01 홈(바탕 = 모험 지도 + 오른쪽 위 나침반 장식, #57): 인사 · 의뢰 창(#37, 기업 NPC 의 부탁) · 검색 칸 · 협력 단체 배너(저절로 넘어가는 광고 배너) · SDGs 17목표 타일 · AI 추천 챌린지(매칭률+이유) · 마감 임박 · 내 참여 실적.
+// 계산은 core 의 selectHome 이 하고, 이 화면은 그 결과를 그려요. 검색 칸·SDGs 타일·배너의 「関連するクエストを見る」를 누르면 검색 탭으로 조건을 채워서 넘어가요.
 import { useRouter } from "expo-router";
 import { useMemo, useState } from "react";
 import { StyleSheet, View } from "react-native";
@@ -7,6 +7,7 @@ import type { SdgId } from "@sdgs-compass/core/sdg";
 import { selectHome } from "@sdgs-compass/core/selectors";
 import { ActivityRow } from "@/components/ActivityRow";
 import { MapDecor } from "@/components/MapPaper";
+import { PartnerSwiper } from "@/components/PartnerSwiper";
 import { PleaWindow } from "@/components/PleaWindow";
 import { QuestScroll } from "@/components/QuestScroll";
 import { Screen, ScreenTitle } from "@/components/Screen";
@@ -42,6 +43,12 @@ export function HomeScreen() {
         onSubmit={() => openSearch({ query })}
         submitLabel={t("common.search")}
       />
+
+      {vm.partners.length > 0 ? (
+        <Section title={t("home.partnersTitle")} hint={t("home.partnersHint")}>
+          <PartnerSwiper testID="home-partners" slides={vm.partners} t={t} onOpen={(sdgIds) => openSearch({ sdgIds })} />
+        </Section>
+      ) : null}
 
       <Section title={t("home.sdgTitle")} hint={t("home.sdgHint")}>
         <SdgGrid tiles={vm.sdgTiles} onPress={(id) => openSearch({ sdgIds: [id] })} />

@@ -3,6 +3,7 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { CHART_COLORS, COLORS, FONT_SIZE, GAME_COLORS, MAP_COLORS, MARK_COLORS, PHONE_WIDTH, RADIUS, SCROLL_COLORS, SPACE } from "@sdgs-compass/core/theme";
 import { MAP_GRID } from "@sdgs-compass/core/adventureMap";
+import { SLIDE_MS } from "../lib/carousel";
 
 // globals.css 의 :root 값이 core 의 theme.ts(웹·모바일 공용 디자인 토큰)와 같은지 확인해요.
 function readCss(file = "globals.css"): string {
@@ -51,6 +52,15 @@ describe("globals.css 와 theme.ts 의 토큰", () => {
     expect(css).toMatch(/\.battle-skill\s*\{[^}]*min-height:\s*var\(--tap\)/);
     expect(css).toMatch(/\.battle__canvas\s*\{[^}]*image-rendering:\s*pixelated/);
     expect(css).toMatch(/@media \(prefers-reduced-motion: reduce\)\s*\{[^}]*\.battle-msg__next/);
+  });
+
+  it("첫 화면의 협력 단체 배너: 점 · 멈춤 단추 · 링크는 누르는 곳 44px, 미끄러지는 시간은 lib/carousel 과 같고, 움직임 줄이기면 미끄러지지 않아요", () => {
+    expect(css).toMatch(/\.partner-swiper__dot\s*\{[^}]*min-height:\s*var\(--tap\)/);
+    expect(css).toMatch(/\.partner-swiper__toggle\s*\{[^}]*min-height:\s*var\(--tap\)/);
+    expect(css).toMatch(/\.partner-slide__cta\s*\{[^}]*min-height:\s*var\(--tap\)/);
+    const slide = /\.partner-swiper__track--animate\s*\{\s*transition:\s*transform\s+([\d.]+)s/.exec(css);
+    expect(Number(slide?.[1]) * 1000).toBe(SLIDE_MS);
+    expect(css).toMatch(/@media \(prefers-reduced-motion: reduce\)\s*\{[^}]*\.partner-swiper__track--animate\s*\{\s*transition:\s*none/);
   });
 
   it("메시지 창(#41): 낼 것 목록의 줄바꿈이 보이고(pre-line), 이름표는 창 위에 겹쳐요", () => {

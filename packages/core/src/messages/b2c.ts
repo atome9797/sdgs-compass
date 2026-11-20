@@ -21,6 +21,18 @@ export const b2c = {
   "home.myActivitiesTitle": { ja: "参加実績", ko: "참여 실적" },
   "home.myActivitiesEmpty": { ja: "まだ参加実績がありません。クエストに挑戦してみましょう。", ko: "아직 참여 실적이 없어요. 퀘스트에 도전해 보세요." },
   "home.deadlineSoon": { ja: "締切が近いクエスト", ko: "마감이 임박한 퀘스트" },
+  // 검색 칸 아래의 협력 단체 배너: Swiper 처럼 저절로 넘어가는 광고 배너 (허락받은 실제 단체 + 「サンプル」 표시의 가상 단체)
+  "home.partnersTitle": { ja: "協力団体", ko: "협력 단체" },
+  "home.partnersHint": { ja: "一緒に海を守る仲間です（「サンプル」の団体は架空です）", ko: "함께 바다를 지키는 동료예요(「샘플」 표시가 있는 단체는 가상이에요)" },
+  "home.partnersRegion": { ja: "協力団体の紹介", ko: "협력 단체 소개" },
+  "home.partnersSample": { ja: "サンプル", ko: "샘플" },
+  "home.partnersCta": { ja: "関連するクエストを見る", ko: "관련 퀘스트 보기" },
+  "home.partnersSite": { ja: "ウェブサイトを見る", ko: "웹사이트 보기" },
+  "home.partnersSiteHint": { ja: "ブラウザで開きます", ko: "브라우저에서 열려요" },
+  "home.partnersSlide": { ja: "{index} / {count}", ko: "{index} / {count}" },
+  "home.partnersGo": { ja: "{index}枚目を表示", ko: "{index}번째 보기" },
+  "home.partnersPause": { ja: "自動で切り替えるのを止める", ko: "자동 넘김 멈추기" },
+  "home.partnersPlay": { ja: "自動で切り替える", ko: "자동으로 넘기기" },
 
   "search.title": { ja: "クエストを探す", ko: "퀘스트 찾기" },
   "search.placeholder": { ja: "キーワードで検索", ko: "키워드로 검색" },

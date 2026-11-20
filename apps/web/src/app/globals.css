@@ -759,6 +759,31 @@ a.chip { text-decoration: none; }
 @keyframes rpg-blink { 50% { opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .rpg-window__choice::before { animation: none; } }
 
+/* 첫 화면의 협력 단체 배너: Swiper 처럼 저절로 넘어가는 광고 배너 (components/PartnerSwiper · lib/carousel) */
+.partner-swiper { display: flex; flex-direction: column; gap: 2px; }
+.partner-swiper__viewport { overflow: hidden; border-radius: var(--radius-lg); box-shadow: var(--shadow); touch-action: pan-y; cursor: grab; }
+.partner-swiper__viewport:active { cursor: grabbing; }
+.partner-swiper__track { display: flex; will-change: transform; }
+.partner-swiper__track--animate { transition: transform 0.45s ease; }
+.partner-slide { flex: 0 0 100%; min-width: 0; display: flex; gap: 14px; padding: 16px; background: var(--partner-accent, var(--primary)); color: var(--on-primary); user-select: none; -webkit-user-select: none; }
+.partner-slide__art { flex: none; display: grid; place-items: center; width: 64px; height: 64px; border-radius: 50%; background: rgba(255, 255, 255, 0.16); font-size: 34px; line-height: 1; }
+.partner-slide__main { flex: 1; display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.partner-slide__meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.partner-slide__name { font-size: var(--fs-sm); font-weight: 800; }
+.partner-slide__chip { padding: 1px 8px; border: 1px solid rgba(255, 255, 255, 0.75); border-radius: var(--radius-pill); font-size: var(--fs-xs); font-weight: 700; }
+.partner-slide__kind { font-size: var(--fs-xs); font-weight: 700; }
+.partner-slide__headline { margin-top: 2px; font-size: var(--fs-lg); font-weight: 800; line-height: 1.4; }
+.partner-slide__body { font-size: var(--fs-sm); line-height: 1.6; }
+.partner-slide__foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin-top: auto; padding-top: 6px; }
+.partner-slide__cta { display: inline-flex; align-items: center; min-height: var(--tap); padding: 0 14px; border-radius: var(--radius-pill); background: var(--card); color: var(--partner-accent, var(--primary)); font-size: var(--fs-sm); font-weight: 800; }
+.partner-slide__cta:hover, .partner-slide__cta:focus-visible { text-decoration: none; box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.45); }
+.partner-swiper__controls { display: flex; align-items: center; justify-content: center; }
+.partner-swiper__dot { display: inline-grid; place-items: center; min-width: var(--tap); min-height: var(--tap); padding: 0; background: none; border: 0; cursor: pointer; }
+.partner-swiper__dot::before { content: ""; width: 8px; height: 8px; border-radius: var(--radius-pill); background: var(--text-subtle); transition: width 0.2s; }
+.partner-swiper__dot[aria-current="true"]::before { width: 22px; background: var(--primary); }
+.partner-swiper__toggle { display: inline-grid; place-items: center; min-width: var(--tap); min-height: var(--tap); padding: 0; background: none; border: 0; color: var(--text-muted); font-size: var(--fs-xs); font-weight: 800; cursor: pointer; }
+@media (prefers-reduced-motion: reduce) { .partner-swiper__track--animate { transition: none; } .partner-swiper__dot::before { transition: none; } }
+
 /* 퀘스트 상세의 상품 보상(報酬アイテム) */
 .item-box { display: flex; gap: 12px; align-items: flex-start; padding: 12px 14px; border: 2px dashed var(--mark-star); border-radius: var(--radius-md); background: var(--mark-star-soft); }
 .item-box__icon { font-size: 28px; line-height: 1; flex: none; }

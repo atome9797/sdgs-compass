@@ -1,12 +1,13 @@
 "use client";
 
-// SCR-01 메인 홈: 인사 · 의뢰 창(#37, 기업 NPC 의 부탁) · 검색 · SDGs 17 타일(목표별 모집 중 과제 수) · 추천 · 마감 임박 · 참여 실적
+// SCR-01 메인 홈: 인사 · 의뢰 창(#37, 기업 NPC 의 부탁) · 검색 · 협력 단체 배너(저절로 넘어가는 광고 배너) · SDGs 17 타일(목표별 모집 중 과제 수) · 추천 · 마감 임박 · 참여 실적
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, type FormEvent } from "react";
 import { selectHome, type ActivityVM, type PleaVM } from "@sdgs-compass/core/selectors";
 import { ChallengeCard, ChallengeRow } from "@/components/ChallengeCard";
 import { MapDecor } from "@/components/MapDecor";
+import { PartnerSwiper } from "@/components/PartnerSwiper";
 import { SdgMiniRow, SdgTileGrid } from "@/components/sdg";
 import { Button, Empty, Section } from "@/components/ui";
 import { buildHref, challengeHref, ROUTES, searchHref } from "@/lib/routes";
@@ -79,6 +80,12 @@ export function HomeScreen() {
           <span aria-hidden="true">🔎</span>
         </Button>
       </form>
+
+      {vm.partners.length > 0 ? (
+        <Section title={t("home.partnersTitle")} hint={t("home.partnersHint")}>
+          <PartnerSwiper slides={vm.partners} />
+        </Section>
+      ) : null}
 
       <Section title={t("home.sdgTitle")} hint={t("home.sdgHint")}>
         <SdgTileGrid tiles={vm.sdgTiles} />

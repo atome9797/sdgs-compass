@@ -21,9 +21,9 @@ export const b2c = {
   "home.myActivitiesTitle": { ja: "参加実績", ko: "참여 실적" },
   "home.myActivitiesEmpty": { ja: "まだ参加実績がありません。クエストに挑戦してみましょう。", ko: "아직 참여 실적이 없어요. 퀘스트에 도전해 보세요." },
   "home.deadlineSoon": { ja: "締切が近いクエスト", ko: "마감이 임박한 퀘스트" },
-  // 검색 칸 아래의 협력 단체 배너: Swiper 처럼 저절로 넘어가는 광고 배너 (허락받은 실제 단체 + 「サンプル」 표시의 가상 단체)
+  // 검색 칸 아래의 협력 단체 배너: Swiper 처럼 저절로 넘어가는 광고 배너 (게재 허락을 받은 실제 단체. 가상의 샘플에는 「サンプル」 표시)
   "home.partnersTitle": { ja: "協力団体", ko: "협력 단체" },
-  "home.partnersHint": { ja: "一緒に海を守る仲間です（「サンプル」の団体は架空です）", ko: "함께 바다를 지키는 동료예요(「샘플」 표시가 있는 단체는 가상이에요)" },
+  "home.partnersHint": { ja: "一緒に海を守る仲間です", ko: "함께 바다를 지키는 동료예요" },
   "home.partnersRegion": { ja: "協力団体の紹介", ko: "협력 단체 소개" },
   "home.partnersSample": { ja: "サンプル", ko: "샘플" },
   "home.partnersCta": { ja: "関連するクエストを見る", ko: "관련 퀘스트 보기" },

@@ -10,6 +10,7 @@ import { useEffect, useRef, useState, type CSSProperties, type MouseEvent as Rea
 import type { PartnerBannerVM } from "@sdgs-compass/core/selectors";
 import { SdgMiniRow } from "@/components/sdg";
 import { AUTOPLAY_MS, loopJump, positionOf, realIndex, settlePosition, SLIDE_MS, startPosition, TAP_SLOP_PX, trackItems } from "@/lib/carousel";
+import { partnerLogoSrc } from "@/lib/partnerLogos";
 import { searchHref } from "@/lib/routes";
 import { useSession } from "@/lib/session";
 import { useReducedMotion } from "@/lib/useReducedMotion";
@@ -206,7 +207,13 @@ function PartnerSlide({ slide, clone, label, sampleLabel, ctaLabel, siteLabel, n
   return (
     <article className="partner-slide" style={style} role="group" aria-roledescription="slide" aria-label={label} aria-hidden={clone || undefined} inert={clone || undefined}>
       <div className="partner-slide__art" aria-hidden="true">
-        {slide.emoji}
+        {slide.logo ? (
+          // 정적 내보내기(GitHub Pages)라 next/image 의 최적화는 쓰지 않아요. 이름 바로 옆의 장식이라 alt 는 비워요
+          // eslint-disable-next-line @next/next/no-img-element
+          <img className="partner-slide__logo" src={partnerLogoSrc(slide.logo)} alt="" width={64} height={64} draggable={false} />
+        ) : (
+          slide.emoji
+        )}
       </div>
       <div className="partner-slide__main">
         <p className="partner-slide__meta">

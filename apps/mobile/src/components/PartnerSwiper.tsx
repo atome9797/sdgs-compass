@@ -3,11 +3,12 @@
 // 손으로 넘기는 동안 · 멈춤 단추를 누른 뒤 · 움직임 줄이기(Reduce Motion)가 켜져 있으면 저절로 넘기지 않아요.
 // 단추: 웹사이트가 있는 실제 단체는 그 단체의 페이지(브라우저), 샘플 단체는 같은 SDGs 목표의 퀘스트 검색(onOpen).
 import { useEffect, useRef, useState } from "react";
-import { AccessibilityInfo, FlatList, Linking, Pressable, StyleSheet, Text, useWindowDimensions, View, type LayoutChangeEvent, type NativeScrollEvent, type NativeSyntheticEvent } from "react-native";
+import { AccessibilityInfo, FlatList, Image, Linking, Pressable, StyleSheet, Text, useWindowDimensions, View, type LayoutChangeEvent, type NativeScrollEvent, type NativeSyntheticEvent } from "react-native";
 import type { TFunction } from "@sdgs-compass/core/messages";
 import type { SdgId } from "@sdgs-compass/core/sdg";
 import type { PartnerBannerVM } from "@sdgs-compass/core/selectors";
 import { SdgMiniRow } from "@/components/SdgTile";
+import { PARTNER_LOGOS } from "@/lib/partnerLogos";
 import { COLORS, FONT_SIZE, HIT, RADIUS, SPACE } from "@/theme";
 
 /** 다음 장으로 넘어가기까지의 시간 (웹 lib/carousel 의 AUTOPLAY_MS 와 같아요) */
@@ -141,10 +142,15 @@ interface SlideProps {
 
 function Slide({ slide, width, label, sampleLabel, ctaLabel, ctaHint, onOpen, testID }: SlideProps) {
   const external = slide.url !== null;
+  const logo = slide.logo ? PARTNER_LOGOS[slide.logo] : undefined;
   return (
     <View testID={testID} style={[styles.slide, { width, backgroundColor: slide.accent }]} accessibilityLabel={label}>
-      <View style={styles.art} importantForAccessibility="no-hide-descendants" accessibilityElementsHidden>
-        <Text style={styles.emoji}>{slide.emoji}</Text>
+      <View style={[styles.art, logo ? styles.artLogo : null]} importantForAccessibility="no-hide-descendants" accessibilityElementsHidden>
+        {logo ? (
+          <Image testID={testID ? `${testID}-logo` : undefined} source={logo} style={styles.logo} resizeMode="contain" />
+        ) : (
+          <Text style={styles.emoji}>{slide.emoji}</Text>
+        )}
       </View>
       <View style={styles.main}>
         <View style={styles.meta}>
@@ -177,6 +183,9 @@ const styles = StyleSheet.create({
   slide: { flexDirection: "row", gap: 14, padding: SPACE.lg },
   art: { width: 64, height: 64, borderRadius: 32, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255, 255, 255, 0.16)" },
   emoji: { fontSize: 34 },
+  // 허락받은 단체의 로고: 흰 동그라미 안에 그림 전체가 보이게 (로고 바탕이 흰색)
+  artLogo: { backgroundColor: COLORS.card, padding: 3 },
+  logo: { width: "100%", height: "100%", borderRadius: 29 },
   main: { flex: 1, gap: 3 },
   meta: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 6 },
   name: { color: COLORS.onPrimary, fontSize: FONT_SIZE.sm, fontWeight: "800" },

@@ -335,6 +335,8 @@ export interface PartnerBannerVM {
   sdgIds: SdgId[];
   /** 단체의 웹사이트 (허락받은 실제 단체만, 없으면 null → 단추는 SDGs 목표 검색) */
   url: string | null;
+  /** 로고 파일 이름 (허락받은 실제 단체만, 없으면 null → 이모지) */
+  logo: string | null;
   /** 가상의 샘플 단체면 「サンプル」 표시 */
   sample: boolean;
 }
@@ -350,6 +352,7 @@ export function selectPartnerBanners(locale: Locale): PartnerBannerVM[] {
     accent: p.accent,
     sdgIds: [...p.sdgIds],
     url: p.url ?? null,
+    logo: p.logo ?? null,
     sample: p.sample,
   }));
 }

@@ -1,8 +1,9 @@
 // 첫 화면(SCR-01)의 협력 단체 배너 — 웹(components/PartnerSwiper)과 같은, Swiper 처럼 저절로 넘어가는 광고 배너.
 // 5초마다 다음 장으로 넘어가고(마지막 다음은 첫 장), 손가락으로 넘길 수 있고, 아래 점을 누르면 그 장으로 가요.
 // 손으로 넘기는 동안 · 멈춤 단추를 누른 뒤 · 움직임 줄이기(Reduce Motion)가 켜져 있으면 저절로 넘기지 않아요.
+// 단추: 웹사이트가 있는 실제 단체는 그 단체의 페이지(브라우저), 샘플 단체는 같은 SDGs 목표의 퀘스트 검색(onOpen).
 import { useEffect, useRef, useState } from "react";
-import { AccessibilityInfo, FlatList, Pressable, StyleSheet, Text, useWindowDimensions, View, type LayoutChangeEvent, type NativeScrollEvent, type NativeSyntheticEvent } from "react-native";
+import { AccessibilityInfo, FlatList, Linking, Pressable, StyleSheet, Text, useWindowDimensions, View, type LayoutChangeEvent, type NativeScrollEvent, type NativeSyntheticEvent } from "react-native";
 import type { TFunction } from "@sdgs-compass/core/messages";
 import type { SdgId } from "@sdgs-compass/core/sdg";
 import type { PartnerBannerVM } from "@sdgs-compass/core/selectors";
@@ -83,8 +84,12 @@ export function PartnerSwiper({ slides, t, onOpen, testID }: { slides: readonly 
               width={width}
               label={t("home.partnersSlide", { index: i + 1, count })}
               sampleLabel={t("home.partnersSample")}
-              ctaLabel={t("home.partnersCta")}
-              onOpen={() => onOpen(item.sdgIds)}
+              ctaLabel={item.url ? t("home.partnersSite") : t("home.partnersCta")}
+              ctaHint={item.url ? t("home.partnersSiteHint") : undefined}
+              onOpen={() => {
+                if (item.url) void Linking.openURL(item.url).catch(() => undefined);
+                else onOpen(item.sdgIds);
+              }}
               testID={testID ? `${testID}-slide-${item.id}` : undefined}
             />
           )}
@@ -122,7 +127,20 @@ export function PartnerSwiper({ slides, t, onOpen, testID }: { slides: readonly 
   );
 }
 
-function Slide({ slide, width, label, sampleLabel, ctaLabel, onOpen, testID }: { slide: PartnerBannerVM; width: number; label: string; sampleLabel: string; ctaLabel: string; onOpen: () => void; testID?: string }) {
+interface SlideProps {
+  slide: PartnerBannerVM;
+  width: number;
+  label: string;
+  sampleLabel: string;
+  ctaLabel: string;
+  /** 웹사이트로 가는 단추일 때 「ブラウザで開きます」 */
+  ctaHint?: string;
+  onOpen: () => void;
+  testID?: string;
+}
+
+function Slide({ slide, width, label, sampleLabel, ctaLabel, ctaHint, onOpen, testID }: SlideProps) {
+  const external = slide.url !== null;
   return (
     <View testID={testID} style={[styles.slide, { width, backgroundColor: slide.accent }]} accessibilityLabel={label}>
       <View style={styles.art} importantForAccessibility="no-hide-descendants" accessibilityElementsHidden>
@@ -140,12 +158,13 @@ function Slide({ slide, width, label, sampleLabel, ctaLabel, onOpen, testID }: {
           <SdgMiniRow ids={slide.sdgIds} size={22} />
           <Pressable
             testID={testID ? `${testID}-cta` : undefined}
-            accessibilityRole="button"
+            accessibilityRole={external ? "link" : "button"}
             accessibilityLabel={`${slide.name} ${ctaLabel}`}
+            accessibilityHint={ctaHint}
             onPress={onOpen}
             style={({ pressed }) => [styles.cta, pressed ? styles.ctaPressed : null]}
           >
-            <Text style={[styles.ctaText, { color: slide.accent }]}>{ctaLabel}</Text>
+            <Text style={[styles.ctaText, { color: slide.accent }]}>{external ? `${ctaLabel} ↗` : ctaLabel}</Text>
           </Pressable>
         </View>
       </View>

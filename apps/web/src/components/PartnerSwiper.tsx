@@ -161,6 +161,8 @@ export function PartnerSwiper({ slides }: { slides: readonly PartnerBannerVM[] }
               label={t("home.partnersSlide", { index: entry.index + 1, count })}
               sampleLabel={t("home.partnersSample")}
               ctaLabel={t("home.partnersCta")}
+              siteLabel={t("home.partnersSite")}
+              newTabLabel={t("web.newTab")}
             />
           ))}
         </div>
@@ -188,7 +190,18 @@ export function PartnerSwiper({ slides }: { slides: readonly PartnerBannerVM[] }
   );
 }
 
-function PartnerSlide({ slide, clone, label, sampleLabel, ctaLabel }: { slide: PartnerBannerVM; clone: boolean; label: string; sampleLabel: string; ctaLabel: string }) {
+interface PartnerSlideProps {
+  slide: PartnerBannerVM;
+  clone: boolean;
+  label: string;
+  sampleLabel: string;
+  ctaLabel: string;
+  siteLabel: string;
+  newTabLabel: string;
+}
+
+// 단추: 웹사이트가 있는 실제 단체는 그 단체의 페이지(새 탭), 샘플 단체는 같은 SDGs 목표의 퀘스트 검색
+function PartnerSlide({ slide, clone, label, sampleLabel, ctaLabel, siteLabel, newTabLabel }: PartnerSlideProps) {
   const style = { "--partner-accent": slide.accent } as CSSProperties;
   return (
     <article className="partner-slide" style={style} role="group" aria-roledescription="slide" aria-label={label} aria-hidden={clone || undefined} inert={clone || undefined}>
@@ -205,9 +218,17 @@ function PartnerSlide({ slide, clone, label, sampleLabel, ctaLabel }: { slide: P
         <p className="partner-slide__body">{slide.body}</p>
         <div className="partner-slide__foot">
           <SdgMiniRow ids={slide.sdgIds} />
-          <Link className="partner-slide__cta" href={searchHref({ sdgIds: slide.sdgIds })} draggable={false}>
-            {ctaLabel}
-          </Link>
+          {slide.url ? (
+            <a className="partner-slide__cta" href={slide.url} target="_blank" rel="noopener noreferrer" draggable={false}>
+              {siteLabel}
+              <span aria-hidden="true">&nbsp;↗</span>
+              <span className="sr-only">{newTabLabel}</span>
+            </a>
+          ) : (
+            <Link className="partner-slide__cta" href={searchHref({ sdgIds: slide.sdgIds })} draggable={false}>
+              {ctaLabel}
+            </Link>
+          )}
         </div>
       </div>
     </article>

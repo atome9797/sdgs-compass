@@ -333,6 +333,8 @@ export interface PartnerBannerVM {
   /** 배너 바탕색 (흰 글자와 대비 4.5:1 이상) */
   accent: string;
   sdgIds: SdgId[];
+  /** 단체의 웹사이트 (허락받은 실제 단체만, 없으면 null → 단추는 SDGs 목표 검색) */
+  url: string | null;
   /** 가상의 샘플 단체면 「サンプル」 표시 */
   sample: boolean;
 }
@@ -347,6 +349,7 @@ export function selectPartnerBanners(locale: Locale): PartnerBannerVM[] {
     emoji: p.emoji,
     accent: p.accent,
     sdgIds: [...p.sdgIds],
+    url: p.url ?? null,
     sample: p.sample,
   }));
 }

@@ -58,16 +58,18 @@ test("실제 단체: 이름 · 광고 문구, 「サンプル」 없음 · 「�
   expect(onOpen).not.toHaveBeenCalled();
 });
 
-test("로고: 허락받은 단체는 로고 그림, 없는 단체는 이모지", async () => {
+test("로고: 허락받은 단체는 로고 그림, 없는 단체는 이모지 (둘 다 장식이라 화면 읽기에서는 숨겨요)", async () => {
   await render(<PartnerSwiper testID="partners" slides={slides} t={t} onOpen={() => undefined} />);
+  const hidden = { includeHiddenElements: true };
   for (const p of slides) {
     const slide = within(screen.getByTestId(`partners-slide-${p.id}`));
     if (p.logo) {
-      expect(screen.getByTestId(`partners-slide-${p.id}-logo`)).toBeOnTheScreen();
-      expect(slide.queryByText(p.emoji)).toBeNull();
-    } else {
+      expect(screen.getByTestId(`partners-slide-${p.id}-logo`, hidden)).toBeOnTheScreen();
       expect(screen.queryByTestId(`partners-slide-${p.id}-logo`)).toBeNull();
-      expect(slide.getByText(p.emoji)).toBeOnTheScreen();
+      expect(slide.queryByText(p.emoji, hidden)).toBeNull();
+    } else {
+      expect(screen.queryByTestId(`partners-slide-${p.id}-logo`, hidden)).toBeNull();
+      expect(slide.getByText(p.emoji, hidden)).toBeOnTheScreen();
     }
   }
   expect(slides.some((p) => p.logo)).toBe(true);

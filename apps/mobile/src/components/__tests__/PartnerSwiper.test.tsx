@@ -11,6 +11,12 @@ const t = makeT("ja");
 const real = slides.find((slide) => slide.url !== null);
 const sample = slides.find((slide) => slide.sample);
 
+// Linking.openURL 은 react-native 의 jest 설정이 이미 jest.fn 으로 바꿔 둬서, spyOn 이 그 함수를 그대로 돌려줘요.
+// restoreAllMocks 만으로는 앞 테스트의 호출 기록이 남으므로, 테스트마다 먼저 지워요.
+beforeEach(() => {
+  jest.clearAllMocks();
+});
+
 afterEach(() => {
   jest.restoreAllMocks();
 });
@@ -18,7 +24,7 @@ afterEach(() => {
 test("실제 단체: 이름 · 광고 문구, 「サンプル」 없음 · 「ウェブサイトを見る ↗」를 누르면 그 단체의 웹사이트를 열어요", async () => {
   if (!real?.url) throw new Error("웹사이트가 있는 실제 단체가 없어요");
   const onOpen = jest.fn();
-  const openURL = jest.spyOn(Linking, "openURL").mockResolvedValue(true);
+  const openURL = jest.spyOn(Linking, "openURL").mockResolvedValue(undefined);
   await render(<PartnerSwiper testID="partners" slides={slides} t={t} onOpen={onOpen} />);
   const slide = within(screen.getByTestId(`partners-slide-${real.id}`));
   expect(slide.getByText(real.name)).toBeOnTheScreen();
@@ -37,7 +43,7 @@ test("실제 단체: 이름 · 광고 문구, 「サンプル」 없음 · 「�
 test("샘플 단체: 「サンプル」 표시 · 「関連するクエストを見る」를 누르면 그 단체의 SDGs 목표로 검색", async () => {
   if (!sample) throw new Error("샘플 단체가 없어요");
   const onOpen = jest.fn();
-  const openURL = jest.spyOn(Linking, "openURL").mockResolvedValue(true);
+  const openURL = jest.spyOn(Linking, "openURL").mockResolvedValue(undefined);
   await render(<PartnerSwiper testID="partners" slides={slides} t={t} onOpen={onOpen} />);
   const slide = within(screen.getByTestId(`partners-slide-${sample.id}`));
   expect(slide.getByText("サンプル")).toBeOnTheScreen();
